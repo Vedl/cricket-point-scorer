@@ -1,3 +1,5 @@
+import math
+
 class CricketScoreCalculator:
     def calculate_score(self, stats):
         """
@@ -7,24 +9,21 @@ class CricketScoreCalculator:
             stats (dict): A dictionary containing player statistics.
         
         Returns:
-            float: The calculated fantasy score.
+            int: The calculated fantasy score (rounded up).
         """
-        score = 0.0 # Changed from 0 to 0.0 for consistency with original float return
+        score = 0.0
         
         # --- Role Classification ---
         role = stats.get('role', 'Unknown').lower()
         is_bowler = 'bowler' in role and 'allrou' not in role # Pure bowler
         is_bowling_allrounder = 'bowling allrounder' in role
         is_wk = 'wk' in role or 'wicket' in role
-        is_pure_batter = 'batsman' in role and 'wk' not in role and 'allrou' not in role
         
         # Exemption Flags
-        # Bowlers and Bowling Allrounders exempt from some batting penalties
         exempt_duck_penalty = is_bowler or is_bowling_allrounder
         exempt_sr_penalty = is_bowler or is_bowling_allrounder
         
-        # Lower bonus threshold for tailenders (Pure Bowlers only?)
-        # Let's apply to Pure Bowlers
+        # Lower bonus threshold for tailenders (Pure Bowlers only)
         run_bonus_threshold = 15 if is_bowler else 30
         
         runs = stats.get('runs', 0)
@@ -46,8 +45,7 @@ class CricketScoreCalculator:
             score += 2 # 30 Run Bonus (or 15 for bowlers)
             
         # Duck Penalty 
-        if runs == 0 and balls > 0 and (stats.get('is_batter_or_allrounder', False) or is_wk): # Added default False for is_batter_or_allrounder
-            # Only applied if NOT exempt
+        if runs == 0 and balls > 0 and (stats.get('is_batter_or_allrounder', False) or is_wk):
             if not exempt_duck_penalty:
                 score -= 2
 
@@ -61,63 +59,57 @@ class CricketScoreCalculator:
             elif 170 < sr <= 200:
                 score += 3 
             elif 150 < sr <= 170:
-                score += 2 # Reduced from 4
+                score += 2 
             elif 130 < sr <= 150:
-                score += 1 # Reduced from 2
+                score += 1 
             elif 60 < sr <= 70:
-                if not exempt_sr_penalty: score -= 1 # Reduced from 2
+                if not exempt_sr_penalty: score -= 1 
             elif 50 < sr <= 60:
-                if not exempt_sr_penalty: score -= 2 # Reduced from 4
+                if not exempt_sr_penalty: score -= 2 
             elif sr <= 50:
-                if not exempt_sr_penalty: score -= 3 # Reduced from 6
+                if not exempt_sr_penalty: score -= 3 
 
         # --- Bowling Points ---
         wickets = stats.get('wickets', 0)
         lbw_bowled = stats.get('lbw_bowled_bonus', 0)
         maidens = stats.get('maidens', 0)
         
-        score += wickets * 12 # Reduced from 25
-        score += lbw_bowled * 4 # Bonus (Reduced from 8)
-        score += maidens * 4 # Bonus (Reduced from 12)
+        score += wickets * 12 
+        score += lbw_bowled * 4 
+        score += maidens * 4 
         
         # Wicket Haul Bonus
         if wickets >= 5:
-            score += 12 # Reduced from 16
+            score += 12 
         elif wickets == 4:
-            score += 8 # Reduced from 8 (?) - Let's keep 8
+            score += 8 
         elif wickets == 3:
-            score += 4 # Reduced from 4 (?) - Let's keep 4
+            score += 4 
             
         # Economy Rate
         overs = stats.get('overs_bowled', 0.0)
         runs_conceded = stats.get('runs_conceded', 0)
         
         if overs >= 2.0:
-            # ER Calculation
-            # Standard overs: 1.1 = 1.166? No, inputs usually decimal 1.1 means 1.1 overs.
-            # But Cricbuzz gives 3.5 implies 3 overs 5 balls.
-            # Convert to balls for accurate Eco? 
-            # Simplified: Eco = Runs / Overs (Classic calc uses decimal overs directly often, or balls)
-            # Correct way: 3.5 = 3 + 5/6 = 3.833 overs.
-            import math
+            import math as m # Avoid conflict if needed, though local scope
             o_int = int(overs)
-            o_dec = (overs - o_int) * 10 # .5 -> 5
+            o_dec = (overs - o_int) * 10 
             actual_overs = o_int + (o_dec / 6)
             
             if actual_overs > 0:
                 eco = runs_conceded / actual_overs
                 if eco < 5:
-                    score += 3 # Reduced from 6
+                    score += 3 
                 elif 5 <= eco < 6:
-                    score += 2 # Reduced from 4
+                    score += 2 
                 elif 6 <= eco <= 7:
-                    score += 1 # Reduced from 2
+                    score += 1 
                 elif 10 <= eco <= 11:
-                    score -= 1 # Reduced from 2
+                    score -= 1 
                 elif 11 < eco <= 12:
-                    score -= 2 # Reduced from 4
+                    score -= 2 
                 elif eco > 12:
-                    score -= 3 # Reduced from 6
+                    score -= 3 
 
         # --- Fielding Points ---
         catches = stats.get('catches', 0)
@@ -125,12 +117,12 @@ class CricketScoreCalculator:
         run_outs_direct = stats.get('run_outs_direct', 0)
         run_outs_throw = stats.get('run_outs_throw', 0)
         
-        score += catches * 4 # Reduced from 8
+        score += catches * 4 
         if catches >= 3:
-            score += 2 # Bonus (Reduced from 4)
+            score += 2
             
-        score += stumpings * 6 # Reduced from 12
-        score += run_outs_direct * 6 # Reduced from 12
-        score += run_outs_throw * 3 # Reduced from 6
+        score += stumpings * 6 
+        score += run_outs_direct * 6 
+        score += run_outs_throw * 3 
             
-        return score
+        return math.ceil(score)

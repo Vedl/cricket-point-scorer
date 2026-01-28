@@ -19,8 +19,8 @@ def test_edge_cases():
     score_finisher = calc.calculate_score(finisher)
     print(f"Case 1: 1 Ball, 6 Runs (SR 600)")
     print(f"  Score: {score_finisher}")
-    print(f"  Expected: 3.0 (runs) + 1.0 (six) = 4.0. No SR bonus.")
-    print(f"  Status: {'PASS' if score_finisher == 4.0 else 'FAIL'}\n")
+    print(f"  Expected: 4. No SR bonus.")
+    print(f"  Status: {'PASS' if score_finisher == 4 else 'FAIL'}\n")
 
     # Case 2: High Scoring IPL Innings (Head/Abhishek style)
     # 80 runs off 24 balls (SR 333). 
@@ -42,7 +42,7 @@ def test_edge_cases():
     print(f"    50 Bonus: 4.0")
     print(f"    30 Bonus: 2.0")
     print(f"    SR Bonus (>250): 5.0")
-    expected_head = 40 + 4 + 6 + 4 + 2 + 5
+    expected_head = 61
     print(f"  Score: {score_head}")
     print(f"  Expected: {expected_head}")
     print(f"  Status: {'PASS' if score_head == expected_head else 'FAIL'}\n")
@@ -65,7 +65,7 @@ def test_edge_cases():
     print(f"    Boundaries: 5 + 2 = 7.0")
     print(f"    Bonuses (30/50/100): 2+4+8 = 14.0")
     print(f"    SR Bonus (130-150): 1.0")
-    expected_cent = 50 + 7 + 14 + 1
+    expected_cent = 72
     print(f"  Score: {score_cent}")
     print(f"  Expected: {expected_cent}")
     print(f"  Status: {'PASS' if score_cent == expected_cent else 'FAIL'}\n")
@@ -81,8 +81,8 @@ def test_edge_cases():
     score_bd = calc.calculate_score(bowler_duck)
     print(f"Case 4: Bowler Duck")
     print(f"  Score: {score_bd}")
-    print(f"  Expected: 0.0 (Exempt from -2)")
-    print(f"  Status: {'PASS' if score_bd == 0.0 else 'FAIL'}\n")
+    print(f"  Expected: 0 (Exempt from -2)")
+    print(f"  Status: {'PASS' if score_bd == 0 else 'FAIL'}\n")
 
 if __name__ == "__main__":
     test_edge_cases()

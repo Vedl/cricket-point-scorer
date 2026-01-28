@@ -65,7 +65,7 @@ if st.button("Calculate Points", type="primary"):
                     st.dataframe(
                         df,
                         column_config={
-                            "Points": st.column_config.NumberColumn(format="%.1f"),
+                            "Points": st.column_config.NumberColumn(format="%d"),
                         },
                         use_container_width=True,
                         height=600
