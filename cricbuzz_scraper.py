@@ -110,6 +110,22 @@ class CricbuzzScraper:
                 players[name]['profile_url'] = profile_url
             return players[name]
 
+        # --- Pre-Scan All Players ---
+        # Scan the entire page for player profile links to build a full roster first.
+        # This ensures that even "Did not bat" players or those bowling in the 2nd innings
+        # are known (with Full Name & URL) before we parse fielders/stats.
+        profile_links = soup.find_all('a', href=re.compile(r'^/profiles/'))
+        for link in profile_links:
+            name = link.get_text().strip()
+            url = link.get('href')
+            # valid player names usually don't have newlines or excessive length
+            if name and len(name) < 50:
+                 # Normalize name (remove captain/keeper markers if any, though usually separate)
+                 name_clean = re.sub(r'\s*\(.*?\)', '', name).strip()
+                 # Add to roster if new
+                 get_player(name_clean, url)
+        
+        # --- Batting Parsing ---
         # --- Batting Parsing ---
         # Strictly look for 'wb:scorecard-bat-grid-web' to target desktop view and avoid duplicates
         bat_rows = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 'wb:scorecard-bat-grid-web' in tag.get('class'))
