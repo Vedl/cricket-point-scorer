@@ -61,6 +61,42 @@ class CricbuzzScraper:
         
         players = {} 
 
+        def get_best_match_player(name_fragment):
+            """
+            Attempts to find an existing player whose name contains the fragment.
+            Useful for linking 'Conway' (catch) to 'Devon Conway' (batter).
+            """
+            if name_fragment in players:
+                return players[name_fragment]
+            
+            # Helper to normalize names for comparison
+            def normalize(n): return n.lower().replace('.', ' ').strip()
+            
+            fragment_norm = normalize(name_fragment)
+            
+            # 1. Try exact last name match first (most common)
+            # e.g. 'Conway' -> 'Devon Conway'
+            for pname in players:
+                parts = pname.split()
+                if len(parts) > 1 and normalize(parts[-1]) == fragment_norm:
+                    return players[pname]
+                    
+            # 2. Try strict substring (word boundary preferred)
+            # e.g. 'J Bairstow' -> 'Jonny Bairstow' matches 'Bairstow'
+            for pname in players:
+                pname_norm = normalize(pname)
+                # Check if fragment is a distinct part of the name
+                if f" {fragment_norm} " in f" {pname_norm} ":
+                    return players[pname]
+            
+            # 3. Fallback: Loose substring (risky for short names like 'Wade' in 'Wadekar' but rare in match content)
+            for pname in players:
+                if fragment_norm in normalize(pname):
+                    return players[pname]
+                    
+            # No match found, create new (likely sub fielder or unmatched)
+            return get_player(name_fragment)
+
         def get_player(name, profile_url=None):
             if name not in players:
                 players[name] = {
@@ -135,29 +171,32 @@ class CricbuzzScraper:
                 if 'c ' in dismissal_text:
                      if 'c & b' in dismissal_text:
                          bowler_name = dismissal_text.split('c & b')[1].strip()
-                         cp = get_player(bowler_name)
+                         # Bowler is usually already in players/processed, but might not be if parsing order varies
+                         # Use simple get for bowler as name is usually more complete here? 
+                         # Actually c & b usually has 'c & b BowlerName'.
+                         cp = get_closest_player_name(bowler_name) 
                          cp['catches'] = cp.get('catches', 0) + 1
                      else:
                          if ' b ' in dismissal_text:
                              catcher_part = dismissal_text.split(' b ')[0]
                              ifcatcher_name = catcher_part.replace('c ', '', 1).strip()
                              ifcatcher_name = re.sub(r'\(.*?\)', '', ifcatcher_name).strip()
-                             cp = get_player(ifcatcher_name)
+                             
+                             # Use Fuzzy Match
+                             cp = get_closest_player_name(ifcatcher_name)
                              cp['catches'] = cp.get('catches', 0) + 1
 
                 if 'st ' in dismissal_text and 'b ' in dismissal_text:
                      stumper_part = dismissal_text.split(' b ')[0]
                      stumper_name = stumper_part.replace('st ', '', 1).strip()
-                     sp = get_player(stumper_name)
+                     sp = get_closest_player_name(stumper_name)
                      sp['stumpings'] = sp.get('stumpings', 0) + 1
                      
-                if 'run out' in dismissal_text:
-                     match = re.search(r'run out \((.*?)\)', dismissal_text)
                      if match:
                          fielders = match.group(1).split('/')
                          for f in fielders:
                              f_clean = re.sub(r'\(.*?\)', '', f).strip()
-                             fp = get_player(f_clean)
+                             fp = get_best_match_player(f_clean)
                              if len(fielders) == 1:
                                  fp['run_outs_direct'] = fp.get('run_outs_direct', 0) + 1
                              else:
