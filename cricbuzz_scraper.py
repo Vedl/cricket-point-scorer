@@ -174,7 +174,7 @@ class CricbuzzScraper:
                          # Bowler is usually already in players/processed, but might not be if parsing order varies
                          # Use simple get for bowler as name is usually more complete here? 
                          # Actually c & b usually has 'c & b BowlerName'.
-                         cp = get_closest_player_name(bowler_name) 
+                         cp = get_best_match_player(bowler_name) 
                          cp['catches'] = cp.get('catches', 0) + 1
                      else:
                          if ' b ' in dismissal_text:
@@ -183,13 +183,13 @@ class CricbuzzScraper:
                              ifcatcher_name = re.sub(r'\(.*?\)', '', ifcatcher_name).strip()
                              
                              # Use Fuzzy Match
-                             cp = get_closest_player_name(ifcatcher_name)
+                             cp = get_best_match_player(ifcatcher_name)
                              cp['catches'] = cp.get('catches', 0) + 1
 
                 if 'st ' in dismissal_text and 'b ' in dismissal_text:
                      stumper_part = dismissal_text.split(' b ')[0]
                      stumper_name = stumper_part.replace('st ', '', 1).strip()
-                     sp = get_closest_player_name(stumper_name)
+                     sp = get_best_match_player(stumper_name)
                      sp['stumpings'] = sp.get('stumpings', 0) + 1
                      
                      if match:
