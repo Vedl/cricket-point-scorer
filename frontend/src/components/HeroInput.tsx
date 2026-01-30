@@ -40,3 +40,5 @@ export const HeroInput: React.FC<Props> = ({ onSearch, isLoading }) => {
         </div>
     );
 };
+
+export default HeroInput;

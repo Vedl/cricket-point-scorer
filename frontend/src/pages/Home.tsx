@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Gavel, Trophy, Share2, Activity, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { Trophy, Activity } from 'lucide-react';
 import api from '../api';
 import HeroInput from '../components/HeroInput';
 import PlayerCard from '../components/PlayerCard';
@@ -45,7 +45,7 @@ function Home() {
             </header>
 
             <section className="max-w-3xl mx-auto px-4">
-                <HeroInput onSubmit={handleCalculate} isLoading={loading} />
+                <HeroInput onSearch={handleCalculate} isLoading={loading} />
 
                 {error && (
                     <div className="mt-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-center animate-in fade-in slide-in-from-top-4">
@@ -82,7 +82,6 @@ function Home() {
                                         key={idx}
                                         player={player}
                                         rank={idx + 1}
-                                        isWinner={idx === 0}
                                     />
                                 ))}
                             </div>

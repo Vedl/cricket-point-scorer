@@ -74,3 +74,5 @@ export const PlayerCard: React.FC<{ player: Player; rank: number }> = ({ player,
         </div>
     );
 };
+
+export default PlayerCard;

@@ -1,0 +1,899 @@
+{
+    "players": [
+        {
+            "name": "Rohit Sharma",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Virat Kohli",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Suryakumar Yadav",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "KL Rahul",
+            "role": "WK",
+            "country": "India"
+        },
+        {
+            "name": "Rishabh Pant",
+            "role": "WK",
+            "country": "India"
+        },
+        {
+            "name": "Hardik Pandya",
+            "role": "AR",
+            "country": "India"
+        },
+        {
+            "name": "Ravindra Jadeja",
+            "role": "AR",
+            "country": "India"
+        },
+        {
+            "name": "Axar Patel",
+            "role": "AR",
+            "country": "India"
+        },
+        {
+            "name": "Jasprit Bumrah",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Mohammed Siraj",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Arshdeep Singh",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Kuldeep Yadav",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Yuzvendra Chahal",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Shubman Gill",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Yashasvi Jaiswal",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Sanju Samson",
+            "role": "WK",
+            "country": "India"
+        },
+        {
+            "name": "Rinku Singh",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Shreyas Iyer",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Jos Buttler",
+            "role": "WK",
+            "country": "England"
+        },
+        {
+            "name": "Phil Salt",
+            "role": "WK",
+            "country": "England"
+        },
+        {
+            "name": "Harry Brook",
+            "role": "Bat",
+            "country": "England"
+        },
+        {
+            "name": "Jonny Bairstow",
+            "role": "Bat",
+            "country": "England"
+        },
+        {
+            "name": "Ben Stokes",
+            "role": "AR",
+            "country": "England"
+        },
+        {
+            "name": "Moeen Ali",
+            "role": "AR",
+            "country": "England"
+        },
+        {
+            "name": "Liam Livingstone",
+            "role": "AR",
+            "country": "England"
+        },
+        {
+            "name": "Sam Curran",
+            "role": "AR",
+            "country": "England"
+        },
+        {
+            "name": "Jofra Archer",
+            "role": "Bowl",
+            "country": "England"
+        },
+        {
+            "name": "Mark Wood",
+            "role": "Bowl",
+            "country": "England"
+        },
+        {
+            "name": "Adil Rashid",
+            "role": "Bowl",
+            "country": "England"
+        },
+        {
+            "name": "Reece Topley",
+            "role": "Bowl",
+            "country": "England"
+        },
+        {
+            "name": "Chris Jordan",
+            "role": "Bowl",
+            "country": "England"
+        },
+        {
+            "name": "Will Jacks",
+            "role": "AR",
+            "country": "England"
+        },
+        {
+            "name": "Pat Cummins",
+            "role": "Bowl",
+            "country": "Australia"
+        },
+        {
+            "name": "Mitchell Starc",
+            "role": "Bowl",
+            "country": "Australia"
+        },
+        {
+            "name": "Josh Hazlewood",
+            "role": "Bowl",
+            "country": "Australia"
+        },
+        {
+            "name": "Adam Zampa",
+            "role": "Bowl",
+            "country": "Australia"
+        },
+        {
+            "name": "Glenn Maxwell",
+            "role": "AR",
+            "country": "Australia"
+        },
+        {
+            "name": "Marcus Stoinis",
+            "role": "AR",
+            "country": "Australia"
+        },
+        {
+            "name": "Mitchell Marsh",
+            "role": "AR",
+            "country": "Australia"
+        },
+        {
+            "name": "Travis Head",
+            "role": "Bat",
+            "country": "Australia"
+        },
+        {
+            "name": "David Warner",
+            "role": "Bat",
+            "country": "Australia"
+        },
+        {
+            "name": "Steve Smith",
+            "role": "Bat",
+            "country": "Australia"
+        },
+        {
+            "name": "Matthew Wade",
+            "role": "WK",
+            "country": "Australia"
+        },
+        {
+            "name": "Josh Inglis",
+            "role": "WK",
+            "country": "Australia"
+        },
+        {
+            "name": "Tim David",
+            "role": "Bat",
+            "country": "Australia"
+        },
+        {
+            "name": "Cameron Green",
+            "role": "AR",
+            "country": "Australia"
+        },
+        {
+            "name": "Babar Azam",
+            "role": "Bat",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Mohammad Rizwan",
+            "role": "WK",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Fakhar Zaman",
+            "role": "Bat",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Shaheen Afridi",
+            "role": "Bowl",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Naseem Shah",
+            "role": "Bowl",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Haris Rauf",
+            "role": "Bowl",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Shadab Khan",
+            "role": "AR",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Imad Wasim",
+            "role": "AR",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Iftikhar Ahmed",
+            "role": "AR",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Saim Ayub",
+            "role": "Bat",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Mohammad Haris",
+            "role": "WK",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Abbas Afridi",
+            "role": "Bowl",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Kane Williamson",
+            "role": "Bat",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Devon Conway",
+            "role": "WK",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Daryl Mitchell",
+            "role": "AR",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Glenn Phillips",
+            "role": "WK",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Rachin Ravindra",
+            "role": "AR",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Mitchell Santner",
+            "role": "AR",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Trent Boult",
+            "role": "Bowl",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Tim Southee",
+            "role": "Bowl",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Lockie Ferguson",
+            "role": "Bowl",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Ish Sodhi",
+            "role": "Bowl",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Mark Chapman",
+            "role": "Bat",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Finn Allen",
+            "role": "WK",
+            "country": "New Zealand"
+        },
+        {
+            "name": "Quinton de Kock",
+            "role": "WK",
+            "country": "South Africa"
+        },
+        {
+            "name": "Aiden Markram",
+            "role": "AR",
+            "country": "South Africa"
+        },
+        {
+            "name": "David Miller",
+            "role": "Bat",
+            "country": "South Africa"
+        },
+        {
+            "name": "Heinrich Klaasen",
+            "role": "WK",
+            "country": "South Africa"
+        },
+        {
+            "name": "Tristan Stubbs",
+            "role": "Bat",
+            "country": "South Africa"
+        },
+        {
+            "name": "Marco Jansen",
+            "role": "AR",
+            "country": "South Africa"
+        },
+        {
+            "name": "Kagiso Rabada",
+            "role": "Bowl",
+            "country": "South Africa"
+        },
+        {
+            "name": "Anrich Nortje",
+            "role": "Bowl",
+            "country": "South Africa"
+        },
+        {
+            "name": "Lungi Ngidi",
+            "role": "Bowl",
+            "country": "South Africa"
+        },
+        {
+            "name": "Keshav Maharaj",
+            "role": "Bowl",
+            "country": "South Africa"
+        },
+        {
+            "name": "Tabraiz Shamsi",
+            "role": "Bowl",
+            "country": "South Africa"
+        },
+        {
+            "name": "Reeza Hendricks",
+            "role": "Bat",
+            "country": "South Africa"
+        },
+        {
+            "name": "Nicholas Pooran",
+            "role": "WK",
+            "country": "West Indies"
+        },
+        {
+            "name": "Shai Hope",
+            "role": "WK",
+            "country": "West Indies"
+        },
+        {
+            "name": "Brandon King",
+            "role": "Bat",
+            "country": "West Indies"
+        },
+        {
+            "name": "Sherfane Rutherford",
+            "role": "Bat",
+            "country": "West Indies"
+        },
+        {
+            "name": "Rovman Powell",
+            "role": "Bat",
+            "country": "West Indies"
+        },
+        {
+            "name": "Andre Russell",
+            "role": "AR",
+            "country": "West Indies"
+        },
+        {
+            "name": "Roston Chase",
+            "role": "AR",
+            "country": "West Indies"
+        },
+        {
+            "name": "Alzarri Joseph",
+            "role": "Bowl",
+            "country": "West Indies"
+        },
+        {
+            "name": "Akeal Hosein",
+            "role": "Bowl",
+            "country": "West Indies"
+        },
+        {
+            "name": "Obed McCoy",
+            "role": "Bowl",
+            "country": "West Indies"
+        },
+        {
+            "name": "Gudakesh Motie",
+            "role": "Bowl",
+            "country": "West Indies"
+        },
+        {
+            "name": "Romario Shepherd",
+            "role": "AR",
+            "country": "West Indies"
+        },
+        {
+            "name": "Shakib Al Hasan",
+            "role": "AR",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Litton Das",
+            "role": "WK",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Mushfiqur Rahim",
+            "role": "WK",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Najmul Hossain Shanto",
+            "role": "Bat",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Towhid Hridoy",
+            "role": "Bat",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Taskin Ahmed",
+            "role": "Bowl",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Mustafizur Rahman",
+            "role": "Bowl",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Mehidy Hasan Miraz",
+            "role": "AR",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Tanzim Hasan Sakib",
+            "role": "Bowl",
+            "country": "Bangladesh"
+        },
+        {
+            "name": "Kusal Mendis",
+            "role": "WK",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Pathum Nissanka",
+            "role": "Bat",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Charith Asalanka",
+            "role": "Bat",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Wanindu Hasaranga",
+            "role": "AR",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Maheesh Theekshana",
+            "role": "Bowl",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Dushmantha Chameera",
+            "role": "Bowl",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Matheesha Pathirana",
+            "role": "Bowl",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Dasun Shanaka",
+            "role": "AR",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Dunith Wellalage",
+            "role": "AR",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Rashid Khan",
+            "role": "AR",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Mohammad Nabi",
+            "role": "AR",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Rahmanullah Gurbaz",
+            "role": "WK",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Ibrahim Zadran",
+            "role": "Bat",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Gulbadin Naib",
+            "role": "AR",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Fazalhaq Farooqi",
+            "role": "Bowl",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Naveen-ul-Haq",
+            "role": "Bowl",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Mujeeb Ur Rahman",
+            "role": "Bowl",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Azmatullah Omarzai",
+            "role": "AR",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Gerhard Erasmus",
+            "role": "AR",
+            "country": "Namibia"
+        },
+        {
+            "name": "Jan Frylinck",
+            "role": "AR",
+            "country": "Namibia"
+        },
+        {
+            "name": "David Wiese",
+            "role": "AR",
+            "country": "Namibia"
+        },
+        {
+            "name": "JJ Smit",
+            "role": "AR",
+            "country": "Namibia"
+        },
+        {
+            "name": "Ruben Trumpelmann",
+            "role": "Bowl",
+            "country": "Namibia"
+        },
+        {
+            "name": "Sikandar Raza",
+            "role": "AR",
+            "country": "Zimbabwe"
+        },
+        {
+            "name": "Sean Williams",
+            "role": "AR",
+            "country": "Zimbabwe"
+        },
+        {
+            "name": "Craig Ervine",
+            "role": "Bat",
+            "country": "Zimbabwe"
+        },
+        {
+            "name": "Blessing Muzarabani",
+            "role": "Bowl",
+            "country": "Zimbabwe"
+        },
+        {
+            "name": "Richard Ngarava",
+            "role": "Bowl",
+            "country": "Zimbabwe"
+        },
+        {
+            "name": "Regis Chakabva",
+            "role": "WK",
+            "country": "Zimbabwe"
+        },
+        {
+            "name": "George Munsey",
+            "role": "Bat",
+            "country": "Scotland"
+        },
+        {
+            "name": "Richie Berrington",
+            "role": "Bat",
+            "country": "Scotland"
+        },
+        {
+            "name": "Mark Watt",
+            "role": "Bowl",
+            "country": "Scotland"
+        },
+        {
+            "name": "Brandon McMullen",
+            "role": "AR",
+            "country": "Scotland"
+        },
+        {
+            "name": "Michael Leask",
+            "role": "AR",
+            "country": "Scotland"
+        },
+        {
+            "name": "Aaron Jones",
+            "role": "Bat",
+            "country": "USA"
+        },
+        {
+            "name": "Steven Taylor",
+            "role": "Bat",
+            "country": "USA"
+        },
+        {
+            "name": "Andries Gous",
+            "role": "WK",
+            "country": "USA"
+        },
+        {
+            "name": "Corey Anderson",
+            "role": "AR",
+            "country": "USA"
+        },
+        {
+            "name": "Ali Khan",
+            "role": "Bowl",
+            "country": "USA"
+        },
+        {
+            "name": "Saurabh Netravalkar",
+            "role": "Bowl",
+            "country": "USA"
+        },
+        {
+            "name": "Paul Stirling",
+            "role": "Bat",
+            "country": "Ireland"
+        },
+        {
+            "name": "Andrew Balbirnie",
+            "role": "Bat",
+            "country": "Ireland"
+        },
+        {
+            "name": "Lorcan Tucker",
+            "role": "WK",
+            "country": "Ireland"
+        },
+        {
+            "name": "Curtis Campher",
+            "role": "AR",
+            "country": "Ireland"
+        },
+        {
+            "name": "Gareth Delany",
+            "role": "AR",
+            "country": "Ireland"
+        },
+        {
+            "name": "Josh Little",
+            "role": "Bowl",
+            "country": "Ireland"
+        },
+        {
+            "name": "Barry McCarthy",
+            "role": "Bowl",
+            "country": "Ireland"
+        },
+        {
+            "name": "Bas de Leede",
+            "role": "AR",
+            "country": "Netherlands"
+        },
+        {
+            "name": "Max ODowd",
+            "role": "Bat",
+            "country": "Netherlands"
+        },
+        {
+            "name": "Scott Edwards",
+            "role": "WK",
+            "country": "Netherlands"
+        },
+        {
+            "name": "Roelof van der Merwe",
+            "role": "AR",
+            "country": "Netherlands"
+        },
+        {
+            "name": "Paul van Meekeren",
+            "role": "Bowl",
+            "country": "Netherlands"
+        },
+        {
+            "name": "Logan van Beek",
+            "role": "AR",
+            "country": "Netherlands"
+        },
+        {
+            "name": "Mohammad Wasim Jr",
+            "role": "AR",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Usama Mir",
+            "role": "Bowl",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Mohammad Nawaz",
+            "role": "AR",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Azam Khan",
+            "role": "WK",
+            "country": "Pakistan"
+        },
+        {
+            "name": "Rilee Rossouw",
+            "role": "Bat",
+            "country": "South Africa"
+        },
+        {
+            "name": "Faf du Plessis",
+            "role": "Bat",
+            "country": "South Africa"
+        },
+        {
+            "name": "Gerald Coetzee",
+            "role": "Bowl",
+            "country": "South Africa"
+        },
+        {
+            "name": "Ryan Rickelton",
+            "role": "WK",
+            "country": "South Africa"
+        },
+        {
+            "name": "Kyle Mayers",
+            "role": "AR",
+            "country": "West Indies"
+        },
+        {
+            "name": "Shimron Hetmyer",
+            "role": "Bat",
+            "country": "West Indies"
+        },
+        {
+            "name": "Odean Smith",
+            "role": "AR",
+            "country": "West Indies"
+        },
+        {
+            "name": "Jason Holder",
+            "role": "AR",
+            "country": "West Indies"
+        },
+        {
+            "name": "Ishan Kishan",
+            "role": "WK",
+            "country": "India"
+        },
+        {
+            "name": "Mohammed Shami",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Ravichandran Ashwin",
+            "role": "AR",
+            "country": "India"
+        },
+        {
+            "name": "Shardul Thakur",
+            "role": "AR",
+            "country": "India"
+        },
+        {
+            "name": "Deepak Chahar",
+            "role": "Bowl",
+            "country": "India"
+        },
+        {
+            "name": "Tilak Varma",
+            "role": "Bat",
+            "country": "India"
+        },
+        {
+            "name": "Abhishek Sharma",
+            "role": "AR",
+            "country": "India"
+        },
+        {
+            "name": "Hazratullah Zazai",
+            "role": "Bat",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Najibullah Zadran",
+            "role": "Bat",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Karim Janat",
+            "role": "AR",
+            "country": "Afghanistan"
+        },
+        {
+            "name": "Noor Ahmad",
+            "role": "Bowl",
+            "country": "Afghanistan"
+        }
+    ]
+}

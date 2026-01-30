@@ -1,18 +1,52 @@
 import streamlit as st
 import pandas as pd
+import json
+import os
 from cricbuzz_scraper import CricbuzzScraper
 from player_score_calculator import CricketScoreCalculator
 
 # --- Page Config ---
 st.set_page_config(page_title="Fantasy Cricket Auction Platform", page_icon="🏏", layout="wide")
 
-# --- Session State Init ---
-if 'participants' not in st.session_state:
-    st.session_state.participants = []  # List of { 'name': str, 'squad': [], 'ir_player': None }
-if 'all_players' not in st.session_state:
-    st.session_state.all_players = []  # Master list of players added { 'name': str, 'role': str }
-if 'gameweek_scores' not in st.session_state:
-    st.session_state.gameweek_scores = {}  # { gw_num: { player_name: score } }
+# --- Data File Paths ---
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+AUCTION_DATA_FILE = os.path.join(DATA_DIR, "auction_data.json")
+PLAYERS_DB_FILE = os.path.join(DATA_DIR, "players_database.json")
+
+# --- Load/Save Functions for Persistence ---
+def load_auction_data():
+    """Load auction data from JSON file."""
+    if os.path.exists(AUCTION_DATA_FILE):
+        try:
+            with open(AUCTION_DATA_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {"participants": [], "gameweek_scores": {}}
+
+def save_auction_data(data):
+    """Save auction data to JSON file."""
+    with open(AUCTION_DATA_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
+
+def load_players_database():
+    """Load master player database."""
+    if os.path.exists(PLAYERS_DB_FILE):
+        try:
+            with open(PLAYERS_DB_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get("players", [])
+        except:
+            pass
+    return []
+
+# --- Initialize Data ---
+auction_data = load_auction_data()
+players_db = load_players_database()
+
+# Create lookup dict for quick role finding
+player_role_lookup = {p['name']: p['role'] for p in players_db}
+player_names = [p['name'] for p in players_db]
 
 # --- Navigation ---
 st.sidebar.title("🏏 T20 WC Auction")
@@ -79,12 +113,24 @@ elif page == "🎯 Auction Room":
     st.title("🎯 Auction Room")
     st.markdown("Manage participants and their squads for the T20 World Cup Fantasy League.")
     
+    # --- RESET BUTTONS ---
+    st.sidebar.divider()
+    st.sidebar.subheader("⚠️ Admin Actions")
+    
+    if st.sidebar.button("🔄 Reset All Data", type="secondary"):
+        auction_data = {"participants": [], "gameweek_scores": {}}
+        save_auction_data(auction_data)
+        st.sidebar.success("All data has been reset!")
+        st.rerun()
+    
     # --- Add Participant ---
     st.subheader("👤 Add New Participant")
     new_name = st.text_input("Participant Name", key="new_participant")
     if st.button("Add Participant"):
-        if new_name and new_name not in [p['name'] for p in st.session_state.participants]:
-            st.session_state.participants.append({'name': new_name, 'squad': [], 'ir_player': None})
+        participant_names = [p['name'] for p in auction_data['participants']]
+        if new_name and new_name not in participant_names:
+            auction_data['participants'].append({'name': new_name, 'squad': [], 'ir_player': None})
+            save_auction_data(auction_data)
             st.success(f"Added {new_name}!")
             st.rerun()
         elif new_name:
@@ -95,39 +141,62 @@ elif page == "🎯 Auction Room":
     # --- Manage Squads ---
     st.subheader("📋 Manage Squads")
     
-    if not st.session_state.participants:
+    if not auction_data['participants']:
         st.info("No participants yet. Add some above!")
     else:
-        selected_participant = st.selectbox("Select Participant", [p['name'] for p in st.session_state.participants])
-        participant = next((p for p in st.session_state.participants if p['name'] == selected_participant), None)
+        participant_names = [p['name'] for p in auction_data['participants']]
+        selected_participant = st.selectbox("Select Participant", participant_names)
+        participant = next((p for p in auction_data['participants'] if p['name'] == selected_participant), None)
         
         if participant:
             col1, col2 = st.columns([2, 1])
             
             with col1:
                 st.markdown(f"**Squad Size:** {len(participant['squad'])}/19")
-                if participant['ir_player']:
+                if participant.get('ir_player'):
                     st.warning(f"🚑 Injury Reserve: {participant['ir_player']}")
                 
-                # Add Player to Squad
-                with st.form("add_player_form"):
-                    st.markdown("**Add Player to Squad**")
-                    player_name = st.text_input("Player Name")
-                    role = st.selectbox("Role", ["Bat", "Bowl", "AR", "WK"])
-                    submitted = st.form_submit_button("Add to Squad")
+                # Add Player to Squad - AUTO SUGGEST
+                st.markdown("**Add Player to Squad**")
+                
+                # Filter out players already in any squad
+                all_drafted_players = []
+                for p in auction_data['participants']:
+                    all_drafted_players.extend([pl['name'] for pl in p['squad']])
+                
+                available_players = [name for name in player_names if name not in all_drafted_players]
+                
+                if available_players:
+                    selected_player = st.selectbox(
+                        "Search Player (type to filter)",
+                        options=[""] + available_players,
+                        format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
+                        key="player_selector"
+                    )
                     
-                    if submitted and player_name:
-                        if len(participant['squad']) >= 19:
-                            st.error("Squad is full (19 players max)!")
-                        elif player_name in [p['name'] for p in participant['squad']]:
-                            st.error("Player already in squad!")
-                        else:
-                            participant['squad'].append({'name': player_name, 'role': role})
-                            # Also add to master player list if not exists
-                            if player_name not in [p['name'] for p in st.session_state.all_players]:
-                                st.session_state.all_players.append({'name': player_name, 'role': role})
-                            st.success(f"Added {player_name} to {selected_participant}'s squad!")
-                            st.rerun()
+                    if selected_player:
+                        role = player_role_lookup.get(selected_player, "Unknown")
+                        st.info(f"**{selected_player}** - Role: **{role}**")
+                        
+                        if st.button("➕ Add to Squad", type="primary"):
+                            if len(participant['squad']) >= 19:
+                                st.error("Squad is full (19 players max)!")
+                            else:
+                                participant['squad'].append({'name': selected_player, 'role': role})
+                                save_auction_data(auction_data)
+                                st.success(f"Added {selected_player} to {selected_participant}'s squad!")
+                                st.rerun()
+                else:
+                    st.warning("All players have been drafted!")
+                
+                # Reset Squad Button
+                st.divider()
+                if st.button(f"🗑️ Reset {selected_participant}'s Squad", type="secondary"):
+                    participant['squad'] = []
+                    participant['ir_player'] = None
+                    save_auction_data(auction_data)
+                    st.success(f"Reset {selected_participant}'s squad!")
+                    st.rerun()
             
             with col2:
                 st.markdown("**Current Squad**")
@@ -142,17 +211,31 @@ elif page == "🎯 Auction Room":
                         ir_selection = st.selectbox("Select IR Player", ir_options, key=f"ir_{selected_participant}")
                         if st.button("Set as IR"):
                             participant['ir_player'] = ir_selection
+                            save_auction_data(auction_data)
                             st.success(f"{ir_selection} is now on Injury Reserve.")
                             st.rerun()
+                    
+                    # Remove individual player
+                    st.divider()
+                    st.markdown("**Remove Player**")
+                    remove_options = [p['name'] for p in participant['squad']]
+                    player_to_remove = st.selectbox("Select Player to Remove", remove_options, key="remove_player")
+                    if st.button("❌ Remove from Squad"):
+                        participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
+                        if participant.get('ir_player') == player_to_remove:
+                            participant['ir_player'] = None
+                        save_auction_data(auction_data)
+                        st.success(f"Removed {player_to_remove}!")
+                        st.rerun()
                 else:
                     st.info("No players in squad yet.")
     
     # --- Participants Overview ---
     st.divider()
     st.subheader("📊 All Participants")
-    if st.session_state.participants:
+    if auction_data['participants']:
         overview_data = []
-        for p in st.session_state.participants:
+        for p in auction_data['participants']:
             overview_data.append({
                 "Name": p['name'],
                 "Squad Size": len(p['squad']),
@@ -160,9 +243,19 @@ elif page == "🎯 Auction Room":
                 "Bat": len([pl for pl in p['squad'] if pl['role'] == 'Bat']),
                 "AR": len([pl for pl in p['squad'] if pl['role'] == 'AR']),
                 "Bowl": len([pl for pl in p['squad'] if pl['role'] == 'Bowl']),
-                "IR": p['ir_player'] or "-"
+                "IR": p.get('ir_player') or "-"
             })
         st.dataframe(pd.DataFrame(overview_data), use_container_width=True, hide_index=True)
+        
+        # Delete Participant Button
+        st.divider()
+        st.subheader("🗑️ Delete Participant")
+        del_participant = st.selectbox("Select Participant to Delete", [p['name'] for p in auction_data['participants']], key="del_participant")
+        if st.button("Delete Participant", type="secondary"):
+            auction_data['participants'] = [p for p in auction_data['participants'] if p['name'] != del_participant]
+            save_auction_data(auction_data)
+            st.success(f"Deleted {del_participant}!")
+            st.rerun()
 
 # =====================================
 # PAGE 3: Gameweek Admin
@@ -203,8 +296,9 @@ elif page == "⚙️ Gameweek Admin":
                 
                 progress.progress((i + 1) / len(urls))
             
-            # Store in session state
-            st.session_state.gameweek_scores[gameweek_num] = all_scores
+            # Store in persistent data
+            auction_data['gameweek_scores'][str(gameweek_num)] = all_scores
+            save_auction_data(auction_data)
             
             status.text("✅ Processing Complete!")
             st.success(f"Gameweek {gameweek_num} processed! {len(all_scores)} players scored.")
@@ -214,6 +308,22 @@ elif page == "⚙️ Gameweek Admin":
             scores_df = pd.DataFrame([{"Player": k, "Points": v} for k, v in all_scores.items()])
             scores_df = scores_df.sort_values(by="Points", ascending=False)
             st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
+    
+    # Show processed gameweeks
+    st.divider()
+    st.subheader("📅 Processed Gameweeks")
+    if auction_data.get('gameweek_scores'):
+        for gw, scores in auction_data['gameweek_scores'].items():
+            st.write(f"**Gameweek {gw}**: {len(scores)} players scored")
+        
+        # Reset gameweek scores button
+        if st.button("🔄 Reset All Gameweek Scores", type="secondary"):
+            auction_data['gameweek_scores'] = {}
+            save_auction_data(auction_data)
+            st.success("All gameweek scores have been reset!")
+            st.rerun()
+    else:
+        st.info("No gameweeks processed yet.")
 
 # =====================================
 # PAGE 4: Standings
@@ -222,7 +332,7 @@ elif page == "🏆 Standings":
     st.title("🏆 League Standings")
     
     # Gameweek Selector
-    available_gws = list(st.session_state.gameweek_scores.keys())
+    available_gws = list(auction_data.get('gameweek_scores', {}).keys())
     
     if not available_gws:
         st.info("No gameweeks have been processed yet. Go to Gameweek Admin to process matches.")
@@ -231,11 +341,11 @@ elif page == "🏆 Standings":
         
         if view_mode == "By Gameweek":
             selected_gw = st.selectbox("Select Gameweek", available_gws)
-            gw_scores = st.session_state.gameweek_scores.get(selected_gw, {})
+            gw_scores = auction_data['gameweek_scores'].get(selected_gw, {})
         else:
             # Cumulative: sum all gameweeks
             gw_scores = {}
-            for gw, scores in st.session_state.gameweek_scores.items():
+            for gw, scores in auction_data['gameweek_scores'].items():
                 for player, score in scores.items():
                     gw_scores[player] = gw_scores.get(player, 0) + score
         
@@ -309,13 +419,13 @@ elif page == "🏆 Standings":
         
         # Calculate standings
         standings = []
-        for participant in st.session_state.participants:
+        for participant in auction_data['participants']:
             best_11 = get_best_11(participant['squad'], gw_scores, participant.get('ir_player'))
             total_points = sum(p['score'] for p in best_11)
             standings.append({
                 "Participant": participant['name'],
                 "Points": total_points,
-                "Best 11": ", ".join([p['name'] for p in best_11[:3]]) + "..."
+                "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "..." if best_11 else "No players"
             })
         
         standings.sort(key=lambda x: x['Points'], reverse=True)
@@ -331,11 +441,21 @@ elif page == "🏆 Standings":
                     with col:
                         st.metric(
                             label=f"{medals[i]} {standings[i]['Participant']}",
-                            value=f"{standings[i]['Points']} pts"
+                            value=f"{standings[i]['Points']:.0f} pts"
                         )
             
             # Full Table
             st.dataframe(pd.DataFrame(standings), use_container_width=True, hide_index=True)
+            
+            # Detailed View
+            st.divider()
+            st.subheader("📋 Detailed Best 11")
+            detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in auction_data['participants']])
+            detail_p = next((p for p in auction_data['participants'] if p['name'] == detail_participant), None)
+            if detail_p:
+                best_11 = get_best_11(detail_p['squad'], gw_scores, detail_p.get('ir_player'))
+                best_11_df = pd.DataFrame(best_11)
+                st.dataframe(best_11_df, use_container_width=True, hide_index=True)
         else:
             st.info("No participants have been added yet. Go to Auction Room to add participants.")
 
@@ -362,3 +482,6 @@ with st.sidebar:
     - **Bowlers** are exempt from Duck (-2) and negative Strike Rate penalties.
     - **Power Hitting**: SR > 200 (+3) and SR > 250 (+5).
     """)
+    
+    st.divider()
+    st.caption(f"📊 Database: {len(players_db)} players loaded")
