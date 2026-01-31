@@ -207,7 +207,10 @@ class CricbuzzScraper:
                      stumper_name = stumper_part.replace('st ', '', 1).strip()
                      sp = get_best_match_player(stumper_name)
                      sp['stumpings'] = sp.get('stumpings', 0) + 1
-                     
+
+                if 'run out' in dismissal_text:
+                     # Regex to find content in brackets: run out (Fielder1/Fielder2)
+                     match = re.search(r'run out \((.*?)\)', dismissal_text)
                      if match:
                          fielders = match.group(1).split('/')
                          for f in fielders:
