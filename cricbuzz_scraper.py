@@ -1,12 +1,25 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
+import os
 
 class CricbuzzScraper:
     def __init__(self):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
         }
+        # Load player roles from local database for fast lookup
+        self.player_roles = {}
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'players_database.json')
+        if os.path.exists(db_path):
+            try:
+                with open(db_path, 'r') as f:
+                    data = json.load(f)
+                    for p in data.get('players', []):
+                        self.player_roles[p['name']] = p['role']
+            except:
+                pass
 
     def get_player_role(self, profile_url):
         """
@@ -256,12 +269,19 @@ class CricbuzzScraper:
             except (ValueError, IndexError):
                 pass
 
-        # --- Batch Fetch Roles ---
-        # Only fetch for players with stats to stay efficient
-        print("Fetching player roles...")
+        # --- Assign Roles (Fast Local Lookup) ---
+        # Use local database for instant role lookup; fallback to HTTP only if not found
+        print("Assigning player roles...")
         for p in players.values():
-            if p.get('profile_url'):
-                p['role'] = self.get_player_role(p['profile_url'])
-                # print(f"  {p['name']}: {p['role']}")
+            name = p['name']
+            # Try local database first (instant)
+            if name in self.player_roles:
+                p['role'] = self.player_roles[name]
+            else:
+                # Fallback: try HTTP fetch (slow) - only for non-WC players
+                if p.get('profile_url'):
+                    p['role'] = self.get_player_role(p['profile_url'])
+                else:
+                    p['role'] = 'Unknown'
                 
         return list(players.values())
