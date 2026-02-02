@@ -1,0 +1,599 @@
+{
+    "tournament": "ICC Men's T20 World Cup 2026",
+    "host_countries": [
+        "India",
+        "Sri Lanka"
+    ],
+    "start_date": "2026-02-07",
+    "end_date": "2026-03-08",
+    "groups": {
+        "A": [
+            "India",
+            "Pakistan",
+            "USA",
+            "Netherlands",
+            "Namibia"
+        ],
+        "B": [
+            "Australia",
+            "Sri Lanka",
+            "Ireland",
+            "Zimbabwe",
+            "Oman"
+        ],
+        "C": [
+            "England",
+            "West Indies",
+            "Scotland",
+            "Nepal",
+            "Italy"
+        ],
+        "D": [
+            "New Zealand",
+            "South Africa",
+            "Afghanistan",
+            "Canada",
+            "UAE"
+        ]
+    },
+    "gameweeks": {
+        "1": {
+            "name": "Group Stage - Week 1",
+            "phase": "Group Stage",
+            "dates": "Feb 7-10, 2026",
+            "matches": [
+                {
+                    "match_id": 1,
+                    "teams": [
+                        "Pakistan",
+                        "Netherlands"
+                    ],
+                    "date": "2026-02-07",
+                    "venue": "Colombo (SSC)"
+                },
+                {
+                    "match_id": 2,
+                    "teams": [
+                        "West Indies",
+                        "Scotland"
+                    ],
+                    "date": "2026-02-07",
+                    "venue": "Kolkata"
+                },
+                {
+                    "match_id": 3,
+                    "teams": [
+                        "India",
+                        "USA"
+                    ],
+                    "date": "2026-02-07",
+                    "venue": "Mumbai"
+                },
+                {
+                    "match_id": 4,
+                    "teams": [
+                        "New Zealand",
+                        "Afghanistan"
+                    ],
+                    "date": "2026-02-08",
+                    "venue": "Chennai"
+                },
+                {
+                    "match_id": 5,
+                    "teams": [
+                        "England",
+                        "Nepal"
+                    ],
+                    "date": "2026-02-08",
+                    "venue": "Mumbai"
+                },
+                {
+                    "match_id": 6,
+                    "teams": [
+                        "Sri Lanka",
+                        "Ireland"
+                    ],
+                    "date": "2026-02-08",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 7,
+                    "teams": [
+                        "Scotland",
+                        "Italy"
+                    ],
+                    "date": "2026-02-09",
+                    "venue": "Kolkata"
+                },
+                {
+                    "match_id": 8,
+                    "teams": [
+                        "Zimbabwe",
+                        "Oman"
+                    ],
+                    "date": "2026-02-09",
+                    "venue": "Colombo (SSC)"
+                },
+                {
+                    "match_id": 9,
+                    "teams": [
+                        "South Africa",
+                        "Canada"
+                    ],
+                    "date": "2026-02-09",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 10,
+                    "teams": [
+                        "Netherlands",
+                        "Namibia"
+                    ],
+                    "date": "2026-02-10",
+                    "venue": "Delhi"
+                },
+                {
+                    "match_id": 11,
+                    "teams": [
+                        "New Zealand",
+                        "UAE"
+                    ],
+                    "date": "2026-02-10",
+                    "venue": "Chennai"
+                },
+                {
+                    "match_id": 12,
+                    "teams": [
+                        "Pakistan",
+                        "USA"
+                    ],
+                    "date": "2026-02-10",
+                    "venue": "Colombo (SSC)"
+                }
+            ]
+        },
+        "2": {
+            "name": "Group Stage - Week 2",
+            "phase": "Group Stage",
+            "dates": "Feb 11-13, 2026",
+            "matches": [
+                {
+                    "match_id": 13,
+                    "teams": [
+                        "South Africa",
+                        "Afghanistan"
+                    ],
+                    "date": "2026-02-11",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 14,
+                    "teams": [
+                        "Australia",
+                        "Ireland"
+                    ],
+                    "date": "2026-02-11",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 15,
+                    "teams": [
+                        "England",
+                        "West Indies"
+                    ],
+                    "date": "2026-02-11",
+                    "venue": "Mumbai"
+                },
+                {
+                    "match_id": 16,
+                    "teams": [
+                        "Sri Lanka",
+                        "Oman"
+                    ],
+                    "date": "2026-02-12",
+                    "venue": "Pallekele"
+                },
+                {
+                    "match_id": 17,
+                    "teams": [
+                        "Nepal",
+                        "Italy"
+                    ],
+                    "date": "2026-02-12",
+                    "venue": "Mumbai"
+                },
+                {
+                    "match_id": 18,
+                    "teams": [
+                        "India",
+                        "Namibia"
+                    ],
+                    "date": "2026-02-12",
+                    "venue": "Delhi"
+                },
+                {
+                    "match_id": 19,
+                    "teams": [
+                        "Australia",
+                        "Zimbabwe"
+                    ],
+                    "date": "2026-02-13",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 20,
+                    "teams": [
+                        "Canada",
+                        "UAE"
+                    ],
+                    "date": "2026-02-13",
+                    "venue": "Delhi"
+                },
+                {
+                    "match_id": 21,
+                    "teams": [
+                        "USA",
+                        "Netherlands"
+                    ],
+                    "date": "2026-02-13",
+                    "venue": "Chennai"
+                }
+            ]
+        },
+        "3": {
+            "name": "Group Stage - Week 3",
+            "phase": "Group Stage",
+            "dates": "Feb 14-16, 2026",
+            "matches": [
+                {
+                    "match_id": 22,
+                    "teams": [
+                        "Ireland",
+                        "Oman"
+                    ],
+                    "date": "2026-02-14",
+                    "venue": "Colombo (SSC)"
+                },
+                {
+                    "match_id": 23,
+                    "teams": [
+                        "England",
+                        "Scotland"
+                    ],
+                    "date": "2026-02-14",
+                    "venue": "Kolkata"
+                },
+                {
+                    "match_id": 24,
+                    "teams": [
+                        "New Zealand",
+                        "South Africa"
+                    ],
+                    "date": "2026-02-14",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 25,
+                    "teams": [
+                        "West Indies",
+                        "Nepal"
+                    ],
+                    "date": "2026-02-15",
+                    "venue": "Mumbai"
+                },
+                {
+                    "match_id": 26,
+                    "teams": [
+                        "USA",
+                        "Namibia"
+                    ],
+                    "date": "2026-02-15",
+                    "venue": "Chennai"
+                },
+                {
+                    "match_id": 27,
+                    "teams": [
+                        "India",
+                        "Pakistan"
+                    ],
+                    "date": "2026-02-15",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 28,
+                    "teams": [
+                        "Afghanistan",
+                        "UAE"
+                    ],
+                    "date": "2026-02-16",
+                    "venue": "Delhi"
+                },
+                {
+                    "match_id": 29,
+                    "teams": [
+                        "England",
+                        "Italy"
+                    ],
+                    "date": "2026-02-16",
+                    "venue": "Kolkata"
+                },
+                {
+                    "match_id": 30,
+                    "teams": [
+                        "Australia",
+                        "Sri Lanka"
+                    ],
+                    "date": "2026-02-16",
+                    "venue": "Pallekele"
+                }
+            ]
+        },
+        "4": {
+            "name": "Group Stage - Week 4",
+            "phase": "Group Stage",
+            "dates": "Feb 17-20, 2026",
+            "matches": [
+                {
+                    "match_id": 31,
+                    "teams": [
+                        "New Zealand",
+                        "Canada"
+                    ],
+                    "date": "2026-02-17",
+                    "venue": "Chennai"
+                },
+                {
+                    "match_id": 32,
+                    "teams": [
+                        "Ireland",
+                        "Zimbabwe"
+                    ],
+                    "date": "2026-02-17",
+                    "venue": "Pallekele"
+                },
+                {
+                    "match_id": 33,
+                    "teams": [
+                        "Scotland",
+                        "Nepal"
+                    ],
+                    "date": "2026-02-17",
+                    "venue": "Mumbai"
+                },
+                {
+                    "match_id": 34,
+                    "teams": [
+                        "South Africa",
+                        "UAE"
+                    ],
+                    "date": "2026-02-18",
+                    "venue": "Delhi"
+                },
+                {
+                    "match_id": 35,
+                    "teams": [
+                        "Pakistan",
+                        "Namibia"
+                    ],
+                    "date": "2026-02-18",
+                    "venue": "Colombo (SSC)"
+                },
+                {
+                    "match_id": 36,
+                    "teams": [
+                        "India",
+                        "Netherlands"
+                    ],
+                    "date": "2026-02-18",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 37,
+                    "teams": [
+                        "West Indies",
+                        "Italy"
+                    ],
+                    "date": "2026-02-19",
+                    "venue": "Kolkata"
+                },
+                {
+                    "match_id": 38,
+                    "teams": [
+                        "Sri Lanka",
+                        "Zimbabwe"
+                    ],
+                    "date": "2026-02-19",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 39,
+                    "teams": [
+                        "Afghanistan",
+                        "Canada"
+                    ],
+                    "date": "2026-02-19",
+                    "venue": "Chennai"
+                },
+                {
+                    "match_id": 40,
+                    "teams": [
+                        "Australia",
+                        "Oman"
+                    ],
+                    "date": "2026-02-20",
+                    "venue": "Pallekele"
+                }
+            ]
+        },
+        "5": {
+            "name": "Super 8 - Week 1",
+            "phase": "Super 8",
+            "dates": "Feb 21-23, 2026",
+            "matches": [
+                {
+                    "match_id": 41,
+                    "teams": [
+                        "TBD (Y2)",
+                        "TBD (Y3)"
+                    ],
+                    "date": "2026-02-21",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 42,
+                    "teams": [
+                        "TBD (Y1)",
+                        "TBD (Y4)"
+                    ],
+                    "date": "2026-02-22",
+                    "venue": "Pallekele"
+                },
+                {
+                    "match_id": 43,
+                    "teams": [
+                        "TBD (X1)",
+                        "TBD (X4)"
+                    ],
+                    "date": "2026-02-22",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 44,
+                    "teams": [
+                        "TBD (X2)",
+                        "TBD (X3)"
+                    ],
+                    "date": "2026-02-23",
+                    "venue": "Mumbai"
+                }
+            ]
+        },
+        "6": {
+            "name": "Super 8 - Week 2",
+            "phase": "Super 8",
+            "dates": "Feb 24-26, 2026",
+            "matches": [
+                {
+                    "match_id": 45,
+                    "teams": [
+                        "TBD (Y1)",
+                        "TBD (Y3)"
+                    ],
+                    "date": "2026-02-24",
+                    "venue": "Pallekele"
+                },
+                {
+                    "match_id": 46,
+                    "teams": [
+                        "TBD (Y2)",
+                        "TBD (Y4)"
+                    ],
+                    "date": "2026-02-25",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 47,
+                    "teams": [
+                        "TBD (X3)",
+                        "TBD (X4)"
+                    ],
+                    "date": "2026-02-26",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 48,
+                    "teams": [
+                        "TBD (X1)",
+                        "TBD (X2)"
+                    ],
+                    "date": "2026-02-26",
+                    "venue": "Chennai"
+                }
+            ]
+        },
+        "7": {
+            "name": "Super 8 - Week 3",
+            "phase": "Super 8",
+            "dates": "Feb 27 - Mar 1, 2026",
+            "matches": [
+                {
+                    "match_id": 49,
+                    "teams": [
+                        "TBD (Y1)",
+                        "TBD (Y2)"
+                    ],
+                    "date": "2026-02-27",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 50,
+                    "teams": [
+                        "TBD (Y3)",
+                        "TBD (Y4)"
+                    ],
+                    "date": "2026-02-28",
+                    "venue": "Pallekele"
+                },
+                {
+                    "match_id": 51,
+                    "teams": [
+                        "TBD (X2)",
+                        "TBD (X4)"
+                    ],
+                    "date": "2026-03-01",
+                    "venue": "Delhi"
+                },
+                {
+                    "match_id": 52,
+                    "teams": [
+                        "TBD (X1)",
+                        "TBD (X3)"
+                    ],
+                    "date": "2026-03-01",
+                    "venue": "Kolkata"
+                }
+            ]
+        },
+        "8": {
+            "name": "Semi-Finals",
+            "phase": "Knockout",
+            "dates": "Mar 4-5, 2026",
+            "matches": [
+                {
+                    "match_id": 53,
+                    "teams": [
+                        "TBD (SF1)",
+                        "TBD (SF1)"
+                    ],
+                    "date": "2026-03-04",
+                    "venue": "TBC"
+                },
+                {
+                    "match_id": 54,
+                    "teams": [
+                        "TBD (SF2)",
+                        "TBD (SF2)"
+                    ],
+                    "date": "2026-03-05",
+                    "venue": "Mumbai"
+                }
+            ]
+        },
+        "9": {
+            "name": "Final",
+            "phase": "Final",
+            "dates": "Mar 8, 2026",
+            "matches": [
+                {
+                    "match_id": 55,
+                    "teams": [
+                        "TBD (Final)",
+                        "TBD (Final)"
+                    ],
+                    "date": "2026-03-08",
+                    "venue": "Ahmedabad"
+                }
+            ]
+        }
+    }
+}

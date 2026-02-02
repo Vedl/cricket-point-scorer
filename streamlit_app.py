@@ -4,6 +4,7 @@ import json
 import os
 import string
 import random
+import hashlib
 from datetime import datetime
 from cricbuzz_scraper import CricbuzzScraper
 from player_score_calculator import CricketScoreCalculator
@@ -15,6 +16,7 @@ st.set_page_config(page_title="Fantasy Cricket Auction Platform", page_icon="�
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 AUCTION_DATA_FILE = os.path.join(DATA_DIR, "auction_data.json")
 PLAYERS_DB_FILE = os.path.join(DATA_DIR, "players_database.json")
+SCHEDULE_FILE = os.path.join(DATA_DIR, "t20_wc_schedule.json")
 
 # --- Load/Save Functions for Persistence ---
 def load_auction_data():
@@ -51,6 +53,20 @@ def generate_room_code():
     """Generate a unique 6-character room code."""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
+def hash_password(password):
+    """Hash password using SHA256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def load_schedule():
+    """Load T20 WC schedule."""
+    if os.path.exists(SCHEDULE_FILE):
+        try:
+            with open(SCHEDULE_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {"gameweeks": {}}
+
 # --- Initialize Data ---
 auction_data = load_auction_data()
 players_db = load_players_database()
@@ -77,27 +93,40 @@ def show_login_page():
     with col1:
         st.subheader("🔐 Login")
         login_username = st.text_input("Username", key="login_username", placeholder="Enter your username")
+        login_password = st.text_input("Password", key="login_password", type="password", placeholder="Enter your password")
         if st.button("Login", type="primary", key="login_btn"):
-            if login_username:
+            if login_username and login_password:
                 if login_username in auction_data['users']:
-                    st.session_state.logged_in_user = login_username
-                    st.success(f"Welcome back, {login_username}!")
-                    st.rerun()
+                    user_data = auction_data['users'][login_username]
+                    stored_hash = user_data.get('password_hash', '')
+                    if stored_hash and hash_password(login_password) == stored_hash:
+                        st.session_state.logged_in_user = login_username
+                        st.success(f"Welcome back, {login_username}!")
+                        st.rerun()
+                    else:
+                        st.error("Incorrect password.")
                 else:
                     st.error("Username not found. Please register first.")
             else:
-                st.warning("Please enter a username.")
+                st.warning("Please enter both username and password.")
     
     with col2:
         st.subheader("📝 Register")
         register_username = st.text_input("Choose Username", key="register_username", placeholder="Choose a username")
+        register_password = st.text_input("Create Password", key="register_password", type="password", placeholder="Min 4 characters")
+        register_password_confirm = st.text_input("Confirm Password", key="register_password_confirm", type="password", placeholder="Re-enter password")
         if st.button("Register", type="secondary", key="register_btn"):
-            if register_username:
-                if register_username in auction_data['users']:
+            if register_username and register_password:
+                if len(register_password) < 4:
+                    st.error("Password must be at least 4 characters.")
+                elif register_password != register_password_confirm:
+                    st.error("Passwords do not match.")
+                elif register_username in auction_data['users']:
                     st.error("Username already taken. Choose another.")
                 else:
                     auction_data['users'][register_username] = {
                         "created_at": datetime.now().isoformat(),
+                        "password_hash": hash_password(register_password),
                         "rooms_created": [],
                         "rooms_joined": []
                     }
@@ -106,7 +135,7 @@ def show_login_page():
                     st.success(f"Welcome, {register_username}! Account created.")
                     st.rerun()
             else:
-                st.warning("Please enter a username.")
+                st.warning("Please enter both username and password.")
 
 # =====================================
 # ROOM SELECTION / CREATION PAGE
@@ -468,63 +497,146 @@ def show_main_app():
     elif page == "⚙️ Gameweek Admin":
         st.title("⚙️ Gameweek Admin")
         
+        # Load schedule
+        schedule = load_schedule()
+        
         if not is_admin:
             st.warning("Only the room admin can process gameweeks.")
             st.info(f"Admin: {room['admin']}")
         else:
             st.markdown("Process match data and calculate points for each gameweek.")
             
-            gameweek_num = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
-            urls_input = st.text_area("Match URLs (one per line)", height=200, placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...\nhttps://www.cricbuzz.com/live-cricket-scorecard/...")
+            # Two tabs: Schedule-based and Manual
+            tab1, tab2 = st.tabs(["📅 T20 WC Schedule", "🔗 Manual URLs"])
             
-            if st.button("🚀 Process Gameweek", type="primary"):
-                urls = [u.strip() for u in urls_input.split('\n') if u.strip()]
+            with tab1:
+                st.subheader("Select Gameweek from T20 WC 2026 Schedule")
                 
-                if not urls:
-                    st.error("Please enter at least one URL.")
-                else:
-                    scraper = CricbuzzScraper()
-                    calculator = CricketScoreCalculator()
-                    all_scores = {}
+                gameweeks = schedule.get('gameweeks', {})
+                if gameweeks:
+                    gw_options = [(k, f"GW {k}: {v['name']} ({v['dates']})") for k, v in gameweeks.items()]
+                    selected_gw = st.selectbox(
+                        "Select Gameweek",
+                        options=[g[0] for g in gw_options],
+                        format_func=lambda x: next(g[1] for g in gw_options if g[0] == x)
+                    )
                     
-                    progress = st.progress(0)
-                    status = st.empty()
-                    
-                    for i, url in enumerate(urls):
-                        status.text(f"Processing match {i+1}/{len(urls)}...")
-                        try:
-                            players = scraper.fetch_match_data(url)
-                            for p in players:
-                                score = calculator.calculate_score(p)
-                                name = p['name']
-                                if name in all_scores:
-                                    all_scores[name] += score
-                                else:
-                                    all_scores[name] = score
-                        except Exception as e:
-                            st.warning(f"Error processing {url}: {e}")
+                    if selected_gw:
+                        gw_data = gameweeks[selected_gw]
+                        st.info(f"**{gw_data['name']}** | {gw_data['phase']} | {gw_data['dates']}")
                         
-                        progress.progress((i + 1) / len(urls))
+                        # Display matches
+                        st.markdown("**Matches in this Gameweek:**")
+                        matches_df = pd.DataFrame(gw_data['matches'])
+                        matches_df['Match'] = matches_df['teams'].apply(lambda x: f"{x[0]} vs {x[1]}")
+                        st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
+                        
+                        # Check if already processed
+                        if selected_gw in room.get('gameweek_scores', {}):
+                            st.warning(f"⚠️ Gameweek {selected_gw} has already been processed. Processing again will overwrite scores.")
+                        
+                        # Manual URL input for this gameweek
+                        st.divider()
+                        st.markdown("**Enter Cricbuzz Scorecard URLs for the above matches:**")
+                        st.caption("After each match completes, paste the scorecard URL here.")
+                        urls_input = st.text_area(
+                            "Match URLs (one per line)", 
+                            height=150, 
+                            placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...\nhttps://www.cricbuzz.com/live-cricket-scorecard/...",
+                            key="gw_urls"
+                        )
+                        
+                        if st.button(f"🚀 Process Gameweek {selected_gw}", type="primary", key="process_gw_btn"):
+                            urls = [u.strip() for u in urls_input.split('\n') if u.strip()]
+                            
+                            if not urls:
+                                st.error("Please enter at least one match URL.")
+                            else:
+                                scraper = CricbuzzScraper()
+                                calculator = CricketScoreCalculator()
+                                all_scores = {}
+                                
+                                progress = st.progress(0)
+                                status = st.empty()
+                                
+                                for i, url in enumerate(urls):
+                                    status.text(f"Processing match {i+1}/{len(urls)}...")
+                                    try:
+                                        players = scraper.fetch_match_data(url)
+                                        for p in players:
+                                            score = calculator.calculate_score(p)
+                                            name = p['name']
+                                            if name in all_scores:
+                                                all_scores[name] += score
+                                            else:
+                                                all_scores[name] = score
+                                    except Exception as e:
+                                        st.warning(f"Error processing {url}: {e}")
+                                    
+                                    progress.progress((i + 1) / len(urls))
+                                
+                                # Store in room data
+                                room['gameweek_scores'][selected_gw] = all_scores
+                                save_auction_data(auction_data)
+                                
+                                status.text("✅ Processing Complete!")
+                                st.success(f"Gameweek {selected_gw} processed! {len(all_scores)} players scored.")
+                                
+                                # Show preview
+                                st.subheader("📊 Scores Preview")
+                                scores_df = pd.DataFrame([{"Player": k, "Points": v} for k, v in all_scores.items()])
+                                scores_df = scores_df.sort_values(by="Points", ascending=False)
+                                st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
+                else:
+                    st.warning("T20 WC Schedule not loaded. Using manual mode.")
+            
+            with tab2:
+                st.subheader("Manual URL Processing")
+                manual_gw = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
+                manual_urls = st.text_area("Match URLs (one per line)", height=200, placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...", key="manual_urls")
+                
+                if st.button("🚀 Process", type="primary", key="manual_process_btn"):
+                    urls = [u.strip() for u in manual_urls.split('\n') if u.strip()]
                     
-                    # Store in room data
-                    room['gameweek_scores'][str(gameweek_num)] = all_scores
-                    save_auction_data(auction_data)
-                    
-                    status.text("✅ Processing Complete!")
-                    st.success(f"Gameweek {gameweek_num} processed! {len(all_scores)} players scored.")
-                    
-                    # Show preview
-                    st.subheader("📊 Scores Preview")
-                    scores_df = pd.DataFrame([{"Player": k, "Points": v} for k, v in all_scores.items()])
-                    scores_df = scores_df.sort_values(by="Points", ascending=False)
-                    st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
+                    if not urls:
+                        st.error("Please enter at least one URL.")
+                    else:
+                        scraper = CricbuzzScraper()
+                        calculator = CricketScoreCalculator()
+                        all_scores = {}
+                        
+                        progress = st.progress(0)
+                        status = st.empty()
+                        
+                        for i, url in enumerate(urls):
+                            status.text(f"Processing match {i+1}/{len(urls)}...")
+                            try:
+                                players = scraper.fetch_match_data(url)
+                                for p in players:
+                                    score = calculator.calculate_score(p)
+                                    name = p['name']
+                                    if name in all_scores:
+                                        all_scores[name] += score
+                                    else:
+                                        all_scores[name] = score
+                            except Exception as e:
+                                st.warning(f"Error processing {url}: {e}")
+                            
+                            progress.progress((i + 1) / len(urls))
+                        
+                        room['gameweek_scores'][str(manual_gw)] = all_scores
+                        save_auction_data(auction_data)
+                        
+                        status.text("✅ Processing Complete!")
+                        st.success(f"Gameweek {manual_gw} processed! {len(all_scores)} players scored.")
         
         # Show processed gameweeks
         st.divider()
         st.subheader("📅 Processed Gameweeks")
         if room.get('gameweek_scores'):
             for gw, scores in room['gameweek_scores'].items():
-                st.write(f"**Gameweek {gw}**: {len(scores)} players scored")
+                gw_name = schedule.get('gameweeks', {}).get(gw, {}).get('name', f'Gameweek {gw}')
+                st.write(f"**{gw_name}**: {len(scores)} players scored")
             
             # Reset gameweek scores button (Admin Only)
             if is_admin:
