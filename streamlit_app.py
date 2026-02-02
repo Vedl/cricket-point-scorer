@@ -1140,6 +1140,9 @@ def show_main_app():
                 active_bids = room.get('active_bids', [])
                 awarded_bids = []
                 
+                # Create team lookup
+                player_team_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
+                
                 for bid in active_bids:
                     expires = datetime.fromisoformat(bid['expires'])
                     # Award if: bid expired OR deadline passed
@@ -1154,7 +1157,7 @@ def show_main_app():
                             bidder_participant['squad'].append({
                                 'name': bid['player'],
                                 'role': player_role_lookup.get(bid['player'], 'Unknown'),
-                                'team': 'Unknown', # TODO: Need robust team lookup here or just Unknown for Open Bidding
+                                'team': player_team_lookup.get(bid['player'], 'Unknown'),
                                 'buy_price': bid['amount']
                             })
                             bidder_participant['budget'] -= bid['amount']
