@@ -782,6 +782,7 @@ def show_main_app():
                             winner['squad'].append({
                                 'name': current_player,
                                 'role': current_role,
+                                'team': current_team,
                                 'buy_price': current_bid
                             })
                             winner['budget'] -= current_bid
