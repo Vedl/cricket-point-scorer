@@ -627,7 +627,7 @@ def show_main_app():
         st.divider()
         
         # === AUCTION TABS ===
-        auction_tabs = st.tabs(["🔴 Live Auction", "🎯 Big Auction (Manual)", "💰 Open Bidding", "🔄 Trading", "👤 Squads (Dashboard)"])
+        auction_tabs = st.tabs(["🔴 Live Auction", "💰 Open Bidding", "🔄 Trading", "👤 Squads (Dashboard)"])
         
         # ================ TAB 0: LIVE AUCTION ================
         with auction_tabs[0]:
@@ -1056,238 +1056,10 @@ def show_main_app():
                         time.sleep(1)
                         st.rerun()
         
-        # ================ TAB 1: BIG AUCTION (Manual) ================
-        with auction_tabs[1]:
-            st.subheader("📋 Manage Squads (Big Auction)")
-            
-            if room.get('big_auction_complete'):
-                st.success("✅ Big Auction is complete! Use 'Open Bidding' tab to bid on unsold players.")
-            
-            if not room['participants']:
-                if is_admin:
-                    st.info("No participants yet. Add some above!")
-                else:
-                    st.info("No participants yet. Ask the admin to add participants.")
-            else:
-                participant_names = [p['name'] for p in room['participants']]
-                selected_participant = st.selectbox("Select Participant", participant_names)
-                participant = next((p for p in room['participants'] if p['name'] == selected_participant), None)
-                
-                if participant:
-                    # Ensure participant has budget field (migration for old data)
-                    if 'budget' not in participant:
-                        participant['budget'] = 350
-                        save_auction_data(auction_data)
-                    
-                    col1, col2 = st.columns([2, 1])
-                    
-                    with col1:
-                        # Budget and Squad Info
-                        budget_col1, budget_col2 = st.columns(2)
-                        with budget_col1:
-                            st.metric("💰 Budget Remaining", f"{participant['budget']}M")
-                        with budget_col2:
-                            st.metric("👥 Squad Size", f"{len(participant['squad'])}/19")
-                        
-                        if participant.get('ir_player'):
-                            st.warning(f"🚑 Injury Reserve: {participant['ir_player']}")
-                        
-                        # Add Player to Squad - BIG AUCTION STYLE
-                        st.markdown("---")
-                        st.markdown("### ➕ Add Player (Big Auction)")
-                        
-                        # Filter out players already in any squad
-                        all_drafted_players = []
-                        for p in room['participants']:
-                            all_drafted_players.extend([pl['name'] for pl in p['squad']])
-                        
-                        available_players = [name for name in player_names if name not in all_drafted_players]
-                        
-                        if available_players:
-                            selected_player = st.selectbox(
-                                "Search Player (type to filter)",
-                                options=[""] + available_players,
-                                format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
-                                key="player_selector"
-                            )
-                            
-                            if selected_player:
-                                role = player_role_lookup.get(selected_player, "Unknown")
-                                st.info(f"**{selected_player}** - Role: **{role}**")
-                                
-                                # Buy Price Input
-                                max_bid = participant['budget']
-                                buy_price = st.number_input(
-                                    "Buy Price (M)", 
-                                    min_value=5, 
-                                    max_value=max(5, int(max_bid)), 
-                                    value=5, 
-                                    step=1,
-                                    help="Minimum 5M. Enter the auction winning bid."
-                                )
-                                
-                                if st.button("💰 Buy Player", type="primary"):
-                                    if len(participant['squad']) >= 19:
-                                        st.error("Squad is full (19 players max)!")
-                                    elif buy_price > participant['budget']:
-                                        st.error(f"Insufficient budget! You have {participant['budget']}M.")
-                                    else:
-                                        # Add player with buy_price
-                                        participant['squad'].append({
-                                            'name': selected_player, 
-                                            'role': role,
-                                            'buy_price': buy_price
-                                        })
-                                        # Deduct budget
-                                        participant['budget'] -= buy_price
-                                        # Log the auction
-                                        room.setdefault('auction_log', []).append({
-                                            'player': selected_player,
-                                            'buyer': participant['name'],
-                                            'price': buy_price,
-                                            'time': datetime.now().isoformat()
-                                        })
-                                        save_auction_data(auction_data)
-                                        st.success(f"✅ {selected_player} bought for {buy_price}M by {selected_participant}!")
-                                        st.rerun()
-                        else:
-                            st.warning("All players have been drafted!")
-                        
-                        # Reset Squad Button (Admin Only)
-                        if is_admin:
-                            st.divider()
-                            if st.button(f"🗑️ Reset {selected_participant}'s Squad", type="secondary"):
-                                participant['squad'] = []
-                                participant['ir_player'] = None
-                                participant['budget'] = 350  # Restore full budget
-                                save_auction_data(auction_data)
-                                st.success(f"Reset {selected_participant}'s squad! Budget restored to 350M.")
-                                st.rerun()
-                    
-                    with col2:
-                        st.markdown("**Current Squad**")
-                        if participant['squad']:
-                            squad_df = pd.DataFrame(participant['squad'])
-                            st.dataframe(squad_df, use_container_width=True, hide_index=True)
-                            
-                            # Set Injury Reserve
-                            if len(participant['squad']) == 19:
-                                st.markdown("**Set Injury Reserve**")
-                                ir_options = [p['name'] for p in participant['squad']]
-                                ir_selection = st.selectbox("Select IR Player", ir_options, key=f"ir_{selected_participant}")
-                                if st.button("Set as IR"):
-                                    participant['ir_player'] = ir_selection
-                                    save_auction_data(auction_data)
-                                    st.success(f"{ir_selection} is now on Injury Reserve.")
-                                    st.rerun()
-                            
-                            # Release Player (dynamic rules based on gameweek)
-                            st.divider()
-                            
-                            # Calculate current gameweek (based on locked gameweeks)
-                            locked_gws = list(room.get('gameweek_squads', {}).keys())
-                            current_gw = max([int(gw) for gw in locked_gws]) if locked_gws else 0
-                            
-                            # Check if participant has used their paid release this GW
-                            paid_releases = participant.get('paid_releases', {})
-                            used_paid_this_gw = paid_releases.get(str(current_gw), False) if current_gw > 0 else False
-                            
-                            # Get knocked out teams
-                            knocked_out_teams = set(room.get('knocked_out_teams', []))
-                            
-                            # Create country lookup from players_db
-                            player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
-                            
-                            remove_options = [p['name'] for p in participant['squad']]
-                            player_to_remove = st.selectbox("Select Player to Release", remove_options, key="remove_player")
-                            
-                            # Find the player to get their buy_price and check if from knocked-out team
-                            player_obj = next((p for p in participant['squad'] if p['name'] == player_to_remove), None)
-                            player_country = player_country_lookup.get(player_to_remove, 'Unknown')
-                            is_knocked_out_team = player_country in knocked_out_teams
-                            
-                            # Display release rules based on situation
-                            if current_gw == 0:
-                                release_type = "unlimited"  # Before GW1 starts
-                                st.markdown("**🔄 Release Player (50% return - Unlimited)**")
-                                st.caption("Before GW1: Release any number of players for 50% refund")
-                            elif is_knocked_out_team and current_gw >= 5:
-                                # Super 8s+ and player from knocked-out team
-                                release_type = "knockout_free"
-                                st.markdown(f"**🔄 Release Player (Knocked-Out Team - FREE 50%)**")
-                                st.success(f"🚫 {player_country} is knocked out! You get 50% refund without using your paid release.")
-                            elif not used_paid_this_gw:
-                                release_type = "paid"
-                                st.markdown(f"**🔄 Release Player (GW{current_gw} - 1 Paid Release Available)**")
-                                st.caption("You have 1 paid (50%) release remaining this gameweek")
-                            else:
-                                release_type = "free"
-                                st.markdown(f"**🔄 Release Player (GW{current_gw} - Free Only)**")
-                                st.warning("⚠️ You've used your paid release. Additional releases are FREE (0M).")
-                            
-                            # Calculate refund based on release type
-                            if release_type in ["unlimited", "paid", "knockout_free"]:
-                                refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
-                            else:
-                                refund_amount = 0  # Free release
-                            
-                            st.caption(f"Player: **{player_to_remove}** ({player_country})")
-                            st.caption(f"Releasing will refund: **{refund_amount}M**" + 
-                                      (" (50% of buy price)" if release_type != "free" else " (free release)"))
-                            
-                            if st.button("🔓 Release Player"):
-                                participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
-                                participant['budget'] += refund_amount
-                                if participant.get('ir_player') == player_to_remove:
-                                    participant['ir_player'] = None
-                                # Add to unsold pool for bidding
-                                room.setdefault('unsold_players', []).append(player_to_remove)
-                                
-                                # Mark paid release as used (only if NOT knockout_free)
-                                if release_type == "paid":
-                                    participant.setdefault('paid_releases', {})[str(current_gw)] = True
-                                
-                                save_auction_data(auction_data)
-                                st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
-                                st.rerun()
-                        else:
-                            st.info("No players in squad yet.")
-        
-        # --- Participants Overview ---
-        st.divider()
-        st.subheader("📊 All Participants")
-        if room['participants']:
-            overview_data = []
-            for p in room['participants']:
-                squad_value = sum(pl.get('buy_price', 0) for pl in p['squad'])
-                overview_data.append({
-                    "Name": p['name'],
-                    "Budget": f"{p.get('budget', 350)}M",
-                    "Squad Value": f"{squad_value}M",
-                    "Squad Size": f"{len(p['squad'])}/19",
-                    "IR": p.get('ir_player') or "-"
-                })
-            st.dataframe(pd.DataFrame(overview_data), use_container_width=True, hide_index=True)
-            
-            # Delete Participant Button (Admin Only)
-            if is_admin:
-                st.divider()
-                st.subheader("🗑️ Delete Participant")
-                del_participant = st.selectbox("Select Participant to Delete", [p['name'] for p in room['participants']], key="del_participant")
-                if st.button("Delete Participant", type="secondary"):
-                    room['participants'] = [p for p in room['participants'] if p['name'] != del_participant]
-                    save_auction_data(auction_data)
-                    st.success(f"Deleted {del_participant}!")
-                    st.rerun()
-        
-        # Show room members
-        st.divider()
-        st.subheader("👥 Room Members")
-        members_df = pd.DataFrame([{"Member": m, "Role": "Admin" if m == room['admin'] else "Member"} for m in room['members']])
-        st.dataframe(members_df, use_container_width=True, hide_index=True)
+
         
         # ================ TAB 2: OPEN BIDDING ================
-        with auction_tabs[2]:
+        with auction_tabs[1]:
             st.subheader("💰 Open Bidding (Post-Auction)")
             
             if not room.get('big_auction_complete'):
@@ -1562,7 +1334,7 @@ def show_main_app():
                         st.info("No players available for bidding.")
         
         # ================ TAB 3: TRADING ================
-        with auction_tabs[3]:
+        with auction_tabs[2]:
             st.subheader("🔄 Trade Center")
             
             if not room.get('big_auction_complete'):
@@ -1874,7 +1646,7 @@ def show_main_app():
                             st.rerun()
 
         # ================ TAB 4: SQUADS DASHBOARD ================
-        with auction_tabs[4]:
+        with auction_tabs[3]:
             st.subheader("👤 Squad Dashboard")
             
             # Auto-Refresh Logic (using st.fragment if supported, otherwise just render)
