@@ -1208,6 +1208,9 @@ def show_main_app():
                 for name in player_names:
                     if name not in all_drafted and name not in unsold_players:
                         unsold_players.append(name)
+                
+                # Ensure uniqueness
+                unsold_players = list(set(unsold_players))
                 room['unsold_players'] = unsold_players
                 
                 # Allow bidding on ANY unsold player, even if there is an active bid (outbid logic)
