@@ -318,6 +318,7 @@ def show_room_selection():
 # MAIN APP (Inside a Room)
 # =====================================
 def show_main_app():
+    inject_custom_css() # Apply Aesthetics
     user = st.session_state.logged_in_user
     room_code = st.session_state.current_room
     room = auction_data['rooms'].get(room_code)
@@ -1553,14 +1554,13 @@ def show_main_app():
 
                             # ACTION: COUNTER
                             if c3.button("🔄 Counter", key=f"cnt_{trade['id']}"):
-                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                save_auction_data(auction_data)
+                                # Do NOT delete trade immediately
                                 # Set prefill for next run
                                 st.session_state['trade_prefill'] = {
                                     'to': trade['from'],
                                     'type': trade['type']
                                 }
-                                st.toast("Drafting Counter Offer...")
+                                st.toast("Drafting Counter Offer... Scroll down.")
                                 st.rerun()
                             st.divider()
                 else:
@@ -1681,8 +1681,15 @@ def show_main_app():
             # Since we can't easily check imports, we'll try a conditional block if possible.
             # But simpler: Just render. User can click 'Refresh' button.
             
-            # Simple refresh button
-            if st.button("🔄 Refresh Data"):
+            # Auto-Refresh Toggle & Manual Refresh
+            cR1, cR2 = st.columns([1, 4])
+            if cR1.button("🔄 Refresh Now"):
+                st.rerun()
+            
+            enable_ar = cR2.checkbox("Enable Auto-Refresh (5s)", value=False, help="Automatically refreshes the dashboard every 5 seconds.")
+            if enable_ar:
+                import time
+                time.sleep(5)
                 st.rerun()
 
             # Global Squad Table
