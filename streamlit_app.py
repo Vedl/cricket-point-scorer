@@ -44,6 +44,7 @@ def save_auction_data(data):
     with open(AUCTION_DATA_FILE, 'w') as f:
         json.dump(data, f, indent=2)
 
+@st.cache_data
 def load_players_database():
     """Load master player database."""
     if os.path.exists(PLAYERS_DB_FILE):
@@ -63,6 +64,7 @@ def hash_password(password):
     """Hash password using SHA256."""
     return hashlib.sha256(password.encode()).hexdigest()
 
+@st.cache_data
 def load_schedule():
     """Load T20 WC schedule."""
     if os.path.exists(SCHEDULE_FILE):
@@ -802,7 +804,7 @@ def show_main_app():
                         
                         # Auto-refresh to check for start
                         import time
-                        time.sleep(2)
+                        time.sleep(5)
                         st.rerun()
                 
                 else:
@@ -1061,7 +1063,7 @@ def show_main_app():
                     # Auto-refresh loop for everyone
                     if not should_autosell and not should_autopass:
                         import time
-                        time.sleep(1)
+                        time.sleep(3)
                         st.rerun()
         
 
