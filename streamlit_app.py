@@ -1065,7 +1065,7 @@ def show_main_app():
             if not room.get('big_auction_complete'):
                 st.warning("⏳ Open Bidding will start after the Big Auction is complete. Admin must check 'Big Auction Complete' in sidebar.")
             else:
-                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 5 minutes to win (or until deadline).")
+                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 24 hours to win (or until deadline).")
                 
                 # Admin: Set Bidding Deadline
                 if is_admin:
@@ -1156,7 +1156,7 @@ def show_main_app():
                             "Player": bid['player'],
                             "Current Bid": f"{bid['amount']}M",
                             "Bidder": bid['bidder'],
-                            "Time Left": f"{minutes_left:.1f} mins",
+                            "Time Left": f"{minutes_left/60:.1f} hours", # Changed display to hours
                             "Expires": effective_expires.strftime("%b %d, %H:%M")
                         })
                     st.dataframe(pd.DataFrame(bids_data), use_container_width=True, hide_index=True)
@@ -1194,6 +1194,50 @@ def show_main_app():
                         current_participant = next((p for p in room['participants'] if p['name'] == selected_bidder), None)
                     else:
                         st.warning("No participants yet. Admin needs to add you first.")
+                
+                if current_participant:
+                    # Filter players
+                    # If bidding on existing active bid, min price is (current + 5)
+                    # If new, min price is 5
+                    
+                    target_player = st.selectbox("Select Player", biddable_players, key="bid_player")
+                    
+                    if target_player:
+                        existing_bid = next((b for b in active_bids if b['player'] == target_player), None)
+                        
+                        min_bid = 5.0
+                        if existing_bid:
+                            curr_amt = float(existing_bid['amount'])
+                            if curr_amt >= 50:
+                                min_bid = curr_amt + 5
+                            else:
+                                min_bid = curr_amt + 1 # Or just +1 if <50? Rule says "Over 50M: +5M".
+                                # Let's assume +1 under 50.
+                        
+                        bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=min_bid, step=1.0, format="%.1f")
+                        
+                        if st.button("Place Bid", key="place_bid"):
+                            if bid_amount > current_participant.get('budget', 0):
+                                st.error(f"Insufficient budget! You have {current_participant.get('budget')}M.")
+                            else:
+                                # Remove old bid if exists
+                                if existing_bid:
+                                    active_bids.remove(existing_bid)
+                                    st.toast(f"Outbid previous bid of {existing_bid['amount']}M!")
+                                
+                                expiry_time = now + timedelta(hours=24) # PRODUCTION: 24h
+                                
+                                new_bid = {
+                                    'player': target_player,
+                                    'amount': bid_amount,
+                                    'bidder': current_participant['name'],
+                                    'expires': expiry_time.isoformat()
+                                }
+                                active_bids.append(new_bid)
+                                room['active_bids'] = active_bids
+                                save_auction_data(auction_data)
+                                st.success(f"Bid placed on {target_player} for {bid_amount}M! Win in 24h.")
+                                st.rerun()
                 
 
                 
