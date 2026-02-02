@@ -126,11 +126,11 @@
                 {
                     "match_id": 10,
                     "teams": [
-                        "Australia",
-                        "UAE"
+                        "India",
+                        "Namibia"
                     ],
                     "date": "2026-02-09",
-                    "venue": "Pallekele"
+                    "venue": "Delhi"
                 }
             ]
         },
@@ -215,19 +215,19 @@
                     "match_id": 19,
                     "teams": [
                         "India",
-                        "Namibia"
+                        "Pakistan"
                     ],
                     "date": "2026-02-12",
-                    "venue": "Delhi"
+                    "venue": "Colombo (RPS)"
                 },
                 {
                     "match_id": 20,
                     "teams": [
                         "Canada",
-                        "Zimbabwe"
+                        "UAE"
                     ],
                     "date": "2026-02-12",
-                    "venue": "Colombo (SSC)"
+                    "venue": "Chennai"
                 }
             ]
         },
@@ -248,20 +248,20 @@
                 {
                     "match_id": 22,
                     "teams": [
-                        "Canada",
-                        "UAE"
-                    ],
-                    "date": "2026-02-13",
-                    "venue": "Delhi"
-                },
-                {
-                    "match_id": 23,
-                    "teams": [
                         "USA",
                         "Netherlands"
                     ],
                     "date": "2026-02-13",
                     "venue": "Chennai"
+                },
+                {
+                    "match_id": 23,
+                    "teams": [
+                        "New Zealand",
+                        "South Africa"
+                    ],
+                    "date": "2026-02-13",
+                    "venue": "Ahmedabad"
                 },
                 {
                     "match_id": 24,
@@ -284,11 +284,11 @@
                 {
                     "match_id": 26,
                     "teams": [
-                        "New Zealand",
-                        "South Africa"
+                        "Afghanistan",
+                        "UAE"
                     ],
                     "date": "2026-02-14",
-                    "venue": "Ahmedabad"
+                    "venue": "Delhi"
                 },
                 {
                     "match_id": 27,
@@ -311,20 +311,20 @@
                 {
                     "match_id": 29,
                     "teams": [
-                        "India",
-                        "Pakistan"
+                        "Pakistan",
+                        "Netherlands"
                     ],
                     "date": "2026-02-15",
-                    "venue": "Colombo (RPS)"
+                    "venue": "Colombo (SSC)"
                 },
                 {
                     "match_id": 30,
                     "teams": [
-                        "Afghanistan",
-                        "UAE"
+                        "Australia",
+                        "Sri Lanka"
                     ],
                     "date": "2026-02-15",
-                    "venue": "Delhi"
+                    "venue": "Pallekele"
                 }
             ]
         },
@@ -345,20 +345,20 @@
                 {
                     "match_id": 32,
                     "teams": [
-                        "Australia",
-                        "Sri Lanka"
+                        "New Zealand",
+                        "Canada"
                     ],
                     "date": "2026-02-16",
-                    "venue": "Pallekele"
+                    "venue": "Chennai"
                 },
                 {
                     "match_id": 33,
                     "teams": [
-                        "New Zealand",
-                        "Canada"
+                        "India",
+                        "Netherlands"
                     ],
-                    "date": "2026-02-17",
-                    "venue": "Chennai"
+                    "date": "2026-02-16",
+                    "venue": "Ahmedabad"
                 },
                 {
                     "match_id": 34,
@@ -384,7 +384,7 @@
                         "South Africa",
                         "UAE"
                     ],
-                    "date": "2026-02-18",
+                    "date": "2026-02-17",
                     "venue": "Delhi"
                 },
                 {
@@ -399,15 +399,6 @@
                 {
                     "match_id": 38,
                     "teams": [
-                        "India",
-                        "Netherlands"
-                    ],
-                    "date": "2026-02-18",
-                    "venue": "Ahmedabad"
-                },
-                {
-                    "match_id": 39,
-                    "teams": [
                         "West Indies",
                         "Italy"
                     ],
@@ -415,7 +406,7 @@
                     "venue": "Kolkata"
                 },
                 {
-                    "match_id": 40,
+                    "match_id": 39,
                     "teams": [
                         "Sri Lanka",
                         "Zimbabwe"
@@ -424,7 +415,7 @@
                     "venue": "Colombo (RPS)"
                 },
                 {
-                    "match_id": 41,
+                    "match_id": 40,
                     "teams": [
                         "Afghanistan",
                         "Canada"
@@ -433,13 +424,22 @@
                     "venue": "Chennai"
                 },
                 {
-                    "match_id": 42,
+                    "match_id": 41,
                     "teams": [
                         "Australia",
                         "Oman"
                     ],
                     "date": "2026-02-20",
                     "venue": "Pallekele"
+                },
+                {
+                    "match_id": 42,
+                    "teams": [
+                        "India",
+                        "USA"
+                    ],
+                    "date": "2026-02-20",
+                    "venue": "Mumbai"
                 }
             ]
         },
