@@ -23,7 +23,10 @@ class StorageManager:
             try:
                 response = requests.get(self.url + "/latest", headers=self.headers)
                 if response.status_code == 200:
-                    return response.json().get('record', {"users": {}, "rooms": {}})
+                    data = response.json().get('record', {})
+                    if 'users' not in data: data['users'] = {}
+                    if 'rooms' not in data: data['rooms'] = {}
+                    return data
                 else:
                     # If bin is empty or error, fallback or return empty
                     print(f"Remote Load Error: {response.status_code} - {response.text}")
