@@ -586,7 +586,7 @@ def show_main_app():
                     st.markdown("---")
                     
                     # Determine current user's participant status
-                    my_name = st.session_state.get('user', 'Unknown')
+                    my_name = st.session_state.get('logged_in_user', 'Unknown')
                     my_participant = next((p for p in room['participants'] if p.get('user') == my_name or p['name'] == my_name), None)
                     is_my_turn = my_participant and my_participant['name'] not in opted_out and my_participant['name'] != current_bidder
                     
