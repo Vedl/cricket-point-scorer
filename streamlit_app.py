@@ -973,8 +973,31 @@ def show_main_app():
                                     save_auction_data(auction_data)
                                     st.rerun()
 
+
+                    # Admin Override Flags
+                    force_sell = False
+                    force_unsold = False
+                    
+                    # Admin controls (Pause / Force Sell)
+                    if is_admin:
+                        st.divider()
+                        with st.expander("🔧 Admin Controls"):
+                            c1, c2, c3 = st.columns(3)
+                            with c1:
+                                if st.button("⏸️ Pause"):
+                                    live_auction['active'] = False
+                                    room['live_auction'] = live_auction
+                                    save_auction_data(auction_data)
+                                    st.rerun()
+                            with c2:
+                                if st.button("🔨 Force SELL", disabled=(current_bid == 0)):
+                                    force_sell = True
+                            with c3:
+                                if st.button("⏩ Force UNSOLD"):
+                                    force_unsold = True
+
                     # Handle Sale / Unsold
-                    if should_autosell:
+                    if should_autosell or force_sell:
                         st.success(f"🎉 **SOLD!** {current_player} to **{current_bidder}** for **{current_bid}M**")
                         # Auto-execute after brief delay or showing the message
                         # We need a way to show the success message before switching.
@@ -1022,7 +1045,7 @@ def show_main_app():
                             time.sleep(3) # Show result for 3s then next
                             st.rerun()
 
-                    elif should_autopass:
+                    elif should_autopass or force_unsold:
                         st.warning(f"⏸️ **UNSOLD** - {current_player}")
                         
                         # EXECUTE UNSOLD
@@ -1050,15 +1073,7 @@ def show_main_app():
                         time.sleep(3)
                         st.rerun()
                     
-                    # Admin controls (Pause)
-                    if is_admin:
-                        st.divider()
-                        with st.expander("🔧 Admin Controls"):
-                            if st.button("⏸️ Pause Auction"):
-                                live_auction['active'] = False
-                                room['live_auction'] = live_auction
-                                save_auction_data(auction_data)
-                                st.rerun()
+
                     
                     # Auto-refresh loop for everyone
                     if not should_autosell and not should_autopass:
