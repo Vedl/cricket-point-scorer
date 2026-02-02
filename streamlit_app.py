@@ -1227,8 +1227,7 @@ def show_main_app():
                     else:
                         st.warning("No participants yet. Admin needs to add you first.")
                 
-                    else:
-                        st.info("No participants yet. Admin needs to add you first.")
+
                 
                 # --- Release Player Section (Added to Open Bidding) ---
                 st.divider()
