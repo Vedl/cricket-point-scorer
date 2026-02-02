@@ -393,10 +393,250 @@ def show_main_app():
             st.divider()
         
         # === AUCTION TABS ===
-        auction_tabs = st.tabs(["🎯 Big Auction", "💰 Open Bidding", "🔄 Trading"])
+        auction_tabs = st.tabs(["🔴 Live Auction", "🎯 Big Auction (Manual)", "💰 Open Bidding", "🔄 Trading"])
         
-        # ================ TAB 1: BIG AUCTION ================
+        # ================ TAB 0: LIVE AUCTION ================
         with auction_tabs[0]:
+            st.subheader("🔴 Live Auction")
+            
+            if room.get('big_auction_complete'):
+                st.success("✅ Big Auction is complete! Use 'Open Bidding' tab to bid on unsold players.")
+            elif not room['participants']:
+                st.warning("Add participants before starting the live auction.")
+            else:
+                # Live auction state
+                live_auction = room.get('live_auction', {})
+                
+                # Get all teams from players
+                teams_with_players = {}
+                for player in players_db.get('players', []):
+                    team = player.get('country', 'Unknown')
+                    if team not in teams_with_players:
+                        teams_with_players[team] = []
+                    teams_with_players[team].append(player)
+                
+                # Filter out already drafted players
+                all_drafted_players = set()
+                for p in room['participants']:
+                    for pl in p['squad']:
+                        all_drafted_players.add(pl['name'])
+                
+                if not live_auction.get('active'):
+                    # === START AUCTION MODE ===
+                    st.markdown("### 🎬 Start Live Auction")
+                    st.info("Select a team to auction their players. Players will be shown one by one with a 15-second timer.")
+                    
+                    # Show available teams with player counts
+                    available_teams = []
+                    for team, players in teams_with_players.items():
+                        undrafted = [p for p in players if p['name'] not in all_drafted_players]
+                        if undrafted:
+                            available_teams.append((team, len(undrafted)))
+                    
+                    if available_teams:
+                        team_options = [f"{t[0]} ({t[1]} players)" for t in available_teams]
+                        selected_team_idx = st.selectbox("Select Team to Auction", range(len(team_options)), format_func=lambda x: team_options[x])
+                        selected_team = available_teams[selected_team_idx][0]
+                        
+                        # Show players from this team
+                        team_players = [p for p in teams_with_players[selected_team] if p['name'] not in all_drafted_players]
+                        
+                        # Sort by role: batsman -> allrounder -> bowler
+                        role_order = {'WK-Batsman': 0, 'Batsman': 1, 'Batting Allrounder': 2, 'Bowling Allrounder': 3, 'Bowler': 4}
+                        team_players.sort(key=lambda x: role_order.get(x.get('role', 'Unknown'), 99))
+                        
+                        st.write("**Auction order:**")
+                        for i, p in enumerate(team_players[:10], 1):  # Show first 10
+                            st.caption(f"{i}. {p['name']} ({p.get('role', 'Unknown')})")
+                        if len(team_players) > 10:
+                            st.caption(f"...and {len(team_players) - 10} more")
+                        
+                        if is_admin and st.button("🚀 Start Auction for " + selected_team, type="primary"):
+                            # Initialize live auction
+                            room['live_auction'] = {
+                                'active': True,
+                                'current_team': selected_team,
+                                'player_queue': [p['name'] for p in team_players],
+                                'current_player': team_players[0]['name'] if team_players else None,
+                                'current_player_role': team_players[0].get('role', 'Unknown') if team_players else None,
+                                'current_bid': 0,
+                                'current_bidder': None,
+                                'timer_start': datetime.now().isoformat(),
+                                'timer_duration': 15,
+                                'auction_started_at': datetime.now().isoformat()
+                            }
+                            save_auction_data(auction_data)
+                            st.rerun()
+                    else:
+                        st.success("All players have been drafted!")
+                
+                else:
+                    # === ACTIVE AUCTION MODE ===
+                    current_player = live_auction.get('current_player')
+                    current_role = live_auction.get('current_player_role', 'Unknown')
+                    current_team = live_auction.get('current_team')
+                    current_bid = live_auction.get('current_bid', 0)
+                    current_bidder = live_auction.get('current_bidder')
+                    timer_start = datetime.fromisoformat(live_auction.get('timer_start', datetime.now().isoformat()))
+                    timer_duration = live_auction.get('timer_duration', 15)
+                    
+                    # Calculate time remaining
+                    elapsed = (datetime.now() - timer_start).total_seconds()
+                    time_remaining = max(0, timer_duration - elapsed)
+                    
+                    # Display auction header
+                    st.markdown(f"### 🏏 Auctioning: **{current_team}**")
+                    
+                    # Current player display
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    with col1:
+                        st.markdown(f"## 👤 {current_player}")
+                        st.markdown(f"**Role:** {current_role}")
+                    with col2:
+                        if current_bidder:
+                            st.metric("💰 Current Bid", f"{current_bid}M")
+                            st.caption(f"By: {current_bidder}")
+                        else:
+                            st.metric("💰 Starting Bid", "5M")
+                            st.caption("No bids yet")
+                    with col3:
+                        # Timer display
+                        if time_remaining > 5:
+                            st.metric("⏱️ Time", f"{int(time_remaining)}s")
+                        elif time_remaining > 0:
+                            st.metric("⏱️ Time", f"{int(time_remaining)}s", delta="Going...", delta_color="inverse")
+                        else:
+                            st.metric("⏱️ Time", "0s", delta="SOLD!")
+                    
+                    # Progress bar for timer
+                    st.progress(time_remaining / timer_duration)
+                    
+                    # Bidding section (for participants)
+                    st.markdown("---")
+                    
+                    if time_remaining > 0:
+                        st.markdown("### 🎯 Place Your Bid")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            bidder_name = st.selectbox("Bidder", [p['name'] for p in room['participants']])
+                            bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
+                        with col2:
+                            min_bid = max(5, current_bid + 5) if current_bid >= 50 else max(5, current_bid + 1)
+                            max_bid_allowed = bidder.get('budget', 0) if bidder else 0
+                            
+                            if max_bid_allowed >= min_bid:
+                                bid_amount = st.number_input(
+                                    f"Bid Amount (Min: {min_bid}M)", 
+                                    min_value=min_bid, 
+                                    max_value=max_bid_allowed,
+                                    value=min_bid,
+                                    step=5 if min_bid >= 50 else 1
+                                )
+                            else:
+                                st.error(f"{bidder_name} cannot afford {min_bid}M")
+                                bid_amount = 0
+                        
+                        if bid_amount > 0 and st.button("🔨 BID!", type="primary"):
+                            live_auction['current_bid'] = bid_amount
+                            live_auction['current_bidder'] = bidder_name
+                            live_auction['timer_start'] = datetime.now().isoformat()  # Reset timer
+                            room['live_auction'] = live_auction
+                            save_auction_data(auction_data)
+                            st.rerun()
+                    
+                    else:
+                        # Timer expired - award or unsold
+                        if current_bidder:
+                            st.success(f"🎉 **SOLD!** {current_player} to **{current_bidder}** for **{current_bid}M**")
+                            
+                            # Auto-award the player
+                            if is_admin and st.button("✅ Confirm & Next Player"):
+                                bidder = next((p for p in room['participants'] if p['name'] == current_bidder), None)
+                                if bidder:
+                                    bidder['squad'].append({
+                                        'name': current_player,
+                                        'role': current_role,
+                                        'buy_price': current_bid
+                                    })
+                                    bidder['budget'] -= current_bid
+                                    
+                                    # Log auction
+                                    room.setdefault('auction_log', []).append({
+                                        'player': current_player,
+                                        'buyer': current_bidder,
+                                        'price': current_bid,
+                                        'time': datetime.now().isoformat()
+                                    })
+                                
+                                # Move to next player
+                                queue = live_auction.get('player_queue', [])
+                                if current_player in queue:
+                                    queue.remove(current_player)
+                                
+                                if queue:
+                                    next_player = queue[0]
+                                    next_role = player_role_lookup.get(next_player, 'Unknown')
+                                    live_auction['current_player'] = next_player
+                                    live_auction['current_player_role'] = next_role
+                                    live_auction['current_bid'] = 0
+                                    live_auction['current_bidder'] = None
+                                    live_auction['timer_start'] = datetime.now().isoformat()
+                                    live_auction['player_queue'] = queue
+                                else:
+                                    # Team auction complete
+                                    live_auction['active'] = False
+                                    st.success(f"✅ {current_team} auction complete!")
+                                
+                                room['live_auction'] = live_auction
+                                save_auction_data(auction_data)
+                                st.rerun()
+                        else:
+                            st.warning(f"⏸️ **UNSOLD** - No bids for {current_player}")
+                            
+                            if is_admin and st.button("⏭️ Skip to Next Player"):
+                                room.setdefault('unsold_players', []).append(current_player)
+                                
+                                queue = live_auction.get('player_queue', [])
+                                if current_player in queue:
+                                    queue.remove(current_player)
+                                
+                                if queue:
+                                    next_player = queue[0]
+                                    next_role = player_role_lookup.get(next_player, 'Unknown')
+                                    live_auction['current_player'] = next_player
+                                    live_auction['current_player_role'] = next_role
+                                    live_auction['current_bid'] = 0
+                                    live_auction['current_bidder'] = None
+                                    live_auction['timer_start'] = datetime.now().isoformat()
+                                    live_auction['player_queue'] = queue
+                                else:
+                                    live_auction['active'] = False
+                                
+                                room['live_auction'] = live_auction
+                                save_auction_data(auction_data)
+                                st.rerun()
+                    
+                    # Admin controls
+                    if is_admin:
+                        st.divider()
+                        with st.expander("🔧 Admin Controls"):
+                            if st.button("⏸️ Pause Auction"):
+                                live_auction['active'] = False
+                                room['live_auction'] = live_auction
+                                save_auction_data(auction_data)
+                                st.rerun()
+                            
+                            st.write(f"Queue: {len(live_auction.get('player_queue', []))} players remaining")
+                    
+                    # Auto-refresh for timer
+                    if time_remaining > 0:
+                        import time
+                        time.sleep(1)
+                        st.rerun()
+        
+        # ================ TAB 1: BIG AUCTION (Manual) ================
+        with auction_tabs[1]:
             st.subheader("📋 Manage Squads (Big Auction)")
             
             if room.get('big_auction_complete'):
@@ -626,7 +866,7 @@ def show_main_app():
         st.dataframe(members_df, use_container_width=True, hide_index=True)
         
         # ================ TAB 2: OPEN BIDDING ================
-        with auction_tabs[1]:
+        with auction_tabs[2]:
             st.subheader("💰 Open Bidding (Post-Auction)")
             
             if not room.get('big_auction_complete'):
@@ -796,8 +1036,8 @@ def show_main_app():
                         st.info("No players available for bidding. All have been drafted or have active bids.")
         
         # ================ TAB 3: TRADING ================
-        with auction_tabs[2]:
-            st.subheader("🔄 Trading (Coming Soon)")
+        with auction_tabs[3]:
+            st.subheader("🔄 Trading")
             
             if not room.get('big_auction_complete'):
                 st.warning("⏳ Trading will open after the Big Auction is complete.")
