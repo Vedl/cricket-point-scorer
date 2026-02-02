@@ -10,6 +10,7 @@ import uuid as uuid_lib
 from datetime import datetime, timedelta
 from cricbuzz_scraper import CricbuzzScraper
 from player_score_calculator import CricketScoreCalculator
+from backend.storage import StorageManager
 
 # --- Page Config ---
 st.set_page_config(page_title="Fantasy Cricket Auction Platform", page_icon="🏏", layout="wide")
@@ -24,25 +25,18 @@ def get_ist_time():
     """Returns the current time in Indian Standard Time (IST)"""
     return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
+
+# Initialize Storage Manager
+storage_mgr = StorageManager(AUCTION_DATA_FILE)
+
 # --- Load/Save Functions for Persistence ---
 def load_auction_data():
-    """Load auction data from JSON file."""
-    if os.path.exists(AUCTION_DATA_FILE):
-        try:
-            with open(AUCTION_DATA_FILE, 'r') as f:
-                data = json.load(f)
-                # Migrate old format to new format if needed
-                if 'users' not in data:
-                    data = {"users": {}, "rooms": {}}
-                return data
-        except:
-            pass
-    return {"users": {}, "rooms": {}}
+    """Load auction data from Storage Manager (Remote or Local)."""
+    return storage_mgr.load_data()
 
 def save_auction_data(data):
-    """Save auction data to JSON file."""
-    with open(AUCTION_DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+    """Save auction data to Storage Manager (Remote + Local)."""
+    storage_mgr.save_data(data)
 
 @st.cache_data
 def load_players_database():
