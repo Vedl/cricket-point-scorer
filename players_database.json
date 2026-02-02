@@ -1424,6 +1424,86 @@
             "name": "Haider Ali",
             "role": "Bowler",
             "country": "UAE"
+        },
+        {
+            "name": "Pathum Nissanka",
+            "role": "Batsman",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Pavan Rathnayake",
+            "role": "Batsman",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Dasun Shanaka",
+            "role": "Batting Allrounder",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Charith Asalanka",
+            "role": "Batting Allrounder",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Kamindu Mendis",
+            "role": "Batting Allrounder",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Janith Liyanage",
+            "role": "Batting Allrounder",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Dunith Wellalage",
+            "role": "Bowling Allrounder",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Wanindu Hasaranga",
+            "role": "Bowling Allrounder",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Kamil Mishara",
+            "role": "WK-Batsman",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Kusal Mendis",
+            "role": "WK-Batsman",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Kusal Perera",
+            "role": "WK-Batsman",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Eshan Malinga",
+            "role": "Bowler",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Pramod Madushan",
+            "role": "Bowler",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Matheesha Pathirana",
+            "role": "Bowler",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Maheesh Theekshana",
+            "role": "Bowler",
+            "country": "Sri Lanka"
+        },
+        {
+            "name": "Dushmantha Chameera",
+            "role": "Bowler",
+            "country": "Sri Lanka"
         }
     ]
 }
