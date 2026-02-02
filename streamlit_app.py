@@ -462,36 +462,37 @@ def show_main_app():
                         all_drafted_players.add(pl['name'])
                 
                 if not live_auction.get('active'):
-                    # === START AUCTION MODE ===
-                    st.markdown("### 🎬 Start Live Auction")
-                    st.info("Select a team to auction their players. Players will be shown one by one with a 15-second timer.")
-                    
-                    # Show available teams with player counts
-                    available_teams = []
-                    for team, players in teams_with_players.items():
-                        undrafted = [p for p in players if p['name'] not in all_drafted_players]
-                        if undrafted:
-                            available_teams.append((team, len(undrafted)))
-                    
-                    if available_teams:
-                        team_options = [f"{t[0]} ({t[1]} players)" for t in available_teams]
-                        selected_team_idx = st.selectbox("Select Team to Auction", range(len(team_options)), format_func=lambda x: team_options[x])
-                        selected_team = available_teams[selected_team_idx][0]
+                    if is_admin:
+                        # === ADMIN: START AUCTION SETUP ===
+                        st.markdown("### 🎬 Start Live Auction")
+                        st.info("Select a team to auction their players. Players will be shown one by one with a 15-second timer.")
                         
-                        # Show players from this team
-                        team_players = [p for p in teams_with_players[selected_team] if p['name'] not in all_drafted_players]
+                        # Show available teams with player counts
+                        available_teams = []
+                        for team, players in teams_with_players.items():
+                            undrafted = [p for p in players if p['name'] not in all_drafted_players]
+                            if undrafted:
+                                available_teams.append((team, len(undrafted)))
                         
-                        # Sort by role: batsman -> allrounder -> bowler
-                        role_order = {'WK-Batsman': 0, 'Batsman': 1, 'Batting Allrounder': 2, 'Bowling Allrounder': 3, 'Bowler': 4}
-                        team_players.sort(key=lambda x: role_order.get(x.get('role', 'Unknown'), 99))
-                        
-                        st.write("**Auction order:**")
-                        for i, p in enumerate(team_players[:10], 1):  # Show first 10
-                            st.caption(f"{i}. {p['name']} ({p.get('role', 'Unknown')})")
-                        if len(team_players) > 10:
-                            st.caption(f"...and {len(team_players) - 10} more")
-                        
-                            if is_admin and st.button("🚀 Start Auction for " + selected_team, type="primary"):
+                        if available_teams:
+                            team_options = [f"{t[0]} ({t[1]} players)" for t in available_teams]
+                            selected_team_idx = st.selectbox("Select Team to Auction", range(len(team_options)), format_func=lambda x: team_options[x])
+                            selected_team = available_teams[selected_team_idx][0]
+                            
+                            # Show players from this team
+                            team_players = [p for p in teams_with_players[selected_team] if p['name'] not in all_drafted_players]
+                            
+                            # Sort by role: batsman -> allrounder -> bowler
+                            role_order = {'WK-Batsman': 0, 'Batsman': 1, 'Batting Allrounder': 2, 'Bowling Allrounder': 3, 'Bowler': 4}
+                            team_players.sort(key=lambda x: role_order.get(x.get('role', 'Unknown'), 99))
+                            
+                            st.write("**Auction order:**")
+                            for i, p in enumerate(team_players[:10], 1):  # Show first 10
+                                st.caption(f"{i}. {p['name']} ({p.get('role', 'Unknown')})")
+                            if len(team_players) > 10:
+                                st.caption(f"...and {len(team_players) - 10} more")
+                            
+                            if st.button("🚀 Start Auction for " + selected_team, type="primary"):
                                 # Initialize live auction
                                 room['live_auction'] = {
                                     'active': True,
@@ -510,6 +511,17 @@ def show_main_app():
                                 st.rerun()
                         else:
                             st.success("All players have been drafted!")
+                    else:
+                        # === MEMBER: WAITING SCREEN ===
+                        st.markdown("### ⏳ Waiting for Auction...")
+                        st.info("The admin has not started the live auction yet. Please wait.")
+                        st.json({"status": "waiting", "admin": room['admin'], "time": datetime.now().strftime("%H:%M:%S")})
+                        
+                        # Auto-refresh to check for start
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+
                 
                 else:
                     # === ACTIVE AUCTION MODE ===
