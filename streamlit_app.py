@@ -125,38 +125,139 @@ def inject_custom_css():
         color: white !important;
     }
     
+    /* GLOBAL AESTHETICS V3 */
+    
+    /* Remove excessive top padding */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 5rem !important;
+        max-width: 95% !important; /* Wider Layout */
+    }
+    
+    /* Background Gradient */
+    .stApp {
+        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    }
+
+    /* Cards */
+    div[data-testid="stExpander"], div.stContainer {
+        border-radius: 12px;
+        border: 1px solid #30363d;
+        background-color: #0d1117;
+    }
+    
+    /* Inputs */
+    input, select, div[data-baseweb="select"] {
+        border-radius: 8px !important;
+        background-color: #0d1117 !important;
+        border: 1px solid #30363d !important;
+        color: #e6edf3 !important;
+    }
+    
     /* Metrics */
     div[data-testid="metric-container"] {
-        background-color: #161b22;
+        background: rgba(22, 27, 34, 0.7);
         padding: 1rem;
-        border-radius: 10px;
+        border-radius: 12px;
         border: 1px solid #30363d;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        transition: transform 0.2s;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        border-color: #58a6ff;
     }
     
     /* Trade Card Styling */
     .trade-card {
-        background-color: #1e2530;
-        border-radius: 10px;
-        padding: 15px;
+        background: rgba(33, 38, 45, 0.6);
+        border-radius: 12px;
+        padding: 1.5rem;
         border-left: 5px solid #58a6ff;
-        margin-bottom: 10px;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(5px);
+        border: 1px solid #30363d;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .trade-header {
         color: #58a6ff;
-        font-weight: bold;
-        font-size: 1.1em;
-        margin-bottom: 5px;
+        font-weight: 700;
+        font-size: 1.15em;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     .trade-details {
-        color: #c9d1d9;
+        color: #e6edf3;
         font-size: 1em;
+        line-height: 1.5;
     }
     .trade-sub {
         color: #8b949e;
-        font-size: 0.85em;
-        margin-top: 5px;
+        font-size: 0.8em;
+        margin-top: 0.5rem;
     }
+
+    /* Primary Buttons */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, #238636 0%, #2ea043 100%);
+        box-shadow: 0 4px 12px rgba(35, 134, 54, 0.4);
+        border: none;
+        transition: all 0.2s;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        box-shadow: 0 6px 16px rgba(35, 134, 54, 0.6);
+        transform: translateY(-1px);
+    }
+    
+    /* Secondary Buttons */
+    div.stButton > button[kind="secondary"] {
+        background: transparent;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+    }
+    div.stButton > button[kind="secondary"]:hover {
+        border-color: #8b949e;
+        color: #f0f6fc;
+        background: rgba(177, 186, 196, 0.1);
+    }
+
+    /* Headings */
+    h1, h2, h3 {
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: #f0f6fc;
+    }
+    
+    /* Remove Streamlit Branding if possible (just hiding footer) */
+    footer {visibility: hidden;}
+
+    /* Login & Lobby Cards */
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background-color: rgba(22, 27, 34, 0.5);
+        border-radius: 8px;
+        color: #8b949e;
+        border: 1px solid #30363d;
+        flex: 1; /* Equal width */
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #1f6feb !important;
+        color: white !important;
+        border: none;
+    }
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -170,57 +271,64 @@ if 'current_room' not in st.session_state:
 # LOGIN / REGISTER PAGE
 # =====================================
 def show_login_page():
-    st.title("🏏 Fantasy Cricket Auction Platform")
-    st.markdown("### Welcome! Please login or register to continue.")
+    # Centered Layout
+    _, col, _ = st.columns([1, 1.5, 1])
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🔐 Login")
-        login_username = st.text_input("Username", key="login_username", placeholder="Enter your username")
-        login_password = st.text_input("Password", key="login_password", type="password", placeholder="Enter your password")
-        if st.button("Login", type="primary", key="login_btn"):
-            if login_username and login_password:
-                if login_username in auction_data['users']:
-                    user_data = auction_data['users'][login_username]
-                    stored_hash = user_data.get('password_hash', '')
-                    if stored_hash and hash_password(login_password) == stored_hash:
-                        st.session_state.logged_in_user = login_username
-                        st.success(f"Welcome back, {login_username}!")
-                        st.rerun()
+    with col:
+        st.markdown("<div class='login-header'><h1>🏏 Fantasy Cricket Auction</h1><p style='color:#8b949e'>Build your dream team with real-time bidding strategies.</p></div>", unsafe_allow_html=True)
+        
+        tab_login, tab_register = st.tabs(["🔐 Login", "📝 Register"])
+        
+        with tab_login:
+            st.markdown("<br>", unsafe_allow_html=True)
+            login_username = st.text_input("Username", key="login_username", placeholder="Enter your username")
+            login_password = st.text_input("Password", key="login_password", type="password", placeholder="Enter your password")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🚀 Login", type="primary", key="login_btn", use_container_width=True):
+                if login_username and login_password:
+                    if login_username in auction_data['users']:
+                        user_data = auction_data['users'][login_username]
+                        stored_hash = user_data.get('password_hash', '')
+                        if stored_hash and hash_password(login_password) == stored_hash:
+                            st.session_state.logged_in_user = login_username
+                            st.success(f"Welcome back, {login_username}!")
+                            st.rerun()
+                        else:
+                            st.error("Incorrect password.")
                     else:
-                        st.error("Incorrect password.")
+                        st.error("Username not found. Please register first.")
                 else:
-                    st.error("Username not found. Please register first.")
-            else:
-                st.warning("Please enter both username and password.")
-    
-    with col2:
-        st.subheader("📝 Register")
-        register_username = st.text_input("Choose Username", key="register_username", placeholder="Choose a username")
-        register_password = st.text_input("Create Password", key="register_password", type="password", placeholder="Min 4 characters")
-        register_password_confirm = st.text_input("Confirm Password", key="register_password_confirm", type="password", placeholder="Re-enter password")
-        if st.button("Register", type="secondary", key="register_btn"):
-            if register_username and register_password:
-                if len(register_password) < 4:
-                    st.error("Password must be at least 4 characters.")
-                elif register_password != register_password_confirm:
-                    st.error("Passwords do not match.")
-                elif register_username in auction_data['users']:
-                    st.error("Username already taken. Choose another.")
+                    st.warning("Please enter both username and password.")
+        
+        with tab_register:
+            st.markdown("<br>", unsafe_allow_html=True)
+            register_username = st.text_input("Choose Username", key="register_username", placeholder="Choose a unique username")
+            register_password = st.text_input("Create Password", key="register_password", type="password", placeholder="Min 4 characters")
+            register_password_confirm = st.text_input("Confirm Password", key="register_password_confirm", type="password", placeholder="Re-enter password")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("✨ Create Account", type="primary", key="register_btn", use_container_width=True):
+                if register_username and register_password:
+                    if len(register_password) < 4:
+                        st.error("Password must be at least 4 characters.")
+                    elif register_password != register_password_confirm:
+                        st.error("Passwords do not match.")
+                    elif register_username in auction_data['users']:
+                        st.error("Username already taken. Choose another.")
+                    else:
+                        auction_data['users'][register_username] = {
+                            "created_at": datetime.now().isoformat(),
+                            "password_hash": hash_password(register_password),
+                            "rooms_created": [],
+                            "rooms_joined": []
+                        }
+                        save_auction_data(auction_data)
+                        st.session_state.logged_in_user = register_username
+                        st.success(f"Welcome, {register_username}! Account created.")
+                        st.rerun()
                 else:
-                    auction_data['users'][register_username] = {
-                        "created_at": datetime.now().isoformat(),
-                        "password_hash": hash_password(register_password),
-                        "rooms_created": [],
-                        "rooms_joined": []
-                    }
-                    save_auction_data(auction_data)
-                    st.session_state.logged_in_user = register_username
-                    st.success(f"Welcome, {register_username}! Account created.")
-                    st.rerun()
-            else:
-                st.warning("Please enter both username and password.")
+                    st.warning("Please enter all fields.")
 
 # =====================================
 # ROOM SELECTION / CREATION PAGE
@@ -1599,32 +1707,6 @@ def show_main_app():
                                 st.toast("Trade Rejected")
                                 st.rerun()
 
-                            # ACTION: COUNTER
-                            if c3.button("🔄 Counter", key=f"cnt_{trade['id']}"):
-                                # Smart Counter Mapping
-                                new_type = trade['type']
-                                new_player = trade.get('player')
-                                new_price = trade.get('price')
-                                
-                                if trade['type'] == "Transfer (Sell)":
-                                    new_type = "Transfer (Buy)" # They sell, I counter by offering to Buy (diff price)
-                                elif trade['type'] == "Transfer (Buy)":
-                                    new_type = "Transfer (Sell)" # They buy, I counter by offering to Sell
-                                
-                                st.session_state['trade_prefill'] = {
-                                    'to': trade['from'],
-                                    'type': new_type,
-                                    'player': new_player,
-                                    'price': new_price,
-                                    'is_counter': True,
-                                    'original_id': trade['id']
-                                }
-                                # Force UI Reset
-                                if 'tp_type_radio' in st.session_state:
-                                    del st.session_state['tp_type_radio']
-                                
-                                st.toast("Drafting Counter Offer... Scroll down.")
-                                st.rerun()
                             st.markdown("---") # Spacer
                 else:
                     st.info("No incoming proposals.")
