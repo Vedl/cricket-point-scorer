@@ -1655,8 +1655,6 @@ def show_main_app():
                         if prefill['to'] == my_p_name:
                              def_to_idx = (def_to_idx + 1) % len(parts)
                     
-                            def_to_idx = (def_to_idx + 1) % len(parts)
-                    
                     types = ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"]
                     if prefill['type'] in types:
                         def_type_idx = types.index(prefill['type'])
