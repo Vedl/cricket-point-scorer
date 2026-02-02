@@ -38,9 +38,9 @@
     },
     "gameweeks": {
         "1": {
-            "name": "Group Stage - Week 1",
+            "name": "Group Stage - Part 1",
             "phase": "Group Stage",
-            "dates": "Feb 7-9, 2026",
+            "dates": "2026-02-07 to 2026-02-09",
             "matches": [
                 {
                     "match_id": 1,
@@ -135,9 +135,9 @@
             ]
         },
         "2": {
-            "name": "Group Stage - Week 2",
+            "name": "Group Stage - Part 2",
             "phase": "Group Stage",
-            "dates": "Feb 10-12, 2026",
+            "dates": "2026-02-10 to 2026-02-12",
             "matches": [
                 {
                     "match_id": 11,
@@ -232,9 +232,9 @@
             ]
         },
         "3": {
-            "name": "Group Stage - Week 3",
+            "name": "Group Stage - Part 3",
             "phase": "Group Stage",
-            "dates": "Feb 13-15, 2026",
+            "dates": "2026-02-13 to 2026-02-15",
             "matches": [
                 {
                     "match_id": 21,
@@ -329,9 +329,9 @@
             ]
         },
         "4": {
-            "name": "Group Stage - Week 4",
+            "name": "Group Stage - Part 4",
             "phase": "Group Stage",
-            "dates": "Feb 16-20, 2026",
+            "dates": "2026-02-16 to 2026-02-20",
             "matches": [
                 {
                     "match_id": 31,
