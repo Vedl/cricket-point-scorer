@@ -159,6 +159,8 @@ class GameweekProcessor:
             
         leaderboard.sort(key=lambda x: x['gw_points'], reverse=True)
         return leaderboard
+
+class Best11Selector:
     """
     Selects the Best 11 players for a gameweek based on fantasy rules.
     Rules:
@@ -233,10 +235,10 @@ class GameweekProcessor:
         pool_with_cat.sort(key=lambda x: x['score'], reverse=True)
         
         valid_ranges = {
-            'WK': (1, 4),
-            'BAT': (3, 6),
-            'AR': (1, 4),
-            'BWL': (3, 6)
+            'WK': (1, 3),
+            'BAT': (1, 4),
+            'AR': (2, 6),
+            'BWL': (3, 4)
         }
         
         for team in itertools.combinations(pool_with_cat, 11):
@@ -272,7 +274,7 @@ class GameweekProcessor:
                 "validation_notes": [] # Clean
             }
         else:
-            notes.append("Could not find a valid 11 satisfying all role constraints (WK:1-4, BAT:3-6, AR:1-4, BWL:3-6). Returned highest scoring invalid 11.")
+            notes.append("Could not find a valid 11 satisfying all role constraints (WK:1-3, BAT:1-4, AR:2-6, BWL:3-4). Returned highest scoring invalid 11.")
             
             # Specific hint
             if best_invalid_team:

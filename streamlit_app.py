@@ -1998,38 +1998,64 @@ def show_main_app():
             
             # Calculate Best 11 for each participant
             def get_best_11(squad, player_scores, ir_player=None):
+                import itertools
+                
+                # Active pool
                 active_squad = [p for p in squad if p['name'] != ir_player]
                 scored_players = []
-                for p in active_squad:
+                for p in active_squad: 
                     score = player_scores.get(p['name'], 0)
-                    scored_players.append({'name': p['name'], 'role': p['role'], 'score': score})
+                    # Normalize Role
+                    role_str = p.get('role', '').lower()
+                    if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
+                    elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
+                    elif 'bat' in role_str: cat = 'BAT'
+                    elif 'bowl' in role_str: cat = 'BWL'
+                    else: cat = 'BAT'
+                    
+                    scored_players.append({'name': p['name'], 'role': p['role'], 'category': cat, 'score': score})
+                
+                if len(scored_players) <= 11:
+                    return scored_players, [] # List of players, empty warnings
+                
+                # Brute force 11 from N
                 scored_players.sort(key=lambda x: x['score'], reverse=True)
                 
-                by_role = {'WK-Batsman': [], 'Batsman': [], 'Batting Allrounder': [], 'Bowling Allrounder': [], 'Bowler': []}
-                for p in scored_players:
-                    role = p['role']
-                    if role in by_role:
-                        by_role[role].append(p)
-                    else:
-                        # Handle unknown roles
-                        by_role.setdefault(role, []).append(p)
+                valid_ranges = {
+                    'WK': (1, 3),
+                    'BAT': (1, 4),
+                    'AR': (2, 6),
+                    'BWL': (3, 4)
+                }
                 
-                best_11 = []
+                best_team = []
+                best_score = -1
                 
-                # 1 WK mandatory
-                if by_role.get('WK-Batsman'):
-                    best_11.append(by_role['WK-Batsman'].pop(0))
+                # Optimization: Try to find a valid team starting from highest scorers
+                # Given max squad 19, active 18, C(18,11) = 31824.
+                for team in itertools.combinations(scored_players, 11):
+                    counts = {'WK': 0, 'BAT': 0, 'AR': 0, 'BWL': 0}
+                    current_score = 0
+                    for p in team:
+                        counts[p['category']] += 1
+                        current_score += p['score']
+                    
+                    is_valid = True
+                    for role, (min_v, max_v) in valid_ranges.items():
+                        if not (min_v <= counts[role] <= max_v):
+                            is_valid = False
+                            break
+                    
+                    if is_valid:
+                        if current_score > best_score:
+                            best_score = current_score
+                            best_team = list(team)
                 
-                # Fill remaining with top scorers
-                all_remaining = []
-                for role_list in by_role.values():
-                    all_remaining.extend(role_list)
-                all_remaining.sort(key=lambda x: x['score'], reverse=True)
-                
-                while len(best_11) < 11 and all_remaining:
-                    best_11.append(all_remaining.pop(0))
-                
-                return best_11
+                if best_team:
+                    return best_team, []
+                else:
+                    # Fallback to top 11 if no valid team
+                    return scored_players[:11], ["⚠️ Could not satisfy role constraints (WK:1-3, BAT:1-4, AR:2-6, BWL:3-4). Showed top scorers instead."]
             
             # Calculate standings
             standings = []
@@ -2049,12 +2075,13 @@ def show_main_app():
                     squad = participant['squad']
                     ir_player = participant.get('ir_player')
                 
-                best_11 = get_best_11(squad, gw_scores, ir_player)
+                best_11, warnings = get_best_11(squad, gw_scores, ir_player)
                 total_points = sum(p['score'] for p in best_11)
                 standings.append({
                     "Participant": participant['name'],
                     "Points": total_points,
-                    "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "..." if best_11 else "No players"
+                    "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "...",
+                    "Warnings": " ".join(warnings) if warnings else "OK"
                 })
             
             standings.sort(key=lambda x: x['Points'], reverse=True)
@@ -2079,7 +2106,9 @@ def show_main_app():
                 detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room['participants']])
                 detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
                 if detail_p:
-                    best_11 = get_best_11(detail_p['squad'], gw_scores, detail_p.get('ir_player'))
+                    best_11, warnings = get_best_11(detail_p['squad'], gw_scores, detail_p.get('ir_player'))
+                    if warnings:
+                        for w in warnings: st.warning(w)
                     best_11_df = pd.DataFrame(best_11)
                     st.dataframe(best_11_df, use_container_width=True, hide_index=True)
             else:
