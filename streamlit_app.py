@@ -170,7 +170,12 @@ def show_room_selection():
                     "name": room_name,
                     "admin": user,
                     "members": [user],
-                    "participants": [],
+                    "participants": [{
+                        'name': user,
+                        'squad': [],
+                        'budget': 350,
+                        'user': user
+                    }],
                     "gameweek_scores": {},
                     "created_at": datetime.now().isoformat(),
                     # Auction System Fields
@@ -200,9 +205,16 @@ def show_room_selection():
                     room = auction_data['rooms'][join_code]
                     if user not in room['members']:
                         room['members'].append(user)
+                        # Auto-add as participant
+                        room['participants'].append({
+                            'name': user,
+                            'squad': [],
+                            'budget': 350,
+                            'user': user
+                        })
                         user_data['rooms_joined'] = user_data.get('rooms_joined', []) + [join_code]
                         save_auction_data(auction_data)
-                        st.success(f"Joined room: {room['name']}")
+                        st.success(f"Joined room: {room['name']} (You are now a participant!)")
                     st.session_state.current_room = join_code
                     st.rerun()
                 else:
@@ -372,25 +384,35 @@ def show_main_app():
                 room['bidding_open'] = False
                 save_auction_data(auction_data)
         
-        # --- Add Participant (Admin Only) ---
+        # --- Participants ---
+        st.markdown("### 👥 Participants")
+        st.caption("Members automatically become participants when they join the room.")
+        
+        # Show existing participants
+        if room['participants']:
+            for p in room['participants']:
+                st.write(f"• **{p['name']}** - Budget: {p.get('budget', 350)}M | Squad: {len(p.get('squad', []))}")
+        
+        # Admin fallback: manually add participant (for guests/non-members)
         if is_admin:
-            st.subheader("👤 Add New Participant")
-            new_name = st.text_input("Participant Name", key="new_participant")
-            if st.button("Add Participant"):
-                participant_names = [p['name'] for p in room['participants']]
-                if new_name and new_name not in participant_names:
-                    room['participants'].append({
-                        'name': new_name, 
-                        'squad': [],  # [{name, role, buy_price}]
-                        'ir_player': None,
-                        'budget': 350  # 350M starting budget
-                    })
-                    save_auction_data(auction_data)
-                    st.success(f"Added {new_name} with 350M budget!")
-                    st.rerun()
-                elif new_name:
-                    st.warning("Participant already exists.")
-            st.divider()
+            with st.expander("➕ Add Non-Member Participant (Admin)"):
+                st.caption("Use this to add participants who aren't room members (e.g., guest accounts)")
+                new_name = st.text_input("Participant Name", key="new_participant")
+                if st.button("Add Participant"):
+                    participant_names = [p['name'] for p in room['participants']]
+                    if new_name and new_name not in participant_names:
+                        room['participants'].append({
+                            'name': new_name, 
+                            'squad': [],
+                            'ir_player': None,
+                            'budget': 350
+                        })
+                        save_auction_data(auction_data)
+                        st.success(f"Added {new_name} with 350M budget!")
+                        st.rerun()
+                    elif new_name:
+                        st.warning("Participant already exists.")
+        st.divider()
         
         # === AUCTION TABS ===
         auction_tabs = st.tabs(["🔴 Live Auction", "🎯 Big Auction (Manual)", "💰 Open Bidding", "🔄 Trading"])
