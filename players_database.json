@@ -161,11 +161,6 @@
             "country": "Australia"
         },
         {
-            "name": "Matthew Short",
-            "role": "Batsman",
-            "country": "Australia"
-        },
-        {
             "name": "Mitchell Marsh",
             "role": "Batting Allrounder",
             "country": "Australia"
@@ -197,11 +192,6 @@
         },
         {
             "name": "Xavier Bartlett",
-            "role": "Bowler",
-            "country": "Australia"
-        },
-        {
-            "name": "Pat Cummins",
             "role": "Bowler",
             "country": "Australia"
         },
@@ -1504,6 +1494,16 @@
             "name": "Dushmantha Chameera",
             "role": "Bowler",
             "country": "Sri Lanka"
+        },
+        {
+            "name": "Matt Renshaw",
+            "role": "Batsman",
+            "country": "Australia"
+        },
+        {
+            "name": "Ben Dwarshuis",
+            "role": "Bowler",
+            "country": "Australia"
         }
     ]
 }
