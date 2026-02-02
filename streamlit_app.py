@@ -1616,8 +1616,13 @@ def show_main_app():
                                     'type': new_type,
                                     'player': new_player,
                                     'price': new_price,
-                                    'is_counter': True
+                                    'is_counter': True,
+                                    'original_id': trade['id']
                                 }
+                                # Force UI Reset
+                                if 'tp_type_radio' in st.session_state:
+                                    del st.session_state['tp_type_radio']
+                                
                                 st.toast("Drafting Counter Offer... Scroll down.")
                                 st.rerun()
                             st.markdown("---") # Spacer
@@ -1680,7 +1685,20 @@ def show_main_app():
                 to_p = next((p for p in room['participants'] if p['name'] == to_p_name), None)
 
                 if from_p and to_p:
-                    t_type = st.radio("Type", ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"], index=def_type_idx, horizontal=True)
+                    # FIX: Use key and handle default
+                    # If prefill exists, we want to force format.
+                    # But index works reliably only if we didn't touch it.
+                    # Best way: Check if match.
+                    
+                    t_type = st.radio("Type", ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"], index=def_type_idx, horizontal=True, key="tp_type_radio")
+                    
+                    # Force Update if Prefill (Session State Hack)
+                    # If prefill type != current state, update state and rerun? No, infinite loop.
+                    # We rely on 'index' being respected on first load.
+                    # But user said it didn't switch.
+                    # The 'Counter' button logic should have cleared this key if we want to reset?
+                    # Let's add that to Counter button logic instead.
+                    # See chunk 1.
                     
                     payload = {}
                     ready = False
@@ -1760,6 +1778,13 @@ def show_main_app():
                                 **payload
                             }
                             room['pending_trades'].append(new_t)
+                            
+                            # Auto-Delete Original if Countering
+                            if is_countering and prefill and 'original_id' in prefill:
+                                orig_id = prefill['original_id']
+                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != orig_id]
+                                st.caption("Original trade rejected/replaced.")
+
                             save_auction_data(auction_data)
                             st.success("Proposal Sent!")
                             if is_countering:
