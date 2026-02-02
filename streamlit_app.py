@@ -1,4 +1,5 @@
 import streamlit as st
+import math
 import pandas as pd
 import json
 import os
@@ -1300,7 +1301,6 @@ def show_main_app():
                                  st.markdown(f"**🔄 Release Player (GW{current_gw} - Free 0%)**")
                              
                              if release_type in ["unlimited", "paid", "knockout_free"]:
-                                 import math
                                  refund_amount = int(math.ceil(player_obj.get('buy_price', 0) / 2))
                              else:
                                  refund_amount = 0
