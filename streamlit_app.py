@@ -1480,7 +1480,9 @@ def show_main_app():
                             # Aesthetic Card
                             details_html = ""
                             if trade['type'] == "Transfer (Sell)":
-                                details_html = f"Buying <b>{trade['player']}</b> for <b>{trade['price']}M</b>"
+                                details_html = f"Selling <b>{trade['player']}</b> for <b>{trade['price']}M</b>"
+                            elif trade['type'] == "Transfer (Buy)":
+                                details_html = f"Wants to Buy <b>{trade['player']}</b> for <b>{trade['price']}M</b>"
                             elif trade['type'] == "Exchange":
                                 cash_txt = ""
                                 if trade['cash_amount'] > 0:
@@ -1517,6 +1519,19 @@ def show_main_app():
                                             receiver['squad'].append(p_obj)
                                             sender['budget'] += trade['price']
                                             receiver['budget'] -= trade['price']
+                                            success = True
+                                    
+                                    elif trade['type'] == "Transfer (Buy)":
+                                        # Sender (Buyer) wants to buy from Receiver (Seller)
+                                        p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
+                                        if p_obj and sender['budget'] >= trade['price']:
+                                            receiver['squad'].remove(p_obj)
+                                            # Restore Team
+                                            p_obj['team'] = player_team_lookup.get(p_obj['name'], 'Unknown')
+                                            p_obj['buy_price'] = trade['price']
+                                            sender['squad'].append(p_obj)
+                                            receiver['budget'] += trade['price']
+                                            sender['budget'] -= trade['price']
                                             success = True
                                     
                                     elif trade['type'] == "Exchange":
@@ -1586,10 +1601,21 @@ def show_main_app():
 
                             # ACTION: COUNTER
                             if c3.button("🔄 Counter", key=f"cnt_{trade['id']}"):
-                                # Do NOT delete trade immediately
+                                # Smart Counter Mapping
+                                new_type = trade['type']
+                                new_player = trade.get('player')
+                                new_price = trade.get('price')
+                                
+                                if trade['type'] == "Transfer (Sell)":
+                                    new_type = "Transfer (Buy)" # They sell, I counter by offering to Buy (diff price)
+                                elif trade['type'] == "Transfer (Buy)":
+                                    new_type = "Transfer (Sell)" # They buy, I counter by offering to Sell
+                                
                                 st.session_state['trade_prefill'] = {
                                     'to': trade['from'],
-                                    'type': trade['type'],
+                                    'type': new_type,
+                                    'player': new_player,
+                                    'price': new_price,
                                     'is_counter': True
                                 }
                                 st.toast("Drafting Counter Offer... Scroll down.")
@@ -1629,7 +1655,9 @@ def show_main_app():
                         if prefill['to'] == my_p_name:
                              def_to_idx = (def_to_idx + 1) % len(parts)
                     
-                    types = ["Transfer (Sell)", "Exchange", "Loan (1 GW)"]
+                            def_to_idx = (def_to_idx + 1) % len(parts)
+                    
+                    types = ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"]
                     if prefill['type'] in types:
                         def_type_idx = types.index(prefill['type'])
                 
@@ -1654,7 +1682,7 @@ def show_main_app():
                 to_p = next((p for p in room['participants'] if p['name'] == to_p_name), None)
 
                 if from_p and to_p:
-                    t_type = st.radio("Type", ["Transfer (Sell)", "Exchange", "Loan (1 GW)"], index=def_type_idx, horizontal=True)
+                    t_type = st.radio("Type", ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"], index=def_type_idx, horizontal=True)
                     
                     payload = {}
                     ready = False
@@ -1667,6 +1695,27 @@ def show_main_app():
                             ready = True
                         else:
                             st.warning("You have no players to sell.")
+
+                    elif t_type == "Transfer (Buy)":
+                        if to_p['squad']:
+                            # Default player selection from prefill
+                            pl_opts = [str(p['name']) for p in to_p['squad']]
+                            pl_idx = 0
+                            if prefill and prefill.get('player') in pl_opts:
+                                pl_idx = pl_opts.index(prefill['player'])
+                            
+                            pl = st.selectbox("Player to Buy", pl_opts, index=pl_idx)
+                            
+                            # Default price from prefill
+                            def_price = 10
+                            if prefill and prefill.get('price'):
+                                def_price = int(prefill['price'])
+                            
+                            pr = st.number_input("Offer Price (M)", 1, 500, def_price, help="Amount you want to pay")
+                            payload = {'type': t_type, 'player': pl, 'price': pr}
+                            ready = True
+                        else:
+                            st.warning(f"{to_p['name']} has no players to buy.")
                     
                     elif t_type == "Exchange":
                         if from_p['squad'] and to_p['squad']:
