@@ -929,11 +929,12 @@ def show_main_app():
                             
                             if max_bid_allowed >= min_bid:
                                 bid_amount = st.number_input(
-                                    f"Bid (Min: {min_bid}M)", 
-                                    min_value=min_bid, 
-                                    max_value=max_bid_allowed,
-                                    value=min_bid,
+                                    f"Bid (Min: {int(min_bid)}M)", 
+                                    min_value=int(min_bid), 
+                                    max_value=int(max_bid_allowed),
+                                    value=int(min_bid),
                                     step=5 if min_bid >= 50 else 1,
+                                    format="%d",
                                     key=f"bid_input_{current_player}"
                                 )
                             else:
@@ -1289,7 +1290,8 @@ def show_main_app():
                                  st.markdown(f"**🔄 Release Player (GW{current_gw} - Free 0%)**")
                              
                              if release_type in ["unlimited", "paid", "knockout_free"]:
-                                 refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
+                                 import math
+                                 refund_amount = int(math.ceil(player_obj.get('buy_price', 0) / 2))
                              else:
                                  refund_amount = 0
                                  
@@ -1341,11 +1343,12 @@ def show_main_app():
                                         min_bid = existing_bid['amount'] + 1
                             
                             bid_amount = st.number_input(
-                                f"Bid Amount (Min: {min_bid}M)",
-                                min_value=min_bid,
+                                f"Bid Amount (Min: {int(min_bid)}M)",
+                                min_value=int(min_bid),
                                 max_value=int(current_participant.get('budget', 0)),
-                                value=min_bid,
+                                value=int(min_bid),
                                 step=5 if min_bid >= 50 else 1,
+                                format="%d",
                                 key="open_bid_amount"
                             )
                             
@@ -1604,7 +1607,7 @@ def show_main_app():
                     if t_type == "Transfer (Sell)":
                         if from_p['squad']:
                             pl = st.selectbox("Player to Sell", [str(p['name']) for p in from_p['squad']])
-                            pr = st.number_input("Asking Price (M)", 1, 500, 10, help="Amount you want to receive")
+                            pr = st.number_input("Asking Price (M)", 1, 500, 10, format="%d", help="Amount you want to receive")
                             payload = {'type': t_type, 'player': pl, 'price': pr}
                             ready = True
                         else:
@@ -1625,7 +1628,7 @@ def show_main_app():
                             if prefill and prefill.get('price'):
                                 def_price = int(prefill['price'])
                             
-                            pr = st.number_input("Offer Price (M)", 1, 500, def_price, help="Amount you want to pay")
+                            pr = st.number_input("Offer Price (M)", 1, 500, def_price, format="%d", help="Amount you want to pay")
                             payload = {'type': t_type, 'player': pl, 'price': pr}
                             ready = True
                         else:
@@ -1640,7 +1643,7 @@ def show_main_app():
                             c_dir = st.radio("Cash Adjustment", ["None", f"I pay {to_p_name}", f"{to_p_name} pays Me"], horizontal=True)
                             c_amt = 0
                             if c_dir != "None":
-                                c_amt = st.number_input("Cash Amount (M)", 1, 100, 5)
+                                c_amt = st.number_input("Cash Amount (M)", 1, 100, 5, format="%d")
                             
                             payer = None
                             if c_dir == f"I pay {to_p_name}":
@@ -1659,7 +1662,7 @@ def show_main_app():
                         
                         if from_p['squad']:
                             pl = st.selectbox("Player to Loan Out", [p['name'] for p in from_p['squad']])
-                            fee = st.number_input("Loan Fee (M)", 0, 50, 5)
+                            fee = st.number_input("Loan Fee (M)", 0, 50, 5, format="%d")
                             # GW Logic
                             locked = list(room.get('gameweek_squads', {}).keys())
                             ngw = str((max([int(x) for x in locked]) if locked else 0) + 1)
