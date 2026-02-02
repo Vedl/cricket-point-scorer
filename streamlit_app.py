@@ -563,6 +563,20 @@ def show_main_app():
                         # === MEMBER: WAITING SCREEN ===
                         st.markdown("### ⏳ Waiting for Auction...")
                         st.info("The admin has not started the live auction yet. Please wait.")
+                        
+                        # Show Live Dashboard even while waiting
+                        with st.expander("📊 Live Auction Dashboard (Budgets & Squads)", expanded=True):
+                             dash_data = []
+                             for p in room['participants']:
+                                 dash_data.append({
+                                     "Participant": p['name'],
+                                     "Budget": f"{p['budget']}M",
+                                     "Est. Max Bid": f"{p['budget']}M" if p['budget'] > 0 else "0M",
+                                     "Squad Size": len(p['squad']),
+                                     "Squad Value": f"{sum(x['buy_price'] for x in p['squad'])}M"
+                                 })
+                             st.dataframe(pd.DataFrame(dash_data), hide_index=True)
+
                         st.json({"status": "waiting", "admin": room['admin'], "time": datetime.now().strftime("%H:%M:%S")})
                         
                         # Auto-refresh to check for start
