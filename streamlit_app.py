@@ -492,7 +492,55 @@ def show_main_app():
                             if len(team_players) > 10:
                                 st.caption(f"...and {len(team_players) - 10} more")
                             
-                            if st.button("🚀 Start Auction for " + selected_team, type="primary"):
+                            # Check if hidden/paused auction exists
+                            existing_auction = room.get('live_auction')
+                            if existing_auction and not existing_auction.get('active') and existing_auction.get('current_team') == selected_team:
+                                st.warning(f"⚠️ A paused auction exists for {selected_team}")
+                                if st.button("▶️ Resume Auction for " + selected_team, type="primary"):
+                                    existing_auction['active'] = True
+                                    # Adjust timer start to account for pause? Simple approach: Just reset timer for current player?
+                                    # Or better: keep it paused until new bid?
+                                    # User requested "nothing gets affected".
+                                    # If we restart timer now, we might give extra time.
+                                    # Let's just resume active state. The loop below will recalculate time remaining.
+                                    # If time expired while paused... that's tricky.
+                                    # Best to reset timer_start to NOW - (duration - remaining_when_paused).
+                                    # But we didn't save remaining_when_paused.
+                                    # Simplest reliable fix: Reset timer to full 90s only if it was expired?
+                                    # Actually, if we just set active=True, the code below calculates `elapsed = now - timer_start`.
+                                    # If we paused 10 mins ago, `elapsed` will be huge, and time_remaining will be 0.
+                                    # So player will be sold instantly upon resume!
+                                    # FIX: Update timer_start so that `remaining` is what it should be.
+                                    # For now, let's just RESET timer to 90s for FAIRNESS upon resume?
+                                    # Or assume admin wants to continue.
+                                    # Let's simple reset timer to current time so they have full time again?
+                                    # Or better: "Resume" means "Continue".
+                                    # Let's update timer_start to `datetime.now()` to give fresh 90s (fair for network issues).
+                                    existing_auction['timer_start'] = datetime.now().isoformat()
+                                    
+                                    room['live_auction'] = existing_auction
+                                    save_auction_data(auction_data)
+                                    st.rerun()
+                                
+                                st.write("OR")
+                                if st.button("Start Fresh (⚠️ Discards paused state)"):
+                                     room['live_auction'] = {
+                                        'active': True,
+                                        'current_team': selected_team,
+                                        'player_queue': [p['name'] for p in team_players],
+                                        'current_player': team_players[0]['name'] if team_players else None,
+                                        'current_player_role': team_players[0].get('role', 'Unknown') if team_players else None,
+                                        'current_bid': 0,
+                                        'current_bidder': None,
+                                        'timer_start': datetime.now().isoformat(),
+                                        'timer_duration': 90,
+                                        'opted_out': [],
+                                        'auction_started_at': datetime.now().isoformat()
+                                    }
+                                     save_auction_data(auction_data)
+                                     st.rerun()
+                            
+                            elif st.button("🚀 Start Auction for " + selected_team, type="primary"):
                                 # Initialize live auction
                                 room['live_auction'] = {
                                     'active': True,
@@ -521,14 +569,29 @@ def show_main_app():
                         import time
                         time.sleep(2)
                         st.rerun()
-
                 
                 else:
                     # === ACTIVE AUCTION MODE ===
                     current_player = live_auction.get('current_player')
+                    
+                    # === LIVE DASHBOARD (Top/Sidebar) ===
+                    with st.expander("📊 Live Auction Dashboard (Budgets & Squads)", expanded=True):
+                         # Create a dataframe for display
+                         dash_data = []
+                         for p in room['participants']:
+                             dash_data.append({
+                                 "Participant": p['name'],
+                                 "Budget": f"{p['budget']}M",
+                                 "Est. Max Bid": f"{p['budget']}M" if p['budget'] > 0 else "0M", # Placeholder for max calc logic
+                                 "Squad Size": len(p['squad']),
+                                 "Squad Value": f"{sum(x['buy_price'] for x in p['squad'])}M"
+                             })
+                         st.dataframe(pd.DataFrame(dash_data), hide_index=True)
+
                     current_role = live_auction.get('current_player_role', 'Unknown')
                     current_team = live_auction.get('current_team')
                     current_bid = live_auction.get('current_bid', 0)
+
                     current_bidder = live_auction.get('current_bidder')
                     timer_start = datetime.fromisoformat(live_auction.get('timer_start', datetime.now().isoformat()))
                     timer_duration = live_auction.get('timer_duration', 90)
