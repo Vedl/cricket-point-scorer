@@ -520,25 +520,72 @@ def show_main_app():
                                     st.success(f"{ir_selection} is now on Injury Reserve.")
                                     st.rerun()
                             
-                            # Release Player (get 50% back)
+                            # Release Player (dynamic rules based on gameweek)
                             st.divider()
-                            st.markdown("**🔄 Release Player (50% return)**")
+                            
+                            # Calculate current gameweek (based on locked gameweeks)
+                            locked_gws = list(room.get('gameweek_squads', {}).keys())
+                            current_gw = max([int(gw) for gw in locked_gws]) if locked_gws else 0
+                            
+                            # Check if participant has used their paid release this GW
+                            paid_releases = participant.get('paid_releases', {})
+                            used_paid_this_gw = paid_releases.get(str(current_gw), False) if current_gw > 0 else False
+                            
+                            # Get knocked out teams
+                            knocked_out_teams = set(room.get('knocked_out_teams', []))
+                            
+                            # Create country lookup from players_db
+                            player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db.get('players', [])}
+                            
                             remove_options = [p['name'] for p in participant['squad']]
                             player_to_remove = st.selectbox("Select Player to Release", remove_options, key="remove_player")
                             
-                            # Find the player to get their buy_price
+                            # Find the player to get their buy_price and check if from knocked-out team
                             player_obj = next((p for p in participant['squad'] if p['name'] == player_to_remove), None)
-                            refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
+                            player_country = player_country_lookup.get(player_to_remove, 'Unknown')
+                            is_knocked_out_team = player_country in knocked_out_teams
                             
-                            st.caption(f"Releasing will refund: **{refund_amount}M** (50% of buy price)")
+                            # Display release rules based on situation
+                            if current_gw == 0:
+                                release_type = "unlimited"  # Before GW1 starts
+                                st.markdown("**🔄 Release Player (50% return - Unlimited)**")
+                                st.caption("Before GW1: Release any number of players for 50% refund")
+                            elif is_knocked_out_team and current_gw >= 5:
+                                # Super 8s+ and player from knocked-out team
+                                release_type = "knockout_free"
+                                st.markdown(f"**🔄 Release Player (Knocked-Out Team - FREE 50%)**")
+                                st.success(f"🚫 {player_country} is knocked out! You get 50% refund without using your paid release.")
+                            elif not used_paid_this_gw:
+                                release_type = "paid"
+                                st.markdown(f"**🔄 Release Player (GW{current_gw} - 1 Paid Release Available)**")
+                                st.caption("You have 1 paid (50%) release remaining this gameweek")
+                            else:
+                                release_type = "free"
+                                st.markdown(f"**🔄 Release Player (GW{current_gw} - Free Only)**")
+                                st.warning("⚠️ You've used your paid release. Additional releases are FREE (0M).")
+                            
+                            # Calculate refund based on release type
+                            if release_type in ["unlimited", "paid", "knockout_free"]:
+                                refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
+                            else:
+                                refund_amount = 0  # Free release
+                            
+                            st.caption(f"Player: **{player_to_remove}** ({player_country})")
+                            st.caption(f"Releasing will refund: **{refund_amount}M**" + 
+                                      (" (50% of buy price)" if release_type != "free" else " (free release)"))
                             
                             if st.button("🔓 Release Player"):
                                 participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
-                                participant['budget'] += refund_amount  # Return 50%
+                                participant['budget'] += refund_amount
                                 if participant.get('ir_player') == player_to_remove:
                                     participant['ir_player'] = None
                                 # Add to unsold pool for bidding
                                 room.setdefault('unsold_players', []).append(player_to_remove)
+                                
+                                # Mark paid release as used (only if NOT knockout_free)
+                                if release_type == "paid":
+                                    participant.setdefault('paid_releases', {})[str(current_gw)] = True
+                                
                                 save_auction_data(auction_data)
                                 st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
                                 st.rerun()
@@ -585,16 +632,50 @@ def show_main_app():
             if not room.get('big_auction_complete'):
                 st.warning("⏳ Open Bidding will start after the Big Auction is complete. Admin must check 'Big Auction Complete' in sidebar.")
             else:
-                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 24 hours to win.")
+                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 24 hours to win (or until deadline).")
+                
+                # Admin: Set Bidding Deadline
+                if is_admin:
+                    with st.expander("⏰ Set Bidding Deadline (Admin)"):
+                        deadline_str = room.get('bidding_deadline', '')
+                        if deadline_str:
+                            current_deadline = datetime.fromisoformat(deadline_str)
+                            st.info(f"Current deadline: {current_deadline.strftime('%b %d, %Y %H:%M')}")
+                        
+                        new_deadline_date = st.date_input("Deadline Date")
+                        new_deadline_time = st.time_input("Deadline Time")
+                        
+                        if st.button("Set Deadline"):
+                            new_deadline = datetime.combine(new_deadline_date, new_deadline_time)
+                            room['bidding_deadline'] = new_deadline.isoformat()
+                            save_auction_data(auction_data)
+                            st.success(f"Deadline set to {new_deadline.strftime('%b %d, %Y %H:%M')}")
+                            st.rerun()
+                
+                # Show countdown to deadline
+                now = datetime.now()
+                deadline_str = room.get('bidding_deadline')
+                if deadline_str:
+                    deadline = datetime.fromisoformat(deadline_str)
+                    if now < deadline:
+                        time_left = deadline - now
+                        hours_left = time_left.total_seconds() / 3600
+                        st.warning(f"⏰ **Bidding closes in {hours_left:.1f} hours** ({deadline.strftime('%b %d, %H:%M')})")
+                    else:
+                        st.error("⏰ **Bidding deadline has passed!** All active bids will be awarded.")
                 
                 # Process expired bids (auto-award to winners)
-                now = datetime.now()
                 active_bids = room.get('active_bids', [])
                 awarded_bids = []
                 
                 for bid in active_bids:
                     expires = datetime.fromisoformat(bid['expires'])
-                    if now >= expires:
+                    # Award if: bid expired OR deadline passed
+                    should_award = now >= expires
+                    if deadline_str and now >= datetime.fromisoformat(deadline_str):
+                        should_award = True  # Deadline passed, award all bids
+                    
+                    if should_award:
                         # Award the player to the bidder
                         bidder_participant = next((p for p in room['participants'] if p['name'] == bid['bidder']), None)
                         if bidder_participant and bid['amount'] <= bidder_participant.get('budget', 0):
@@ -783,24 +864,267 @@ def show_main_app():
                                 with excol2:
                                     player2 = st.selectbox(f"Player from {to_participant}", [p['name'] for p in to_p['squad']], key="ex2")
                                 
+                                # Cash component for exchange
+                                st.markdown("**Optional: Add Cash to Balance**")
+                                cash_direction = st.radio(
+                                    "Who pays extra?", 
+                                    ["No cash involved", f"{from_participant} pays extra", f"{to_participant} pays extra"],
+                                    horizontal=True
+                                )
+                                cash_amount = 0
+                                if cash_direction != "No cash involved":
+                                    cash_amount = st.number_input("Cash Amount (M)", min_value=1, max_value=100, value=5)
+                                
                                 if st.button("📝 Record Exchange"):
                                     p1_obj = next((p for p in from_p['squad'] if p['name'] == player1), None)
                                     p2_obj = next((p for p in to_p['squad'] if p['name'] == player2), None)
-                                    if p1_obj and p2_obj:
+                                    
+                                    # Check budget if cash involved
+                                    can_proceed = True
+                                    if cash_direction == f"{from_participant} pays extra":
+                                        if from_p.get('budget', 0) < cash_amount:
+                                            st.error(f"{from_participant} doesn't have {cash_amount}M!")
+                                            can_proceed = False
+                                    elif cash_direction == f"{to_participant} pays extra":
+                                        if to_p.get('budget', 0) < cash_amount:
+                                            st.error(f"{to_participant} doesn't have {cash_amount}M!")
+                                            can_proceed = False
+                                    
+                                    if p1_obj and p2_obj and can_proceed:
+                                        # Swap players
                                         from_p['squad'].remove(p1_obj)
                                         to_p['squad'].remove(p2_obj)
                                         from_p['squad'].append(p2_obj)
                                         to_p['squad'].append(p1_obj)
+                                        
+                                        # Handle cash component
+                                        if cash_direction == f"{from_participant} pays extra":
+                                            from_p['budget'] -= cash_amount
+                                            to_p['budget'] += cash_amount
+                                        elif cash_direction == f"{to_participant} pays extra":
+                                            to_p['budget'] -= cash_amount
+                                            from_p['budget'] += cash_amount
+                                        
                                         save_auction_data(auction_data)
-                                        st.success(f"Exchange complete! {player1} ↔ {player2}")
+                                        cash_msg = f" + {cash_amount}M" if cash_amount > 0 else ""
+                                        st.success(f"Exchange complete! {player1}{cash_msg if cash_direction == f'{from_participant} pays extra' else ''} ↔ {player2}{cash_msg if cash_direction == f'{to_participant} pays extra' else ''}")
                                         st.rerun()
                             else:
                                 st.warning("Both participants need players for an exchange.")
                         
                         elif trade_type == "Loan (1 GW)":
-                            st.info("🚧 Loan system is under development. Coming soon!")
+                            st.markdown("**Loan a player for 1 Gameweek**")
+                            if from_p['squad']:
+                                player_to_loan = st.selectbox(
+                                    f"Player to loan from {from_participant}",
+                                    [p['name'] for p in from_p['squad']]
+                                )
+                                loan_fee = st.number_input("Loan Fee (M)", min_value=0, max_value=50, value=5)
+                                
+                                # Calculate which GW this loan is for
+                                locked_gws = list(room.get('gameweek_squads', {}).keys())
+                                current_gw = max([int(gw) for gw in locked_gws]) if locked_gws else 0
+                                next_gw = current_gw + 1
+                                
+                                st.info(f"This loan will be for GW{next_gw}. Player returns after that gameweek.")
+                                
+                                if st.button("📝 Record Loan"):
+                                    if loan_fee > to_p.get('budget', 0):
+                                        st.error(f"{to_participant} doesn't have {loan_fee}M for loan fee!")
+                                    else:
+                                        player_obj = next((p for p in from_p['squad'] if p['name'] == player_to_loan), None)
+                                        if player_obj:
+                                            # Create loan record
+                                            room.setdefault('active_loans', []).append({
+                                                'player': player_to_loan,
+                                                'from': from_participant,
+                                                'to': to_participant,
+                                                'fee': loan_fee,
+                                                'gameweek': str(next_gw),
+                                                'original_buy_price': player_obj.get('buy_price', 0),
+                                                'created_at': datetime.now().isoformat()
+                                            })
+                                            
+                                            # Move player temporarily
+                                            from_p['squad'].remove(player_obj)
+                                            to_p['squad'].append({
+                                                'name': player_to_loan,
+                                                'role': player_obj['role'],
+                                                'buy_price': player_obj.get('buy_price', 0),
+                                                'on_loan': True,
+                                                'loan_from': from_participant
+                                            })
+                                            
+                                            # Transfer loan fee
+                                            from_p['budget'] += loan_fee
+                                            to_p['budget'] -= loan_fee
+                                            
+                                            save_auction_data(auction_data)
+                                            st.success(f"Loan complete! {player_to_loan} loaned to {to_participant} for GW{next_gw} ({loan_fee}M fee)")
+                                            st.rerun()
+                            else:
+                                st.warning(f"{from_participant} has no players to loan.")
                 else:
                     st.warning("Need at least 2 participants for trading.")
+                
+                # === VIEW OTHER SQUADS ===
+                st.divider()
+                st.markdown("### 👀 View Participant Squads")
+                
+                view_participant = st.selectbox(
+                    "Select participant to view squad",
+                    [p['name'] for p in room['participants']],
+                    key="view_squad_select"
+                )
+                
+                view_p = next((p for p in room['participants'] if p['name'] == view_participant), None)
+                if view_p and view_p['squad']:
+                    squad_df = pd.DataFrame(view_p['squad'])
+                    st.dataframe(squad_df, use_container_width=True, hide_index=True)
+                    st.caption(f"Budget: {view_p.get('budget', 350)}M | IR: {view_p.get('ir_player', 'None')}")
+                else:
+                    st.info(f"{view_participant} has no players yet.")
+                
+                # === TRADE PROPOSALS ===
+                st.divider()
+                st.markdown("### 📩 Trade Proposals")
+                
+                # Show my proposals (incoming and outgoing)
+                pending_trades = room.get('pending_trades', [])
+                my_name = st.session_state.get('user', 'Unknown')
+                
+                # Get participant name for current user (if they're a participant)
+                my_participant = next((p['name'] for p in room['participants'] 
+                                      if p.get('user') == my_name or p['name'] == my_name), None)
+                
+                if not my_participant:
+                    st.info("You need to be a participant to send or receive trade proposals.")
+                else:
+                    # Incoming proposals
+                    my_incoming = [t for t in pending_trades if t['to'] == my_participant and t['status'] == 'pending']
+                    if my_incoming:
+                        st.markdown("**📥 Incoming Proposals**")
+                        for i, trade in enumerate(my_incoming):
+                            with st.expander(f"From {trade['from']}: {trade.get('from_players', [])} ↔ {trade.get('to_players', [])}"):
+                                cash_note = ""
+                                if trade.get('cash_from_to', 0) > 0:
+                                    cash_note = f" + {trade['cash_from_to']}M from {trade['from']}"
+                                elif trade.get('cash_from_to', 0) < 0:
+                                    cash_note = f" + {abs(trade['cash_from_to'])}M from you"
+                                
+                                st.write(f"**Offer:** {', '.join(trade.get('from_players', []))}")
+                                st.write(f"**Wants:** {', '.join(trade.get('to_players', []))}")
+                                if cash_note:
+                                    st.write(f"**Cash:** {cash_note}")
+                                
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    if st.button("✅ Accept", key=f"accept_{trade['id']}"):
+                                        # Execute the trade
+                                        from_p = next((p for p in room['participants'] if p['name'] == trade['from']), None)
+                                        to_p = next((p for p in room['participants'] if p['name'] == trade['to']), None)
+                                        
+                                        if from_p and to_p:
+                                            # Move players
+                                            for pname in trade.get('from_players', []):
+                                                pobj = next((p for p in from_p['squad'] if p['name'] == pname), None)
+                                                if pobj:
+                                                    from_p['squad'].remove(pobj)
+                                                    to_p['squad'].append(pobj)
+                                            
+                                            for pname in trade.get('to_players', []):
+                                                pobj = next((p for p in to_p['squad'] if p['name'] == pname), None)
+                                                if pobj:
+                                                    to_p['squad'].remove(pobj)
+                                                    from_p['squad'].append(pobj)
+                                            
+                                            # Handle cash
+                                            cash = trade.get('cash_from_to', 0)
+                                            if cash > 0:
+                                                from_p['budget'] -= cash
+                                                to_p['budget'] += cash
+                                            elif cash < 0:
+                                                to_p['budget'] += cash  # cash is negative
+                                                from_p['budget'] -= cash
+                                            
+                                            trade['status'] = 'accepted'
+                                            save_auction_data(auction_data)
+                                            st.success("Trade accepted and executed!")
+                                            st.rerun()
+                                
+                                with col2:
+                                    if st.button("❌ Reject", key=f"reject_{trade['id']}"):
+                                        trade['status'] = 'rejected'
+                                        save_auction_data(auction_data)
+                                        st.info("Trade rejected.")
+                                        st.rerun()
+                                
+                                with col3:
+                                    if st.button("🔄 Counter", key=f"counter_{trade['id']}"):
+                                        st.session_state['counter_trade'] = trade['id']
+                    
+                    # Outgoing proposals
+                    my_outgoing = [t for t in pending_trades if t['from'] == my_participant and t['status'] == 'pending']
+                    if my_outgoing:
+                        st.markdown("**📤 Your Outgoing Proposals**")
+                        for trade in my_outgoing:
+                            st.write(f"To {trade['to']}: {trade.get('from_players', [])} ↔ {trade.get('to_players', [])} - *Pending*")
+                    
+                    # Create new proposal
+                    st.markdown("**➕ Create New Trade Proposal**")
+                    
+                    other_participants = [p['name'] for p in room['participants'] if p['name'] != my_participant]
+                    if other_participants:
+                        proposal_to = st.selectbox("Send proposal to", other_participants, key="proposal_to")
+                        
+                        my_p = next((p for p in room['participants'] if p['name'] == my_participant), None)
+                        other_p = next((p for p in room['participants'] if p['name'] == proposal_to), None)
+                        
+                        if my_p and other_p and my_p['squad'] and other_p['squad']:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                my_players = st.multiselect(
+                                    "Your players to offer",
+                                    [p['name'] for p in my_p['squad']],
+                                    key="proposal_my_players"
+                                )
+                            with col2:
+                                their_players = st.multiselect(
+                                    f"Players you want from {proposal_to}",
+                                    [p['name'] for p in other_p['squad']],
+                                    key="proposal_their_players"
+                                )
+                            
+                            cash_direction = st.radio(
+                                "Cash component",
+                                ["No cash", "You pay extra", "They pay extra"],
+                                horizontal=True
+                            )
+                            cash_amount = 0
+                            if cash_direction != "No cash":
+                                cash_amount = st.number_input("Cash Amount (M)", min_value=1, max_value=100, value=5, key="proposal_cash")
+                            
+                            if st.button("📨 Send Proposal"):
+                                if not my_players and not their_players:
+                                    st.error("Select at least one player!")
+                                else:
+                                    import uuid
+                                    new_trade = {
+                                        'id': str(uuid.uuid4()),
+                                        'from': my_participant,
+                                        'to': proposal_to,
+                                        'from_players': my_players,
+                                        'to_players': their_players,
+                                        'cash_from_to': cash_amount if cash_direction == "You pay extra" else (-cash_amount if cash_direction == "They pay extra" else 0),
+                                        'status': 'pending',
+                                        'created_at': datetime.now().isoformat()
+                                    }
+                                    room.setdefault('pending_trades', []).append(new_trade)
+                                    save_auction_data(auction_data)
+                                    st.success(f"Proposal sent to {proposal_to}!")
+                                    st.rerun()
+                        else:
+                            st.info("Both participants need players for trade proposals.")
 
 
     # =====================================
@@ -817,6 +1141,40 @@ def show_main_app():
             st.info(f"Admin: {room['admin']}")
         else:
             st.markdown("Process match data and calculate points for each gameweek.")
+            
+            # Knocked-out Teams Admin (for Super 8s and beyond)
+            with st.expander("🚫 Manage Knocked-Out Teams (Super 8s+)"):
+                st.caption("Players from knocked-out teams can be released for 50% without counting as your paid release.")
+                
+                all_teams = ["India", "Australia", "England", "South Africa", "New Zealand", "Pakistan", 
+                            "West Indies", "Sri Lanka", "Afghanistan", "Bangladesh", "Netherlands", 
+                            "Ireland", "Scotland", "UAE", "Zimbabwe", "Namibia", "USA", "Nepal", 
+                            "Oman", "Papua New Guinea"]
+                
+                knocked_out = set(room.get('knocked_out_teams', []))
+                active_teams = [t for t in all_teams if t not in knocked_out]
+                
+                if knocked_out:
+                    st.write(f"**Knocked out:** {', '.join(sorted(knocked_out))}")
+                
+                team_to_knockout = st.selectbox("Select team to knockout", active_teams)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🚫 Knockout Team"):
+                        room.setdefault('knocked_out_teams', []).append(team_to_knockout)
+                        save_auction_data(auction_data)
+                        st.success(f"{team_to_knockout} marked as knocked out!")
+                        st.rerun()
+                
+                with col2:
+                    if knocked_out:
+                        team_to_restore = st.selectbox("Restore team", sorted(knocked_out))
+                        if st.button("✅ Restore Team"):
+                            room['knocked_out_teams'].remove(team_to_restore)
+                            save_auction_data(auction_data)
+                            st.success(f"{team_to_restore} restored!")
+                            st.rerun()
             
             # Two tabs: Schedule-based and Manual
             tab1, tab2 = st.tabs(["📅 T20 WC Schedule", "🔗 Manual URLs"])
