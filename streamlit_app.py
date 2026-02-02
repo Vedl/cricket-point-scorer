@@ -449,7 +449,7 @@ def show_main_app():
                 
                 # Get all teams from players
                 teams_with_players = {}
-                for player in players_db.get('players', []):
+                for player in players_db:
                     team = player.get('country', 'Unknown')
                     if team not in teams_with_players:
                         teams_with_players[team] = []
