@@ -576,6 +576,26 @@ def show_main_app():
                                      "Squad Value": f"{sum(x['buy_price'] for x in p['squad'])}M"
                                  })
                              st.dataframe(pd.DataFrame(dash_data), hide_index=True)
+                             
+                             st.markdown("---")
+                             st.caption("📋 **Detailed Squad View**")
+                             p_options = ["None"] + [p['name'] for p in room['participants']]
+                             selected_p_view = st.selectbox("Select Participant to view Squad", p_options, key="waiting_dash_select")
+                             
+                             if selected_p_view != "None":
+                                 p_data = next((p for p in room['participants'] if p['name'] == selected_p_view), None)
+                                 if p_data and p_data['squad']:
+                                     squad_df = []
+                                     for pl in p_data['squad']:
+                                         squad_df.append({
+                                             "Player": pl['name'],
+                                             "Role": pl.get('role', 'Unknown'),
+                                             "Team": pl.get('team', 'Unknown'),
+                                             "Price": f"{pl['buy_price']}M"
+                                         })
+                                     st.dataframe(pd.DataFrame(squad_df), hide_index=True)
+                                 elif p_data:
+                                     st.info("No players in squad yet.")
 
                         st.json({"status": "waiting", "admin": room['admin'], "time": datetime.now().strftime("%H:%M:%S")})
                         
@@ -601,6 +621,26 @@ def show_main_app():
                                  "Squad Value": f"{sum(x['buy_price'] for x in p['squad'])}M"
                              })
                          st.dataframe(pd.DataFrame(dash_data), hide_index=True)
+                         
+                         st.markdown("---")
+                         st.caption("📋 **Detailed Squad View**")
+                         p_options = ["None"] + [p['name'] for p in room['participants']]
+                         selected_p_view = st.selectbox("Select Participant to view Squad", p_options, key="active_dash_select")
+                         
+                         if selected_p_view != "None":
+                             p_data = next((p for p in room['participants'] if p['name'] == selected_p_view), None)
+                             if p_data and p_data['squad']:
+                                 squad_df = []
+                                 for pl in p_data['squad']:
+                                     squad_df.append({
+                                         "Player": pl['name'],
+                                         "Role": pl.get('role', 'Unknown'),
+                                         "Team": pl.get('team', 'Unknown'),
+                                         "Price": f"{pl['buy_price']}M"
+                                     })
+                                 st.dataframe(pd.DataFrame(squad_df), hide_index=True)
+                             elif p_data:
+                                 st.info("No players in squad yet.")
 
                     current_role = live_auction.get('current_player_role', 'Unknown')
                     current_team = live_auction.get('current_team')
