@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import string
+import random
+from datetime import datetime
 from cricbuzz_scraper import CricbuzzScraper
 from player_score_calculator import CricketScoreCalculator
 
@@ -19,10 +22,14 @@ def load_auction_data():
     if os.path.exists(AUCTION_DATA_FILE):
         try:
             with open(AUCTION_DATA_FILE, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Migrate old format to new format if needed
+                if 'users' not in data:
+                    data = {"users": {}, "rooms": {}}
+                return data
         except:
             pass
-    return {"participants": [], "gameweek_scores": {}}
+    return {"users": {}, "rooms": {}}
 
 def save_auction_data(data):
     """Save auction data to JSON file."""
@@ -40,6 +47,10 @@ def load_players_database():
             pass
     return []
 
+def generate_room_code():
+    """Generate a unique 6-character room code."""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
 # --- Initialize Data ---
 auction_data = load_auction_data()
 players_db = load_players_database()
@@ -48,440 +59,611 @@ players_db = load_players_database()
 player_role_lookup = {p['name']: p['role'] for p in players_db}
 player_names = [p['name'] for p in players_db]
 
-# --- Navigation ---
-st.sidebar.title("🏏 T20 WC Auction")
-page = st.sidebar.radio("Navigation", ["📊 Calculator", "🎯 Auction Room", "⚙️ Gameweek Admin", "🏆 Standings"])
+# --- Session State Initialization ---
+if 'logged_in_user' not in st.session_state:
+    st.session_state.logged_in_user = None
+if 'current_room' not in st.session_state:
+    st.session_state.current_room = None
 
 # =====================================
-# PAGE 1: Calculator (Original)
+# LOGIN / REGISTER PAGE
 # =====================================
-if page == "📊 Calculator":
-    st.title("🏏 Fantasy Cricket Points Calculator")
-    st.markdown("""
-    Calculate fantasy points instantly from any **Cricbuzz Scorecard URL**.
-    This app uses a custom **Role-Based Scoring System** that ensures fairness for Bowlers and All-rounders.
-    """)
+def show_login_page():
+    st.title("🏏 Fantasy Cricket Auction Platform")
+    st.markdown("### Welcome! Please login or register to continue.")
     
-    url = st.text_input("Enter Cricbuzz Scorecard URL", placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...")
+    col1, col2 = st.columns(2)
     
-    if st.button("Calculate Points", type="primary"):
-        if not url:
-            st.error("Please enter a URL first.")
-        else:
-            with st.spinner("Fetching match data..."):
-                try:
-                    scraper = CricbuzzScraper()
-                    calculator = CricketScoreCalculator()
-                    players = scraper.fetch_match_data(url)
-                    
-                    if not players:
-                        st.error("Could not fetch player data. Please check the URL.")
-                    else:
-                        results = []
-                        for p in players:
-                            score = calculator.calculate_score(p)
-                            results.append({
-                                "Player": p['name'],
-                                "Role": p.get('role', 'Unknown'),
-                                "Points": score,
-                                "Runs": p.get('stats', {}).get('runs', p.get('runs', 0)),
-                                "Wickets": p.get('stats', {}).get('wickets', p.get('wickets', 0)),
-                                "Catches": p.get('stats', {}).get('catches', p.get('catches', 0))
-                            })
-                        
-                        df = pd.DataFrame(results)
-                        df = df.sort_values(by="Points", ascending=False).reset_index(drop=True)
-                        
-                        st.subheader("🏆 Leaderboard")
-                        top_3 = df.head(3)
-                        cols = st.columns(3)
-                        medals = ["🥇", "🥈", "🥉"]
-                        
-                        for i, (index, row) in enumerate(top_3.iterrows()):
-                            with cols[i]:
-                                st.metric(label=f"{medals[i]} {row['Player']}", value=f"{row['Points']} pts", delta=row['Role'])
-                        
-                        st.dataframe(df, use_container_width=True, height=600)
-                        
-                except Exception as e:
-                    st.error(f"An error occurred: {e}")
+    with col1:
+        st.subheader("🔐 Login")
+        login_username = st.text_input("Username", key="login_username", placeholder="Enter your username")
+        if st.button("Login", type="primary", key="login_btn"):
+            if login_username:
+                if login_username in auction_data['users']:
+                    st.session_state.logged_in_user = login_username
+                    st.success(f"Welcome back, {login_username}!")
+                    st.rerun()
+                else:
+                    st.error("Username not found. Please register first.")
+            else:
+                st.warning("Please enter a username.")
+    
+    with col2:
+        st.subheader("📝 Register")
+        register_username = st.text_input("Choose Username", key="register_username", placeholder="Choose a username")
+        if st.button("Register", type="secondary", key="register_btn"):
+            if register_username:
+                if register_username in auction_data['users']:
+                    st.error("Username already taken. Choose another.")
+                else:
+                    auction_data['users'][register_username] = {
+                        "created_at": datetime.now().isoformat(),
+                        "rooms_created": [],
+                        "rooms_joined": []
+                    }
+                    save_auction_data(auction_data)
+                    st.session_state.logged_in_user = register_username
+                    st.success(f"Welcome, {register_username}! Account created.")
+                    st.rerun()
+            else:
+                st.warning("Please enter a username.")
 
 # =====================================
-# PAGE 2: Auction Room
+# ROOM SELECTION / CREATION PAGE
 # =====================================
-elif page == "🎯 Auction Room":
-    st.title("🎯 Auction Room")
-    st.markdown("Manage participants and their squads for the T20 World Cup Fantasy League.")
+def show_room_selection():
+    user = st.session_state.logged_in_user
+    user_data = auction_data['users'].get(user, {})
     
-    # --- RESET BUTTONS ---
-    st.sidebar.divider()
-    st.sidebar.subheader("⚠️ Admin Actions")
+    st.title(f"🏏 Welcome, {user}!")
     
-    if st.sidebar.button("🔄 Reset All Data", type="secondary"):
-        auction_data = {"participants": [], "gameweek_scores": {}}
-        save_auction_data(auction_data)
-        st.sidebar.success("All data has been reset!")
+    # Sidebar logout
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.logged_in_user = None
+        st.session_state.current_room = None
         st.rerun()
     
-    # --- Add Participant ---
-    st.subheader("👤 Add New Participant")
-    new_name = st.text_input("Participant Name", key="new_participant")
-    if st.button("Add Participant"):
-        participant_names = [p['name'] for p in auction_data['participants']]
-        if new_name and new_name not in participant_names:
-            auction_data['participants'].append({'name': new_name, 'squad': [], 'ir_player': None})
-            save_auction_data(auction_data)
-            st.success(f"Added {new_name}!")
-            st.rerun()
-        elif new_name:
-            st.warning("Participant already exists.")
+    st.markdown("### Select or create an auction room to get started.")
     
-    st.divider()
+    col1, col2 = st.columns(2)
     
-    # --- Manage Squads ---
-    st.subheader("📋 Manage Squads")
-    
-    if not auction_data['participants']:
-        st.info("No participants yet. Add some above!")
-    else:
-        participant_names = [p['name'] for p in auction_data['participants']]
-        selected_participant = st.selectbox("Select Participant", participant_names)
-        participant = next((p for p in auction_data['participants'] if p['name'] == selected_participant), None)
-        
-        if participant:
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.markdown(f"**Squad Size:** {len(participant['squad'])}/19")
-                if participant.get('ir_player'):
-                    st.warning(f"🚑 Injury Reserve: {participant['ir_player']}")
+    with col1:
+        st.subheader("➕ Create New Room")
+        room_name = st.text_input("Room Name", placeholder="e.g., Friends T20 League")
+        if st.button("Create Room", type="primary"):
+            if room_name:
+                room_code = generate_room_code()
+                # Ensure unique code
+                while room_code in auction_data['rooms']:
+                    room_code = generate_room_code()
                 
-                # Add Player to Squad - AUTO SUGGEST
-                st.markdown("**Add Player to Squad**")
-                
-                # Filter out players already in any squad
-                all_drafted_players = []
-                for p in auction_data['participants']:
-                    all_drafted_players.extend([pl['name'] for pl in p['squad']])
-                
-                available_players = [name for name in player_names if name not in all_drafted_players]
-                
-                if available_players:
-                    selected_player = st.selectbox(
-                        "Search Player (type to filter)",
-                        options=[""] + available_players,
-                        format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
-                        key="player_selector"
-                    )
-                    
-                    if selected_player:
-                        role = player_role_lookup.get(selected_player, "Unknown")
-                        st.info(f"**{selected_player}** - Role: **{role}**")
-                        
-                        if st.button("➕ Add to Squad", type="primary"):
-                            if len(participant['squad']) >= 19:
-                                st.error("Squad is full (19 players max)!")
-                            else:
-                                participant['squad'].append({'name': selected_player, 'role': role})
-                                save_auction_data(auction_data)
-                                st.success(f"Added {selected_player} to {selected_participant}'s squad!")
-                                st.rerun()
-                else:
-                    st.warning("All players have been drafted!")
-                
-                # Reset Squad Button
-                st.divider()
-                if st.button(f"🗑️ Reset {selected_participant}'s Squad", type="secondary"):
-                    participant['squad'] = []
-                    participant['ir_player'] = None
-                    save_auction_data(auction_data)
-                    st.success(f"Reset {selected_participant}'s squad!")
-                    st.rerun()
-            
-            with col2:
-                st.markdown("**Current Squad**")
-                if participant['squad']:
-                    squad_df = pd.DataFrame(participant['squad'])
-                    st.dataframe(squad_df, use_container_width=True, hide_index=True)
-                    
-                    # Set Injury Reserve
-                    if len(participant['squad']) == 19:
-                        st.markdown("**Set Injury Reserve**")
-                        ir_options = [p['name'] for p in participant['squad']]
-                        ir_selection = st.selectbox("Select IR Player", ir_options, key=f"ir_{selected_participant}")
-                        if st.button("Set as IR"):
-                            participant['ir_player'] = ir_selection
-                            save_auction_data(auction_data)
-                            st.success(f"{ir_selection} is now on Injury Reserve.")
-                            st.rerun()
-                    
-                    # Remove individual player
-                    st.divider()
-                    st.markdown("**Remove Player**")
-                    remove_options = [p['name'] for p in participant['squad']]
-                    player_to_remove = st.selectbox("Select Player to Remove", remove_options, key="remove_player")
-                    if st.button("❌ Remove from Squad"):
-                        participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
-                        if participant.get('ir_player') == player_to_remove:
-                            participant['ir_player'] = None
-                        save_auction_data(auction_data)
-                        st.success(f"Removed {player_to_remove}!")
-                        st.rerun()
-                else:
-                    st.info("No players in squad yet.")
-    
-    # --- Participants Overview ---
-    st.divider()
-    st.subheader("📊 All Participants")
-    if auction_data['participants']:
-        overview_data = []
-        for p in auction_data['participants']:
-            overview_data.append({
-                "Name": p['name'],
-                "Squad Size": len(p['squad']),
-                "WK": len([pl for pl in p['squad'] if pl['role'] == 'WK']),
-                "Bat": len([pl for pl in p['squad'] if pl['role'] == 'Bat']),
-                "AR": len([pl for pl in p['squad'] if pl['role'] == 'AR']),
-                "Bowl": len([pl for pl in p['squad'] if pl['role'] == 'Bowl']),
-                "IR": p.get('ir_player') or "-"
-            })
-        st.dataframe(pd.DataFrame(overview_data), use_container_width=True, hide_index=True)
-        
-        # Delete Participant Button
-        st.divider()
-        st.subheader("🗑️ Delete Participant")
-        del_participant = st.selectbox("Select Participant to Delete", [p['name'] for p in auction_data['participants']], key="del_participant")
-        if st.button("Delete Participant", type="secondary"):
-            auction_data['participants'] = [p for p in auction_data['participants'] if p['name'] != del_participant]
-            save_auction_data(auction_data)
-            st.success(f"Deleted {del_participant}!")
-            st.rerun()
-
-# =====================================
-# PAGE 3: Gameweek Admin
-# =====================================
-elif page == "⚙️ Gameweek Admin":
-    st.title("⚙️ Gameweek Admin")
-    st.markdown("Process match data and calculate points for each gameweek.")
-    
-    gameweek_num = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
-    urls_input = st.text_area("Match URLs (one per line)", height=200, placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...\nhttps://www.cricbuzz.com/live-cricket-scorecard/...")
-    
-    if st.button("🚀 Process Gameweek", type="primary"):
-        urls = [u.strip() for u in urls_input.split('\n') if u.strip()]
-        
-        if not urls:
-            st.error("Please enter at least one URL.")
-        else:
-            scraper = CricbuzzScraper()
-            calculator = CricketScoreCalculator()
-            all_scores = {}
-            
-            progress = st.progress(0)
-            status = st.empty()
-            
-            for i, url in enumerate(urls):
-                status.text(f"Processing match {i+1}/{len(urls)}...")
-                try:
-                    players = scraper.fetch_match_data(url)
-                    for p in players:
-                        score = calculator.calculate_score(p)
-                        name = p['name']
-                        if name in all_scores:
-                            all_scores[name] += score
-                        else:
-                            all_scores[name] = score
-                except Exception as e:
-                    st.warning(f"Error processing {url}: {e}")
-                
-                progress.progress((i + 1) / len(urls))
-            
-            # Store in persistent data
-            auction_data['gameweek_scores'][str(gameweek_num)] = all_scores
-            save_auction_data(auction_data)
-            
-            status.text("✅ Processing Complete!")
-            st.success(f"Gameweek {gameweek_num} processed! {len(all_scores)} players scored.")
-            
-            # Show preview
-            st.subheader("📊 Scores Preview")
-            scores_df = pd.DataFrame([{"Player": k, "Points": v} for k, v in all_scores.items()])
-            scores_df = scores_df.sort_values(by="Points", ascending=False)
-            st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
-    
-    # Show processed gameweeks
-    st.divider()
-    st.subheader("📅 Processed Gameweeks")
-    if auction_data.get('gameweek_scores'):
-        for gw, scores in auction_data['gameweek_scores'].items():
-            st.write(f"**Gameweek {gw}**: {len(scores)} players scored")
-        
-        # Reset gameweek scores button
-        if st.button("🔄 Reset All Gameweek Scores", type="secondary"):
-            auction_data['gameweek_scores'] = {}
-            save_auction_data(auction_data)
-            st.success("All gameweek scores have been reset!")
-            st.rerun()
-    else:
-        st.info("No gameweeks processed yet.")
-
-# =====================================
-# PAGE 4: Standings
-# =====================================
-elif page == "🏆 Standings":
-    st.title("🏆 League Standings")
-    
-    # Gameweek Selector
-    available_gws = list(auction_data.get('gameweek_scores', {}).keys())
-    
-    if not available_gws:
-        st.info("No gameweeks have been processed yet. Go to Gameweek Admin to process matches.")
-    else:
-        view_mode = st.radio("View", ["Overall (Cumulative)", "By Gameweek"], horizontal=True)
-        
-        if view_mode == "By Gameweek":
-            selected_gw = st.selectbox("Select Gameweek", available_gws)
-            gw_scores = auction_data['gameweek_scores'].get(selected_gw, {})
-        else:
-            # Cumulative: sum all gameweeks
-            gw_scores = {}
-            for gw, scores in auction_data['gameweek_scores'].items():
-                for player, score in scores.items():
-                    gw_scores[player] = gw_scores.get(player, 0) + score
-        
-        # Calculate Best 11 for each participant
-        def get_best_11(squad, player_scores, ir_player=None):
-            """
-            Selects the best 11 from a squad based on player scores.
-            Rules: 1 WK (mandatory), 3-6 BAT, 1-4 AR, 3-6 BOWL
-            """
-            active_squad = [p for p in squad if p['name'] != ir_player]
-            
-            # Get scores for all squad players
-            scored_players = []
-            for p in active_squad:
-                score = player_scores.get(p['name'], 0)
-                scored_players.append({'name': p['name'], 'role': p['role'], 'score': score})
-            
-            # Sort by score descending
-            scored_players.sort(key=lambda x: x['score'], reverse=True)
-            
-            # Group by role
-            by_role = {'WK': [], 'Bat': [], 'AR': [], 'Bowl': []}
-            for p in scored_players:
-                role = p['role']
-                if role in by_role:
-                    by_role[role].append(p)
-            
-            # Selection with constraints
-            best_11 = []
-            
-            # 1 WK mandatory
-            if by_role['WK']:
-                best_11.append(by_role['WK'][0])
-                by_role['WK'] = by_role['WK'][1:]
+                auction_data['rooms'][room_code] = {
+                    "name": room_name,
+                    "admin": user,
+                    "members": [user],
+                    "participants": [],
+                    "gameweek_scores": {},
+                    "created_at": datetime.now().isoformat()
+                }
+                user_data['rooms_created'] = user_data.get('rooms_created', []) + [room_code]
+                save_auction_data(auction_data)
+                st.session_state.current_room = room_code
+                st.success(f"Room created! Code: **{room_code}**")
+                st.rerun()
             else:
-                # Penalty: no WK, leave one spot empty (0 points)
-                best_11.append({'name': '(No WK)', 'role': 'WK', 'score': 0})
-            
-            # Min constraints first
-            for _ in range(3):  # Min 3 BAT
-                if by_role['Bat']:
-                    best_11.append(by_role['Bat'].pop(0))
-            for _ in range(1):  # Min 1 AR
-                if by_role['AR']:
-                    best_11.append(by_role['AR'].pop(0))
-            for _ in range(3):  # Min 3 BOWL
-                if by_role['Bowl']:
-                    best_11.append(by_role['Bowl'].pop(0))
-            
-            # Fill remaining slots (up to 11) with highest scorers from remaining
-            remaining = by_role['WK'] + by_role['Bat'] + by_role['AR'] + by_role['Bowl']
-            remaining.sort(key=lambda x: x['score'], reverse=True)
-            
-            while len(best_11) < 11 and remaining:
-                # Check max constraints
-                role_count = {}
-                for p in best_11:
-                    role_count[p['role']] = role_count.get(p['role'], 0) + 1
-                
-                for candidate in remaining:
-                    r = candidate['role']
-                    max_allowed = {'WK': 4, 'Bat': 6, 'AR': 4, 'Bowl': 6}
-                    if role_count.get(r, 0) < max_allowed.get(r, 11):
-                        best_11.append(candidate)
-                        remaining.remove(candidate)
-                        break
+                st.warning("Please enter a room name.")
+    
+    with col2:
+        st.subheader("🔗 Join Existing Room")
+        join_code = st.text_input("Enter Room Code", placeholder="e.g., ABC123").upper()
+        if st.button("Join Room", type="secondary"):
+            if join_code:
+                if join_code in auction_data['rooms']:
+                    room = auction_data['rooms'][join_code]
+                    if user not in room['members']:
+                        room['members'].append(user)
+                        user_data['rooms_joined'] = user_data.get('rooms_joined', []) + [join_code]
+                        save_auction_data(auction_data)
+                        st.success(f"Joined room: {room['name']}")
+                    st.session_state.current_room = join_code
+                    st.rerun()
                 else:
-                    break  # Can't add anyone
-            
-            return best_11
+                    st.error("Invalid room code. Please check and try again.")
+            else:
+                st.warning("Please enter a room code.")
+    
+    # Show user's rooms
+    st.divider()
+    st.subheader("📋 Your Rooms")
+    
+    user_rooms = user_data.get('rooms_created', []) + user_data.get('rooms_joined', [])
+    user_rooms = list(set(user_rooms))  # Remove duplicates
+    
+    if user_rooms:
+        room_data = []
+        for code in user_rooms:
+            if code in auction_data['rooms']:
+                room = auction_data['rooms'][code]
+                room_data.append({
+                    "Room Name": room['name'],
+                    "Code": code,
+                    "Role": "Admin" if room['admin'] == user else "Member",
+                    "Members": len(room['members']),
+                    "Participants": len(room['participants'])
+                })
         
-        # Calculate standings
-        standings = []
-        for participant in auction_data['participants']:
-            best_11 = get_best_11(participant['squad'], gw_scores, participant.get('ir_player'))
-            total_points = sum(p['score'] for p in best_11)
-            standings.append({
-                "Participant": participant['name'],
-                "Points": total_points,
-                "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "..." if best_11 else "No players"
-            })
-        
-        standings.sort(key=lambda x: x['Points'], reverse=True)
-        
-        if standings:
-            st.subheader("🏆 Current Standings")
+        if room_data:
+            st.dataframe(pd.DataFrame(room_data), use_container_width=True, hide_index=True)
             
-            # Top 3 Podium
-            if len(standings) >= 3:
-                cols = st.columns(3)
-                medals = ["🥇", "🥈", "🥉"]
-                for i, col in enumerate(cols):
-                    with col:
-                        st.metric(
-                            label=f"{medals[i]} {standings[i]['Participant']}",
-                            value=f"{standings[i]['Points']:.0f} pts"
-                        )
-            
-            # Full Table
-            st.dataframe(pd.DataFrame(standings), use_container_width=True, hide_index=True)
-            
-            # Detailed View
-            st.divider()
-            st.subheader("📋 Detailed Best 11")
-            detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in auction_data['participants']])
-            detail_p = next((p for p in auction_data['participants'] if p['name'] == detail_participant), None)
-            if detail_p:
-                best_11 = get_best_11(detail_p['squad'], gw_scores, detail_p.get('ir_player'))
-                best_11_df = pd.DataFrame(best_11)
-                st.dataframe(best_11_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No participants have been added yet. Go to Auction Room to add participants.")
+            # Quick select room
+            room_codes = [r['Code'] for r in room_data]
+            selected_room = st.selectbox("Select a room to enter", room_codes, format_func=lambda x: f"{auction_data['rooms'][x]['name']} ({x})")
+            if st.button("Enter Room", type="primary"):
+                st.session_state.current_room = selected_room
+                st.rerun()
+    else:
+        st.info("You haven't created or joined any rooms yet.")
 
-# --- Sidebar Rules (persistent) ---
-with st.sidebar:
-    st.divider()
-    st.header("ℹ️ Scoring Rules")
-    st.markdown("""
-    **Batting**
-    - Run: +0.5
-    - Boundary: +0.5
-    - Six: +1
-    - 50 Bonus: +4
-    - 100 Bonus: +8 (Cumulative)
+# =====================================
+# MAIN APP (Inside a Room)
+# =====================================
+def show_main_app():
+    user = st.session_state.logged_in_user
+    room_code = st.session_state.current_room
+    room = auction_data['rooms'].get(room_code)
     
-    **Bowling**
-    - Wicket: +12
-    - LBW/Bowled: +4
-    - Maiden: +4
-    - 3 Wkts: +4
-    - 5 Wkts: +12
+    if not room:
+        st.error("Room not found!")
+        st.session_state.current_room = None
+        st.rerun()
+        return
     
-    **Role-Based Fairness**
-    - **Bowlers** are exempt from Duck (-2) and negative Strike Rate penalties.
-    - **Power Hitting**: SR > 200 (+3) and SR > 250 (+5).
-    """)
+    is_admin = room['admin'] == user
     
-    st.divider()
-    st.caption(f"📊 Database: {len(players_db)} players loaded")
+    # --- Sidebar ---
+    st.sidebar.title(f"🏏 {room['name']}")
+    
+    # Room Info
+    st.sidebar.markdown(f"**Room Code:** `{room_code}`")
+    if is_admin:
+        st.sidebar.success("👑 You are the Admin")
+    else:
+        st.sidebar.info(f"👑 Admin: {room['admin']}")
+    
+    st.sidebar.markdown(f"**Members:** {len(room['members'])}")
+    
+    # Navigation
+    st.sidebar.divider()
+    page = st.sidebar.radio("Navigation", ["📊 Calculator", "🎯 Auction Room", "⚙️ Gameweek Admin", "🏆 Standings"])
+    
+    # Leave Room / Logout
+    st.sidebar.divider()
+    if st.sidebar.button("🔙 Back to Rooms"):
+        st.session_state.current_room = None
+        st.rerun()
+    if st.sidebar.button("🚪 Logout"):
+        st.session_state.logged_in_user = None
+        st.session_state.current_room = None
+        st.rerun()
+    
+    # =====================================
+    # PAGE 1: Calculator
+    # =====================================
+    if page == "📊 Calculator":
+        st.title("🏏 Fantasy Cricket Points Calculator")
+        st.markdown("""
+        Calculate fantasy points instantly from any **Cricbuzz Scorecard URL**.
+        This app uses a custom **Role-Based Scoring System** that ensures fairness for Bowlers and All-rounders.
+        """)
+        
+        url = st.text_input("Enter Cricbuzz Scorecard URL", placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...")
+        
+        if st.button("Calculate Points", type="primary"):
+            if not url:
+                st.error("Please enter a URL first.")
+            else:
+                with st.spinner("Fetching match data..."):
+                    try:
+                        scraper = CricbuzzScraper()
+                        calculator = CricketScoreCalculator()
+                        players = scraper.fetch_match_data(url)
+                        
+                        if not players:
+                            st.error("Could not fetch player data. Please check the URL.")
+                        else:
+                            results = []
+                            for p in players:
+                                score = calculator.calculate_score(p)
+                                results.append({
+                                    "Player": p['name'],
+                                    "Role": p.get('role', 'Unknown'),
+                                    "Points": score,
+                                    "Runs": p.get('runs', 0),
+                                    "Wickets": p.get('wickets', 0),
+                                    "Catches": p.get('catches', 0)
+                                })
+                            
+                            df = pd.DataFrame(results)
+                            df = df.sort_values(by="Points", ascending=False).reset_index(drop=True)
+                            
+                            st.subheader("🏆 Leaderboard")
+                            top_3 = df.head(3)
+                            cols = st.columns(3)
+                            medals = ["🥇", "🥈", "🥉"]
+                            
+                            for i, (index, row) in enumerate(top_3.iterrows()):
+                                with cols[i]:
+                                    st.metric(label=f"{medals[i]} {row['Player']}", value=f"{row['Points']} pts", delta=row['Role'])
+                            
+                            st.dataframe(df, use_container_width=True, height=600)
+                            
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+
+    # =====================================
+    # PAGE 2: Auction Room
+    # =====================================
+    elif page == "🎯 Auction Room":
+        st.title("🎯 Auction Room")
+        st.markdown(f"Manage participants and squads for **{room['name']}**.")
+        
+        # Admin: Show invite code prominently
+        if is_admin:
+            st.info(f"📤 **Invite Code:** `{room_code}` — Share this with friends to join!")
+            
+            # Admin Actions
+            st.sidebar.divider()
+            st.sidebar.subheader("⚠️ Admin Actions")
+            if st.sidebar.button("🔄 Reset Room Data", type="secondary"):
+                room['participants'] = []
+                room['gameweek_scores'] = {}
+                save_auction_data(auction_data)
+                st.sidebar.success("Room data reset!")
+                st.rerun()
+        
+        # --- Add Participant (Admin Only) ---
+        if is_admin:
+            st.subheader("👤 Add New Participant")
+            new_name = st.text_input("Participant Name", key="new_participant")
+            if st.button("Add Participant"):
+                participant_names = [p['name'] for p in room['participants']]
+                if new_name and new_name not in participant_names:
+                    room['participants'].append({'name': new_name, 'squad': [], 'ir_player': None})
+                    save_auction_data(auction_data)
+                    st.success(f"Added {new_name}!")
+                    st.rerun()
+                elif new_name:
+                    st.warning("Participant already exists.")
+            st.divider()
+        
+        # --- Manage Squads ---
+        st.subheader("📋 Manage Squads")
+        
+        if not room['participants']:
+            if is_admin:
+                st.info("No participants yet. Add some above!")
+            else:
+                st.info("No participants yet. Ask the admin to add participants.")
+        else:
+            participant_names = [p['name'] for p in room['participants']]
+            selected_participant = st.selectbox("Select Participant", participant_names)
+            participant = next((p for p in room['participants'] if p['name'] == selected_participant), None)
+            
+            if participant:
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.markdown(f"**Squad Size:** {len(participant['squad'])}/19")
+                    if participant.get('ir_player'):
+                        st.warning(f"🚑 Injury Reserve: {participant['ir_player']}")
+                    
+                    # Add Player to Squad - AUTO SUGGEST
+                    st.markdown("**Add Player to Squad**")
+                    
+                    # Filter out players already in any squad
+                    all_drafted_players = []
+                    for p in room['participants']:
+                        all_drafted_players.extend([pl['name'] for pl in p['squad']])
+                    
+                    available_players = [name for name in player_names if name not in all_drafted_players]
+                    
+                    if available_players:
+                        selected_player = st.selectbox(
+                            "Search Player (type to filter)",
+                            options=[""] + available_players,
+                            format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
+                            key="player_selector"
+                        )
+                        
+                        if selected_player:
+                            role = player_role_lookup.get(selected_player, "Unknown")
+                            st.info(f"**{selected_player}** - Role: **{role}**")
+                            
+                            if st.button("➕ Add to Squad", type="primary"):
+                                if len(participant['squad']) >= 19:
+                                    st.error("Squad is full (19 players max)!")
+                                else:
+                                    participant['squad'].append({'name': selected_player, 'role': role})
+                                    save_auction_data(auction_data)
+                                    st.success(f"Added {selected_player} to {selected_participant}'s squad!")
+                                    st.rerun()
+                    else:
+                        st.warning("All players have been drafted!")
+                    
+                    # Reset Squad Button (Admin Only)
+                    if is_admin:
+                        st.divider()
+                        if st.button(f"🗑️ Reset {selected_participant}'s Squad", type="secondary"):
+                            participant['squad'] = []
+                            participant['ir_player'] = None
+                            save_auction_data(auction_data)
+                            st.success(f"Reset {selected_participant}'s squad!")
+                            st.rerun()
+                
+                with col2:
+                    st.markdown("**Current Squad**")
+                    if participant['squad']:
+                        squad_df = pd.DataFrame(participant['squad'])
+                        st.dataframe(squad_df, use_container_width=True, hide_index=True)
+                        
+                        # Set Injury Reserve
+                        if len(participant['squad']) == 19:
+                            st.markdown("**Set Injury Reserve**")
+                            ir_options = [p['name'] for p in participant['squad']]
+                            ir_selection = st.selectbox("Select IR Player", ir_options, key=f"ir_{selected_participant}")
+                            if st.button("Set as IR"):
+                                participant['ir_player'] = ir_selection
+                                save_auction_data(auction_data)
+                                st.success(f"{ir_selection} is now on Injury Reserve.")
+                                st.rerun()
+                        
+                        # Remove individual player
+                        st.divider()
+                        st.markdown("**Remove Player**")
+                        remove_options = [p['name'] for p in participant['squad']]
+                        player_to_remove = st.selectbox("Select Player to Remove", remove_options, key="remove_player")
+                        if st.button("❌ Remove from Squad"):
+                            participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
+                            if participant.get('ir_player') == player_to_remove:
+                                participant['ir_player'] = None
+                            save_auction_data(auction_data)
+                            st.success(f"Removed {player_to_remove}!")
+                            st.rerun()
+                    else:
+                        st.info("No players in squad yet.")
+        
+        # --- Participants Overview ---
+        st.divider()
+        st.subheader("📊 All Participants")
+        if room['participants']:
+            overview_data = []
+            for p in room['participants']:
+                overview_data.append({
+                    "Name": p['name'],
+                    "Squad Size": len(p['squad']),
+                    "IR": p.get('ir_player') or "-"
+                })
+            st.dataframe(pd.DataFrame(overview_data), use_container_width=True, hide_index=True)
+            
+            # Delete Participant Button (Admin Only)
+            if is_admin:
+                st.divider()
+                st.subheader("🗑️ Delete Participant")
+                del_participant = st.selectbox("Select Participant to Delete", [p['name'] for p in room['participants']], key="del_participant")
+                if st.button("Delete Participant", type="secondary"):
+                    room['participants'] = [p for p in room['participants'] if p['name'] != del_participant]
+                    save_auction_data(auction_data)
+                    st.success(f"Deleted {del_participant}!")
+                    st.rerun()
+        
+        # Show room members
+        st.divider()
+        st.subheader("👥 Room Members")
+        members_df = pd.DataFrame([{"Member": m, "Role": "Admin" if m == room['admin'] else "Member"} for m in room['members']])
+        st.dataframe(members_df, use_container_width=True, hide_index=True)
+
+    # =====================================
+    # PAGE 3: Gameweek Admin
+    # =====================================
+    elif page == "⚙️ Gameweek Admin":
+        st.title("⚙️ Gameweek Admin")
+        
+        if not is_admin:
+            st.warning("Only the room admin can process gameweeks.")
+            st.info(f"Admin: {room['admin']}")
+        else:
+            st.markdown("Process match data and calculate points for each gameweek.")
+            
+            gameweek_num = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
+            urls_input = st.text_area("Match URLs (one per line)", height=200, placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...\nhttps://www.cricbuzz.com/live-cricket-scorecard/...")
+            
+            if st.button("🚀 Process Gameweek", type="primary"):
+                urls = [u.strip() for u in urls_input.split('\n') if u.strip()]
+                
+                if not urls:
+                    st.error("Please enter at least one URL.")
+                else:
+                    scraper = CricbuzzScraper()
+                    calculator = CricketScoreCalculator()
+                    all_scores = {}
+                    
+                    progress = st.progress(0)
+                    status = st.empty()
+                    
+                    for i, url in enumerate(urls):
+                        status.text(f"Processing match {i+1}/{len(urls)}...")
+                        try:
+                            players = scraper.fetch_match_data(url)
+                            for p in players:
+                                score = calculator.calculate_score(p)
+                                name = p['name']
+                                if name in all_scores:
+                                    all_scores[name] += score
+                                else:
+                                    all_scores[name] = score
+                        except Exception as e:
+                            st.warning(f"Error processing {url}: {e}")
+                        
+                        progress.progress((i + 1) / len(urls))
+                    
+                    # Store in room data
+                    room['gameweek_scores'][str(gameweek_num)] = all_scores
+                    save_auction_data(auction_data)
+                    
+                    status.text("✅ Processing Complete!")
+                    st.success(f"Gameweek {gameweek_num} processed! {len(all_scores)} players scored.")
+                    
+                    # Show preview
+                    st.subheader("📊 Scores Preview")
+                    scores_df = pd.DataFrame([{"Player": k, "Points": v} for k, v in all_scores.items()])
+                    scores_df = scores_df.sort_values(by="Points", ascending=False)
+                    st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
+        
+        # Show processed gameweeks
+        st.divider()
+        st.subheader("📅 Processed Gameweeks")
+        if room.get('gameweek_scores'):
+            for gw, scores in room['gameweek_scores'].items():
+                st.write(f"**Gameweek {gw}**: {len(scores)} players scored")
+            
+            # Reset gameweek scores button (Admin Only)
+            if is_admin:
+                if st.button("🔄 Reset All Gameweek Scores", type="secondary"):
+                    room['gameweek_scores'] = {}
+                    save_auction_data(auction_data)
+                    st.success("All gameweek scores have been reset!")
+                    st.rerun()
+        else:
+            st.info("No gameweeks processed yet.")
+
+    # =====================================
+    # PAGE 4: Standings
+    # =====================================
+    elif page == "🏆 Standings":
+        st.title("🏆 League Standings")
+        
+        available_gws = list(room.get('gameweek_scores', {}).keys())
+        
+        if not available_gws:
+            st.info("No gameweeks have been processed yet. Go to Gameweek Admin to process matches.")
+        else:
+            view_mode = st.radio("View", ["Overall (Cumulative)", "By Gameweek"], horizontal=True)
+            
+            if view_mode == "By Gameweek":
+                selected_gw = st.selectbox("Select Gameweek", available_gws)
+                gw_scores = room['gameweek_scores'].get(selected_gw, {})
+            else:
+                gw_scores = {}
+                for gw, scores in room['gameweek_scores'].items():
+                    for player, score in scores.items():
+                        gw_scores[player] = gw_scores.get(player, 0) + score
+            
+            # Calculate Best 11 for each participant
+            def get_best_11(squad, player_scores, ir_player=None):
+                active_squad = [p for p in squad if p['name'] != ir_player]
+                scored_players = []
+                for p in active_squad:
+                    score = player_scores.get(p['name'], 0)
+                    scored_players.append({'name': p['name'], 'role': p['role'], 'score': score})
+                scored_players.sort(key=lambda x: x['score'], reverse=True)
+                
+                by_role = {'WK-Batsman': [], 'Batsman': [], 'Batting Allrounder': [], 'Bowling Allrounder': [], 'Bowler': []}
+                for p in scored_players:
+                    role = p['role']
+                    if role in by_role:
+                        by_role[role].append(p)
+                    else:
+                        # Handle unknown roles
+                        by_role.setdefault(role, []).append(p)
+                
+                best_11 = []
+                
+                # 1 WK mandatory
+                if by_role.get('WK-Batsman'):
+                    best_11.append(by_role['WK-Batsman'].pop(0))
+                
+                # Fill remaining with top scorers
+                all_remaining = []
+                for role_list in by_role.values():
+                    all_remaining.extend(role_list)
+                all_remaining.sort(key=lambda x: x['score'], reverse=True)
+                
+                while len(best_11) < 11 and all_remaining:
+                    best_11.append(all_remaining.pop(0))
+                
+                return best_11
+            
+            # Calculate standings
+            standings = []
+            for participant in room['participants']:
+                best_11 = get_best_11(participant['squad'], gw_scores, participant.get('ir_player'))
+                total_points = sum(p['score'] for p in best_11)
+                standings.append({
+                    "Participant": participant['name'],
+                    "Points": total_points,
+                    "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "..." if best_11 else "No players"
+                })
+            
+            standings.sort(key=lambda x: x['Points'], reverse=True)
+            
+            if standings:
+                st.subheader("🏆 Current Standings")
+                
+                if len(standings) >= 3:
+                    cols = st.columns(3)
+                    medals = ["🥇", "🥈", "🥉"]
+                    for i, col in enumerate(cols):
+                        with col:
+                            st.metric(
+                                label=f"{medals[i]} {standings[i]['Participant']}",
+                                value=f"{standings[i]['Points']:.0f} pts"
+                            )
+                
+                st.dataframe(pd.DataFrame(standings), use_container_width=True, hide_index=True)
+                
+                st.divider()
+                st.subheader("📋 Detailed Best 11")
+                detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room['participants']])
+                detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
+                if detail_p:
+                    best_11 = get_best_11(detail_p['squad'], gw_scores, detail_p.get('ir_player'))
+                    best_11_df = pd.DataFrame(best_11)
+                    st.dataframe(best_11_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No participants have been added yet. Go to Auction Room to add participants.")
+    
+    # --- Sidebar Scoring Rules ---
+    with st.sidebar:
+        st.divider()
+        st.header("ℹ️ Scoring Rules")
+        st.markdown("""
+        **Batting**
+        - Run: +0.5
+        - Boundary: +0.5
+        - Six: +1
+        - 50 Bonus: +4
+        - 100 Bonus: +8
+        
+        **Bowling**
+        - Wicket: +12
+        - LBW/Bowled: +4
+        - Maiden: +4
+        - 3 Wkts: +4
+        - 5 Wkts: +12
+        
+        **Role-Based**
+        - Bowlers exempt from Duck & SR penalties
+        """)
+        
+        st.divider()
+        st.caption(f"📊 Database: {len(players_db)} players")
+
+# =====================================
+# MAIN ROUTING
+# =====================================
+if st.session_state.logged_in_user is None:
+    show_login_page()
+elif st.session_state.current_room is None:
+    show_room_selection()
+else:
+    show_main_app()
