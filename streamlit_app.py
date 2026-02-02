@@ -79,7 +79,13 @@ players_db = load_players_database()
 # Create lookup dict for quick role finding
 player_role_lookup = {p['name']: p['role'] for p in players_db}
 player_team_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
+player_info_map = {p['name']: p for p in players_db}
 player_names = [p['name'] for p in players_db]
+
+def format_player_name(name):
+    if not name: return "Select a player..."
+    info = player_info_map.get(name, {})
+    return f"{name} ({info.get('role', 'N/A')} - {info.get('country', 'N/A')})"
 
 # --- Custom CSS for Aesthetics ---
 def inject_custom_css():
@@ -1197,25 +1203,25 @@ def show_main_app():
                         st.warning("No participants yet. Admin needs to add you first.")
                 
                 if current_participant:
-                    # Filter players
-                    # If bidding on existing active bid, min price is (current + 5)
-                    # If new, min price is 5
-                    
-                    target_player = st.selectbox("Select Player", biddable_players, key="bid_player")
+                    target_player = st.selectbox(
+                        "Select Player", 
+                        [""] + sorted(biddable_players), 
+                        key="bid_player",
+                        format_func=format_player_name
+                    )
                     
                     if target_player:
                         existing_bid = next((b for b in active_bids if b['player'] == target_player), None)
                         
-                        min_bid = 5.0
+                        min_bid = 5
                         if existing_bid:
                             curr_amt = float(existing_bid['amount'])
                             if curr_amt >= 50:
-                                min_bid = curr_amt + 5
+                                min_bid = int(math.ceil(curr_amt + 5))
                             else:
-                                min_bid = curr_amt + 1 # Or just +1 if <50? Rule says "Over 50M: +5M".
-                                # Let's assume +1 under 50.
+                                min_bid = int(math.ceil(curr_amt + 1))
                         
-                        bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=min_bid, step=1.0, format="%.1f")
+                        bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=int(min_bid), step=1, format="%d", key="bid_input_val")
                         
                         if st.button("Place Bid", key="place_bid"):
                             if bid_amount > current_participant.get('budget', 0):
@@ -1230,7 +1236,7 @@ def show_main_app():
                                 
                                 new_bid = {
                                     'player': target_player,
-                                    'amount': bid_amount,
+                                    'amount': int(bid_amount),
                                     'bidder': current_participant['name'],
                                     'expires': expiry_time.isoformat()
                                 }
@@ -1268,8 +1274,12 @@ def show_main_app():
                         knocked_out_teams = set(room.get('knocked_out_teams', []))
                         player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
                         
-                        remove_options = [p['name'] for p in current_participant['squad']]
-                        player_to_remove = st.selectbox("Select Player to Release", remove_options, key="open_release_player")
+                        player_to_remove = st.selectbox(
+                            "Select Player to Release", 
+                            [""] + remove_options, 
+                            key="open_release_player",
+                            format_func=format_player_name
+                        )
                         
                         if player_to_remove:
                              player_obj = next((p for p in current_participant['squad'] if p['name'] == player_to_remove), None)
@@ -1315,46 +1325,9 @@ def show_main_app():
                         st.info("Your squad is empty.")
                 else:
                     st.warning("Please select your participant name above to manage squad.")
-                    
-                if current_participant:
-                    st.metric("Your Budget", f"{current_participant.get('budget', 0)}M")
-                    
-                    if biddable_players:
-                        bid_player = st.selectbox(
-                            "Select Player to Bid On",
-                            [""] + sorted(biddable_players),
-                            format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
-                            key="open_bid_player"
-                        )
-                        
-                        if bid_player:
-                            # Check if there's an existing bid
-                            existing_bid = next((b for b in active_bids if b['player'] == bid_player), None)
-                            min_bid = 5
-                            if existing_bid:
-                                st.warning(f"Current highest bid: **{existing_bid['amount']}M** by {existing_bid['bidder']}")
-                                if existing_bid['bidder'] == current_participant['name']:
-                                    st.error("You explicitly hold the highest bid already.")
-                                    min_bid = existing_bid['amount'] # Prevent self-outbid unless we want to allow increasing? Usually no.
-                                else:
-                                    if existing_bid['amount'] >= 50:
-                                        min_bid = existing_bid['amount'] + 5
-                                    else:
-                                        min_bid = existing_bid['amount'] + 1
-                            
-                            bid_amount = st.number_input(
-                                f"Bid Amount (Min: {int(min_bid)}M)",
-                                min_value=int(min_bid),
-                                max_value=int(current_participant.get('budget', 0)),
-                                value=int(min_bid),
-                                step=5 if min_bid >= 50 else 1,
-                                format="%d",
-                                key="open_bid_amount"
-                            )
-                            
-                            if st.button("🎯 Place Bid", type="primary"):
-                                if bid_amount > current_participant.get('budget', 0):
-                                    st.error("Insufficient budget!")
+                
+                # RECENT: Removed redundant bidding section 1322-1361 because it's already above.
+
                                 elif existing_bid and existing_bid['bidder'] == current_participant['name'] and bid_amount <= existing_bid['amount']:
                                      st.error("You already hold the highest bid.")
                                 else:
@@ -1605,8 +1578,13 @@ def show_main_app():
                     ready = False
                     
                     if t_type == "Transfer (Sell)":
-                        if from_p['squad']:
-                            pl = st.selectbox("Player to Sell", [str(p['name']) for p in from_p['squad']])
+                        from_p_squad_names = [str(p['name']) for p in from_p['squad']]
+                        if from_p_squad_names:
+                            pl = st.selectbox(
+                                "Player to Sell", 
+                                from_p_squad_names, 
+                                format_func=format_player_name
+                            )
                             pr = st.number_input("Asking Price (M)", 1, 500, 10, format="%d", help="Amount you want to receive")
                             payload = {'type': t_type, 'player': pl, 'price': pr}
                             ready = True
@@ -1621,7 +1599,12 @@ def show_main_app():
                             if prefill and prefill.get('player') in pl_opts:
                                 pl_idx = pl_opts.index(prefill['player'])
                             
-                            pl = st.selectbox("Player to Buy", pl_opts, index=pl_idx)
+                            pl = st.selectbox(
+                                "Player to Buy", 
+                                pl_opts, 
+                                index=pl_idx,
+                                format_func=format_player_name
+                            )
                             
                             # Default price from prefill
                             def_price = 10
@@ -1661,7 +1644,11 @@ def show_main_app():
                              st.write("Loans are for 1 Gameweek only. Player returns automatically.")
                         
                         if from_p['squad']:
-                            pl = st.selectbox("Player to Loan Out", [p['name'] for p in from_p['squad']])
+                            pl = st.selectbox(
+                                "Player to Loan Out", 
+                                [p['name'] for p in from_p['squad']],
+                                format_func=format_player_name
+                            )
                             fee = st.number_input("Loan Fee (M)", 0, 50, 5, format="%d")
                             # GW Logic
                             locked = list(room.get('gameweek_squads', {}).keys())
