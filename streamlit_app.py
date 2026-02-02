@@ -78,7 +78,62 @@ players_db = load_players_database()
 
 # Create lookup dict for quick role finding
 player_role_lookup = {p['name']: p['role'] for p in players_db}
+player_team_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
 player_names = [p['name'] for p in players_db]
+
+# --- Custom CSS for Aesthetics ---
+def inject_custom_css():
+    st.markdown("""
+    <style>
+    /* Global Aesthetics */
+    .stApp {
+        background-color: #0e1117;
+    }
+    
+    /* Cards / Containers */
+    div[data-testid="stExpander"], div[data-testid="stContainer"] {
+        border-radius: 12px;
+        border: 1px solid #30363d;
+        background-color: #161b22;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    /* Buttons */
+    .stButton button {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #161b22;
+        border-radius: 8px;
+        padding: 4px 16px;
+        border: 1px solid #30363d;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #238636 !important;
+        border-color: #238636 !important;
+        color: white !important;
+    }
+    
+    /* Metrics */
+    div[data-testid="metric-container"] {
+        background-color: #161b22;
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid #30363d;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- Session State Initialization ---
 if 'logged_in_user' not in st.session_state:
@@ -438,7 +493,7 @@ def show_main_app():
         st.divider()
         
         # === AUCTION TABS ===
-        auction_tabs = st.tabs(["🔴 Live Auction", "🎯 Big Auction (Manual)", "💰 Open Bidding", "🔄 Trading"])
+        auction_tabs = st.tabs(["🔴 Live Auction", "🎯 Big Auction (Manual)", "💰 Open Bidding", "🔄 Trading", "👤 Squads (Dashboard)"])
         
         # ================ TAB 0: LIVE AUCTION ================
         with auction_tabs[0]:
@@ -1377,95 +1432,81 @@ def show_main_app():
             st.subheader("🔄 Trade Center")
             
             if not room.get('big_auction_complete'):
-                st.warning("⏳ Trading opens after the Big Auction is complete.")
+                st.info("⏳ Trading opens after the Big Auction is complete.")
             else:
-                st.info("""
-                **Trading Rules:**
-                - **Transfers**: Sell a player to another participant
-                - **Exchanges**: Swap players between two participants
-                - **Loans**: Temporary player transfer for 1 gameweek
-                
-                Trades must be **accepted** by the other party to be valid.
-                """)
-                
                 # Helper: Get current participant info
                 my_p_name = user
-                my_p_obj = next((p for p in room['participants'] if p['name'] == my_p_name), None)
                 
                 # Ensure pending_trades list exists
                 if 'pending_trades' not in room:
                     room['pending_trades'] = []
                 
-                # ==========================
-                # 1. INBOX: Incoming Trades
-                # ==========================
-                st.markdown("### 📬 Incoming Proposals (Action Required)")
+                # Handling Counter-Offer Prefill
+                prefill = st.session_state.pop('trade_prefill', None)
+                
+                # ---------------- INBOX ----------------
+                st.markdown("### 📬 Incoming Proposals")
                 my_incoming = [t for t in room['pending_trades'] if t['to'] == my_p_name]
                 
                 if my_incoming:
                     for trade in my_incoming:
-                        with st.expander(f"New {trade['type']} from {trade['from']}", expanded=True):
-                            # Display Details
+                        with st.container():
+                            st.markdown(f"**From {trade['from']}** | *{trade['type']}*")
+                            
+                            # Details
                             if trade['type'] == "Transfer (Sell)":
-                                st.write(f"**{trade['from']}** wants to sell **{trade['player']}** to you for **{trade['price']}M**.")
+                                st.write(f"Offer: **{trade['player']}** for **{trade['price']}M**")
                             elif trade['type'] == "Exchange":
                                 cash_txt = ""
                                 if trade['cash_amount'] > 0:
-                                    if trade['cash_payer'] == trade['from']:
-                                        cash_txt = f" + **{trade['cash_amount']}M**"
-                                    else:
-                                        cash_txt = f" (You pay **{trade['cash_amount']}M** extra)"
-                                st.write(f"Exchange: You get **{trade['get_player']}**{cash_txt} ↔ You give **{trade['give_player']}**.")
+                                    payer = trade['cash_payer']
+                                    cash_txt = f" (+ {trade['cash_amount']}M from {payer})"
+                                st.write(f"Swap: **{trade['get_player']}** (You get) ↔ **{trade['give_player']}** (You give){cash_txt}")
                             elif trade['type'] == "Loan (1 GW)":
-                                st.write(f"Loan Offer: Get **{trade['player']}** for GW{trade['gw']} for **{trade['fee']}M** fee.")
+                                st.write(f"Loan: **{trade['player']}** for GW{trade['gw']} @ **{trade['fee']}M**")
                             
-                            st.caption(f"Proposed at: {trade['created_at']}")
+                            c1, c2, c3 = st.columns([1, 1, 1])
                             
-                            # Actions
-                            c1, c2, c3 = st.columns(3)
-                            
-                            # --- ACCEPT LOGIC ---
+                            # ACTION: ACCEPT
                             if c1.button("✅ Accept", key=f"acc_{trade['id']}"):
-                                # Define participants
                                 sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
-                                receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None) # Me
-                                
+                                receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
                                 success = False
-                                msg = ""
                                 
                                 if sender and receiver:
-                                    # EXECUTE TRANSFER
                                     if trade['type'] == "Transfer (Sell)":
-                                        player_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
-                                        if player_obj and receiver['budget'] >= trade['price']:
-                                            sender['squad'].remove(player_obj)
-                                            player_obj['buy_price'] = trade['price'] # Update price? Usually yes on transfer.
-                                            receiver['squad'].append(player_obj)
+                                        p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
+                                        if p_obj and receiver['budget'] >= trade['price']:
+                                            sender['squad'].remove(p_obj)
+                                            # FIX: Restore Team Name
+                                            p_obj['team'] = player_team_lookup.get(p_obj['name'], 'Unknown')
+                                            p_obj['buy_price'] = trade['price']
+                                            receiver['squad'].append(p_obj)
                                             sender['budget'] += trade['price']
                                             receiver['budget'] -= trade['price']
                                             success = True
-                                            msg = f"Transfer successful! Welcome {trade['player']}."
-                                        else:
-                                            st.error("Transfer failed. Player missing or insufficient budget.")
                                     
-                                    # EXECUTE EXCHANGE
                                     elif trade['type'] == "Exchange":
-                                        p_give_obj = next((p for p in receiver['squad'] if p['name'] == trade['give_player']), None)
-                                        p_get_obj = next((p for p in sender['squad'] if p['name'] == trade['get_player']), None)
+                                        p_give = next((p for p in receiver['squad'] if p['name'] == trade['give_player']), None)
+                                        p_get = next((p for p in sender['squad'] if p['name'] == trade['get_player']), None)
                                         
-                                        # Verify budgets if cash involved
+                                        # Budget Check
                                         budget_ok = True
                                         if trade['cash_amount'] > 0:
-                                            if trade['cash_payer'] == receiver['name'] and receiver['budget'] < trade['cash_amount']:
-                                                budget_ok = False
-                                            elif trade['cash_payer'] == sender['name'] and sender['budget'] < trade['cash_amount']:
+                                            payer_name = trade['cash_payer']
+                                            payer_budget = sender['budget'] if payer_name == sender['name'] else receiver['budget']
+                                            if payer_budget < trade['cash_amount']:
                                                 budget_ok = False
                                         
-                                        if p_give_obj and p_get_obj and budget_ok:
-                                            receiver['squad'].remove(p_give_obj)
-                                            sender['squad'].remove(p_get_obj)
-                                            receiver['squad'].append(p_get_obj)
-                                            sender['squad'].append(p_give_obj)
+                                        if p_give and p_get and budget_ok:
+                                            receiver['squad'].remove(p_give)
+                                            sender['squad'].remove(p_get)
+                                            # Restore Teams
+                                            p_give['team'] = player_team_lookup.get(p_give['name'], 'Unknown')
+                                            p_get['team'] = player_team_lookup.get(p_get['name'], 'Unknown')
+                                            
+                                            receiver['squad'].append(p_get)
+                                            sender['squad'].append(p_give)
                                             
                                             if trade['cash_amount'] > 0:
                                                 if trade['cash_payer'] == receiver['name']:
@@ -1475,356 +1516,214 @@ def show_main_app():
                                                     sender['budget'] -= trade['cash_amount']
                                                     receiver['budget'] += trade['cash_amount']
                                             success = True
-                                            msg = "Exchange successful!"
-                                        else:
-                                            st.error("Exchange failed. Players missing or insufficient budget.")
                                     
-                                    # EXECUTE LOAN
                                     elif trade['type'] == "Loan (1 GW)":
-                                        player_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
-                                        if player_obj and receiver['budget'] >= trade['fee']:
-                                            # Create loan record
+                                        p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
+                                        if p_obj and receiver['budget'] >= trade['fee']:
                                             room.setdefault('active_loans', []).append({
-                                                'player': trade['player'],
-                                                'from': sender['name'],
-                                                'to': receiver['name'],
-                                                'fee': trade['fee'],
-                                                'gameweek': trade['gw'],
-                                                'original_buy_price': player_obj.get('buy_price', 0),
+                                                'player': trade['player'], 'from': sender['name'], 'to': receiver['name'],
+                                                'fee': trade['fee'], 'gameweek': trade['gw'], 
+                                                'original_buy_price': p_obj.get('buy_price', 0),
                                                 'created_at': get_ist_time().isoformat()
                                             })
-                                            # Move player temporarily
-                                            sender['squad'].remove(player_obj)
+                                            sender['squad'].remove(p_obj)
                                             receiver['squad'].append({
-                                                'name': trade['player'],
-                                                'role': player_obj['role'],
-                                                'buy_price': player_obj.get('buy_price', 0),
-                                                'on_loan': True,
-                                                'loan_from': sender['name']
+                                                'name': trade['player'], 'role': p_obj['role'],
+                                                'buy_price': p_obj.get('buy_price', 0), 'on_loan': True, 'loan_from': sender['name'],
+                                                'team': player_team_lookup.get(trade['player'], 'Unknown')
                                             })
-                                            # Fee
                                             sender['budget'] += trade['fee']
                                             receiver['budget'] -= trade['fee']
                                             success = True
-                                            msg = f"Loan accepted! {trade['player']} joined for GW{trade['gw']}."
-                                        else:
-                                            st.error("Loan failed. Check budget.")
 
                                 if success:
                                     room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                     save_auction_data(auction_data)
-                                    st.success(msg)
+                                    st.success("Trade Executed Successfully!")
                                     st.rerun()
+                                else:
+                                    st.error("Execution failed (Budget/Player missing).")
 
-                            # --- REJECT LOGIC ---
+                            # ACTION: REJECT
                             if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
                                 room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                 save_auction_data(auction_data)
-                                st.warning("Trade rejected.")
+                                st.toast("Trade Rejected")
                                 st.rerun()
-                                
-                            # --- COUNTER LOGIC ---
+
+                            # ACTION: COUNTER
                             if c3.button("🔄 Counter", key=f"cnt_{trade['id']}"):
                                 room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                 save_auction_data(auction_data)
-                                st.info("Trade rejected. You can now propose a counter-offer below.")
-                                # Note: Ideally we pre-fill, but keeping it simple for verification phase.
+                                # Set prefill for next run
+                                st.session_state['trade_prefill'] = {
+                                    'to': trade['from'],
+                                    'type': trade['type']
+                                }
+                                st.toast("Drafting Counter Offer...")
                                 st.rerun()
+                            st.divider()
                 else:
-                    st.info("No incoming trade proposals.")
+                    st.caption("No incoming proposals.")
 
-                # ==========================
-                # 2. SENT PROPOSALS
-                # ==========================
-                with st.expander("📤 Sent Proposals (Waiting Context)", expanded=False):
-                    my_sent = [t for t in room['pending_trades'] if t['from'] == my_p_name]
-                    if my_sent:
-                        for trade in my_sent:
-                            c1, c2 = st.columns([3, 1])
-                            c1.write(f"Sent to **{trade['to']}**: {trade['type']}")
-                            if c2.button("Cancel", key=f"cancel_{trade['id']}"):
-                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                # ---------------- OUTBOX ----------------
+                with st.expander("📤 Sent Proposals"):
+                    sent = [t for t in room['pending_trades'] if t['from'] == my_p_name]
+                    if sent:
+                        for s in sent:
+                            sc1, sc2 = st.columns([3, 1])
+                            sc1.write(f"To {s['to']}: {s['type']} ({s.get('player') or 'Swap'})")
+                            if sc2.button("Cancel", key=f"can_{s['id']}"):
+                                room['pending_trades'].remove(s)
                                 save_auction_data(auction_data)
-                                st.success("Proposal cancelled.")
                                 st.rerun()
                     else:
-                        st.caption("No pending sent proposals.")
+                        st.caption("No sent proposals.")
 
-                # ==========================
-                # 3. PROPOSE NEW TRADE
-                # ==========================
-                st.divider()
-                st.subheader("📝 Propose a Trade")
+                # ---------------- PROPOSE FORM ----------------
+                st.markdown("### 📝 Propose Trade")
                 
-                participant_options = [p['name'] for p in room['participants']]
-                if len(participant_options) >= 2:
-                    col1, col2 = st.columns(2)
+                parts = [p['name'] for p in room['participants']]
+                
+                # Determine Defaults
+                def_to_idx = 0
+                def_type_idx = 0
+                if prefill:
+                    if prefill['to'] in parts:
+                        def_to_idx = parts.index(prefill['to'])
+                        if prefill['to'] == my_p_name: # Edge case
+                            def_to_idx = (def_to_idx + 1) % len(parts)
                     
-                    # ENFORCE: From/To must involve Me
-                    # Generally, 'From' is me. But for Exchange/Loan it's symmetric.
-                    # Proposer is always 'Me' (Logged In User).
-                    # But the form says "From Participant" -> "To Participant".
-                    # Let's lock "From Participant" to ME if I am not admin.
+                    types = ["Transfer (Sell)", "Exchange", "Loan (1 GW)"]
+                    if prefill['type'] in types:
+                        def_type_idx = types.index(prefill['type'])
+                    st.info(f"Drafting counter-offer to {prefill['to']}")
+                
+                cA, cB = st.columns(2)
+                with cA:
+                    if is_admin:
+                        from_p_name = st.selectbox("From", parts, key="tp_from")
+                    else:
+                        from_p_name = st.selectbox("From", [my_p_name] if my_p_name in parts else parts, disabled=True, key="tp_from")
+                with cB:
+                    # Filter 'to' options
+                    to_opts = [x for x in parts if x != from_p_name]
+                    # Adjust default if necessary
+                    real_def_idx = 0
+                    if prefill and prefill['to'] in to_opts:
+                        real_def_idx = to_opts.index(prefill['to'])
+                        
+                    to_p_name = st.selectbox("To", to_opts, index=real_def_idx, key="tp_to")
+
+                from_p = next((p for p in room['participants'] if p['name'] == from_p_name), None)
+                to_p = next((p for p in room['participants'] if p['name'] == to_p_name), None)
+
+                if from_p and to_p:
+                    t_type = st.radio("Type", ["Transfer (Sell)", "Exchange", "Loan (1 GW)"], index=def_type_idx, horizontal=True)
                     
-                    with col1:
-                        if is_admin:
-                             from_participant = st.selectbox("From Participant", participant_options, key="trade_from")
+                    payload = {}
+                    ready = False
+                    
+                    if t_type == "Transfer (Sell)":
+                        if from_p['squad']:
+                            pl = st.selectbox("Player", [p['name'] for p in from_p['squad']])
+                            pr = st.number_input("Price (M)", 1, 500, 10)
+                            payload = {'type': t_type, 'player': pl, 'price': pr}
+                            ready = True
                         else:
-                             # Lock to self
-                             from_participant = st.selectbox("From (You)", [my_p_name] if my_p_name in participant_options else participant_options, key="trade_from", disabled=True)
+                            st.warning("No players to sell.")
                     
-                    with col2:
-                        to_options = [p for p in participant_options if p != from_participant]
-                        to_participant = st.selectbox("To Participant", to_options, key="trade_to")
-                    
-                    from_p = next((p for p in room['participants'] if p['name'] == from_participant), None)
-                    to_p = next((p for p in room['participants'] if p['name'] == to_participant), None)
-                    
-                    if from_p and to_p:
-                        # Validate Access: If standard user, must be involved.
-                        if not is_admin and user not in [from_participant, to_participant]:
-                             st.error("You can only propose trades involving yourself.")
+                    elif t_type == "Exchange":
+                        if from_p['squad'] and to_p['squad']:
+                            c1, c2 = st.columns(2)
+                            p1 = c1.selectbox(f"{from_p_name}'s Player", [p['name'] for p in from_p['squad']])
+                            p2 = c2.selectbox(f"{to_p_name}'s Player", [p['name'] for p in to_p['squad']])
+                            
+                            c_dir = st.radio("Cash Adjust", ["None", f"{from_p_name} pays", f"{to_p_name} pays"], horizontal=True)
+                            c_amt = 0
+                            if c_dir != "None":
+                                c_amt = st.number_input("Cash Amount", 1, 100, 5)
+                            
+                            payload = {'type': t_type, 'give_player': p1, 'get_player': p2, 'cash_amount': c_amt, 'cash_payer': c_dir if c_dir != "None" else None}
+                            ready = True
                         else:
-                            trade_type = st.radio("Trade Type", ["Transfer (Sell)", "Exchange", "Loan (1 GW)"], horizontal=True)
-                            
-                            trade_payload = None
-                            can_submit = False
-                            
-                            # --- TRANSFER FORM ---
-                            if trade_type == "Transfer (Sell)":
-                                if from_p['squad']:
-                                    player_to_sell = st.selectbox(f"Player to Sell", [p['name'] for p in from_p['squad']])
-                                    sell_price = st.number_input("Sell Price (M)", min_value=1, value=10)
-                                    can_submit = True
-                                    trade_payload = {
-                                        'type': "Transfer (Sell)",
-                                        'player': player_to_sell,
-                                        'price': sell_price
-                                    }
-                                else:
-                                    st.warning(f"{from_participant} has no players.")
+                            st.warning("Both need players.")
 
-                            # --- EXCHANGE FORM ---
-                            elif trade_type == "Exchange":
-                                if from_p['squad'] and to_p['squad']:
-                                    c1, c2 = st.columns(2)
-                                    p1 = c1.selectbox(f"{from_participant}'s Player", [p['name'] for p in from_p['squad']], key="ex1")
-                                    p2 = c2.selectbox(f"{to_participant}'s Player", [p['name'] for p in to_p['squad']], key="ex2")
-                                    
-                                    st.caption("Cash Adjustment:")
-                                    cash_dir = st.radio("Who pays extra?", ["None", f"{from_participant}", f"{to_participant}"], horizontal=True)
-                                    cash_amt = 0
-                                    if cash_dir != "None":
-                                        cash_amt = st.number_input("Amount (M)", min_value=1, value=5)
-                                    
-                                    can_submit = True
-                                    trade_payload = {
-                                        'type': "Exchange",
-                                        'give_player': p1, # From sender to receiver
-                                        'get_player': p2,  # From receiver to sender
-                                        'cash_amount': cash_amt,
-                                        'cash_payer': cash_dir if cash_dir != "None" else None
-                                    }
-                                else:
-                                    st.warning("Both need players.")
+                    elif t_type == "Loan (1 GW)":
+                        if from_p['squad']:
+                            pl = st.selectbox("Player", [p['name'] for p in from_p['squad']])
+                            fee = st.number_input("Fee (M)", 0, 50, 5)
+                            # GW Logic
+                            locked = list(room.get('gameweek_squads', {}).keys())
+                            ngw = str((max([int(x) for x in locked]) if locked else 0) + 1)
+                            st.caption(f"For GW{ngw}")
+                            payload = {'type': t_type, 'player': pl, 'fee': fee, 'gw': ngw}
+                            ready = True
+                    
+                    if ready:
+                        if st.button("📤 Send Proposal", type="primary"):
+                            new_t = {
+                                'id': str(uuid_lib.uuid4()),
+                                'from': from_p_name, 'to': to_p_name,
+                                'created_at': get_ist_time().strftime("%Y-%m-%d %H:%M:%S"),
+                                **payload
+                            }
+                            room['pending_trades'].append(new_t)
+                            save_auction_data(auction_data)
+                            st.success("Proposal Sent!")
+                            st.rerun()
 
-                            # --- LOAN FORM ---
-                            elif trade_type == "Loan (1 GW)":
-                                if from_p['squad']:
-                                    player_loan = st.selectbox("Player to Loan Out", [p['name'] for p in from_p['squad']])
-                                    fee = st.number_input("Loan Fee (M)", min_value=0, value=5)
-                                    
-                                    # Calc GW
-                                    locked = list(room.get('gameweek_squads', {}).keys())
-                                    cgw = max([int(gw) for gw in locked]) if locked else 0
-                                    tgw = str(cgw + 1)
-                                    st.info(f"For Gameweek {tgw}")
-                                    
-                                    can_submit = True
-                                    trade_payload = {
-                                        'type': "Loan (1 GW)",
-                                        'player': player_loan,
-                                        'fee': fee,
-                                        'gw': tgw
-                                    }
-                            
-                            # --- SUBMIT BUTTON ---
-                            if can_submit and trade_payload:
-                                if st.button("📤 Send Proposal"):
-                                    # Create Trade Object
-                                    new_trade = {
-                                        'id': str(uuid_lib.uuid4()),
-                                        'from': from_participant,
-                                        'to': to_participant,
-                                        'created_at': get_ist_time().strftime("%Y-%m-%d %H:%M:%S"),
-                                        **trade_payload
-                                    }
-                                    room['pending_trades'].append(new_trade)
-                                    save_auction_data(auction_data)
-                                    st.success("Trade proposed! Waiting for acceptance.")
-                                    st.rerun()
-                                    
-                else:
-                    st.warning("Need at least 2 participants.")
+        # ================ TAB 4: SQUADS DASHBOARD ================
+        with auction_tabs[4]:
+            st.subheader("👤 Squad Dashboard")
+            
+            # Auto-Refresh Logic (using st.fragment if supported, otherwise just render)
+            # Since we can't easily check imports, we'll try a conditional block if possible.
+            # But simpler: Just render. User can click 'Refresh' button.
+            
+            # Simple refresh button
+            if st.button("🔄 Refresh Data"):
+                st.rerun()
+
+            # Global Squad Table
+            all_squads_data = []
+            for p in room['participants']:
+                for pl in p['squad']:
+                    all_squads_data.append({
+                        'Participant': p['name'],
+                        'Player': pl['name'],
+                        'Role': pl['role'],
+                        'Team': pl.get('team', player_team_lookup.get(pl['name'], 'Unknown')),
+                        'Price': pl.get('buy_price', 0)
+                    })
+            
+            if all_squads_data:
+                df = pd.DataFrame(all_squads_data)
                 
-                # === VIEW OTHER SQUADS ===
-                st.divider()
-                st.markdown("### 👀 View Participant Squads")
+                # Filters
+                c1, c2 = st.columns(2)
+                with c1:
+                    sel_p = st.multiselect("Filter by Participant", [p['name'] for p in room['participants']])
+                with c2:
+                    search = st.text_input("Search Player")
                 
-                view_participant = st.selectbox(
-                    "Select participant to view squad",
-                    [p['name'] for p in room['participants']],
-                    key="view_squad_select"
+                if sel_p:
+                    df = df[df['Participant'].isin(sel_p)]
+                if search:
+                    df = df[df['Player'].str.contains(search, case=False)]
+                
+                st.dataframe(
+                    df, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={
+                        "Price": st.column_config.NumberColumn(format="%dM")
+                    }
                 )
-                
-                view_p = next((p for p in room['participants'] if p['name'] == view_participant), None)
-                if view_p and view_p['squad']:
-                    squad_df = pd.DataFrame(view_p['squad'])
-                    st.dataframe(squad_df, use_container_width=True, hide_index=True)
-                    st.caption(f"Budget: {view_p.get('budget', 350)}M | IR: {view_p.get('ir_player', 'None')}")
-                else:
-                    st.info(f"{view_participant} has no players yet.")
-                
-                # === TRADE PROPOSALS ===
-                st.divider()
-                st.markdown("### 📩 Trade Proposals")
-                
-                # Show my proposals (incoming and outgoing)
-                pending_trades = room.get('pending_trades', [])
-                my_name = st.session_state.get('user', 'Unknown')
-                
-                # Get participant name for current user (if they're a participant)
-                my_participant = next((p['name'] for p in room['participants'] 
-                                      if p.get('user') == my_name or p['name'] == my_name), None)
-                
-                if not my_participant:
-                    st.info("You need to be a participant to send or receive trade proposals.")
-                else:
-                    # Incoming proposals
-                    my_incoming = [t for t in pending_trades if t['to'] == my_participant and t['status'] == 'pending']
-                    if my_incoming:
-                        st.markdown("**📥 Incoming Proposals**")
-                        for i, trade in enumerate(my_incoming):
-                            with st.expander(f"From {trade['from']}: {trade.get('from_players', [])} ↔ {trade.get('to_players', [])}"):
-                                cash_note = ""
-                                if trade.get('cash_from_to', 0) > 0:
-                                    cash_note = f" + {trade['cash_from_to']}M from {trade['from']}"
-                                elif trade.get('cash_from_to', 0) < 0:
-                                    cash_note = f" + {abs(trade['cash_from_to'])}M from you"
-                                
-                                st.write(f"**Offer:** {', '.join(trade.get('from_players', []))}")
-                                st.write(f"**Wants:** {', '.join(trade.get('to_players', []))}")
-                                if cash_note:
-                                    st.write(f"**Cash:** {cash_note}")
-                                
-                                col1, col2, col3 = st.columns(3)
-                                with col1:
-                                    if st.button("✅ Accept", key=f"accept_{trade['id']}"):
-                                        # Execute the trade
-                                        from_p = next((p for p in room['participants'] if p['name'] == trade['from']), None)
-                                        to_p = next((p for p in room['participants'] if p['name'] == trade['to']), None)
-                                        
-                                        if from_p and to_p:
-                                            # Move players
-                                            for pname in trade.get('from_players', []):
-                                                pobj = next((p for p in from_p['squad'] if p['name'] == pname), None)
-                                                if pobj:
-                                                    from_p['squad'].remove(pobj)
-                                                    to_p['squad'].append(pobj)
-                                            
-                                            for pname in trade.get('to_players', []):
-                                                pobj = next((p for p in to_p['squad'] if p['name'] == pname), None)
-                                                if pobj:
-                                                    to_p['squad'].remove(pobj)
-                                                    from_p['squad'].append(pobj)
-                                            
-                                            # Handle cash
-                                            cash = trade.get('cash_from_to', 0)
-                                            if cash > 0:
-                                                from_p['budget'] -= cash
-                                                to_p['budget'] += cash
-                                            elif cash < 0:
-                                                to_p['budget'] += cash  # cash is negative
-                                                from_p['budget'] -= cash
-                                            
-                                            trade['status'] = 'accepted'
-                                            save_auction_data(auction_data)
-                                            st.success("Trade accepted and executed!")
-                                            st.rerun()
-                                
-                                with col2:
-                                    if st.button("❌ Reject", key=f"reject_{trade['id']}"):
-                                        trade['status'] = 'rejected'
-                                        save_auction_data(auction_data)
-                                        st.info("Trade rejected.")
-                                        st.rerun()
-                                
-                                with col3:
-                                    if st.button("🔄 Counter", key=f"counter_{trade['id']}"):
-                                        st.session_state['counter_trade'] = trade['id']
-                    
-                    # Outgoing proposals
-                    my_outgoing = [t for t in pending_trades if t['from'] == my_participant and t['status'] == 'pending']
-                    if my_outgoing:
-                        st.markdown("**📤 Your Outgoing Proposals**")
-                        for trade in my_outgoing:
-                            st.write(f"To {trade['to']}: {trade.get('from_players', [])} ↔ {trade.get('to_players', [])} - *Pending*")
-                    
-                    # Create new proposal
-                    st.markdown("**➕ Create New Trade Proposal**")
-                    
-                    other_participants = [p['name'] for p in room['participants'] if p['name'] != my_participant]
-                    if other_participants:
-                        proposal_to = st.selectbox("Send proposal to", other_participants, key="proposal_to")
-                        
-                        my_p = next((p for p in room['participants'] if p['name'] == my_participant), None)
-                        other_p = next((p for p in room['participants'] if p['name'] == proposal_to), None)
-                        
-                        if my_p and other_p and my_p['squad'] and other_p['squad']:
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                my_players = st.multiselect(
-                                    "Your players to offer",
-                                    [p['name'] for p in my_p['squad']],
-                                    key="proposal_my_players"
-                                )
-                            with col2:
-                                their_players = st.multiselect(
-                                    f"Players you want from {proposal_to}",
-                                    [p['name'] for p in other_p['squad']],
-                                    key="proposal_their_players"
-                                )
-                            
-                            cash_direction = st.radio(
-                                "Cash component",
-                                ["No cash", "You pay extra", "They pay extra"],
-                                horizontal=True
-                            )
-                            cash_amount = 0
-                            if cash_direction != "No cash":
-                                cash_amount = st.number_input("Cash Amount (M)", min_value=1, max_value=100, value=5, key="proposal_cash")
-                            
-                            if st.button("📨 Send Proposal"):
-                                if not my_players and not their_players:
-                                    st.error("Select at least one player!")
-                                else:
-                                    import uuid
-                                    new_trade = {
-                                        'id': str(uuid.uuid4()),
-                                        'from': my_participant,
-                                        'to': proposal_to,
-                                        'from_players': my_players,
-                                        'to_players': their_players,
-                                        'cash_from_to': cash_amount if cash_direction == "You pay extra" else (-cash_amount if cash_direction == "They pay extra" else 0),
-                                        'status': 'pending',
-                                        'created_at': datetime.now().isoformat()
-                                    }
-                                    room.setdefault('pending_trades', []).append(new_trade)
-                                    save_auction_data(auction_data)
-                                    st.success(f"Proposal sent to {proposal_to}!")
-                                    st.rerun()
-                        else:
-                            st.info("Both participants need players for trade proposals.")
+            else:
+                st.info("No squads yet.")
+
+    # ================ PAGE 3: GAMEWEEK ADMIN ================
 
 
     # =====================================
