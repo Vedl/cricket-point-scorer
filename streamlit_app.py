@@ -5,7 +5,7 @@ import os
 import string
 import random
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from cricbuzz_scraper import CricbuzzScraper
 from player_score_calculator import CricketScoreCalculator
 
@@ -355,9 +355,22 @@ def show_main_app():
             if st.sidebar.button("🔄 Reset Room Data", type="secondary"):
                 room['participants'] = []
                 room['gameweek_scores'] = {}
+                room['active_bids'] = []
+                room['unsold_players'] = []
                 save_auction_data(auction_data)
                 st.sidebar.success("Room data reset!")
                 st.rerun()
+            
+            # Toggle Big Auction Complete
+            big_auction_done = room.get('big_auction_complete', False)
+            if st.sidebar.checkbox("Big Auction Complete", value=big_auction_done):
+                room['big_auction_complete'] = True
+                room['bidding_open'] = True  # Open bidding after big auction
+                save_auction_data(auction_data)
+            else:
+                room['big_auction_complete'] = False
+                room['bidding_open'] = False
+                save_auction_data(auction_data)
         
         # --- Add Participant (Admin Only) ---
         if is_admin:
@@ -379,14 +392,21 @@ def show_main_app():
                     st.warning("Participant already exists.")
             st.divider()
         
-        # --- Manage Squads ---
-        st.subheader("📋 Manage Squads")
+        # === AUCTION TABS ===
+        auction_tabs = st.tabs(["🎯 Big Auction", "💰 Open Bidding", "🔄 Trading"])
         
-        if not room['participants']:
-            if is_admin:
-                st.info("No participants yet. Add some above!")
-            else:
-                st.info("No participants yet. Ask the admin to add participants.")
+        # ================ TAB 1: BIG AUCTION ================
+        with auction_tabs[0]:
+            st.subheader("📋 Manage Squads (Big Auction)")
+            
+            if room.get('big_auction_complete'):
+                st.success("✅ Big Auction is complete! Use 'Open Bidding' tab to bid on unsold players.")
+            
+            if not room['participants']:
+                if is_admin:
+                    st.info("No participants yet. Add some above!")
+                else:
+                    st.info("No participants yet. Ask the admin to add participants.")
         else:
             participant_names = [p['name'] for p in room['participants']]
             selected_participant = st.selectbox("Select Participant", participant_names)
@@ -557,6 +577,231 @@ def show_main_app():
         st.subheader("👥 Room Members")
         members_df = pd.DataFrame([{"Member": m, "Role": "Admin" if m == room['admin'] else "Member"} for m in room['members']])
         st.dataframe(members_df, use_container_width=True, hide_index=True)
+        
+        # ================ TAB 2: OPEN BIDDING ================
+        with auction_tabs[1]:
+            st.subheader("💰 Open Bidding (Post-Auction)")
+            
+            if not room.get('big_auction_complete'):
+                st.warning("⏳ Open Bidding will start after the Big Auction is complete. Admin must check 'Big Auction Complete' in sidebar.")
+            else:
+                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 24 hours to win.")
+                
+                # Process expired bids (auto-award to winners)
+                now = datetime.now()
+                active_bids = room.get('active_bids', [])
+                awarded_bids = []
+                
+                for bid in active_bids:
+                    expires = datetime.fromisoformat(bid['expires'])
+                    if now >= expires:
+                        # Award the player to the bidder
+                        bidder_participant = next((p for p in room['participants'] if p['name'] == bid['bidder']), None)
+                        if bidder_participant and bid['amount'] <= bidder_participant.get('budget', 0):
+                            bidder_participant['squad'].append({
+                                'name': bid['player'],
+                                'role': player_role_lookup.get(bid['player'], 'Unknown'),
+                                'buy_price': bid['amount']
+                            })
+                            bidder_participant['budget'] -= bid['amount']
+                            awarded_bids.append(bid)
+                            # Remove from unsold
+                            if bid['player'] in room.get('unsold_players', []):
+                                room['unsold_players'].remove(bid['player'])
+                
+                # Remove awarded bids
+                for ab in awarded_bids:
+                    active_bids.remove(ab)
+                    st.success(f"🎉 {ab['player']} awarded to {ab['bidder']} for {ab['amount']}M!")
+                
+                room['active_bids'] = active_bids
+                if awarded_bids:
+                    save_auction_data(auction_data)
+                
+                # Show current active bids
+                st.markdown("### 📋 Active Bids")
+                if active_bids:
+                    bids_data = []
+                    for bid in active_bids:
+                        expires = datetime.fromisoformat(bid['expires'])
+                        time_left = expires - now
+                        hours_left = max(0, time_left.total_seconds() / 3600)
+                        bids_data.append({
+                            "Player": bid['player'],
+                            "Current Bid": f"{bid['amount']}M",
+                            "Bidder": bid['bidder'],
+                            "Time Left": f"{hours_left:.1f} hours",
+                            "Expires": expires.strftime("%b %d, %H:%M")
+                        })
+                    st.dataframe(pd.DataFrame(bids_data), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No active bids. Place a bid on an unsold player below!")
+                
+                # Get unsold players (players not in any squad and not being bid on)
+                all_drafted = []
+                for p in room['participants']:
+                    all_drafted.extend([pl['name'] for pl in p['squad']])
+                being_bid_on = [b['player'] for b in active_bids]
+                
+                unsold_players = room.get('unsold_players', [])
+                # Add players that went unsold (not in any squad)
+                for name in player_names:
+                    if name not in all_drafted and name not in unsold_players:
+                        unsold_players.append(name)
+                room['unsold_players'] = unsold_players
+                
+                biddable_players = [p for p in unsold_players if p not in being_bid_on]
+                
+                # Place a new bid
+                st.markdown("### 🆕 Place New Bid")
+                
+                # Get current user's participant profile
+                current_participant = next((p for p in room['participants'] if p['name'] == user), None)
+                if not current_participant:
+                    # Check if user is in any participant's name loosely (for flexibility)
+                    participant_options = [p['name'] for p in room['participants']]
+                    if participant_options:
+                        selected_bidder = st.selectbox("Select Your Name", participant_options, key="bidder_select")
+                        current_participant = next((p for p in room['participants'] if p['name'] == selected_bidder), None)
+                    else:
+                        st.warning("No participants yet. Admin needs to add you first.")
+                
+                if current_participant:
+                    st.metric("Your Budget", f"{current_participant.get('budget', 0)}M")
+                    
+                    if biddable_players:
+                        bid_player = st.selectbox(
+                            "Select Player to Bid On",
+                            [""] + biddable_players,
+                            format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player..."
+                        )
+                        
+                        if bid_player:
+                            # Check if there's an existing bid
+                            existing_bid = next((b for b in active_bids if b['player'] == bid_player), None)
+                            min_bid = 5
+                            if existing_bid:
+                                if existing_bid['amount'] >= 50:
+                                    min_bid = existing_bid['amount'] + 5
+                                else:
+                                    min_bid = existing_bid['amount'] + 1
+                            
+                            bid_amount = st.number_input(
+                                f"Bid Amount (Min: {min_bid}M)",
+                                min_value=min_bid,
+                                max_value=int(current_participant.get('budget', 0)),
+                                value=min_bid,
+                                step=5 if min_bid >= 50 else 1
+                            )
+                            
+                            if st.button("🎯 Place Bid", type="primary"):
+                                if bid_amount > current_participant.get('budget', 0):
+                                    st.error("Insufficient budget!")
+                                else:
+                                    # Remove old bid if exists
+                                    room['active_bids'] = [b for b in room['active_bids'] if b['player'] != bid_player]
+                                    # Add new bid with 24-hour expiry
+                                    room['active_bids'].append({
+                                        'player': bid_player,
+                                        'amount': bid_amount,
+                                        'bidder': current_participant['name'],
+                                        'bid_time': now.isoformat(),
+                                        'expires': (now + timedelta(hours=24)).isoformat()
+                                    })
+                                    save_auction_data(auction_data)
+                                    st.success(f"Bid placed! {bid_player} at {bid_amount}M. Expires in 24 hours.")
+                                    st.rerun()
+                    else:
+                        st.info("No players available for bidding. All have been drafted or have active bids.")
+        
+        # ================ TAB 3: TRADING ================
+        with auction_tabs[2]:
+            st.subheader("🔄 Trading (Coming Soon)")
+            
+            if not room.get('big_auction_complete'):
+                st.warning("⏳ Trading will open after the Big Auction is complete.")
+            else:
+                st.info("""
+                **Trading Rules:**
+                - **Transfers**: Sell a player to another participant
+                - **Exchanges**: Swap players between two participants
+                - **Loans**: Temporary player transfer for 1 gameweek
+                - **No donations** (cash for nothing)
+                
+                Trading closes 30 min after bidding closes each gameweek.
+                """)
+                
+                st.markdown("### 📤 Propose a Trade")
+                
+                # Get current participant
+                participant_options = [p['name'] for p in room['participants']]
+                if len(participant_options) >= 2:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        from_participant = st.selectbox("From Participant", participant_options, key="trade_from")
+                    with col2:
+                        to_options = [p for p in participant_options if p != from_participant]
+                        to_participant = st.selectbox("To Participant", to_options, key="trade_to")
+                    
+                    from_p = next((p for p in room['participants'] if p['name'] == from_participant), None)
+                    to_p = next((p for p in room['participants'] if p['name'] == to_participant), None)
+                    
+                    if from_p and to_p:
+                        trade_type = st.radio("Trade Type", ["Transfer (Sell)", "Exchange", "Loan (1 GW)"], horizontal=True)
+                        
+                        if trade_type == "Transfer (Sell)":
+                            if from_p['squad']:
+                                player_to_sell = st.selectbox(
+                                    f"Player from {from_participant}",
+                                    [p['name'] for p in from_p['squad']]
+                                )
+                                sell_price = st.number_input("Sell Price (M)", min_value=1, value=10)
+                                
+                                if st.button("📝 Record Transfer"):
+                                    player_obj = next((p for p in from_p['squad'] if p['name'] == player_to_sell), None)
+                                    if player_obj and sell_price <= to_p.get('budget', 0):
+                                        # Move player
+                                        from_p['squad'].remove(player_obj)
+                                        player_obj['buy_price'] = sell_price
+                                        to_p['squad'].append(player_obj)
+                                        # Transfer money
+                                        from_p['budget'] += sell_price
+                                        to_p['budget'] -= sell_price
+                                        save_auction_data(auction_data)
+                                        st.success(f"Transfer complete! {player_to_sell} to {to_participant} for {sell_price}M")
+                                        st.rerun()
+                                    else:
+                                        st.error("Transfer failed. Check budget.")
+                            else:
+                                st.warning(f"{from_participant} has no players to sell.")
+                        
+                        elif trade_type == "Exchange":
+                            if from_p['squad'] and to_p['squad']:
+                                excol1, excol2 = st.columns(2)
+                                with excol1:
+                                    player1 = st.selectbox(f"Player from {from_participant}", [p['name'] for p in from_p['squad']], key="ex1")
+                                with excol2:
+                                    player2 = st.selectbox(f"Player from {to_participant}", [p['name'] for p in to_p['squad']], key="ex2")
+                                
+                                if st.button("📝 Record Exchange"):
+                                    p1_obj = next((p for p in from_p['squad'] if p['name'] == player1), None)
+                                    p2_obj = next((p for p in to_p['squad'] if p['name'] == player2), None)
+                                    if p1_obj and p2_obj:
+                                        from_p['squad'].remove(p1_obj)
+                                        to_p['squad'].remove(p2_obj)
+                                        from_p['squad'].append(p2_obj)
+                                        to_p['squad'].append(p1_obj)
+                                        save_auction_data(auction_data)
+                                        st.success(f"Exchange complete! {player1} ↔ {player2}")
+                                        st.rerun()
+                            else:
+                                st.warning("Both participants need players for an exchange.")
+                        
+                        elif trade_type == "Loan (1 GW)":
+                            st.info("🚧 Loan system is under development. Coming soon!")
+                else:
+                    st.warning("Need at least 2 participants for trading.")
+
 
     # =====================================
     # PAGE 3: Gameweek Admin
