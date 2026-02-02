@@ -719,8 +719,10 @@ def show_main_app():
                                 save_auction_data(auction_data)
                                 st.rerun()
                             
-                            # Opt Out Button
-                            if is_my_turn:
+                            # Opt Out / Status
+                            if my_participant and my_participant['name'] == current_bidder:
+                                st.success("👑 You hold the highest bid")
+                            elif is_my_turn:
                                 if st.button("❌ Opt Out", key=f"optout_btn_{current_player}"):
                                     live_auction.setdefault('opted_out', []).append(my_participant['name'])
                                     room['live_auction'] = live_auction
