@@ -963,6 +963,10 @@ def show_main_app():
                                 save_auction_data(auction_data)
                                 st.rerun()
                             
+                            
+                            st.write("") # Spacer
+                            st.write("") # Spacer
+                            
                             # Opt Out / Status
                             if my_participant and my_participant['name'] == current_bidder:
                                 st.success("👑 You hold the highest bid")
