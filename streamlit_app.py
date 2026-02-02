@@ -1275,6 +1275,7 @@ def show_main_app():
                         knocked_out_teams = set(room.get('knocked_out_teams', []))
                         player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
                         
+                        remove_options = [p['name'] for p in current_participant['squad']]
                         player_to_remove = st.selectbox(
                             "Select Player to Release", 
                             [""] + remove_options, 
