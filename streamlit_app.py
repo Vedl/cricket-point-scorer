@@ -18,6 +18,10 @@ AUCTION_DATA_FILE = os.path.join(DATA_DIR, "auction_data.json")
 PLAYERS_DB_FILE = os.path.join(DATA_DIR, "players_database.json")
 SCHEDULE_FILE = os.path.join(DATA_DIR, "t20_wc_schedule.json")
 
+def get_ist_time():
+    """Returns the current time in Indian Standard Time (IST)"""
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
+
 # --- Load/Save Functions for Persistence ---
 def load_auction_data():
     """Load auction data from JSON file."""
@@ -550,10 +554,10 @@ def show_main_app():
                                     'current_player_role': team_players[0].get('role', 'Unknown') if team_players else None,
                                     'current_bid': 0,
                                     'current_bidder': None,
-                                    'timer_start': datetime.now().isoformat(),
+                                    'timer_start': get_ist_time().isoformat(),
                                     'timer_duration': 90,  # Updated to 90 seconds
                                     'opted_out': [], # List of participants who opted out
-                                    'auction_started_at': datetime.now().isoformat()
+                                    'auction_started_at': get_ist_time().isoformat()
                                 }
                                 save_auction_data(auction_data)
                                 st.rerun()
@@ -597,7 +601,7 @@ def show_main_app():
                                  elif p_data:
                                      st.info("No players in squad yet.")
 
-                        st.json({"status": "waiting", "admin": room['admin'], "time": datetime.now().strftime("%H:%M:%S")})
+                        st.json({"status": "waiting", "admin": room['admin'], "time": get_ist_time().strftime("%H:%M:%S")})
                         
                         # Auto-refresh to check for start
                         import time
@@ -647,12 +651,12 @@ def show_main_app():
                     current_bid = live_auction.get('current_bid', 0)
 
                     current_bidder = live_auction.get('current_bidder')
-                    timer_start = datetime.fromisoformat(live_auction.get('timer_start', datetime.now().isoformat()))
+                    timer_start = datetime.fromisoformat(live_auction.get('timer_start', get_ist_time().isoformat()))
                     timer_duration = live_auction.get('timer_duration', 90)
                     opted_out = live_auction.get('opted_out', [])
                     
                     # Calculate time remaining
-                    elapsed = (datetime.now() - timer_start).total_seconds()
+                    elapsed = (get_ist_time() - timer_start).total_seconds()
                     time_remaining = max(0, timer_duration - elapsed)
                     
                     # Display auction header
@@ -751,7 +755,7 @@ def show_main_app():
                             if st.button("🔨 BID!", type="primary", disabled=bid_amount==0, key=f"bid_btn_{current_player}"):
                                 live_auction['current_bid'] = bid_amount
                                 live_auction['current_bidder'] = bidder_name
-                                live_auction['timer_start'] = datetime.now().isoformat()  # Reset timer
+                                live_auction['timer_start'] = get_ist_time().isoformat()  # Reset timer
                                 # IMPORTANT: Reset opt-outs? Usually yes if price changes, but let's keep it sticky for speed. 
                                 # If sticky: No reset. If lenient: live_auction['opted_out'] = []
                                 # User asked for "opt out of bidding for a player". Usually implies permanent for that player.
@@ -791,7 +795,7 @@ def show_main_app():
                                 'player': current_player,
                                 'buyer': current_bidder,
                                 'price': current_bid,
-                                'time': datetime.now().isoformat()
+                                'time': get_ist_time().isoformat()
                             })
                             
                             # Move to next
@@ -805,7 +809,7 @@ def show_main_app():
                                 live_auction['current_player_role'] = player_role_lookup.get(next_player, 'Unknown')
                                 live_auction['current_bid'] = 0
                                 live_auction['current_bidder'] = None
-                                live_auction['timer_start'] = datetime.now().isoformat()
+                                live_auction['timer_start'] = get_ist_time().isoformat()
                                 live_auction['opted_out'] = []
                                 live_auction['player_queue'] = queue
                             else:
@@ -834,7 +838,7 @@ def show_main_app():
                             live_auction['current_player_role'] = player_role_lookup.get(next_player, 'Unknown')
                             live_auction['current_bid'] = 0
                             live_auction['current_bidder'] = None
-                            live_auction['timer_start'] = datetime.now().isoformat()
+                            live_auction['timer_start'] = get_ist_time().isoformat()
                             live_auction['opted_out'] = []
                             live_auction['player_queue'] = queue
                         else:
@@ -1120,7 +1124,7 @@ def show_main_app():
                             st.rerun()
                 
                 # Show countdown to deadline
-                now = datetime.now()
+                now = get_ist_time()
                 deadline_str = room.get('bidding_deadline')
                 global_deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
                 
@@ -1223,6 +1227,82 @@ def show_main_app():
                     else:
                         st.warning("No participants yet. Admin needs to add you first.")
                 
+                    else:
+                        st.info("No participants yet. Admin needs to add you first.")
+                
+                # --- Release Player Section (Added to Open Bidding) ---
+                st.divider()
+                st.subheader("🔄 Manage Squad / Release Player")
+                
+                # Get current participant for release
+                my_p_name = user if user else None
+                # If admin, maybe allow selecting? But user wants "releasing player feature". 
+                # Let's trust "current_participant" logic above or re-select.
+                
+                # We reuse current_participant from bidding logic if available
+                if current_participant:
+                    st.caption(f"Managing Squad for: **{current_participant['name']}**")
+                    
+                    if current_participant['squad']:
+                        # --- RELEASE LOGIC START (Copied/Adapted) ---
+                        # Calculate current gameweek (based on locked gameweeks)
+                        locked_gws = list(room.get('gameweek_squads', {}).keys())
+                        current_gw = max([int(gw) for gw in locked_gws]) if locked_gws else 0
+                        
+                        # Check if participant has used their paid release this GW
+                        paid_releases = current_participant.get('paid_releases', {})
+                        used_paid_this_gw = paid_releases.get(str(current_gw), False) if current_gw > 0 else False
+                        
+                        knocked_out_teams = set(room.get('knocked_out_teams', []))
+                        player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
+                        
+                        remove_options = [p['name'] for p in current_participant['squad']]
+                        player_to_remove = st.selectbox("Select Player to Release", remove_options, key="open_release_player")
+                        
+                        if player_to_remove:
+                             player_obj = next((p for p in current_participant['squad'] if p['name'] == player_to_remove), None)
+                             player_country = player_country_lookup.get(player_to_remove, 'Unknown')
+                             is_knocked_out_team = player_country in knocked_out_teams
+                             
+                             if current_gw == 0:
+                                 release_type = "unlimited"
+                                 st.markdown("**🔄 Release Player (Before GW1 - 50% Refund)**")
+                             elif is_knocked_out_team and current_gw >= 5:
+                                 release_type = "knockout_free"
+                                 st.markdown("**🔄 Release Player (Knocked-Out Team - FREE 50%)**")
+                             elif not used_paid_this_gw:
+                                 release_type = "paid"
+                                 st.markdown(f"**🔄 Release Player (GW{current_gw} - Paid 50%)**")
+                             else:
+                                 release_type = "free"
+                                 st.markdown(f"**🔄 Release Player (GW{current_gw} - Free 0%)**")
+                             
+                             if release_type in ["unlimited", "paid", "knockout_free"]:
+                                 refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
+                             else:
+                                 refund_amount = 0
+                                 
+                             st.caption(f"Refund: **{refund_amount}M**")
+                             
+                             if st.button("🔓 Release Player", key="open_release_btn"):
+                                 current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
+                                 current_participant['budget'] += refund_amount
+                                 if current_participant.get('ir_player') == player_to_remove:
+                                     current_participant['ir_player'] = None
+                                 
+                                 room.setdefault('unsold_players', []).append(player_to_remove)
+                                 
+                                 if release_type == "paid":
+                                     current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
+                                 
+                                 save_auction_data(auction_data)
+                                 st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
+                                 st.rerun()
+                    else:
+                        st.info("Your squad is empty.")
+                else:
+                    st.warning("Please select your participant name above to manage squad.")
+                    
                 if current_participant:
                     st.metric("Your Budget", f"{current_participant.get('budget', 0)}M")
                     
