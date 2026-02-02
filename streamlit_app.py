@@ -407,143 +407,143 @@ def show_main_app():
                     st.info("No participants yet. Add some above!")
                 else:
                     st.info("No participants yet. Ask the admin to add participants.")
-        else:
-            participant_names = [p['name'] for p in room['participants']]
-            selected_participant = st.selectbox("Select Participant", participant_names)
-            participant = next((p for p in room['participants'] if p['name'] == selected_participant), None)
-            
-            if participant:
-                # Ensure participant has budget field (migration for old data)
-                if 'budget' not in participant:
-                    participant['budget'] = 350
-                    save_auction_data(auction_data)
+            else:
+                participant_names = [p['name'] for p in room['participants']]
+                selected_participant = st.selectbox("Select Participant", participant_names)
+                participant = next((p for p in room['participants'] if p['name'] == selected_participant), None)
                 
-                col1, col2 = st.columns([2, 1])
-                
-                with col1:
-                    # Budget and Squad Info
-                    budget_col1, budget_col2 = st.columns(2)
-                    with budget_col1:
-                        st.metric("💰 Budget Remaining", f"{participant['budget']}M")
-                    with budget_col2:
-                        st.metric("👥 Squad Size", f"{len(participant['squad'])}/19")
+                if participant:
+                    # Ensure participant has budget field (migration for old data)
+                    if 'budget' not in participant:
+                        participant['budget'] = 350
+                        save_auction_data(auction_data)
                     
-                    if participant.get('ir_player'):
-                        st.warning(f"🚑 Injury Reserve: {participant['ir_player']}")
+                    col1, col2 = st.columns([2, 1])
                     
-                    # Add Player to Squad - BIG AUCTION STYLE
-                    st.markdown("---")
-                    st.markdown("### ➕ Add Player (Big Auction)")
-                    
-                    # Filter out players already in any squad
-                    all_drafted_players = []
-                    for p in room['participants']:
-                        all_drafted_players.extend([pl['name'] for pl in p['squad']])
-                    
-                    available_players = [name for name in player_names if name not in all_drafted_players]
-                    
-                    if available_players:
-                        selected_player = st.selectbox(
-                            "Search Player (type to filter)",
-                            options=[""] + available_players,
-                            format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
-                            key="player_selector"
-                        )
+                    with col1:
+                        # Budget and Squad Info
+                        budget_col1, budget_col2 = st.columns(2)
+                        with budget_col1:
+                            st.metric("💰 Budget Remaining", f"{participant['budget']}M")
+                        with budget_col2:
+                            st.metric("👥 Squad Size", f"{len(participant['squad'])}/19")
                         
-                        if selected_player:
-                            role = player_role_lookup.get(selected_player, "Unknown")
-                            st.info(f"**{selected_player}** - Role: **{role}**")
-                            
-                            # Buy Price Input
-                            max_bid = participant['budget']
-                            buy_price = st.number_input(
-                                "Buy Price (M)", 
-                                min_value=5, 
-                                max_value=max(5, int(max_bid)), 
-                                value=5, 
-                                step=1,
-                                help="Minimum 5M. Enter the auction winning bid."
+                        if participant.get('ir_player'):
+                            st.warning(f"🚑 Injury Reserve: {participant['ir_player']}")
+                        
+                        # Add Player to Squad - BIG AUCTION STYLE
+                        st.markdown("---")
+                        st.markdown("### ➕ Add Player (Big Auction)")
+                        
+                        # Filter out players already in any squad
+                        all_drafted_players = []
+                        for p in room['participants']:
+                            all_drafted_players.extend([pl['name'] for pl in p['squad']])
+                        
+                        available_players = [name for name in player_names if name not in all_drafted_players]
+                        
+                        if available_players:
+                            selected_player = st.selectbox(
+                                "Search Player (type to filter)",
+                                options=[""] + available_players,
+                                format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
+                                key="player_selector"
                             )
                             
-                            if st.button("💰 Buy Player", type="primary"):
-                                if len(participant['squad']) >= 19:
-                                    st.error("Squad is full (19 players max)!")
-                                elif buy_price > participant['budget']:
-                                    st.error(f"Insufficient budget! You have {participant['budget']}M.")
-                                else:
-                                    # Add player with buy_price
-                                    participant['squad'].append({
-                                        'name': selected_player, 
-                                        'role': role,
-                                        'buy_price': buy_price
-                                    })
-                                    # Deduct budget
-                                    participant['budget'] -= buy_price
-                                    # Log the auction
-                                    room.setdefault('auction_log', []).append({
-                                        'player': selected_player,
-                                        'buyer': participant['name'],
-                                        'price': buy_price,
-                                        'time': datetime.now().isoformat()
-                                    })
-                                    save_auction_data(auction_data)
-                                    st.success(f"✅ {selected_player} bought for {buy_price}M by {selected_participant}!")
-                                    st.rerun()
-                    else:
-                        st.warning("All players have been drafted!")
-                    
-                    # Reset Squad Button (Admin Only)
-                    if is_admin:
-                        st.divider()
-                        if st.button(f"🗑️ Reset {selected_participant}'s Squad", type="secondary"):
-                            participant['squad'] = []
-                            participant['ir_player'] = None
-                            participant['budget'] = 350  # Restore full budget
-                            save_auction_data(auction_data)
-                            st.success(f"Reset {selected_participant}'s squad! Budget restored to 350M.")
-                            st.rerun()
-                
-                with col2:
-                    st.markdown("**Current Squad**")
-                    if participant['squad']:
-                        squad_df = pd.DataFrame(participant['squad'])
-                        st.dataframe(squad_df, use_container_width=True, hide_index=True)
+                            if selected_player:
+                                role = player_role_lookup.get(selected_player, "Unknown")
+                                st.info(f"**{selected_player}** - Role: **{role}**")
+                                
+                                # Buy Price Input
+                                max_bid = participant['budget']
+                                buy_price = st.number_input(
+                                    "Buy Price (M)", 
+                                    min_value=5, 
+                                    max_value=max(5, int(max_bid)), 
+                                    value=5, 
+                                    step=1,
+                                    help="Minimum 5M. Enter the auction winning bid."
+                                )
+                                
+                                if st.button("💰 Buy Player", type="primary"):
+                                    if len(participant['squad']) >= 19:
+                                        st.error("Squad is full (19 players max)!")
+                                    elif buy_price > participant['budget']:
+                                        st.error(f"Insufficient budget! You have {participant['budget']}M.")
+                                    else:
+                                        # Add player with buy_price
+                                        participant['squad'].append({
+                                            'name': selected_player, 
+                                            'role': role,
+                                            'buy_price': buy_price
+                                        })
+                                        # Deduct budget
+                                        participant['budget'] -= buy_price
+                                        # Log the auction
+                                        room.setdefault('auction_log', []).append({
+                                            'player': selected_player,
+                                            'buyer': participant['name'],
+                                            'price': buy_price,
+                                            'time': datetime.now().isoformat()
+                                        })
+                                        save_auction_data(auction_data)
+                                        st.success(f"✅ {selected_player} bought for {buy_price}M by {selected_participant}!")
+                                        st.rerun()
+                        else:
+                            st.warning("All players have been drafted!")
                         
-                        # Set Injury Reserve
-                        if len(participant['squad']) == 19:
-                            st.markdown("**Set Injury Reserve**")
-                            ir_options = [p['name'] for p in participant['squad']]
-                            ir_selection = st.selectbox("Select IR Player", ir_options, key=f"ir_{selected_participant}")
-                            if st.button("Set as IR"):
-                                participant['ir_player'] = ir_selection
-                                save_auction_data(auction_data)
-                                st.success(f"{ir_selection} is now on Injury Reserve.")
-                                st.rerun()
-                        
-                        # Release Player (get 50% back)
-                        st.divider()
-                        st.markdown("**🔄 Release Player (50% return)**")
-                        remove_options = [p['name'] for p in participant['squad']]
-                        player_to_remove = st.selectbox("Select Player to Release", remove_options, key="remove_player")
-                        
-                        # Find the player to get their buy_price
-                        player_obj = next((p for p in participant['squad'] if p['name'] == player_to_remove), None)
-                        refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
-                        
-                        st.caption(f"Releasing will refund: **{refund_amount}M** (50% of buy price)")
-                        
-                        if st.button("🔓 Release Player"):
-                            participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
-                            participant['budget'] += refund_amount  # Return 50%
-                            if participant.get('ir_player') == player_to_remove:
+                        # Reset Squad Button (Admin Only)
+                        if is_admin:
+                            st.divider()
+                            if st.button(f"🗑️ Reset {selected_participant}'s Squad", type="secondary"):
+                                participant['squad'] = []
                                 participant['ir_player'] = None
-                            # Add to unsold pool for bidding
-                            room.setdefault('unsold_players', []).append(player_to_remove)
-                            save_auction_data(auction_data)
-                            st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
-                            st.rerun()
-                    else:
-                        st.info("No players in squad yet.")
+                                participant['budget'] = 350  # Restore full budget
+                                save_auction_data(auction_data)
+                                st.success(f"Reset {selected_participant}'s squad! Budget restored to 350M.")
+                                st.rerun()
+                    
+                    with col2:
+                        st.markdown("**Current Squad**")
+                        if participant['squad']:
+                            squad_df = pd.DataFrame(participant['squad'])
+                            st.dataframe(squad_df, use_container_width=True, hide_index=True)
+                            
+                            # Set Injury Reserve
+                            if len(participant['squad']) == 19:
+                                st.markdown("**Set Injury Reserve**")
+                                ir_options = [p['name'] for p in participant['squad']]
+                                ir_selection = st.selectbox("Select IR Player", ir_options, key=f"ir_{selected_participant}")
+                                if st.button("Set as IR"):
+                                    participant['ir_player'] = ir_selection
+                                    save_auction_data(auction_data)
+                                    st.success(f"{ir_selection} is now on Injury Reserve.")
+                                    st.rerun()
+                            
+                            # Release Player (get 50% back)
+                            st.divider()
+                            st.markdown("**🔄 Release Player (50% return)**")
+                            remove_options = [p['name'] for p in participant['squad']]
+                            player_to_remove = st.selectbox("Select Player to Release", remove_options, key="remove_player")
+                            
+                            # Find the player to get their buy_price
+                            player_obj = next((p for p in participant['squad'] if p['name'] == player_to_remove), None)
+                            refund_amount = player_obj.get('buy_price', 0) // 2 if player_obj else 0
+                            
+                            st.caption(f"Releasing will refund: **{refund_amount}M** (50% of buy price)")
+                            
+                            if st.button("🔓 Release Player"):
+                                participant['squad'] = [p for p in participant['squad'] if p['name'] != player_to_remove]
+                                participant['budget'] += refund_amount  # Return 50%
+                                if participant.get('ir_player') == player_to_remove:
+                                    participant['ir_player'] = None
+                                # Add to unsold pool for bidding
+                                room.setdefault('unsold_players', []).append(player_to_remove)
+                                save_auction_data(auction_data)
+                                st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
+                                st.rerun()
+                        else:
+                            st.info("No players in squad yet.")
         
         # --- Participants Overview ---
         st.divider()
