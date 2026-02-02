@@ -595,13 +595,21 @@ def show_main_app():
                         
                         col1, col2, col3 = st.columns([1, 1, 1])
                         with col1:
-                            # Pre-select current user if they are a participant
-                            bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
-                            default_idx = 0
-                            if my_participant and my_participant['name'] in bidder_options:
-                                default_idx = bidder_options.index(my_participant['name'])
+                            # Restrict bidder selection to self if not admin
+                            if is_admin:
+                                bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
+                                default_idx = 0
+                                if my_participant and my_participant['name'] in bidder_options:
+                                    default_idx = bidder_options.index(my_participant['name'])
+                                bidder_name = st.selectbox("Bidder", bidder_options, index=default_idx, key=f"bid_select_{current_player}")
+                            else:
+                                if my_participant and my_participant['name'] not in opted_out:
+                                    bidder_name = my_participant['name']
+                                    st.text_input("Bidder", value=bidder_name, disabled=True, key=f"bid_select_{current_player}")
+                                else:
+                                    bidder_name = None
+                                    st.warning("You are not an active participant for this player")
                             
-                            bidder_name = st.selectbox("Bidder", bidder_options, index=default_idx, key=f"bid_select_{current_player}")
                             bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
                         
                         with col2:
