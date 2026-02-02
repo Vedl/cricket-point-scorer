@@ -496,7 +496,7 @@ def show_main_app():
     
     # Navigation
     st.sidebar.divider()
-    page = st.sidebar.radio("Navigation", ["📊 Calculator", "🎯 Auction Room", "⚙️ Gameweek Admin", "🏆 Standings"])
+    page = st.sidebar.radio("Navigation", ["📊 Calculator", "🎯 Auction Room", "📅 Schedule & Admin", "🏆 Standings"])
     
     # Leave Room / Logout
     st.sidebar.divider()
@@ -1753,21 +1753,20 @@ def show_main_app():
 
 
     # =====================================
-    # PAGE 3: Gameweek Admin
+    # PAGE 3: Schedule & Admin
     # =====================================
-    elif page == "⚙️ Gameweek Admin":
-        st.title("⚙️ Gameweek Admin")
+    elif page == "📅 Schedule & Admin":
+        st.title("📅 Schedule & Admin")
         
         # Load schedule
         schedule = load_schedule()
         
+        st.markdown("View match schedule and gameweek data.")
         if not is_admin:
-            st.warning("Only the room admin can process gameweeks.")
-            st.info(f"Admin: {room['admin']}")
-        else:
-            st.markdown("Process match data and calculate points for each gameweek.")
-            
-            # Knocked-out Teams Admin (for Super 8s and beyond)
+            st.info(f"👑 **Admin:** {room['admin']} (Only admin can process scores)")
+        
+        # Knocked-out Teams Admin (for Super 8s and beyond)
+        if is_admin:
             with st.expander("🚫 Manage Knocked-Out Teams (Super 8s+)"):
                 st.caption("Players from knocked-out teams can be released for 50% without counting as your paid release.")
                 
@@ -1800,48 +1799,51 @@ def show_main_app():
                             save_auction_data(auction_data)
                             st.success(f"{team_to_restore} restored!")
                             st.rerun()
+        
+        st.divider()
+        
+        # Two tabs: Schedule-based and Manual
+        tab1, tab2 = st.tabs(["📅 T20 WC Schedule", "🔗 Manual URLs"])
+        
+        with tab1:
+            st.subheader("Select Gameweek from T20 WC 2026 Schedule")
             
-            # Two tabs: Schedule-based and Manual
-            tab1, tab2 = st.tabs(["📅 T20 WC Schedule", "🔗 Manual URLs"])
-            
-            with tab1:
-                st.subheader("Select Gameweek from T20 WC 2026 Schedule")
+            gameweeks = schedule.get('gameweeks', {})
+            if gameweeks:
+                gw_options = [(k, f"GW {k}: {v['name']} ({v['dates']})") for k, v in gameweeks.items()]
+                selected_gw = st.selectbox(
+                    "Select Gameweek",
+                    options=[g[0] for g in gw_options],
+                    format_func=lambda x: next(g[1] for g in gw_options if g[0] == x)
+                )
                 
-                gameweeks = schedule.get('gameweeks', {})
-                if gameweeks:
-                    gw_options = [(k, f"GW {k}: {v['name']} ({v['dates']})") for k, v in gameweeks.items()]
-                    selected_gw = st.selectbox(
-                        "Select Gameweek",
-                        options=[g[0] for g in gw_options],
-                        format_func=lambda x: next(g[1] for g in gw_options if g[0] == x)
-                    )
+                if selected_gw:
+                    gw_data = gameweeks[selected_gw]
+                    st.info(f"**{gw_data['name']}** | {gw_data['phase']} | {gw_data['dates']}")
                     
-                    if selected_gw:
-                        gw_data = gameweeks[selected_gw]
-                        st.info(f"**{gw_data['name']}** | {gw_data['phase']} | {gw_data['dates']}")
+                    # Display matches
+                    st.markdown("**Matches in this Gameweek:**")
+                    matches_df = pd.DataFrame(gw_data['matches'])
+                    matches_df['Match'] = matches_df['teams'].apply(lambda x: f"{x[0]} vs {x[1]}")
+                    st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
+                    
+                    # Squad Locking Section
+                    st.divider()
+                    st.markdown("### 🔒 Squad Locking")
+                    
+                    locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
+                    
+                    if locked_squads:
+                        st.success(f"✅ Squads are locked for GW {selected_gw}. {len(locked_squads)} participants locked.")
                         
-                        # Display matches
-                        st.markdown("**Matches in this Gameweek:**")
-                        matches_df = pd.DataFrame(gw_data['matches'])
-                        matches_df['Match'] = matches_df['teams'].apply(lambda x: f"{x[0]} vs {x[1]}")
-                        st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
+                        # Show locked squads overview
+                        with st.expander("View Locked Squads"):
+                            for participant_name, squad_data in locked_squads.items():
+                                st.markdown(f"**{participant_name}** - {len(squad_data['squad'])} players, IR: {squad_data.get('ir_player', 'None')}")
+                    else:
+                        st.warning("⚠️ Squads are NOT locked for this gameweek. Lock squads before the first match starts!")
                         
-                        # Squad Locking Section
-                        st.divider()
-                        st.markdown("### 🔒 Squad Locking")
-                        
-                        locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
-                        
-                        if locked_squads:
-                            st.success(f"✅ Squads are locked for GW {selected_gw}. {len(locked_squads)} participants locked.")
-                            
-                            # Show locked squads overview
-                            with st.expander("View Locked Squads"):
-                                for participant_name, squad_data in locked_squads.items():
-                                    st.markdown(f"**{participant_name}** - {len(squad_data['squad'])} players, IR: {squad_data.get('ir_player', 'None')}")
-                        else:
-                            st.warning("⚠️ Squads are NOT locked for this gameweek. Lock squads before the first match starts!")
-                            
+                        if is_admin:
                             if st.button("🔒 Lock All Squads for GW " + selected_gw, type="primary"):
                                 # Create snapshot of each participant's current squad
                                 gameweek_squads = {}
@@ -1856,12 +1858,13 @@ def show_main_app():
                                 save_auction_data(auction_data)
                                 st.success(f"🔒 Locked {len(gameweek_squads)} participant squads for GW {selected_gw}!")
                                 st.rerun()
-                        
-                        # Check if already processed
-                        if selected_gw in room.get('gameweek_scores', {}):
-                            st.warning(f"⚠️ Gameweek {selected_gw} has already been processed. Processing again will overwrite scores.")
-                        
-                        # Manual URL input for this gameweek
+                    
+                    # Check if already processed
+                    if selected_gw in room.get('gameweek_scores', {}):
+                        st.warning(f"⚠️ Gameweek {selected_gw} has already been processed. Processing again will overwrite scores.")
+                    
+                    # Manual URL input for this gameweek (Admin Only)
+                    if is_admin:
                         st.divider()
                         st.markdown("**Enter Cricbuzz Scorecard URLs for the above matches:**")
                         st.caption("After each match completes, paste the scorecard URL here.")
@@ -1902,7 +1905,7 @@ def show_main_app():
                                     progress.progress((i + 1) / len(urls))
                                 
                                 # Store in room data
-                                room['gameweek_scores'][selected_gw] = all_scores
+                                room.setdefault('gameweek_scores', {})[selected_gw] = all_scores
                                 save_auction_data(auction_data)
                                 
                                 status.text("✅ Processing Complete!")
@@ -1913,11 +1916,14 @@ def show_main_app():
                                 scores_df = pd.DataFrame([{"Player": k, "Points": v} for k, v in all_scores.items()])
                                 scores_df = scores_df.sort_values(by="Points", ascending=False)
                                 st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
-                else:
-                    st.warning("T20 WC Schedule not loaded. Using manual mode.")
-            
-            with tab2:
-                st.subheader("Manual URL Processing")
+            else:
+                st.warning("T20 WC Schedule not loaded.")
+        
+        with tab2:
+            st.subheader("Manual URL Processing")
+            if not is_admin:
+                st.info("Manual score processing is restricted to the room admin.")
+            else:
                 manual_gw = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
                 manual_urls = st.text_area("Match URLs (one per line)", height=200, placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...", key="manual_urls")
                 
@@ -1950,7 +1956,7 @@ def show_main_app():
                             
                             progress.progress((i + 1) / len(urls))
                         
-                        room['gameweek_scores'][str(manual_gw)] = all_scores
+                        room.setdefault('gameweek_scores', {})[str(manual_gw)] = all_scores
                         save_auction_data(auction_data)
                         
                         status.text("✅ Processing Complete!")
@@ -1960,7 +1966,7 @@ def show_main_app():
         st.divider()
         st.subheader("📅 Processed Gameweeks")
         if room.get('gameweek_scores'):
-            for gw, scores in room['gameweek_scores'].items():
+            for gw, scores in sorted(room['gameweek_scores'].items(), key=lambda x: int(x[0]) if x[0].isdigit() else 0):
                 gw_name = schedule.get('gameweeks', {}).get(gw, {}).get('name', f'Gameweek {gw}')
                 st.write(f"**{gw_name}**: {len(scores)} players scored")
             
@@ -1983,7 +1989,7 @@ def show_main_app():
         available_gws = list(room.get('gameweek_scores', {}).keys())
         
         if not available_gws:
-            st.info("No gameweeks have been processed yet. Go to Gameweek Admin to process matches.")
+            st.info("No gameweeks have been processed yet. Go to Schedule & Admin to process matches.")
         else:
             view_mode = st.radio("View", ["Overall (Cumulative)", "By Gameweek"], horizontal=True)
             
