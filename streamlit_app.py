@@ -843,6 +843,37 @@ def show_main_app():
                         matches_df['Match'] = matches_df['teams'].apply(lambda x: f"{x[0]} vs {x[1]}")
                         st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
                         
+                        # Squad Locking Section
+                        st.divider()
+                        st.markdown("### 🔒 Squad Locking")
+                        
+                        locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
+                        
+                        if locked_squads:
+                            st.success(f"✅ Squads are locked for GW {selected_gw}. {len(locked_squads)} participants locked.")
+                            
+                            # Show locked squads overview
+                            with st.expander("View Locked Squads"):
+                                for participant_name, squad_data in locked_squads.items():
+                                    st.markdown(f"**{participant_name}** - {len(squad_data['squad'])} players, IR: {squad_data.get('ir_player', 'None')}")
+                        else:
+                            st.warning("⚠️ Squads are NOT locked for this gameweek. Lock squads before the first match starts!")
+                            
+                            if st.button("🔒 Lock All Squads for GW " + selected_gw, type="primary"):
+                                # Create snapshot of each participant's current squad
+                                gameweek_squads = {}
+                                for participant in room['participants']:
+                                    gameweek_squads[participant['name']] = {
+                                        'squad': participant['squad'].copy(),
+                                        'ir_player': participant.get('ir_player'),
+                                        'locked_at': datetime.now().isoformat()
+                                    }
+                                
+                                room.setdefault('gameweek_squads', {})[selected_gw] = gameweek_squads
+                                save_auction_data(auction_data)
+                                st.success(f"🔒 Locked {len(gameweek_squads)} participant squads for GW {selected_gw}!")
+                                st.rerun()
+                        
                         # Check if already processed
                         if selected_gw in room.get('gameweek_scores', {}):
                             st.warning(f"⚠️ Gameweek {selected_gw} has already been processed. Processing again will overwrite scores.")
@@ -1019,8 +1050,23 @@ def show_main_app():
             
             # Calculate standings
             standings = []
+            
+            # Get locked squads if viewing by gameweek
+            locked_squads = {}
+            if view_mode == "By Gameweek" and selected_gw:
+                locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
+            
             for participant in room['participants']:
-                best_11 = get_best_11(participant['squad'], gw_scores, participant.get('ir_player'))
+                # Use locked squad if available, otherwise current squad
+                if locked_squads and participant['name'] in locked_squads:
+                    squad_data = locked_squads[participant['name']]
+                    squad = squad_data['squad']
+                    ir_player = squad_data.get('ir_player')
+                else:
+                    squad = participant['squad']
+                    ir_player = participant.get('ir_player')
+                
+                best_11 = get_best_11(squad, gw_scores, ir_player)
                 total_points = sum(p['score'] for p in best_11)
                 standings.append({
                     "Participant": participant['name'],
