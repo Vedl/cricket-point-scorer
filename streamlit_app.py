@@ -132,6 +132,31 @@ def inject_custom_css():
         border-radius: 10px;
         border: 1px solid #30363d;
     }
+    
+    /* Trade Card Styling */
+    .trade-card {
+        background-color: #1e2530;
+        border-radius: 10px;
+        padding: 15px;
+        border-left: 5px solid #58a6ff;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .trade-header {
+        color: #58a6ff;
+        font-weight: bold;
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+    .trade-details {
+        color: #c9d1d9;
+        font-size: 1em;
+    }
+    .trade-sub {
+        color: #8b949e;
+        font-size: 0.85em;
+        margin-top: 5px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -1452,19 +1477,26 @@ def show_main_app():
                 if my_incoming:
                     for trade in my_incoming:
                         with st.container():
-                            st.markdown(f"**From {trade['from']}** | *{trade['type']}*")
-                            
-                            # Details
+                            # Aesthetic Card
+                            details_html = ""
                             if trade['type'] == "Transfer (Sell)":
-                                st.write(f"Offer: **{trade['player']}** for **{trade['price']}M**")
+                                details_html = f"Buying <b>{trade['player']}</b> for <b>{trade['price']}M</b>"
                             elif trade['type'] == "Exchange":
                                 cash_txt = ""
                                 if trade['cash_amount'] > 0:
                                     payer = trade['cash_payer']
-                                    cash_txt = f" (+ {trade['cash_amount']}M from {payer})"
-                                st.write(f"Swap: **{trade['get_player']}** (You get) ↔ **{trade['give_player']}** (You give){cash_txt}")
+                                    cash_txt = f" <span style='color:#7ee787'>(+ {trade['cash_amount']}M from {payer})</span>"
+                                details_html = f"Swap: <b>{trade['get_player']}</b> (You Get) ↔ <b>{trade['give_player']}</b> (You Give){cash_txt}"
                             elif trade['type'] == "Loan (1 GW)":
-                                st.write(f"Loan: **{trade['player']}** for GW{trade['gw']} @ **{trade['fee']}M**")
+                                details_html = f"Loan: <b>{trade['player']}</b> for GW{trade['gw']} @ <b>{trade['fee']}M</b>"
+
+                            st.markdown(f"""
+                            <div class="trade-card">
+                                <div class="trade-header">From {trade['from']} <span style='font-size:0.8em; color:#8b949e; float:right'>{trade['type']}</span></div>
+                                <div class="trade-details">{details_html}</div>
+                                <div class="trade-sub">ID: {trade['id'][:8]}...</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
                             c1, c2, c3 = st.columns([1, 1, 1])
                             
@@ -1555,25 +1587,24 @@ def show_main_app():
                             # ACTION: COUNTER
                             if c3.button("🔄 Counter", key=f"cnt_{trade['id']}"):
                                 # Do NOT delete trade immediately
-                                # Set prefill for next run
                                 st.session_state['trade_prefill'] = {
                                     'to': trade['from'],
-                                    'type': trade['type']
+                                    'type': trade['type'],
+                                    'is_counter': True
                                 }
                                 st.toast("Drafting Counter Offer... Scroll down.")
                                 st.rerun()
-                            st.divider()
+                            st.markdown("---") # Spacer
                 else:
-                    st.caption("No incoming proposals.")
+                    st.info("No incoming proposals.")
 
                 # ---------------- OUTBOX ----------------
                 with st.expander("📤 Sent Proposals"):
                     sent = [t for t in room['pending_trades'] if t['from'] == my_p_name]
                     if sent:
                         for s in sent:
-                            sc1, sc2 = st.columns([3, 1])
-                            sc1.write(f"To {s['to']}: {s['type']} ({s.get('player') or 'Swap'})")
-                            if sc2.button("Cancel", key=f"can_{s['id']}"):
+                             st.write(f"To **{s['to']}**: {s['type']}")
+                             if st.button("Cancel", key=f"can_{s['id']}"):
                                 room['pending_trades'].remove(s)
                                 save_auction_data(auction_data)
                                 st.rerun()
@@ -1588,32 +1619,36 @@ def show_main_app():
                 # Determine Defaults
                 def_to_idx = 0
                 def_type_idx = 0
+                is_countering = False
+                
                 if prefill:
+                    is_countering = prefill.get('is_counter', False)
                     if prefill['to'] in parts:
                         def_to_idx = parts.index(prefill['to'])
-                        if prefill['to'] == my_p_name: # Edge case
-                            def_to_idx = (def_to_idx + 1) % len(parts)
+                        # If I am default_to, shift
+                        if prefill['to'] == my_p_name:
+                             def_to_idx = (def_to_idx + 1) % len(parts)
                     
                     types = ["Transfer (Sell)", "Exchange", "Loan (1 GW)"]
                     if prefill['type'] in types:
                         def_type_idx = types.index(prefill['type'])
-                    st.info(f"Drafting counter-offer to {prefill['to']}")
                 
-                cA, cB = st.columns(2)
-                with cA:
-                    if is_admin:
-                        from_p_name = st.selectbox("From", parts, key="tp_from")
-                    else:
-                        from_p_name = st.selectbox("From", [my_p_name] if my_p_name in parts else parts, disabled=True, key="tp_from")
-                with cB:
-                    # Filter 'to' options
-                    to_opts = [x for x in parts if x != from_p_name]
-                    # Adjust default if necessary
-                    real_def_idx = 0
-                    if prefill and prefill['to'] in to_opts:
-                        real_def_idx = to_opts.index(prefill['to'])
-                        
-                    to_p_name = st.selectbox("To", to_opts, index=real_def_idx, key="tp_to")
+                if is_countering:
+                    st.info(f"🔄 **Drafting Counter-Offer to {prefill['to']}**")
+                
+                # SECURITY FIX: Always lock FROM to Current User
+                from_p_name = my_p_name
+                if from_p_name not in parts:
+                    st.error("You are not a participant in this auction room.")
+                    st.stop()
+                
+                # Filter 'to' options
+                to_opts = [x for x in parts if x != from_p_name]
+                real_def_idx = 0
+                if prefill and prefill['to'] in to_opts:
+                    real_def_idx = to_opts.index(prefill['to'])
+                    
+                to_p_name = st.selectbox("Offer To", to_opts, index=real_def_idx, key="tp_to")
 
                 from_p = next((p for p in room['participants'] if p['name'] == from_p_name), None)
                 to_p = next((p for p in room['participants'] if p['name'] == to_p_name), None)
@@ -1626,37 +1661,46 @@ def show_main_app():
                     
                     if t_type == "Transfer (Sell)":
                         if from_p['squad']:
-                            pl = st.selectbox("Player", [p['name'] for p in from_p['squad']])
-                            pr = st.number_input("Price (M)", 1, 500, 10)
+                            pl = st.selectbox("Player to Sell", [str(p['name']) for p in from_p['squad']])
+                            pr = st.number_input("Asking Price (M)", 1, 500, 10, help="Amount you want to receive")
                             payload = {'type': t_type, 'player': pl, 'price': pr}
                             ready = True
                         else:
-                            st.warning("No players to sell.")
+                            st.warning("You have no players to sell.")
                     
                     elif t_type == "Exchange":
                         if from_p['squad'] and to_p['squad']:
                             c1, c2 = st.columns(2)
-                            p1 = c1.selectbox(f"{from_p_name}'s Player", [p['name'] for p in from_p['squad']])
-                            p2 = c2.selectbox(f"{to_p_name}'s Player", [p['name'] for p in to_p['squad']])
+                            p1 = c1.selectbox(f"Your Player (Give)", [p['name'] for p in from_p['squad']])
+                            p2 = c2.selectbox(f"Their Player (Get)", [p['name'] for p in to_p['squad']])
                             
-                            c_dir = st.radio("Cash Adjust", ["None", f"{from_p_name} pays", f"{to_p_name} pays"], horizontal=True)
+                            c_dir = st.radio("Cash Adjustment", ["None", f"I pay {to_p_name}", f"{to_p_name} pays Me"], horizontal=True)
                             c_amt = 0
                             if c_dir != "None":
-                                c_amt = st.number_input("Cash Amount", 1, 100, 5)
+                                c_amt = st.number_input("Cash Amount (M)", 1, 100, 5)
                             
-                            payload = {'type': t_type, 'give_player': p1, 'get_player': p2, 'cash_amount': c_amt, 'cash_payer': c_dir if c_dir != "None" else None}
+                            payer = None
+                            if c_dir == f"I pay {to_p_name}":
+                                payer = from_p_name
+                            elif c_dir == f"{to_p_name} pays Me":
+                                payer = to_p_name
+                            
+                            payload = {'type': t_type, 'give_player': p1, 'get_player': p2, 'cash_amount': c_amt, 'cash_payer': payer}
                             ready = True
                         else:
-                            st.warning("Both need players.")
+                            st.warning("Both participants need players.")
 
                     elif t_type == "Loan (1 GW)":
+                        with st.popover("About Loans"):
+                             st.write("Loans are for 1 Gameweek only. Player returns automatically.")
+                        
                         if from_p['squad']:
-                            pl = st.selectbox("Player", [p['name'] for p in from_p['squad']])
-                            fee = st.number_input("Fee (M)", 0, 50, 5)
+                            pl = st.selectbox("Player to Loan Out", [p['name'] for p in from_p['squad']])
+                            fee = st.number_input("Loan Fee (M)", 0, 50, 5)
                             # GW Logic
                             locked = list(room.get('gameweek_squads', {}).keys())
                             ngw = str((max([int(x) for x in locked]) if locked else 0) + 1)
-                            st.caption(f"For GW{ngw}")
+                            st.caption(f"Loan Duration: Gameweek {ngw}")
                             payload = {'type': t_type, 'player': pl, 'fee': fee, 'gw': ngw}
                             ready = True
                     
@@ -1671,6 +1715,8 @@ def show_main_app():
                             room['pending_trades'].append(new_t)
                             save_auction_data(auction_data)
                             st.success("Proposal Sent!")
+                            if is_countering:
+                                st.session_state.pop('trade_prefill', None) # Clear prefill
                             st.rerun()
 
         # ================ TAB 4: SQUADS DASHBOARD ================
