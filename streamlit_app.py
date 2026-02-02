@@ -1127,8 +1127,7 @@ def show_main_app():
                 active_bids = room.get('active_bids', [])
                 awarded_bids = []
                 
-                # Create team lookup
-                player_team_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
+
                 
                 for bid in active_bids:
                     expires = datetime.fromisoformat(bid['expires'])
