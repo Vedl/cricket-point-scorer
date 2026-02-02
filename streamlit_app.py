@@ -270,6 +270,24 @@ def show_main_app():
     
     is_admin = room['admin'] == user
     
+    # Auto-enroll existing members as participants if missing (Retroactive Fix)
+    member_added = False
+    participant_names = {p.get('user', p['name']) for p in room['participants']}
+    
+    for member in room['members']:
+        if member not in participant_names:
+            room['participants'].append({
+                'name': member,
+                'squad': [],
+                'budget': 350,
+                'user': member
+            })
+            member_added = True
+    
+    if member_added:
+        save_auction_data(auction_data)
+        st.toast("Updated participant list with existing room members.")
+    
     # --- Sidebar ---
     st.sidebar.title(f"🏏 {room['name']}")
     
