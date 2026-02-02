@@ -1099,7 +1099,7 @@ def show_main_app():
             if not room.get('big_auction_complete'):
                 st.warning("⏳ Open Bidding will start after the Big Auction is complete. Admin must check 'Big Auction Complete' in sidebar.")
             else:
-                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 24 hours to win (or until deadline).")
+                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 5 minutes to win (or until deadline).")
                 
                 # Admin: Set Bidding Deadline
                 if is_admin:
@@ -1122,12 +1122,13 @@ def show_main_app():
                 # Show countdown to deadline
                 now = datetime.now()
                 deadline_str = room.get('bidding_deadline')
-                if deadline_str:
-                    deadline = datetime.fromisoformat(deadline_str)
-                    if now < deadline:
-                        time_left = deadline - now
+                global_deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
+                
+                if global_deadline:
+                    if now < global_deadline:
+                        time_left = global_deadline - now
                         hours_left = time_left.total_seconds() / 3600
-                        st.warning(f"⏰ **Bidding closes in {hours_left:.1f} hours** ({deadline.strftime('%b %d, %H:%M')})")
+                        st.warning(f"⏰ **Bidding closes in {hours_left:.1f} hours** ({global_deadline.strftime('%b %d, %H:%M')})")
                     else:
                         st.error("⏰ **Bidding deadline has passed!** All active bids will be awarded.")
                 
@@ -1139,7 +1140,7 @@ def show_main_app():
                     expires = datetime.fromisoformat(bid['expires'])
                     # Award if: bid expired OR deadline passed
                     should_award = now >= expires
-                    if deadline_str and now >= datetime.fromisoformat(deadline_str):
+                    if global_deadline and now >= global_deadline:
                         should_award = True  # Deadline passed, award all bids
                     
                     if should_award:
@@ -1149,13 +1150,15 @@ def show_main_app():
                             bidder_participant['squad'].append({
                                 'name': bid['player'],
                                 'role': player_role_lookup.get(bid['player'], 'Unknown'),
+                                'team': 'Unknown', # TODO: Need robust team lookup here or just Unknown for Open Bidding
                                 'buy_price': bid['amount']
                             })
                             bidder_participant['budget'] -= bid['amount']
                             awarded_bids.append(bid)
                             # Remove from unsold
-                            if bid['player'] in room.get('unsold_players', []):
-                                room['unsold_players'].remove(bid['player'])
+                            with st.spinner(f"Awarding {bid['player']}..."):
+                                 if bid['player'] in room.get('unsold_players', []):
+                                     room['unsold_players'].remove(bid['player'])
                 
                 # Remove awarded bids
                 for ab in awarded_bids:
@@ -1171,25 +1174,30 @@ def show_main_app():
                 if active_bids:
                     bids_data = []
                     for bid in active_bids:
-                        expires = datetime.fromisoformat(bid['expires'])
-                        time_left = expires - now
-                        hours_left = max(0, time_left.total_seconds() / 3600)
+                        bid_expires = datetime.fromisoformat(bid['expires'])
+                        # Effective expiry is min(bid expiry, global deadline)
+                        effective_expires = bid_expires
+                        if global_deadline and global_deadline < bid_expires:
+                             effective_expires = global_deadline
+                        
+                        time_left = effective_expires - now
+                        minutes_left = max(0, time_left.total_seconds() / 60)
+                        
                         bids_data.append({
                             "Player": bid['player'],
                             "Current Bid": f"{bid['amount']}M",
                             "Bidder": bid['bidder'],
-                            "Time Left": f"{hours_left:.1f} hours",
-                            "Expires": expires.strftime("%b %d, %H:%M")
+                            "Time Left": f"{minutes_left:.1f} mins",
+                            "Expires": effective_expires.strftime("%b %d, %H:%M")
                         })
                     st.dataframe(pd.DataFrame(bids_data), use_container_width=True, hide_index=True)
                 else:
                     st.info("No active bids. Place a bid on an unsold player below!")
                 
-                # Get unsold players (players not in any squad and not being bid on)
+                # Get unsold players logic
                 all_drafted = []
                 for p in room['participants']:
                     all_drafted.extend([pl['name'] for pl in p['squad']])
-                being_bid_on = [b['player'] for b in active_bids]
                 
                 unsold_players = room.get('unsold_players', [])
                 # Add players that went unsold (not in any squad)
@@ -1198,7 +1206,8 @@ def show_main_app():
                         unsold_players.append(name)
                 room['unsold_players'] = unsold_players
                 
-                biddable_players = [p for p in unsold_players if p not in being_bid_on]
+                # Allow bidding on ANY unsold player, even if there is an active bid (outbid logic)
+                biddable_players = unsold_players
                 
                 # Place a new bid
                 st.markdown("### 🆕 Place New Bid")
@@ -1220,8 +1229,9 @@ def show_main_app():
                     if biddable_players:
                         bid_player = st.selectbox(
                             "Select Player to Bid On",
-                            [""] + biddable_players,
-                            format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player..."
+                            [""] + sorted(biddable_players),
+                            format_func=lambda x: f"{x} ({player_role_lookup.get(x, 'Unknown')})" if x else "Select a player...",
+                            key="open_bid_player"
                         )
                         
                         if bid_player:
@@ -1229,38 +1239,52 @@ def show_main_app():
                             existing_bid = next((b for b in active_bids if b['player'] == bid_player), None)
                             min_bid = 5
                             if existing_bid:
-                                if existing_bid['amount'] >= 50:
-                                    min_bid = existing_bid['amount'] + 5
+                                st.warning(f"Current highest bid: **{existing_bid['amount']}M** by {existing_bid['bidder']}")
+                                if existing_bid['bidder'] == current_participant['name']:
+                                    st.error("You explicitly hold the highest bid already.")
+                                    min_bid = existing_bid['amount'] # Prevent self-outbid unless we want to allow increasing? Usually no.
                                 else:
-                                    min_bid = existing_bid['amount'] + 1
+                                    if existing_bid['amount'] >= 50:
+                                        min_bid = existing_bid['amount'] + 5
+                                    else:
+                                        min_bid = existing_bid['amount'] + 1
                             
                             bid_amount = st.number_input(
                                 f"Bid Amount (Min: {min_bid}M)",
                                 min_value=min_bid,
                                 max_value=int(current_participant.get('budget', 0)),
                                 value=min_bid,
-                                step=5 if min_bid >= 50 else 1
+                                step=5 if min_bid >= 50 else 1,
+                                key="open_bid_amount"
                             )
                             
                             if st.button("🎯 Place Bid", type="primary"):
                                 if bid_amount > current_participant.get('budget', 0):
                                     st.error("Insufficient budget!")
+                                elif existing_bid and existing_bid['bidder'] == current_participant['name'] and bid_amount <= existing_bid['amount']:
+                                     st.error("You already hold the highest bid.")
                                 else:
                                     # Remove old bid if exists
-                                    room['active_bids'] = [b for b in room['active_bids'] if b['player'] != bid_player]
-                                    # Add new bid with 24-hour expiry
-                                    room['active_bids'].append({
+                                    new_active_bids = [b for b in room['active_bids'] if b['player'] != bid_player]
+                                    
+                                    # Add new bid with 5-minute expiry (TESTING MODE)
+                                    # Logic: Expires in 5 mins OR Deadline, whichever is sooner?
+                                    # Usually bid expiry adds time. So just set 5 mins. Display logic handles truncation.
+                                    expiry_time = now + timedelta(minutes=5)
+                                    
+                                    new_active_bids.append({
                                         'player': bid_player,
                                         'amount': bid_amount,
                                         'bidder': current_participant['name'],
                                         'bid_time': now.isoformat(),
-                                        'expires': (now + timedelta(hours=24)).isoformat()
+                                        'expires': expiry_time.isoformat()
                                     })
+                                    room['active_bids'] = new_active_bids
                                     save_auction_data(auction_data)
-                                    st.success(f"Bid placed! {bid_player} at {bid_amount}M. Expires in 24 hours.")
+                                    st.success(f"Bid placed! {bid_player} at {bid_amount}M. Expires in 5 minutes.")
                                     st.rerun()
                     else:
-                        st.info("No players available for bidding. All have been drafted or have active bids.")
+                        st.info("No players available for bidding.")
         
         # ================ TAB 3: TRADING ================
         with auction_tabs[3]:
