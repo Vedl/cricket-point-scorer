@@ -1326,32 +1326,7 @@ def show_main_app():
                 else:
                     st.warning("Please select your participant name above to manage squad.")
                 
-                # RECENT: Removed redundant bidding section 1322-1361 because it's already above.
-
-                                elif existing_bid and existing_bid['bidder'] == current_participant['name'] and bid_amount <= existing_bid['amount']:
-                                     st.error("You already hold the highest bid.")
-                                else:
-                                    # Remove old bid if exists
-                                    new_active_bids = [b for b in room['active_bids'] if b['player'] != bid_player]
-                                    
-                                    # Add new bid with 5-minute expiry (TESTING MODE)
-                                    # Logic: Expires in 5 mins OR Deadline, whichever is sooner?
-                                    # Usually bid expiry adds time. So just set 5 mins. Display logic handles truncation.
-                                    expiry_time = now + timedelta(minutes=5)
-                                    
-                                    new_active_bids.append({
-                                        'player': bid_player,
-                                        'amount': bid_amount,
-                                        'bidder': current_participant['name'],
-                                        'bid_time': now.isoformat(),
-                                        'expires': expiry_time.isoformat()
-                                    })
-                                    room['active_bids'] = new_active_bids
-                                    save_auction_data(auction_data)
-                                    st.success(f"Bid placed! {bid_player} at {bid_amount}M. Expires in 5 minutes.")
-                                    st.rerun()
-                    else:
-                        st.info("No players available for bidding.")
+                # RECENT: Removed redundant bidding section.
         
         # ================ TAB 3: TRADING ================
         with auction_tabs[2]:
