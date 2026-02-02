@@ -5,7 +5,7 @@ import os
 import string
 import random
 import hashlib
-import uuid
+import uuid as uuid_lib
 from datetime import datetime, timedelta
 from cricbuzz_scraper import CricbuzzScraper
 from player_score_calculator import CricketScoreCalculator
@@ -1653,7 +1653,7 @@ def show_main_app():
                                 if st.button("📤 Send Proposal"):
                                     # Create Trade Object
                                     new_trade = {
-                                        'id': str(uuid.uuid4()),
+                                        'id': str(uuid_lib.uuid4()),
                                         'from': from_participant,
                                         'to': to_participant,
                                         'created_at': get_ist_time().strftime("%Y-%m-%d %H:%M:%S"),
