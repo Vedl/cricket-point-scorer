@@ -739,7 +739,7 @@ def show_main_app():
                                         'current_bid': 0,
                                         'current_bidder': None,
                                         'timer_start': datetime.now().isoformat(),
-                                        'timer_duration': 90,
+                                        'timer_duration': 60,
                                         'opted_out': [],
                                         'auction_started_at': datetime.now().isoformat()
                                     }
@@ -757,7 +757,7 @@ def show_main_app():
                                     'current_bid': 0,
                                     'current_bidder': None,
                                     'timer_start': get_ist_time().isoformat(),
-                                    'timer_duration': 90,  # Updated to 90 seconds
+                                    'timer_duration': 60,  # Updated to 60 seconds
                                     'opted_out': [], # List of participants who opted out
                                     'auction_started_at': get_ist_time().isoformat()
                                 }
@@ -854,7 +854,7 @@ def show_main_app():
 
                     current_bidder = live_auction.get('current_bidder')
                     timer_start = datetime.fromisoformat(live_auction.get('timer_start', get_ist_time().isoformat()))
-                    timer_duration = live_auction.get('timer_duration', 90)
+                    timer_duration = live_auction.get('timer_duration', 60)
                     opted_out = live_auction.get('opted_out', [])
                     
                     # Calculate time remaining
@@ -1002,6 +1002,23 @@ def show_main_app():
                             with c3:
                                 if st.button("⏩ Force UNSOLD"):
                                     force_unsold = True
+                            
+                            # Revive Bidder Logic
+                            current_opted_out = live_auction.get('opted_out', [])
+                            if current_opted_out:
+                                st.write("---")
+                                st.markdown("##### ♻️ Revive Bidder")
+                                rc1, rc2 = st.columns([3, 1])
+                                revive_target = rc1.selectbox("Select Bidder", current_opted_out, key="revive_select")
+                                if rc2.button("Revive"):
+                                    if revive_target in live_auction['opted_out']:
+                                        live_auction['opted_out'].remove(revive_target)
+                                        room['live_auction'] = live_auction
+                                        save_auction_data(auction_data)
+                                        st.success(f"Revived {revive_target}!")
+                                        import time
+                                        time.sleep(1)
+                                        st.rerun()
 
                     # Handle Sale / Unsold
                     if should_autosell or force_sell:
