@@ -730,33 +730,25 @@ def render_live_auction_fragment(room_code, user):
             elif "WK" in current_role: role_icon = "🧤"
             
             # Explicitly left-aligned string to avoid Markdown code-block interpretation
-            # Using textwrap.dedent to be absolutely sure all indentation is stripped
-            card_html = textwrap.dedent(f"""
-                <div class="player-card" style="padding: 2.5rem; text-align: center; margin-bottom: 2rem; position: relative; overflow: hidden;">
-                    <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: #00FF99; opacity: 0.1; border-radius: 50%; filter: blur(40px);"></div>
-                    <div style="position: absolute; bottom: -20px; left: -20px; width: 100px; height: 100px; background: #00CCFF; opacity: 0.1; border-radius: 50%; filter: blur(40px);"></div>
-                    
-                    <h4 style="color: #00FF99; letter-spacing: 3px; margin-bottom: 5px; font-family: 'Orbitron', sans-serif;">LIVE AUCTION</h4>
-                    <div style="margin: 0 auto; width: 50px; height: 4px; background: linear-gradient(90deg, #00FF99, transparent); margin-bottom: 20px;"></div>
-                    
-                    <h1 class="gradient-text" style="font-size: 4rem; margin: 10px 0; line-height: 1.1;">{current_player}</h1>
-                    
-                    <div style="display: flex; justify-content: center; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
-                        <span style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 30px; color: #e6edf3; font-weight: 600;">
-                            {role_icon} {current_role}
-                        </span>
-                        <span style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 30px; color: #e6edf3; font-weight: 600;">
-                            🌍 {current_team}
-                        </span>
-                        <span style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 30px; color: #e6edf3; font-weight: 600;">
-                            💎 Base: 5M
-                        </span>
-                     </div>
-                     
-                     {f'<div class="live-badge" style="position: absolute; top: 20px; right: 20px;">LIVE</div>' if time_remaining > 0 else ''}
-                </div>
-            """)
-            st.markdown(card_html, unsafe_allow_html=True)
+            # === 2. FEATURED PLAYER (SIMPLE RELIABLE VIEW) ===
+            st.divider()
+            
+            # Simple, fail-safe display using standard Streamlit components
+            col_info, col_timer = st.columns([2, 1])
+            
+            with col_info:
+                st.subheader("🏏 Auctioning Now")
+                st.title(f"{current_player}")
+                st.markdown(f"#### **Role:** {current_role}")
+                st.markdown(f"**Team:** {current_team}")
+                
+            with col_timer:
+                if time_remaining > 0:
+                    st.error("🔴 LIVE")
+                else:
+                    st.success("✅ SOLD")
+            
+            st.divider()
             
             # === 3. METRICS & TIMER ===
             c1, c2, c3 = st.columns([1, 1, 1])
