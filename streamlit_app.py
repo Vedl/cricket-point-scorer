@@ -565,8 +565,8 @@ def render_live_auction_fragment(room_code, user):
                             # FIX: Update timer_start so that `remaining` is what it should be.
                             # For now, let's just RESET timer to 90s for FAIRNESS upon resume?
                             # Or assume admin wants to continue.
-                            # Let's update timer_start to `datetime.now()` to give fresh 90s (fair for network issues).
-                            existing_auction['timer_start'] = datetime.now().isoformat()
+                            # Let's update timer_start to `get_ist_time()` to give fresh 60s (fair for network issues).
+                            existing_auction['timer_start'] = get_ist_time().isoformat()
                             
                             room['live_auction'] = existing_auction
                             save_auction_data(auction_data)
@@ -582,10 +582,10 @@ def render_live_auction_fragment(room_code, user):
                                 'current_player_role': team_players[0].get('role', 'Unknown') if team_players else None,
                                 'current_bid': 0,
                                 'current_bidder': None,
-                                'timer_start': datetime.now().isoformat(),
+                                'timer_start': get_ist_time().isoformat(),
                                 'timer_duration': 60,
                                 'opted_out': [],
-                                'auction_started_at': datetime.now().isoformat()
+                                'auction_started_at': get_ist_time().isoformat()
                             }
                              save_auction_data(auction_data)
                              st.rerun()
