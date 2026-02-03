@@ -40,7 +40,7 @@
         "1": {
             "name": "Group Stage - Part 1",
             "phase": "Group Stage",
-            "dates": "Feb 07 - Feb 10, 2026",
+            "dates": "Feb 07 - Feb 09, 2026",
             "matches": [
                 {
                     "match_id": 1,
@@ -122,7 +122,14 @@
                     ],
                     "date": "2026-02-09",
                     "venue": "Ahmedabad"
-                },
+                }
+            ]
+        },
+        "2": {
+            "name": "Group Stage - Part 2",
+            "phase": "Group Stage",
+            "dates": "Feb 10 - Feb 12, 2026",
+            "matches": [
                 {
                     "match_id": 10,
                     "teams": [
@@ -131,14 +138,7 @@
                     ],
                     "date": "2026-02-10",
                     "venue": "Delhi"
-                }
-            ]
-        },
-        "2": {
-            "name": "Group Stage - Part 2",
-            "phase": "Group Stage",
-            "dates": "Feb 10 - Feb 13, 2026",
-            "matches": [
+                },
                 {
                     "match_id": 11,
                     "teams": [
@@ -209,25 +209,7 @@
                         "Namibia"
                     ],
                     "date": "2026-02-12",
-                    "venue": "Colombo (RPS)"
-                },
-                {
-                    "match_id": 19,
-                    "teams": [
-                        "Canada",
-                        "UAE"
-                    ],
-                    "date": "2026-02-13",
-                    "venue": "Chennai"
-                },
-                {
-                    "match_id": 20,
-                    "teams": [
-                        "Australia",
-                        "Zimbabwe"
-                    ],
-                    "date": "2026-02-13",
-                    "venue": "Colombo (RPS)"
+                    "venue": "Delhi"
                 }
             ]
         },
@@ -236,6 +218,24 @@
             "phase": "Group Stage",
             "dates": "Feb 13 - Feb 16, 2026",
             "matches": [
+                {
+                    "match_id": 19,
+                    "teams": [
+                        "Australia",
+                        "Zimbabwe"
+                    ],
+                    "date": "2026-02-13",
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 20,
+                    "teams": [
+                        "Canada",
+                        "UAE"
+                    ],
+                    "date": "2026-02-13",
+                    "venue": "Delhi"
+                },
                 {
                     "match_id": 21,
                     "teams": [
@@ -248,15 +248,6 @@
                 {
                     "match_id": 22,
                     "teams": [
-                        "New Zealand",
-                        "South Africa"
-                    ],
-                    "date": "2026-02-13",
-                    "venue": "Ahmedabad"
-                },
-                {
-                    "match_id": 23,
-                    "teams": [
                         "Ireland",
                         "Oman"
                     ],
@@ -264,7 +255,7 @@
                     "venue": "Colombo (SSC)"
                 },
                 {
-                    "match_id": 24,
+                    "match_id": 23,
                     "teams": [
                         "England",
                         "Scotland"
@@ -273,16 +264,16 @@
                     "venue": "Kolkata"
                 },
                 {
-                    "match_id": 25,
+                    "match_id": 24,
                     "teams": [
-                        "Afghanistan",
-                        "UAE"
+                        "New Zealand",
+                        "South Africa"
                     ],
                     "date": "2026-02-14",
-                    "venue": "Delhi"
+                    "venue": "Ahmedabad"
                 },
                 {
-                    "match_id": 26,
+                    "match_id": 25,
                     "teams": [
                         "West Indies",
                         "Nepal"
@@ -291,7 +282,7 @@
                     "venue": "Mumbai"
                 },
                 {
-                    "match_id": 27,
+                    "match_id": 26,
                     "teams": [
                         "USA",
                         "Namibia"
@@ -300,13 +291,22 @@
                     "venue": "Chennai"
                 },
                 {
-                    "match_id": 28,
+                    "match_id": 27,
                     "teams": [
-                        "Australia",
-                        "Sri Lanka"
+                        "India",
+                        "Pakistan"
                     ],
                     "date": "2026-02-15",
-                    "venue": "Pallekele"
+                    "venue": "Colombo (RPS)"
+                },
+                {
+                    "match_id": 28,
+                    "teams": [
+                        "Afghanistan",
+                        "UAE"
+                    ],
+                    "date": "2026-02-16",
+                    "venue": "Delhi"
                 },
                 {
                     "match_id": 29,
@@ -320,27 +320,27 @@
                 {
                     "match_id": 30,
                     "teams": [
-                        "New Zealand",
-                        "Canada"
+                        "Australia",
+                        "Sri Lanka"
                     ],
                     "date": "2026-02-16",
-                    "venue": "Chennai"
+                    "venue": "Pallekele"
                 }
             ]
         },
         "4": {
             "name": "Group Stage - Part 4",
             "phase": "Group Stage",
-            "dates": "Feb 16 - Feb 20, 2026",
+            "dates": "Feb 17 - Feb 20, 2026",
             "matches": [
                 {
                     "match_id": 31,
                     "teams": [
-                        "India",
-                        "Netherlands"
+                        "New Zealand",
+                        "Canada"
                     ],
-                    "date": "2026-02-16",
-                    "venue": "Ahmedabad"
+                    "date": "2026-02-17",
+                    "venue": "Chennai"
                 },
                 {
                     "match_id": 32,
@@ -366,7 +366,7 @@
                         "South Africa",
                         "UAE"
                     ],
-                    "date": "2026-02-17",
+                    "date": "2026-02-18",
                     "venue": "Delhi"
                 },
                 {
@@ -381,6 +381,15 @@
                 {
                     "match_id": 36,
                     "teams": [
+                        "India",
+                        "Netherlands"
+                    ],
+                    "date": "2026-02-18",
+                    "venue": "Ahmedabad"
+                },
+                {
+                    "match_id": 37,
+                    "teams": [
                         "West Indies",
                         "Italy"
                     ],
@@ -388,7 +397,7 @@
                     "venue": "Kolkata"
                 },
                 {
-                    "match_id": 37,
+                    "match_id": 38,
                     "teams": [
                         "Sri Lanka",
                         "Zimbabwe"
@@ -397,22 +406,13 @@
                     "venue": "Colombo (RPS)"
                 },
                 {
-                    "match_id": 38,
+                    "match_id": 39,
                     "teams": [
                         "Afghanistan",
                         "Canada"
                     ],
                     "date": "2026-02-19",
                     "venue": "Chennai"
-                },
-                {
-                    "match_id": 39,
-                    "teams": [
-                        "India",
-                        "Pakistan"
-                    ],
-                    "date": "2026-02-20",
-                    "venue": "Delhi"
                 },
                 {
                     "match_id": 40,
