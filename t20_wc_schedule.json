@@ -40,7 +40,7 @@
         "1": {
             "name": "Group Stage - Part 1",
             "phase": "Group Stage",
-            "dates": "Feb 07 - Feb 09, 2026",
+            "dates": "Feb 07 - Feb 10, 2026",
             "matches": [
                 {
                     "match_id": 1,
@@ -122,14 +122,7 @@
                     ],
                     "date": "2026-02-09",
                     "venue": "Ahmedabad"
-                }
-            ]
-        },
-        "2": {
-            "name": "Group Stage - Part 2",
-            "phase": "Group Stage",
-            "dates": "Feb 10 - Feb 12, 2026",
-            "matches": [
+                },
                 {
                     "match_id": 10,
                     "teams": [
@@ -138,7 +131,14 @@
                     ],
                     "date": "2026-02-10",
                     "venue": "Delhi"
-                },
+                }
+            ]
+        },
+        "2": {
+            "name": "Group Stage - Part 2",
+            "phase": "Group Stage",
+            "dates": "Feb 10 - Feb 13, 2026",
+            "matches": [
                 {
                     "match_id": 11,
                     "teams": [
@@ -210,14 +210,7 @@
                     ],
                     "date": "2026-02-12",
                     "venue": "Delhi"
-                }
-            ]
-        },
-        "3": {
-            "name": "Group Stage - Part 3",
-            "phase": "Group Stage",
-            "dates": "Feb 13 - Feb 16, 2026",
-            "matches": [
+                },
                 {
                     "match_id": 19,
                     "teams": [
@@ -235,7 +228,14 @@
                     ],
                     "date": "2026-02-13",
                     "venue": "Delhi"
-                },
+                }
+            ]
+        },
+        "3": {
+            "name": "Group Stage - Part 3",
+            "phase": "Group Stage",
+            "dates": "Feb 13 - Feb 16, 2026",
+            "matches": [
                 {
                     "match_id": 21,
                     "teams": [
