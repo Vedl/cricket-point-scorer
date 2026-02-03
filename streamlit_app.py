@@ -93,95 +93,27 @@ def format_player_name(name):
     info = player_info_map.get(name, {})
     return f"{name} ({info.get('role', 'N/A')} - {info.get('country', 'N/A')})"
 
-# --- Custom CSS for Aesthetics ---
+# --- CUSTOM CSS FOR PREMIUM BROADCASTER LOOK ---
 def inject_custom_css():
     st.markdown("""
     <style>
-    /* Global Aesthetics */
-    .stApp {
-        background-color: #0e1117;
+    /* 1. Global Reset & Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Orbitron:wght@500;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Montserrat', sans-serif;
     }
     
-    /* Cards / Containers */
-    div[data-testid="stExpander"], div[data-testid="stContainer"] {
-        border-radius: 12px;
-        border: 1px solid #30363d;
-        background-color: #161b22;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    
-    /* Buttons */
-    .stButton button {
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.2s;
-    }
-    .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #161b22;
-        border-radius: 8px;
-        padding: 4px 16px;
-        border: 1px solid #30363d;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #238636 !important;
-        border-color: #238636 !important;
-        color: white !important;
-    }
-    
-    /* GLOBAL AESTHETICS V3 */
-    
-    /* Remove excessive top padding */
+    /* 2. Remove default top padding */
     .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 5rem !important;
-        max-width: 95% !important; /* Wider Layout */
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 95% !important;
     }
     
-    /* Background Gradient */
-    .stApp {
-        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-    }
-
-    /* Cards */
-    div[data-testid="stExpander"], div.stContainer {
-        border-radius: 12px;
-        border: 1px solid #30363d;
-        background-color: #0d1117;
-    }
-    
-    /* Inputs */
-    input, select, div[data-baseweb="select"] {
-        border-radius: 8px !important;
-        background-color: #0d1117 !important;
-        border: 1px solid #30363d !important;
-        color: #e6edf3 !important;
-    }
-    
-    /* Metrics */
-    div[data-testid="metric-container"] {
+    /* 3. Glassmorphism Containers */
+    div[data-testid="stExpander"], div[data-testid="stContainer"], .player-card {
         background: rgba(22, 27, 34, 0.7);
-        padding: 1rem;
-        border-radius: 12px;
-        border: 1px solid #30363d;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        transition: transform 0.2s;
-    }
-    div[data-testid="metric-container"]:hover {
-        transform: translateY(-2px);
-        border-color: #58a6ff;
-    }
-    
-    /* Trade Card Styling */
     .trade-card {
         background: rgba(33, 38, 45, 0.6);
         border-radius: 12px;
@@ -670,26 +602,25 @@ def render_live_auction_fragment(room_code, user):
             # === ACTIVE AUCTION MODE ===
             current_player = live_auction.get('current_player')
             
-            # === LIVE DASHBOARD (Top/Sidebar) ===
-            with st.expander("📊 Live Auction Dashboard (Budgets & Squads)", expanded=True):
-                 # Create a dataframe for display
-                 dash_data = []
-                 for p in room['participants']:
-                     dash_data.append({
-                         "Participant": p['name'],
-                         "Budget": f"{p['budget']}M",
-                         "Est. Max Bid": f"{p['budget']}M" if p['budget'] > 0 else "0M", # Placeholder for max calc logic
-                         "Squad Size": len(p['squad']),
-                         "Squad Value": f"{sum(x['buy_price'] for x in p['squad'])}M"
-                     })
-                 st.dataframe(pd.DataFrame(dash_data), hide_index=True)
-                 
+            # === 1. TEAM STATUS (Progress Bars) ===
+            with st.expander("📊 Team Budgets & Rosters", expanded=False):
+                 st.markdown("### 🏦 Live Budgets")
+                 cols = st.columns(3)
+                 for i, p in enumerate(room['participants']):
+                     with cols[i % 3]:
+                         st.markdown(f"**{p['name']}**")
+                         # Assume 100M is max for visualization base
+                         budget_val = p.get('budget', 0)
+                         # Progress bar (Green to Blue gradient via CSS)
+                         st.progress(min(1.0, max(0.0, budget_val / 100.0)))
+                         st.caption(f"💰 **{budget_val}M** Left | 🦅 {len(p['squad'])} / 15 Players")
+
                  st.markdown("---")
                  st.caption("📋 **Detailed Squad View**")
-                 p_options = ["None"] + [p['name'] for p in room['participants']]
-                 selected_p_view = st.selectbox("Select Participant to view Squad", p_options, key="active_dash_select")
+                 p_options = ["Select Team..."] + [p['name'] for p in room['participants']]
+                 selected_p_view = st.selectbox("View Squad", p_options, label_visibility="collapsed", key="active_dash_select")
                  
-                 if selected_p_view != "None":
+                 if selected_p_view != "Select Team...":
                      p_data = next((p for p in room['participants'] if p['name'] == selected_p_view), None)
                      if p_data and p_data['squad']:
                          squad_df = []
@@ -697,12 +628,11 @@ def render_live_auction_fragment(room_code, user):
                              squad_df.append({
                                  "Player": pl['name'],
                                  "Role": pl.get('role', 'Unknown'),
-                                 "Team": pl.get('team', 'Unknown'),
                                  "Price": f"{pl['buy_price']}M"
                              })
-                         st.dataframe(pd.DataFrame(squad_df), hide_index=True)
+                         st.dataframe(pd.DataFrame(squad_df), hide_index=True, use_container_width=True)
                      elif p_data:
-                         st.info("No players in squad yet.")
+                         st.info("No players acquired yet.")
 
             current_role = live_auction.get('current_player_role', 'Unknown')
             current_team = live_auction.get('current_team')
@@ -717,34 +647,59 @@ def render_live_auction_fragment(room_code, user):
             elapsed = (get_ist_time() - timer_start).total_seconds()
             time_remaining = max(0, timer_duration - elapsed)
             
-            # Display auction header
-            st.markdown(f"### 🏏 Auctioning: **{current_team}**")
+            # === 2. FEATURED PLAYER CARD (Main Floor) ===
+            # Using custom HTML for the "Broadcaster" look
             
-            # Current player display
-            col1, col2, col3 = st.columns([2, 1, 1])
-            with col1:
-                st.markdown(f"## 👤 {current_player}")
-                st.markdown(f"**Role:** {current_role}")
-                if opted_out:
-                    total_participants = len(room['participants'])
-                    st.caption(f"🚫 Opted Out: {len(opted_out)}/{total_participants}")
-            with col2:
-                if current_bidder:
-                    st.metric("💰 Current Bid", f"{current_bid}M")
-                    st.caption(f"By: {current_bidder}")
-                else:
-                    st.metric("💰 Starting Bid", "5M")
-                    st.caption("No bids yet")
-            with col3:
-                # Timer display
-                if time_remaining > 5:
-                    st.metric("⏱️ Time", f"{int(time_remaining)}s")
+            # Map role to icon
+            role_icon = "🏏"
+            if "Bowler" in current_role: role_icon = "🥎"
+            elif "Allrounder" in current_role: role_icon = "🦄"
+            elif "WK" in current_role: role_icon = "🧤"
+            
+            st.markdown(f"""
+            <div class="player-card" style="padding: 2.5rem; text-align: center; margin-bottom: 2rem; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: #00FF99; opacity: 0.1; border-radius: 50%; filter: blur(40px);"></div>
+                <div style="position: absolute; bottom: -20px; left: -20px; width: 100px; height: 100px; background: #00CCFF; opacity: 0.1; border-radius: 50%; filter: blur(40px);"></div>
+                
+                <h4 style="color: #00FF99; letter-spacing: 3px; margin-bottom: 5px; font-family: 'Orbitron', sans-serif;">LIVE AUCTION</h4>
+                <div style="margin: 0 auto; width: 50px; height: 4px; background: linear-gradient(90deg, #00FF99, transparent); margin-bottom: 20px;"></div>
+                
+                <h1 class="gradient-text" style="font-size: 4rem; margin: 10px 0; line-height: 1.1;">{current_player}</h1>
+                
+                <div style="display: flex; justify-content: center; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+                    <span style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 30px; color: #e6edf3; font-weight: 600;">
+                        {role_icon} {current_role}
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 30px; color: #e6edf3; font-weight: 600;">
+                        🌍 {current_team}
+                    </span>
+                    <span style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 30px; color: #e6edf3; font-weight: 600;">
+                        💎 Base: 5M
+                    </span>
+                 </div>
+                 
+                 {f'<div class="live-badge" style="position: absolute; top: 20px; right: 20px;">LIVE</div>' if time_remaining > 0 else ''}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # === 3. METRICS & TIMER ===
+            c1, c2, c3 = st.columns([1, 1, 1])
+            with c1:
+                st.metric("💰 Current Bid", f"{current_bid}M", delta="Leading" if current_bid > 0 else None)
+            with c2:
+                # Active Bidder Name
+                bidder_display = current_bidder if current_bidder else "Waiting..."
+                st.metric("👑 Top Bidder", bidder_display)
+            with c3:
+                # Timer with Color Logic
+                if time_remaining > 10:
+                    st.metric("⏱️ Time Left", f"{int(time_remaining)}s")
                 elif time_remaining > 0:
-                    st.metric("⏱️ Time", f"{int(time_remaining)}s", delta="Going...", delta_color="inverse")
+                    st.metric("⏱️ Time Left", f"{int(time_remaining)}s", delta="HURRY UP!", delta_color="inverse")
                 else:
-                    st.metric("⏱️ Time", "0s", delta="SOLD!")
+                    st.metric("⏱️ Time Left", "0s", delta="- SOLD -", delta_color="off")
             
-            # Progress bar for timer
+            # Thin elegant progress bar
             st.progress(time_remaining / timer_duration)
             
             # Auto-Sell / Auto-Pass Logic
@@ -972,6 +927,22 @@ def render_live_auction_fragment(room_code, user):
 
 def show_main_app():
     inject_custom_css() # Apply Aesthetics
+    
+    # === GLOBAL BROADCASTER HEADER ===
+    st.markdown("""
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 2.5rem; filter: drop-shadow(0 0 10px rgba(0,255,153,0.5));">🏆</div>
+            <div>
+                <h3 style="margin: 0; font-family: 'Orbitron', sans-serif; color: #fff; line-height: 1.2; font-size: 1.4rem;">T20 WORLD CUP <span style="color: #00FF99;">2026</span></h3>
+                <div style="color: #8b949e; font-size: 0.75rem; letter-spacing: 3px; font-weight: 600;">OFFICIAL AUCTION TERMINAL</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="live-badge" style="background: rgba(255,0,0,0.8); backdrop-filter: blur(5px);">LIVE SIGNAL 📡</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     user = st.session_state.logged_in_user
     room_code = st.session_state.current_room
     room = auction_data['rooms'].get(room_code)
