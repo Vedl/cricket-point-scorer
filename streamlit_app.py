@@ -1146,10 +1146,10 @@ def show_main_app():
                         
                         # 1. Close Bidding / Open Trading
                         if current_phase == 'Bidding':
-                            if c_gm1.button("🛑 Close Bidding (Open Trading)"):
+                            if c_gm1.button("🛑 End Live Auction (Open Trading Only)"):
                                 room['game_phase'] = 'Trading'
                                 save_auction_data(auction_data)
-                                st.success("Phase changed to Trading.")
+                                st.success("Phase changed to Trading Only.")
                                 st.rerun()
                         
                         # 2. Lock Squads (End GW)
@@ -1191,10 +1191,10 @@ def show_main_app():
                         # 3. Start Next Gameweek (Budget Boost + Loan Reversal)
                         if current_phase == 'Locked':
                             if c_gm2.button(f"🚀 Start Gameweek {current_gw + 1}"):
-                                # 3a. Budget Boost (100M) - One time? Logic says "Before start GW2".
-                                # Assuming this button is clicked precisely then.
-                                for p in room['participants']:
-                                    p['budget'] += 100
+                                # 3a. Budget Boost (100M) - One time when starting GW 2 (transitioning from GW1)
+                                if current_gw == 1:
+                                    for p in room['participants']:
+                                        p['budget'] += 100
                                 
                                 # 3b. Reverse Loans
                                 active_loans = room.get('active_loans', [])
@@ -1495,8 +1495,10 @@ def show_main_app():
         with auction_tabs[2]:
             st.subheader("🔄 Trade Center")
             
-            if not room.get('big_auction_complete'):
-                st.info("⏳ Trading opens after the Big Auction is complete.")
+            # Check Phase for Trading
+            current_phase = room.get('game_phase', 'Bidding')
+            if current_phase == 'Locked':
+                st.info("🔒 Trading is currently LOCKED for Gameweek processing.")
             else:
                 # Helper: Get current participant info
                 my_p_name = user
