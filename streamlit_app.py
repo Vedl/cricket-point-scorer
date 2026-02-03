@@ -367,7 +367,7 @@ def show_room_selection():
                     "participants": [{
                         'name': user,
                         'squad': [],
-                        'budget': 350,
+                        'budget': 500,
                         'user': user
                     }],
                     "gameweek_scores": {},
@@ -405,7 +405,7 @@ def show_room_selection():
                         room['participants'].append({
                             'name': user,
                             'squad': [],
-                            'budget': 350,
+                            'budget': 500,
                             'user': user
                         })
                         user_data['rooms_joined'] = user_data.get('rooms_joined', []) + [join_code]
@@ -621,7 +621,7 @@ def render_live_auction_fragment(room_code, user):
                 for i, p in enumerate(room['participants']):
                      with cols[i % 4]:
                          # Calculate Budget %
-                         budget_pct = min(100, max(0, (p['budget'] / 350) * 100))
+                         budget_pct = min(100, max(0, (p['budget'] / 500) * 100))
                          
                          st.markdown(f"""
                          <div class="terminal-card" style="padding: 15px; margin-bottom: 0px; height: 100%;">
@@ -908,6 +908,17 @@ def render_live_auction_fragment(room_code, user):
                                 import time
                                 time.sleep(1)
                                 st.rerun()
+                    
+                    st.write("---")
+                    if st.button("💸 Boost All Budgets (+150M)"):
+                        # One-time migration for existing rooms
+                        for p in room['participants']:
+                            p['budget'] = p.get('budget', 0) + 150
+                        save_auction_data(auction_data)
+                        st.success("✅ Added 150M to everyone's budget!")
+                        import time
+                        time.sleep(1)
+                        st.rerun()
 
             # Handle Sale / Unsold
             if should_autosell or force_sell:
@@ -1036,7 +1047,7 @@ def show_main_app():
             room['participants'].append({
                 'name': member,
                 'squad': [],
-                'budget': 350,
+                'budget': 500,
                 'user': member
             })
             member_added = True
@@ -1294,7 +1305,7 @@ def show_main_app():
         # Show existing participants
         if room['participants']:
             for p in room['participants']:
-                st.write(f"• **{p['name']}** - Budget: {p.get('budget', 350)}M | Squad: {len(p.get('squad', []))}")
+                st.write(f"• **{p['name']}** - Budget: {p.get('budget', 500)}M | Squad: {len(p.get('squad', []))}")
         
         # Admin fallback: manually add participant (for guests/non-members)
         if is_admin:
@@ -1308,10 +1319,10 @@ def show_main_app():
                             'name': new_name, 
                             'squad': [],
                             'ir_player': None,
-                            'budget': 350
+                            'budget': 500
                         })
                         save_auction_data(auction_data)
-                        st.success(f"Added {new_name} with 350M budget!")
+                        st.success(f"Added {new_name} with 500M budget!")
                         st.rerun()
                     elif new_name:
                         st.warning("Participant already exists.")
