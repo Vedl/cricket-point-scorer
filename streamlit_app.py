@@ -1109,12 +1109,13 @@ def show_main_app():
         
         # ================ TAB 2: OPEN BIDDING ================
         with auction_tabs[1]:
-            st.subheader("💰 Open Bidding (Post-Auction)")
+            st.subheader("💰 Open Bidding")
             
-            if not room.get('big_auction_complete'):
-                st.warning("⏳ Open Bidding will start after the Big Auction is complete. Admin must check 'Big Auction Complete' in sidebar.")
+            # Phase Check
+            current_phase = room.get('game_phase', 'Bidding')
+            if current_phase != 'Bidding':
+                st.warning(f"🔒 Open Bidding is CLOSED. (Current Phase: {current_phase})")
             else:
-                st.info("📜 **Rules:** Min bid 5M. Over 50M: +5M increments. Hold for 24 hours to win (or until deadline).")
                 
                 # Admin: Set Bidding Deadline
                 if is_admin:
@@ -1204,7 +1205,9 @@ def show_main_app():
                                 
                                 for loan in active_loans:
                                     # loan: {player, from, to, gw, ...}
-                                    if loan.get('gameweek') == current_gw:
+                                    # Fix: Ensure types match (int vs str)
+                                    loan_gw = int(loan.get('gameweek', 0))
+                                    if loan_gw == int(current_gw):
                                         # Reverse logic
                                         borrower = next((p for p in room['participants'] if p['name'] == loan['to']), None)
                                         lender = next((p for p in room['participants'] if p['name'] == loan['from']), None)
@@ -1797,11 +1800,14 @@ def show_main_app():
                                 format_func=format_player_name
                             )
                             fee = st.number_input("Loan Fee (M)", 0, 50, 5, format="%d")
-                            # GW Logic
-                            locked = list(room.get('gameweek_squads', {}).keys())
-                            ngw = str((max([int(x) for x in locked]) if locked else 0) + 1)
-                            st.caption(f"Loan Duration: Gameweek {ngw}")
-                            payload = {'type': t_type, 'player': pl, 'fee': fee, 'gw': ngw}
+                            # GW Logic - Use integer consistency
+                            # Loan is for Current Gameweek (to be valid until NEXT start)
+                            # Actually, usually loans are for "Next Gameweek" if done during trading?
+                            # User said "Trading closes for GW1... Start GW2... Loans executed in PREV gw reversed".
+                            # So if I am in GW1 (Bidding/Trading): Loan is for GW1.
+                            current_gw = int(room.get('current_gameweek', 1))
+                            st.caption(f"Loan Duration: Gameweek {current_gw}")
+                            payload = {'type': t_type, 'player': pl, 'fee': fee, 'gw': current_gw}
                             ready = True
                     
                     if ready:
