@@ -1579,8 +1579,10 @@ def show_main_app():
                                             success = True
                                     
                                     elif trade['type'] == "Exchange":
-                                        p_give = next((p for p in receiver['squad'] if p['name'] == trade['give_player']), None)
-                                        p_get = next((p for p in sender['squad'] if p['name'] == trade['get_player']), None)
+                                        # Sender GIVES 'give_player'
+                                        # Sender GETS 'get_player' (so Receiver gives this)
+                                        p_from_sender = next((p for p in sender['squad'] if p['name'] == trade['give_player']), None)
+                                        p_from_receiver = next((p for p in receiver['squad'] if p['name'] == trade['get_player']), None)
                                         
                                         # Budget Check
                                         budget_ok = True
@@ -1590,15 +1592,16 @@ def show_main_app():
                                             if payer_budget < trade['cash_amount']:
                                                 budget_ok = False
                                         
-                                        if p_give and p_get and budget_ok:
-                                            receiver['squad'].remove(p_give)
-                                            sender['squad'].remove(p_get)
-                                            # Restore Teams
-                                            p_give['team'] = player_team_lookup.get(p_give['name'], 'Unknown')
-                                            p_get['team'] = player_team_lookup.get(p_get['name'], 'Unknown')
+                                        if p_from_sender and p_from_receiver and budget_ok:
+                                            sender['squad'].remove(p_from_sender)
+                                            receiver['squad'].remove(p_from_receiver)
                                             
-                                            receiver['squad'].append(p_get)
-                                            sender['squad'].append(p_give)
+                                            # Restore Teams
+                                            p_from_sender['team'] = player_team_lookup.get(p_from_sender['name'], 'Unknown')
+                                            p_from_receiver['team'] = player_team_lookup.get(p_from_receiver['name'], 'Unknown')
+                                            
+                                            receiver['squad'].append(p_from_sender)
+                                            sender['squad'].append(p_from_receiver)
                                             
                                             if trade['cash_amount'] > 0:
                                                 if trade['cash_payer'] == receiver['name']:
