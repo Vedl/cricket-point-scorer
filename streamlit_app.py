@@ -1134,6 +1134,128 @@ def show_main_app():
                             st.success(f"Deadline set to {new_deadline.strftime('%b %d, %Y %H:%M')}")
                             st.rerun()
                 
+                # --- GAMEWEEK & SQUAD MANAGEMENT ---
+                if is_admin:
+                     with st.expander("📅 Gameweek & Squad Manager (Admin Only)"):
+                        current_gw = room.get('current_gameweek', 1)
+                        current_phase = room.get('game_phase', 'Bidding') # Bidding, Trading, Locked
+                        
+                        st.write(f"**Current: Gameweek {current_gw} | Phase: {current_phase}**")
+                        
+                        c_gm1, c_gm2 = st.columns(2)
+                        
+                        # 1. Close Bidding / Open Trading
+                        if current_phase == 'Bidding':
+                            if c_gm1.button("🛑 Close Bidding (Open Trading)"):
+                                room['game_phase'] = 'Trading'
+                                save_auction_data(auction_data)
+                                st.success("Phase changed to Trading.")
+                                st.rerun()
+                        
+                        # 2. Lock Squads (End GW)
+                        if current_phase == 'Trading':
+                            if c_gm1.button("🔒 LOCK SQUADS (End GW)"):
+                                errors = []
+                                # 2a. Validate Squad Size (Max 19)
+                                for p in room['participants']:
+                                    if len(p['squad']) > 19:
+                                        # Release last bought player
+                                        # Use purchase time or just last appended? 'squad' is a list, so last appended is last bought/traded.
+                                        # Logic: Last player added is at [-1]
+                                        excess = len(p['squad']) - 19
+                                        removed = []
+                                        for _ in range(excess):
+                                            released_p = p['squad'].pop() # Remove from end
+                                            room.setdefault('unsold_players', []).append(released_p['name'])
+                                            removed.append(released_p['name'])
+                                        errors.append(f"{p['name']} had >19 players. Released: {', '.join(removed)} (0M refund).")
+                                
+                                # 2b. Deduct IR Cost (2M)
+                                ir_deductions = []
+                                for p in room['participants']:
+                                    if p.get('injury_reserve'):
+                                        p['budget'] -= 2
+                                        ir_deductions.append(p['name'])
+                                
+                                room['game_phase'] = 'Locked'
+                                save_auction_data(auction_data)
+                                
+                                if errors:
+                                    for e in errors: st.error(e)
+                                if ir_deductions:
+                                    st.info(f"Deducted 2M for IR from: {', '.join(ir_deductions)}")
+                                st.success("Squads Locked for Gameweek!")
+                                # import time; time.sleep(5)
+                                st.rerun()
+
+                        # 3. Start Next Gameweek (Budget Boost + Loan Reversal)
+                        if current_phase == 'Locked':
+                            if c_gm2.button(f"🚀 Start Gameweek {current_gw + 1}"):
+                                # 3a. Budget Boost (100M) - One time? Logic says "Before start GW2".
+                                # Assuming this button is clicked precisely then.
+                                for p in room['participants']:
+                                    p['budget'] += 100
+                                
+                                # 3b. Reverse Loans
+                                active_loans = room.get('active_loans', [])
+                                reversed_cnt = 0
+                                # Iterate copy to safe modify
+                                remaining_loans = []
+                                
+                                for loan in active_loans:
+                                    # loan: {player, from, to, gw, ...}
+                                    if loan.get('gameweek') == current_gw:
+                                        # Reverse logic
+                                        borrower = next((p for p in room['participants'] if p['name'] == loan['to']), None)
+                                        lender = next((p for p in room['participants'] if p['name'] == loan['from']), None)
+                                        
+                                        if borrower and lender:
+                                            # Find player in Borrower's squad
+                                            p_obj = next((p for p in borrower['squad'] if p['name'] == loan['player']), None)
+                                            if p_obj:
+                                                borrower['squad'].remove(p_obj)
+                                                # Add back to Lender
+                                                # Clean up loan metadata if any stored on p_obj
+                                                if 'on_loan' in p_obj: del p_obj['on_loan']
+                                                if 'loan_from' in p_obj: del p_obj['loan_from']
+                                                
+                                                lender['squad'].append(p_obj)
+                                                reversed_cnt += 1
+                                    else:
+                                        # Keep loans for future GWs if that's even possible? 
+                                        # User said "loans executed in prev gw reversed". 
+                                        # Assuming loans are always 1 GW for now based on UI info.
+                                        remaining_loans.append(loan)
+                                
+                                room['active_loans'] = remaining_loans
+                                
+                                # 3c. Update GW and Phase
+                                room['current_gameweek'] = current_gw + 1
+                                room['game_phase'] = 'Bidding'
+                                save_auction_data(auction_data)
+                                st.success(f"Gameweek {current_gw+1} Started! +100M Added. {reversed_cnt} Loans Reversed.")
+                                st.rerun()
+
+                # --- USER: INJURY RESERVE ---
+                if my_participant and not is_admin:
+                    with st.expander("🚑 Manage Injury Reserve (IR)"):
+                        st.info("Designating an IR player costs **2M** (deducted when squads lock). IR players get **0 points**.")
+                        current_ir = my_participant.get('injury_reserve')
+                        squad_names = [p['name'] for p in my_participant['squad']]
+                        
+                        # Add None option
+                        opts = ["None"] + squad_names
+                        def_idx = 0
+                        if current_ir in squad_names:
+                            def_idx = opts.index(current_ir)
+                        
+                        new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
+                        
+                        if st.button("Save IR Choice"):
+                            my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
+                            save_auction_data(auction_data)
+                            st.success("Injury Reserve Updated!")
+                
                 # Show countdown to deadline
                 now = get_ist_time()
                 deadline_str = room.get('bidding_deadline')
