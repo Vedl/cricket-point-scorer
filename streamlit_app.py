@@ -1042,69 +1042,75 @@ def show_main_app():
                     if not should_autosell and not should_autopass:
                         st.markdown("### 🎯 Place Your Bid")
                         
-                        col1, col2, col3 = st.columns([1, 1, 1])
-                        with col1:
-                            # Restrict bidder selection to self if not admin
-                            if is_admin:
-                                bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
-                                default_idx = 0
-                                if my_participant and my_participant['name'] in bidder_options:
-                                    default_idx = bidder_options.index(my_participant['name'])
-                                bidder_name = st.selectbox("Bidder", bidder_options, index=default_idx, key=f"bid_select_{current_player}")
-                            else:
-                                if my_participant and my_participant['name'] not in opted_out:
-                                    bidder_name = my_participant['name']
-                                    st.text_input("Bidder", value=bidder_name, disabled=True, key=f"bid_select_{current_player}")
+                        # Use a container to isolate layout
+                        with st.container():
+                            col1, col2, col3 = st.columns([1, 1, 1])
+                            
+                            # Column 1: Bidder Selection
+                            with col1:
+                                if is_admin:
+                                    bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
+                                    default_idx = 0
+                                    if my_participant and my_participant['name'] in bidder_options:
+                                        default_idx = bidder_options.index(my_participant['name'])
+                                    bidder_name = st.selectbox("Bidder", bidder_options, index=default_idx, key=f"bid_select_{current_player}_uniq")
                                 else:
-                                    bidder_name = None
-                                    st.warning("You are not an active participant for this player")
-                            
-                            bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
-                        
-                        with col2:
-                            min_bid = max(5, current_bid + 5) if current_bid >= 50 else max(5, current_bid + 1)
-                            max_bid_allowed = bidder.get('budget', 0) if bidder else 0
-                            
-                            if max_bid_allowed >= min_bid:
-                                bid_amount = st.number_input(
-                                    f"Bid (Min: {int(min_bid)}M)", 
-                                    min_value=int(min_bid), 
-                                    max_value=int(max_bid_allowed),
-                                    value=int(min_bid),
-                                    step=5 if min_bid >= 50 else 1,
-                                    format="%d",
-                                    key=f"bid_input_{current_player}"
-                                )
-                            else:
-                                st.error(f"Low Budget")
-                                bid_amount = 0
-                        
-                        with col3:
-                            # Bid Button
-                            if st.button("🔨 BID!", type="primary", disabled=bid_amount==0, key=f"bid_btn_{current_player}"):
-                                live_auction['current_bid'] = bid_amount
-                                live_auction['current_bidder'] = bidder_name
-                                live_auction['timer_start'] = get_ist_time().isoformat()  # Reset timer
-                                # IMPORTANT: Reset opt-outs? Usually yes if price changes, but let's keep it sticky for speed. 
-                                # If sticky: No reset. If lenient: live_auction['opted_out'] = []
-                                # User asked for "opt out of bidding for a player". Usually implies permanent for that player.
-                                room['live_auction'] = live_auction
-                                save_auction_data(auction_data)
-                                st.rerun()
-                            
-                            
-                            st.write("") # Spacer
-                            st.write("") # Spacer
-                            
-                            # Opt Out / Status
-                            if my_participant and my_participant['name'] == current_bidder:
-                                st.success("👑 You hold the highest bid")
-                            elif is_my_turn:
-                                if st.button("❌ Opt Out", key=f"optout_btn_{current_player}"):
-                                    live_auction.setdefault('opted_out', []).append(my_participant['name'])
+                                    if my_participant and my_participant['name'] not in opted_out:
+                                        bidder_name = my_participant['name']
+                                        st.text_input("Bidder", value=bidder_name, disabled=True, key=f"bid_select_{current_player}_uniq")
+                                    else:
+                                        bidder_name = None
+                                        st.warning("You are not an active participant for this player")
+                                
+                                bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
+
+                            # Column 2: Bid Amount
+                            with col2:
+                                if bidder:
+                                    min_bid = max(5, current_bid + 5) if current_bid >= 50 else max(5, current_bid + 1)
+                                    max_bid_allowed = bidder.get('budget', 0)
+                                    
+                                    if max_bid_allowed >= min_bid:
+                                        bid_amount = st.number_input(
+                                            f"Bid (Min: {int(min_bid)}M)", 
+                                            min_value=int(min_bid), 
+                                            max_value=int(max_bid_allowed),
+                                            value=int(min_bid),
+                                            step=5 if min_bid >= 50 else 1,
+                                            format="%d",
+                                            key=f"bid_input_{current_player}_uniq"
+                                        )
+                                    else:
+                                        st.error(f"Low Budget")
+                                        bid_amount = 0
+                                else:
+                                    bid_amount = 0
+
+                            # Column 3: Actions
+                            with col3:
+                                # Bid Button
+                                if st.button("🔨 BID!", type="primary", disabled=(bid_amount==0), key=f"bid_btn_{current_player}_uniq"):
+                                    live_auction['current_bid'] = bid_amount
+                                    live_auction['current_bidder'] = bidder_name
+                                    live_auction['timer_start'] = get_ist_time().isoformat()
                                     room['live_auction'] = live_auction
                                     save_auction_data(auction_data)
                                     st.rerun()
+                                
+                                st.write("") # Spacer
+                                
+                                # Actions: Success or Opt Out
+                                # Helper: Check if I am the active bidder holding the bid
+                                am_i_holding = my_participant and my_participant['name'] == current_bidder
+                                
+                                if am_i_holding:
+                                    st.success("👑 You hold the bid")
+                                elif is_my_turn:
+                                    if st.button("❌ Opt Out", key=f"optout_btn_{current_player}_uniq"):
+                                        live_auction.setdefault('opted_out', []).append(my_participant['name'])
+                                        room['live_auction'] = live_auction
+                                        save_auction_data(auction_data)
+                                        st.rerun()
 
 
                     # Admin Override Flags
