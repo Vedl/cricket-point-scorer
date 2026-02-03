@@ -1237,6 +1237,10 @@ def show_main_app():
                                 st.rerun()
 
                 # --- USER: INJURY RESERVE ---
+                # Safely get my_participant again in case we are out of previous scope bounds
+                my_p_name_check = st.session_state.get('logged_in_user')
+                my_participant = next((p for p in room['participants'] if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
+
                 if my_participant and not is_admin:
                     with st.expander("🚑 Manage Injury Reserve (IR)"):
                         st.info("Designating an IR player costs **2M** (deducted when squads lock). IR players get **0 points**.")
