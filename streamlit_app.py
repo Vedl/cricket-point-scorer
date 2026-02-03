@@ -67,7 +67,7 @@ def hash_password(password):
     """Hash password using SHA256."""
     return hashlib.sha256(password.encode()).hexdigest()
 
-@st.cache_data
+# @st.cache_data removed to ensure updates are reflected immediately
 def load_schedule():
     """Load T20 WC schedule."""
     if os.path.exists(SCHEDULE_FILE):
