@@ -824,8 +824,18 @@ def render_live_auction_fragment(room_code, user):
                     # Column 2: Bid Amount
                     with col2:
                         if bidder:
-                            min_bid = max(5, current_bid + 5) if current_bid >= 50 else max(5, current_bid + 1)
+                            # Dynamic Bidding Rules
+                            if current_bid >= 100:
+                                increment = 10
+                            elif current_bid >= 50:
+                                increment = 5
+                            else:
+                                increment = 1
+                            
+                            min_bid = max(5, current_bid + increment)
                             max_bid_allowed = bidder.get('budget', 0)
+                            
+                            step_val = 10 if min_bid >= 100 else (5 if min_bid >= 50 else 1)
                             
                             if max_bid_allowed >= min_bid:
                                 bid_amount = st.number_input(
@@ -833,7 +843,7 @@ def render_live_auction_fragment(room_code, user):
                                     min_value=int(min_bid), 
                                     max_value=int(max_bid_allowed),
                                     value=int(min_bid),
-                                    step=5 if min_bid >= 50 else 1,
+                                    step=step_val,
                                     format="%d",
                                     key=f"bid_input_{current_player}_uniq"
                                 )
@@ -1491,12 +1501,16 @@ def show_main_app():
                         min_bid = 5
                         if existing_bid:
                             curr_amt = float(existing_bid['amount'])
-                            if curr_amt >= 50:
-                                min_bid = int(math.ceil(curr_amt + 5))
+                            if curr_amt >= 100:
+                                interval = 10
+                            elif curr_amt >= 50:
+                                interval = 5
                             else:
-                                min_bid = int(math.ceil(curr_amt + 1))
+                                interval = 1
+                            min_bid = int(math.ceil(curr_amt + interval))
                         
-                        bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=int(min_bid), step=1, format="%d", key="bid_input_val")
+                        step_val = 10 if min_bid >= 100 else (5 if min_bid >= 50 else 1)
+                        bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=int(min_bid), step=step_val, format="%d", key="bid_input_val")
                         
                         if st.button("Place Bid", key="place_bid", disabled=not is_bidding_active):
                             if bid_amount > current_participant.get('budget', 0):
