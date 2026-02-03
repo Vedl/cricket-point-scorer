@@ -72,26 +72,25 @@ class StorageManager:
         return {"users": {}, "rooms": {}}
 
     def save_data(self, data):
-        """Save data: Sync Local (Fast, Locked) + Async Remote (Background)."""
+        """Save data: Atomic Rename Pattern (Tmp -> Rename) + Async Remote."""
         try:
-            # 1. Serialize ONCE (Thread-Safety)
+            # 1. Serialize
             json_str = json.dumps(data, indent=2)
             
-            # 2. Local Save (Synchronous/Immediate) with LOCK_EX (Atomic)
-            # Use os.open to get FD with O_RDWR | O_CREAT (No Truncate yet)
-            fd = os.open(self.local_file_path, os.O_RDWR | os.O_CREAT)
-            with os.fdopen(fd, 'r+') as f:
-                fcntl.flock(f, fcntl.LOCK_EX)
-                try:
-                    f.truncate(0)
-                    f.seek(0)
-                    f.write(json_str)
-                    f.flush()
-                    os.fsync(f.fileno())
-                finally:
-                    fcntl.flock(f, fcntl.LOCK_UN)
+            # 2. Atomic Local Save
+            # Write to a temp file first
+            tmp_file = self.local_file_path + ".tmp"
             
-            # 3. Remote Save (Asynchronous/Fire-and-Forget)
+            # Use 'w' mode for temp file - we don't care about its previous content
+            with open(tmp_file, 'w') as f:
+                f.write(json_str)
+                f.flush()
+                os.fsync(f.fileno())
+            
+            # Atomic Rename: Overwrites target instantly
+            os.rename(tmp_file, self.local_file_path)
+            
+            # 3. Remote Save (Asynchronous)
             if self.use_remote:
                 def _push_remote(payload):
                     try:
@@ -99,9 +98,9 @@ class StorageManager:
                     except Exception as e:
                         print(f"Async Upload Failed: {e}")
                 
-                # Start background thread
                 t = threading.Thread(target=_push_remote, args=(json_str,))
                 t.start()
                 
         except Exception as e:
+            st.error(f"SAVE FAILED: {str(e)}")
             print(f"Save Data Error: {e}")
