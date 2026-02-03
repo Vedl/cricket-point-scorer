@@ -18,14 +18,21 @@ class StorageManager:
             self.url = f"https://api.jsonbin.io/v3/b/{self.bin_id}"
 
     import threading
+    import fcntl
     
     def load_data(self):
-        """Load data: Prefer Local File (Speed), Fallback to Remote (Backup)."""
-        # 1. Try Local File (Fast Cache)
+        """Load data: Prefer Local File (Speed), Fallback to Remote (Backup). Uses File Locking."""
+        # 1. Try Local File (Fast Cache) with LOCK_SH (Shared Lock) for Reading
         if os.path.exists(self.local_file_path):
             try:
                 with open(self.local_file_path, 'r') as f:
-                    data = json.load(f)
+                    # Acquire Shared Lock (wait if writing)
+                    fcntl.flock(f, fcntl.LOCK_SH)
+                    try:
+                        data = json.load(f)
+                    finally:
+                        fcntl.flock(f, fcntl.LOCK_UN)
+                    
                     # Basic Validation
                     if 'users' not in data: data['users'] = {}
                     if 'rooms' not in data: data['rooms'] = {}
@@ -43,10 +50,14 @@ class StorageManager:
                     if 'users' not in data: data['users'] = {}
                     if 'rooms' not in data: data['rooms'] = {}
                     
-                    # Cache it locally immediately
+                    # Cache it locally immediately (Atomic-ish)
                     try:
                         with open(self.local_file_path, 'w') as f:
-                            json.dump(data, f, indent=2)
+                            fcntl.flock(f, fcntl.LOCK_EX)
+                            try:
+                                json.dump(data, f, indent=2)
+                            finally:
+                                fcntl.flock(f, fcntl.LOCK_UN)
                     except: pass
                     
                     return data
@@ -56,14 +67,21 @@ class StorageManager:
         return {"users": {}, "rooms": {}}
 
     def save_data(self, data):
-        """Save data: Sync Local (Fast) + Async Remote (Background)."""
+        """Save data: Sync Local (Fast, Locked) + Async Remote (Background)."""
         try:
             # 1. Serialize ONCE (Thread-Safety)
             json_str = json.dumps(data, indent=2)
             
-            # 2. Local Save (Synchronous/Immediate)
+            # 2. Local Save (Synchronous/Immediate) with LOCK_EX (Exclusive Lock)
             with open(self.local_file_path, 'w') as f:
-                f.write(json_str)
+                fcntl.flock(f, fcntl.LOCK_EX)
+                try:
+                    f.write(json_str)
+                    # Force write to disk to ensure data is safe before unlocking
+                    f.flush()
+                    os.fsync(f.fileno())
+                finally:
+                    fcntl.flock(f, fcntl.LOCK_UN)
             
             # 3. Remote Save (Asynchronous/Fire-and-Forget)
             if self.use_remote:
