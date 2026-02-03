@@ -1937,6 +1937,7 @@ def show_main_app():
                     matches_df['Match'] = matches_df['teams'].apply(lambda x: f"{x[0]} vs {x[1]}")
                     st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
                     
+                    locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
                     if locked_squads:
                         st.success(f"✅ Squads are locked for GW {selected_gw}. {len(locked_squads)} participants locked.")
                         
