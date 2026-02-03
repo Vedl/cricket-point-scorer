@@ -52,7 +52,8 @@ class StorageManager:
                     
                     # Cache it locally immediately (Atomic-ish)
                     try:
-                        with open(self.local_file_path, 'a+') as f:
+                        fd = os.open(self.local_file_path, os.O_RDWR | os.O_CREAT)
+                        with os.fdopen(fd, 'r+') as f:
                             fcntl.flock(f, fcntl.LOCK_EX)
                             try:
                                 f.truncate(0)
@@ -77,8 +78,9 @@ class StorageManager:
             json_str = json.dumps(data, indent=2)
             
             # 2. Local Save (Synchronous/Immediate) with LOCK_EX (Atomic)
-            # Use 'a+' to create if missing, but don't truncate yet
-            with open(self.local_file_path, 'a+') as f:
+            # Use os.open to get FD with O_RDWR | O_CREAT (No Truncate yet)
+            fd = os.open(self.local_file_path, os.O_RDWR | os.O_CREAT)
+            with os.fdopen(fd, 'r+') as f:
                 fcntl.flock(f, fcntl.LOCK_EX)
                 try:
                     f.truncate(0)
