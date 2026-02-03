@@ -17,47 +17,65 @@ class StorageManager:
             }
             self.url = f"https://api.jsonbin.io/v3/b/{self.bin_id}"
 
+    import threading
+    
     def load_data(self):
-        """Load data from Remote (JSONBin) if available, else local file."""
-        if self.use_remote:
-            try:
-                response = requests.get(self.url + "/latest", headers=self.headers)
-                if response.status_code == 200:
-                    data = response.json().get('record', {})
-                    if 'users' not in data: data['users'] = {}
-                    if 'rooms' not in data: data['rooms'] = {}
-                    return data
-                else:
-                    # If bin is empty or error, fallback or return empty
-                    print(f"Remote Load Error: {response.status_code} - {response.text}")
-                    return {"users": {}, "rooms": {}}
-            except Exception as e:
-                print(f"Remote Load Exception: {e}")
-                return {"users": {}, "rooms": {}}
-        
-        # Fallback to Local
+        """Load data: Prefer Local File (Speed), Fallback to Remote (Backup)."""
+        # 1. Try Local File (Fast Cache)
         if os.path.exists(self.local_file_path):
             try:
                 with open(self.local_file_path, 'r') as f:
                     data = json.load(f)
-                    if 'users' not in data:
-                        data = {"users": {}, "rooms": {}}
+                    # Basic Validation
+                    if 'users' not in data: data['users'] = {}
+                    if 'rooms' not in data: data['rooms'] = {}
                     return data
-            except:
-                pass
+            except Exception as e:
+                print(f"Local Load Error: {e}")
+        
+        # 2. Remote Fallback (Cold Start)
+        if self.use_remote:
+            try:
+                # print("Fetching from Remote Storage...")
+                response = requests.get(self.url + "/latest", headers=self.headers, timeout=5)
+                if response.status_code == 200:
+                    data = response.json().get('record', {})
+                    if 'users' not in data: data['users'] = {}
+                    if 'rooms' not in data: data['rooms'] = {}
+                    
+                    # Cache it locally immediately
+                    try:
+                        with open(self.local_file_path, 'w') as f:
+                            json.dump(data, f, indent=2)
+                    except: pass
+                    
+                    return data
+            except Exception as e:
+                print(f"Remote Load Exception: {e}")
+        
         return {"users": {}, "rooms": {}}
 
     def save_data(self, data):
-        """Save data to Remote (JSONBin) if available, AND local file."""
-        # Always save local as backup/cache
-        with open(self.local_file_path, 'w') as f:
-            json.dump(data, f, indent=2)
-
-        if self.use_remote:
-            try:
-                # JSONBin 'PUT' updates the bin
-                response = requests.put(self.url, headers=self.headers, json=data)
-                if response.status_code != 200:
-                    print(f"Remote Save Error: {response.status_code} - {response.text}")
-            except Exception as e:
-                 print(f"Remote Save Exception: {e}")
+        """Save data: Sync Local (Fast) + Async Remote (Background)."""
+        try:
+            # 1. Serialize ONCE (Thread-Safety)
+            json_str = json.dumps(data, indent=2)
+            
+            # 2. Local Save (Synchronous/Immediate)
+            with open(self.local_file_path, 'w') as f:
+                f.write(json_str)
+            
+            # 3. Remote Save (Asynchronous/Fire-and-Forget)
+            if self.use_remote:
+                def _push_remote(payload):
+                    try:
+                        requests.put(self.url, headers=self.headers, data=payload, timeout=5)
+                    except Exception as e:
+                        print(f"Async Upload Failed: {e}")
+                
+                # Start background thread
+                t = threading.Thread(target=_push_remote, args=(json_str,))
+                t.start()
+                
+        except Exception as e:
+            print(f"Save Data Error: {e}")
