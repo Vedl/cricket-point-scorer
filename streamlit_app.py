@@ -8,7 +8,7 @@ import random
 import hashlib
 import uuid as uuid_lib
 from datetime import datetime, timedelta
-from cricbuzz_scraper import CricbuzzScraper
+import cricbuzz_scraper
 from player_score_calculator import CricketScoreCalculator
 from backend.storage import StorageManager
 
@@ -728,7 +728,8 @@ def render_live_auction_fragment(room_code, user):
             elif "Allrounder" in current_role: role_icon = "🦄"
             elif "WK" in current_role: role_icon = "🧤"
             
-            st.markdown(f"""
+            # Explicitly left-aligned string to avoid Markdown code-block interpretation
+            card_html = f"""
 <div class="player-card" style="padding: 2.5rem; text-align: center; margin-bottom: 2rem; position: relative; overflow: hidden;">
     <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: #00FF99; opacity: 0.1; border-radius: 50%; filter: blur(40px);"></div>
     <div style="position: absolute; bottom: -20px; left: -20px; width: 100px; height: 100px; background: #00CCFF; opacity: 0.1; border-radius: 50%; filter: blur(40px);"></div>
@@ -752,7 +753,8 @@ def render_live_auction_fragment(room_code, user):
      
      {f'<div class="live-badge" style="position: absolute; top: 20px; right: 20px;">LIVE</div>' if time_remaining > 0 else ''}
 </div>
-""", unsafe_allow_html=True)
+"""
+            st.markdown(card_html, unsafe_allow_html=True)
             
             # === 3. METRICS & TIMER ===
             c1, c2, c3 = st.columns([1, 1, 1])
@@ -1110,7 +1112,7 @@ def show_main_app():
             else:
                 with st.spinner("Fetching match data..."):
                     try:
-                        scraper = CricbuzzScraper()
+                        scraper = cricbuzz_scraper.CricbuzzScraper()
                         calculator = CricketScoreCalculator()
                         players = scraper.fetch_match_data(url)
                         
@@ -2119,7 +2121,7 @@ def show_main_app():
                             if not urls:
                                 st.error("Please enter at least one match URL.")
                             else:
-                                scraper = CricbuzzScraper()
+                                scraper = cricbuzz_scraper.CricbuzzScraper()
                                 calculator = CricketScoreCalculator()
                                 all_scores = {}
                                 
@@ -2171,7 +2173,7 @@ def show_main_app():
                     if not urls:
                         st.error("Please enter at least one URL.")
                     else:
-                        scraper = CricbuzzScraper()
+                        scraper = cricbuzz_scraper.CricbuzzScraper()
                         calculator = CricketScoreCalculator()
                         all_scores = {}
                         
