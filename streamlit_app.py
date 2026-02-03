@@ -220,8 +220,10 @@ def show_room_selection():
         st.subheader("➕ Create New Room")
         room_name = st.text_input("Room Name", placeholder="e.g., Friends T20 League")
         if st.button("Create Room", type="primary"):
+            st.info("DEBUG: Button Clicked!") # DEBUG
             if room_name:
                 room_code = generate_room_code()
+                st.write(f"DEBUG: Generated Code: {room_code}") # DEBUG
                 # Ensure unique code
                 while room_code in auction_data['rooms']:
                     room_code = generate_room_code()
@@ -237,7 +239,7 @@ def show_room_selection():
                         'user': user
                     }],
                     "gameweek_scores": {},
-                    "created_at": datetime.now().isoformat(),
+                    "created_at": get_ist_time().isoformat(),
                     # Auction System Fields
                     "big_auction_complete": False,
                     "bidding_open": False,
@@ -248,8 +250,11 @@ def show_room_selection():
                     "gameweek_squads": {},
                     "auction_log": []
                 }
+                
+                st.write("DEBUG: Saving Data...") # DEBUG
                 user_data['rooms_created'] = user_data.get('rooms_created', []) + [room_code]
                 save_auction_data(auction_data)
+                st.success("DEBUG: Save Complete!") # DEBUG
                 st.session_state.current_room = room_code
                 st.query_params['user'] = user
                 st.query_params['room'] = room_code
