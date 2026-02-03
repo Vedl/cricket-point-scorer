@@ -8,9 +8,35 @@ import random
 import hashlib
 import uuid as uuid_lib
 from datetime import datetime, timedelta
-import cricbuzz_scraper
-from player_score_calculator import CricketScoreCalculator
-from backend.storage import StorageManager
+import sys
+
+# --- Robust Import Helper ---
+def safe_import_module(module_name):
+    if module_name in sys.modules:
+        del sys.modules[module_name]
+    return __import__(module_name)
+
+# Force reload local modules to prevent Streamlit KeyErrors
+try:
+    import cricbuzz_scraper
+except (KeyError, ImportError):
+    cricbuzz_scraper = safe_import_module('cricbuzz_scraper')
+
+try:
+    import player_score_calculator
+    CricketScoreCalculator = player_score_calculator.CricketScoreCalculator
+except (KeyError, ImportError):
+    player_score_calculator = safe_import_module('player_score_calculator')
+    CricketScoreCalculator = player_score_calculator.CricketScoreCalculator
+
+try:
+    import backend.storage
+    StorageManager = backend.storage.StorageManager
+except (KeyError, ImportError):
+    if 'backend.storage' in sys.modules: del sys.modules['backend.storage']
+    import backend.storage
+    StorageManager = backend.storage.StorageManager
+
 import textwrap
 
 # --- Page Config ---
