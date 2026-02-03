@@ -352,9 +352,11 @@ def show_room_selection():
     st.title(f"🏏 Welcome, {user}!")
     
     # Sidebar logout
+    # Sidebar logout
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in_user = None
         st.session_state.current_room = None
+        st.query_params.clear()
         st.rerun()
     
     st.markdown("### Select or create an auction room to get started.")
@@ -396,6 +398,8 @@ def show_room_selection():
                 user_data['rooms_created'] = user_data.get('rooms_created', []) + [room_code]
                 save_auction_data(auction_data)
                 st.session_state.current_room = room_code
+                st.query_params['user'] = user
+                st.query_params['room'] = room_code
                 st.success(f"Room created! Code: **{room_code}**")
                 st.rerun()
             else:
@@ -421,6 +425,8 @@ def show_room_selection():
                         save_auction_data(auction_data)
                         st.success(f"Joined room: {room['name']} (You are now a participant!)")
                     st.session_state.current_room = join_code
+                    st.query_params['user'] = user
+                    st.query_params['room'] = join_code
                     st.rerun()
                 else:
                     st.error("Invalid room code. Please check and try again.")
@@ -455,6 +461,8 @@ def show_room_selection():
             selected_room = st.selectbox("Select a room to enter", room_codes, format_func=lambda x: f"{auction_data['rooms'][x]['name']} ({x})")
             if st.button("Enter Room", type="primary"):
                 st.session_state.current_room = selected_room
+                st.query_params['user'] = user
+                st.query_params['room'] = selected_room
                 st.rerun()
     else:
         st.info("You haven't created or joined any rooms yet.")
@@ -2278,6 +2286,19 @@ def show_main_app():
 # =====================================
 # MAIN ROUTING
 # =====================================
+# Auto-Login from URL (Persistence)
+if st.session_state.logged_in_user is None:
+    qp = st.query_params
+    url_user = qp.get("user")
+    url_room = qp.get("room")
+    
+    if url_user and url_room:
+        # Validate existence
+        if url_user in auction_data['users'] and url_room in auction_data['rooms']:
+            st.session_state.logged_in_user = url_user
+            st.session_state.current_room = url_room
+            st.rerun()
+
 if st.session_state.logged_in_user is None:
     show_login_page()
 elif st.session_state.current_room is None:
