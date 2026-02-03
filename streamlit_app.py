@@ -636,7 +636,7 @@ def render_live_auction_fragment(room_code, user):
                              
                              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
                                  <span style="color: #8b949e;">SQUAD</span>
-                                 <span class="status-badge" style="background: rgba(0, 204, 255, 0.1); color: #00CCFF;">{len(p['squad'])} / 15</span>
+                                 <span class="status-badge" style="background: rgba(0, 204, 255, 0.1); color: #00CCFF;">{len(p['squad'])} / 19</span>
                              </div>
                          </div>
                          """, unsafe_allow_html=True)
@@ -686,7 +686,7 @@ def render_live_auction_fragment(room_code, user):
                          budget_val = p.get('budget', 0)
                          # Progress bar (Green to Blue gradient via CSS)
                          st.progress(min(1.0, max(0.0, budget_val / 100.0)))
-                         st.caption(f"💰 **{budget_val}M** Left | 🦅 {len(p['squad'])} / 15 Players")
+                         st.caption(f"💰 **{budget_val}M** Left | 🦅 {len(p['squad'])} / 19 Players")
 
                  st.markdown("---")
                  st.caption("📋 **Detailed Squad View**")
