@@ -597,6 +597,40 @@ def show_main_app():
                 st.sidebar.success("Room data reset!")
                 st.rerun()
             
+            # Backup & Restore
+            st.sidebar.divider()
+            with st.sidebar.expander("💾 Backup & Restore"):
+                st.caption("Download a backup to save locally. Upload to restore if data is wiped.")
+                
+                # Download
+                json_str = json.dumps(auction_data, indent=2)
+                st.download_button(
+                    label="⬇️ Download Backup",
+                    data=json_str,
+                    file_name=f"auction_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                    mime="application/json",
+                    key="backup_dl_btn"
+                )
+                
+                # Upload
+                uploaded_file = st.file_uploader("Restore Data", type="json", key="restore_uploader")
+                if uploaded_file is not None:
+                    if st.button("⚠️ Confirm Restore", type="primary", key="restore_confirm"):
+                        try:
+                            restored_data = json.load(uploaded_file)
+                            # Basic validation: Must include 'rooms'
+                            if "rooms" in restored_data:
+                                # Overwrite data
+                                save_auction_data(restored_data)
+                                st.success("✅ Data Restored! Reloading...")
+                                import time
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("Invalid File: Missing 'rooms' key.")
+                        except Exception as e:
+                            st.error(f"Restore Failed: {e}")
+            
             # Toggle Big Auction Complete
             big_auction_done = room.get('big_auction_complete', False)
             if st.sidebar.checkbox("Big Auction Complete", value=big_auction_done):
