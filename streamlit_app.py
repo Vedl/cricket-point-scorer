@@ -478,7 +478,40 @@ def render_live_auction_fragment(room_code, user):
     # players_db is global
     is_admin = room['admin'] == user
     
+    # Get all teams from players
+    teams_with_players = {}
+    for player in players_db:
+        team = player.get('country', 'Unknown')
+        if team not in teams_with_players:
+            teams_with_players[team] = []
+        teams_with_players[team].append(player)
+        
+    # Get Draft Status
+    all_drafted_players = set()
+    for p in room.get('participants', []):
+        for pl in p['squad']:
+            all_drafted_players.add(pl['name'])
+
     st.subheader("🔴 Live Auction")
+    
+    # Feature: View Real World Squads
+    with st.expander("🌏 View World Cup Squads (Reference)"):
+        all_teams_list = sorted(list(teams_with_players.keys()))
+        view_team = st.selectbox("Select Team", all_teams_list, key="view_real_squad_select")
+        if view_team:
+            t_players = teams_with_players[view_team]
+            # Create DF
+            t_data = []
+            for tp in t_players:
+                status = "✅ Taken" if tp['name'] in all_drafted_players else "Popcorn" # Wait, "Available"?
+                # Status: Taken or Available
+                status = "🔴 Taken" if tp['name'] in all_drafted_players else "🟢 Available"
+                t_data.append({
+                    "Player": tp['name'],
+                    "Role": tp.get('role', '-'),
+                    "Status": status
+                })
+            st.dataframe(pd.DataFrame(t_data), hide_index=True, use_container_width=True)
     
     if room.get('big_auction_complete'):
         st.success("✅ Big Auction is complete! Use 'Open Bidding' tab to bid on unsold players.")
@@ -488,19 +521,9 @@ def render_live_auction_fragment(room_code, user):
         # Live auction state
         live_auction = room.get('live_auction', {})
         
-        # Get all teams from players
-        teams_with_players = {}
-        for player in players_db:
-            team = player.get('country', 'Unknown')
-            if team not in teams_with_players:
-                teams_with_players[team] = []
-            teams_with_players[team].append(player)
         
-        # Filter out already drafted players
-        all_drafted_players = set()
-        for p in room['participants']:
-            for pl in p['squad']:
-                all_drafted_players.add(pl['name'])
+        # Get all teams from players (Already loaded at top)
+        # Filter out already drafted players (Already loaded at top)
         
         if not live_auction.get('active'):
             if is_admin:
