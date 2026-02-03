@@ -94,14 +94,20 @@ def format_player_name(name):
     return f"{name} ({info.get('role', 'N/A')} - {info.get('country', 'N/A')})"
 
 # --- CUSTOM CSS FOR PREMIUM BROADCASTER LOOK ---
+# --- CUSTOM CSS FOR ELECTRIC BLUE TERMINAL LOOK ---
 def inject_custom_css():
     st.markdown("""
     <style>
     /* 1. Global Reset & Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Orbitron:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Roboto+Mono:wght@400;700&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Rajdhani', sans-serif;
+    }
+    
+    /* Monospace for Numbers */
+    .stMetricValue, .money-text, .timer-text {
+        font-family: 'Roboto Mono', monospace !important;
     }
     
     /* 2. Remove default top padding */
@@ -111,97 +117,146 @@ def inject_custom_css():
         max-width: 95% !important;
     }
     
-    /* 3. Glassmorphism Containers */
-    div[data-testid="stExpander"], div[data-testid="stContainer"], .player-card {
-        background: rgba(22, 27, 34, 0.7);
-    .trade-card {
-        background: rgba(33, 38, 45, 0.6);
-        border-radius: 12px;
-        padding: 1.5rem;
-        border-left: 5px solid #58a6ff;
-        margin-bottom: 1rem;
-        backdrop-filter: blur(5px);
-        border: 1px solid #30363d;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    /* 3. Glassmorphism Containers (The "Panel" Look) */
+    div[data-testid="stExpander"], div[data-testid="stContainer"], .terminal-card {
+        background: rgba(0, 23, 43, 0.8);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 123, 255, 0.3); /* Electric Blue Border */
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
     }
-    .trade-header {
-        color: #58a6ff;
+    
+    div[data-testid="stExpander"]:hover, .terminal-card:hover {
+        border-color: #00CCFF; /* Cyan Glow on Hover */
+        box-shadow: 0 0 15px rgba(0, 204, 255, 0.2);
+    }
+    
+    /* 4. Metric Cards */
+    div[data-testid="metric-container"] {
+        background: linear-gradient(180deg, rgba(0, 43, 77, 0.9), rgba(0, 23, 43, 0.9));
+        border-top: 3px solid #007BFF;
+        padding: 15px;
+        border-radius: 6px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    
+    div[data-testid="metric-container"] label {
+        color: #00CCFF !important;
+        font-family: 'Rajdhani', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.85rem !important;
+    }
+    
+    div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+        color: #FFFFFF !important;
+        font-size: 2rem !important;
         font-weight: 700;
-        font-size: 1.15em;
-        margin-bottom: 0.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        text-shadow: 0 0 10px rgba(0, 123, 255, 0.6);
     }
-    .trade-details {
-        color: #e6edf3;
-        font-size: 1em;
-        line-height: 1.5;
+    
+    /* 5. Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #001222;
+        border-right: 1px solid #002b4d;
     }
-    .trade-sub {
-        color: #8b949e;
-        font-size: 0.8em;
-        margin-top: 0.5rem;
+    
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2 {
+        color: #00CCFF !important;
+        font-family: 'Rajdhani', sans-serif;
+        text-transform: uppercase;
     }
-
-    /* Primary Buttons */
-    div.stButton > button[kind="primary"] {
-        background: linear-gradient(90deg, #238636 0%, #2ea043 100%);
-        box-shadow: 0 4px 12px rgba(35, 134, 54, 0.4);
+    
+    /* 6. Buttons */
+    .stButton button {
+        border-radius: 4px;
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+    
+    .stButton button[kind="primary"] {
+        background: linear-gradient(90deg, #0056b3 0%, #00CCFF 100%);
+        color: white;
         border: none;
-        transition: all 0.2s;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        box-shadow: 0 6px 16px rgba(35, 134, 54, 0.6);
-        transform: translateY(-1px);
+        box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
     }
     
-    /* Secondary Buttons */
-    div.stButton > button[kind="secondary"] {
+    .stButton button[kind="primary"]:hover {
+        box-shadow: 0 0 20px rgba(0, 204, 255, 0.6);
+        transform: scale(1.02);
+    }
+    
+    .stButton button[kind="secondary"] {
         background: transparent;
-        border: 1px solid #30363d;
-        color: #c9d1d9;
-    }
-    div.stButton > button[kind="secondary"]:hover {
-        border-color: #8b949e;
-        color: #f0f6fc;
-        background: rgba(177, 186, 196, 0.1);
-    }
-
-    /* Headings */
-    h1, h2, h3 {
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        color: #f0f6fc;
+        border: 1px solid #00CCFF;
+        color: #00CCFF;
     }
     
-    /* Remove Streamlit Branding if possible (just hiding footer) */
-    footer {visibility: hidden;}
+    .stButton button[kind="secondary"]:hover {
+        background: rgba(0, 204, 255, 0.1);
+        box-shadow: 0 0 10px rgba(0, 204, 255, 0.2);
+    }
 
-    /* Login & Lobby Cards */
-    .login-header {
-        text-align: center;
-        margin-bottom: 2rem;
+    /* 7. Typography */
+    h1, h2, h3, h4 {
+        color: white;
+        font-family: 'Rajdhani', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
-    /* Tabs Styling */
+    .glow-header {
+        color: #00CCFF;
+        text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+    }
+    
+    /* 8. Progress Bars */
+    .stProgress > div > div > div > div {
+        background-image: linear-gradient(to right, #007BFF, #00CCFF);
+        border-radius: 4px;
+    }
+    
+    /* Custom Badges */
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .badge-live {
+        background: rgba(255, 0, 0, 0.2);
+        color: #ff4b4b;
+        border: 1px solid #ff4b4b;
+        box-shadow: 0 0 8px rgba(255, 75, 75, 0.4);
+    }
+    
+    /* Login & Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: transparent;
     }
     .stTabs [data-baseweb="tab"] {
         height: 50px;
-        background-color: rgba(22, 27, 34, 0.5);
-        border-radius: 8px;
+        background-color: rgba(0, 23, 43, 0.5);
+        border-radius: 4px;
         color: #8b949e;
-        border: 1px solid #30363d;
-        flex: 1; /* Equal width */
+        border: 1px solid #002b4d;
+        flex: 1;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #1f6feb !important;
+        background-color: #007BFF !important;
         color: white !important;
         border: none;
+        box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
     }
-    
     </style>
     """, unsafe_allow_html=True)
 
@@ -555,21 +610,38 @@ def render_live_auction_fragment(room_code, user):
                     st.success("All players have been drafted!")
             else:
                 # === MEMBER: WAITING SCREEN ===
-                st.markdown("### ⏳ Waiting for Auction...")
-                st.info("The admin has not started the live auction yet. Please wait.")
+                st.markdown("### 📡 MISSION CONTROL: PRE-AUCTION LOBBY")
+                st.info("The Admin is initializing the auction protocols. Stand by...")
                 
-                # Show Live Dashboard even while waiting
-                with st.expander("📊 Live Auction Dashboard (Budgets & Squads)", expanded=True):
-                     dash_data = []
-                     for p in room['participants']:
-                         dash_data.append({
-                             "Participant": p['name'],
-                             "Budget": f"{p['budget']}M",
-                             "Est. Max Bid": f"{p['budget']}M" if p['budget'] > 0 else "0M",
-                             "Squad Size": len(p['squad']),
-                             "Squad Value": f"{sum(x['buy_price'] for x in p['squad'])}M"
-                         })
-                     st.dataframe(pd.DataFrame(dash_data), hide_index=True)
+                # Show Live Dashboard (Grid View)
+                st.markdown("#### 👥 PARTICIPANT STATUS")
+                
+                # 4 Columns Grid
+                cols = st.columns(4)
+                for i, p in enumerate(room['participants']):
+                     with cols[i % 4]:
+                         # Calculate Budget %
+                         budget_pct = min(100, max(0, (p['budget'] / 350) * 100))
+                         
+                         st.markdown(f"""
+                         <div class="terminal-card" style="padding: 15px; margin-bottom: 0px; height: 100%;">
+                             <div style="font-size: 0.9rem; color: #00CCFF; font-weight: bold; margin-bottom: 5px;">{p['name']}</div>
+                             <div style="font-size: 1.8rem; color: white; font-weight: 700; font-family: 'Roboto Mono'; line-height: 1;">{p['budget']}M</div>
+                             <div style="font-size: 0.7rem; color: #8b949e; letter-spacing: 1px;">BUDGET AVAIL</div>
+                             
+                             <div style="margin-top: 10px; margin-bottom: 10px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                                 <div style="width: {budget_pct}%; height: 100%; background: linear-gradient(90deg, #007BFF, #00CCFF);"></div>
+                             </div>
+                             
+                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                 <span style="color: #8b949e;">SQUAD</span>
+                                 <span class="status-badge" style="background: rgba(0, 204, 255, 0.1); color: #00CCFF;">{len(p['squad'])} / 15</span>
+                             </div>
+                         </div>
+                         """, unsafe_allow_html=True)
+                
+                st.write("") # Spacer
+                with st.expander("📋 Detailed Squad Manifest", expanded=False):
                      
                      st.markdown("---")
                      st.caption("📋 **Detailed Squad View**")
