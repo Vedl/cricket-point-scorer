@@ -52,10 +52,14 @@ class StorageManager:
                     
                     # Cache it locally immediately (Atomic-ish)
                     try:
-                        with open(self.local_file_path, 'w') as f:
+                        with open(self.local_file_path, 'a+') as f:
                             fcntl.flock(f, fcntl.LOCK_EX)
                             try:
+                                f.truncate(0)
+                                f.seek(0)
                                 json.dump(data, f, indent=2)
+                                f.flush()
+                                os.fsync(f.fileno())
                             finally:
                                 fcntl.flock(f, fcntl.LOCK_UN)
                     except: pass
@@ -72,12 +76,14 @@ class StorageManager:
             # 1. Serialize ONCE (Thread-Safety)
             json_str = json.dumps(data, indent=2)
             
-            # 2. Local Save (Synchronous/Immediate) with LOCK_EX (Exclusive Lock)
-            with open(self.local_file_path, 'w') as f:
+            # 2. Local Save (Synchronous/Immediate) with LOCK_EX (Atomic)
+            # Use 'a+' to create if missing, but don't truncate yet
+            with open(self.local_file_path, 'a+') as f:
                 fcntl.flock(f, fcntl.LOCK_EX)
                 try:
+                    f.truncate(0)
+                    f.seek(0)
                     f.write(json_str)
-                    # Force write to disk to ensure data is safe before unlocking
                     f.flush()
                     os.fsync(f.fileno())
                 finally:
