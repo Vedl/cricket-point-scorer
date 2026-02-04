@@ -2389,8 +2389,15 @@ def show_main_app():
                 # Use locked squad if available, otherwise current squad
                 if locked_squads and participant['name'] in locked_squads:
                     squad_data = locked_squads[participant['name']]
-                    squad = squad_data['squad']
-                    ir_player = squad_data.get('ir_player')
+                    # Robustness for Legacy (List) vs New (Dict)
+                    if isinstance(squad_data, list):
+                        squad = squad_data
+                        ir_player = None # Legacy snap didn't capture IR properly
+                    else:
+                        squad = squad_data.get('squad', [])
+                        # Note: Lock Squads saves as 'injury_reserve', Participant model uses 'injury_reserve'. 
+                        # Code below used 'ir_player', likely old variable name.
+                        ir_player = squad_data.get('injury_reserve')
                 else:
                     squad = participant['squad']
                     ir_player = participant.get('ir_player')
