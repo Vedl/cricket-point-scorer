@@ -229,12 +229,9 @@ def show_room_selection():
                     "name": room_name,
                     "admin": user,
                     "members": [user],
-                    "participants": [{
-                        'name': user,
-                        'squad': [],
-                        'budget': 500,
-                        'user': user
-                    }],
+                    "members": [user],
+                    "participants": [], # Init empty, Admin must import/create/claim
+                    "gameweek_scores": {},
                     "gameweek_scores": {},
                     "created_at": get_ist_time().isoformat(),
                     # Auction System Fields
@@ -267,16 +264,9 @@ def show_room_selection():
                     room = auction_data['rooms'][join_code]
                     if user not in room['members']:
                         room['members'].append(user)
-                        # Auto-add as participant
-                        room['participants'].append({
-                            'name': user,
-                            'squad': [],
-                            'budget': 500,
-                            'user': user
-                        })
                         user_data['rooms_joined'] = user_data.get('rooms_joined', []) + [join_code]
                         save_auction_data(auction_data)
-                        st.success(f"Joined room: {room['name']} (You are now a participant!)")
+                        st.success(f"Joined room: {room['name']}")
                     st.session_state.current_room = join_code
                     st.query_params['user'] = user
                     st.query_params['room'] = join_code
