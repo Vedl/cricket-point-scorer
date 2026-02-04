@@ -1313,9 +1313,67 @@ def show_main_app():
                                            receiver['squad'].remove(p_obj)
                                            p_obj['buy_price'] = trade['price']
                                            sender['squad'].append(p_obj)
-                                           receiver['budget'] += trade['price']
                                            sender['budget'] -= trade['price']
                                            success = True
+                                   
+                                   elif trade['type'] == "Exchange":
+                                       # Sender GIVES 'give_player' and RECEIVES 'get_player'.
+                                       # Sender PAYS 'price' (net cash).
+                                       give_pl_name = trade['give_player']
+                                       get_pl_name = trade['get_player']
+                                       net_cash = trade['price']
+                                       
+                                       p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
+                                       p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                       
+                                       if p_give and p_get:
+                                           # Check budget if net_cash positive (Sender pays)
+                                           if net_cash > 0 and sender['budget'] < net_cash:
+                                               success = False
+                                           # Check budget if net_cash negative (Receiver pays)
+                                           elif net_cash < 0 and receiver['budget'] < abs(net_cash):
+                                               success = False
+                                           else:
+                                               # Execute Swap
+                                               sender['squad'].remove(p_give)
+                                               receiver['squad'].remove(p_get)
+                                               sender['squad'].append(p_get)
+                                               receiver['squad'].append(p_give)
+                                               
+                                               # Cash
+                                               sender['budget'] -= net_cash
+                                               receiver['budget'] += net_cash
+                                               success = True
+
+                                   elif trade['type'] in ["Loan Out", "Loan In"]:
+                                       # Loan Logic: Move player, but maybe mark as 'loaned'?
+                                       # For simplicity in this version, we just move them.
+                                       # Loan Out: Sender GIVES player, Receives FEE.
+                                       # Loan In: Sender TAKES player, Pays FEE.
+                                       
+                                       if trade['type'] == "Loan Out":
+                                            pl_name = trade['player']
+                                            fee = trade['price'] # Sender receives this
+                                            p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
+                                            
+                                            if p_obj and receiver['budget'] >= fee:
+                                                sender['squad'].remove(p_obj)
+                                                receiver['squad'].append(p_obj)
+                                                sender['budget'] += fee
+                                                receiver['budget'] -= fee
+                                                success = True
+
+                                       elif trade['type'] == "Loan In":
+                                            pl_name = trade['player']
+                                            fee = trade['price'] # Sender PAYS this
+                                            p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
+                                            
+                                            if p_obj and sender['budget'] >= fee:
+                                                receiver['squad'].remove(p_obj)
+                                                sender['squad'].append(p_obj)
+                                                receiver['budget'] += fee
+                                                sender['budget'] -= fee
+                                                success = True
                                    
                                    if success:
                                        room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
@@ -1333,17 +1391,19 @@ def show_main_app():
                 
                 st.divider()
                 st.subheader("Send Proposal")
-                # Minimal Propose UI
+                
                 parts = [p['name'] for p in room['participants']]
                 to_p_name = st.selectbox("Offer To", [x for x in parts if x != my_p_name], key="tp_to")
-                t_type = st.radio("Type", ["Transfer (Buy)", "Transfer (Sell)"], horizontal=True, key="tp_type_simple")
                 
-                # Simple logic for proposal
-                if t_type == "Transfer (Sell)":
-                    my_part = next((p for p in room['participants'] if p['name'] == my_p_name), None)
-                    if my_part:
-                        pl = st.selectbox("Player", [p['name'] for p in my_part['squad']], key="sell_pl")
-                        pr = st.number_input("Price", 1, 500, 10, key="sell_pr")
+                t_type = st.radio("Type", ["Transfer (Buy)", "Transfer (Sell)", "Exchange", "Loan"], horizontal=True, key="tp_type_simple")
+                
+                my_part = next((p for p in room['participants'] if p['name'] == my_p_name), None)
+                their_part = next((p for p in room['participants'] if p['name'] == to_p_name), None)
+                
+                if my_part and their_part:
+                    if t_type == "Transfer (Sell)":
+                        pl = st.selectbox("Player to Sell", [p['name'] for p in my_part['squad']], key="sell_pl")
+                        pr = st.number_input("Selling Price", 1, 500, 10, key="sell_pr")
                         if st.button("Send Offer"):
                             room['pending_trades'].append({
                                 'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
@@ -1351,22 +1411,70 @@ def show_main_app():
                                 'created_at': get_ist_time().isoformat()
                             })
                             save_auction_data(auction_data)
-                            st.success("Sent!")
+                            st.success("Proposal Sent!")
                             st.rerun()
-                elif t_type == "Transfer (Buy)":
-                    their_part = next((p for p in room['participants'] if p['name'] == to_p_name), None)
-                    if their_part:
-                         pl = st.selectbox("Player", [p['name'] for p in their_part['squad']], key="buy_pl")
-                         pr = st.number_input("Price", 1, 500, 10, key="buy_pr")
-                         if st.button("Send Offer"):
+
+                    elif t_type == "Transfer (Buy)":
+                        pl = st.selectbox("Player to Buy", [p['name'] for p in their_part['squad']], key="buy_pl")
+                        pr = st.number_input("Offer Price", 1, 500, 10, key="buy_pr")
+                        if st.button("Send Offer"):
                             room['pending_trades'].append({
                                 'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
                                 'type': t_type, 'player': pl, 'price': pr,
                                 'created_at': get_ist_time().isoformat()
                             })
                             save_auction_data(auction_data)
-                            st.success("Sent!")
+                            st.success("Proposal Sent!")
                             st.rerun()
+                            
+                    elif t_type == "Exchange":
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            give_pl = st.selectbox("You Give", [p['name'] for p in my_part['squad']], key="exch_give")
+                        with c2:
+                            get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad']], key="exch_get")
+                        
+                        net_cash = st.number_input("Net Cash Payment (from You to Them)", -500, 500, 0, help="Positive: You pay them. Negative: They pay you.")
+                        
+                        if st.button("Send Exchange Offer"):
+                            room['pending_trades'].append({
+                                'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                'type': t_type, 
+                                'give_player': give_pl,
+                                'get_player': get_pl,
+                                'price': net_cash,
+                                'created_at': get_ist_time().isoformat()
+                            })
+                            save_auction_data(auction_data)
+                            st.success("Exchange Proposal Sent!")
+                            st.rerun()
+
+                    elif t_type == "Loan":
+                        loan_dir = st.radio("Direction", ["Loan Out (You Give)", "Loan In (You Get)"], horizontal=True)
+                        if loan_dir == "Loan Out (You Give)":
+                            pl = st.selectbox("Player to Loan Out", [p['name'] for p in my_part['squad']], key="loan_out_pl")
+                            fee = st.number_input("Loan Fee (They pay you)", 0, 100, 0, key="loan_fee_out")
+                            if st.button("Offer Loan"):
+                                room['pending_trades'].append({
+                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                    'type': "Loan Out", 'player': pl, 'price': fee,
+                                    'created_at': get_ist_time().isoformat()
+                                })
+                                save_auction_data(auction_data)
+                                st.success("Loan Offer Sent!")
+                                st.rerun()
+                        else:
+                            pl = st.selectbox("Player to Loan In", [p['name'] for p in their_part['squad']], key="loan_in_pl")
+                            fee = st.number_input("Loan Fee (You pay them)", 0, 100, 0, key="loan_fee_in")
+                            if st.button("Request Loan"):
+                                room['pending_trades'].append({
+                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                    'type': "Loan In", 'player': pl, 'price': fee,
+                                    'created_at': get_ist_time().isoformat()
+                                })
+                                save_auction_data(auction_data)
+                                st.success("Loan Request Sent!")
+                                st.rerun()
 
         # ================ TAB 3: SQUADS DASHBOARD ================
         with squad_tabs[2]:
