@@ -2504,36 +2504,81 @@ def show_main_app():
             # Calculate standings
             standings = []
             
-            # Get locked squads if viewing by gameweek
-            locked_squads = {}
-            if view_mode == "By Gameweek" and selected_gw:
-                locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
-            
-            for participant in room['participants']:
-                # Use locked squad if available, otherwise current squad
-                if locked_squads and participant['name'] in locked_squads:
-                    squad_data = locked_squads[participant['name']]
-                    # Robustness for Legacy (List) vs New (Dict)
-                    if isinstance(squad_data, list):
-                        squad = squad_data
-                        ir_player = None # Legacy snap didn't capture IR properly
-                    else:
-                        squad = squad_data.get('squad', [])
-                        # Note: Lock Squads saves as 'injury_reserve', Participant model uses 'injury_reserve'. 
-                        # Code below used 'ir_player', likely old variable name.
-                        ir_player = squad_data.get('injury_reserve')
-                else:
-                    squad = participant['squad']
-                    ir_player = participant.get('ir_player')
+            if view_mode == "By Gameweek":
+                # === SINGLE GAMEWEEK VIEW ===
+                # Logic: Use locked squad for this GW (if available) or current script.
+                if selected_gw:
+                    # gw_scores already set above
+                    locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
+                    
+                    for participant in room['participants']:
+                        p_name = participant['name']
+                        
+                        # Resolve Squad
+                        squad_data = locked_squads.get(p_name)
+                        if squad_data:
+                            if isinstance(squad_data, list):
+                                squad = squad_data
+                                ir_player = None
+                            else:
+                                squad = squad_data.get('squad', [])
+                                ir_player = squad_data.get('injury_reserve')
+                        else:
+                            squad = participant['squad']
+                            ir_player = participant.get('injury_reserve')
+                        
+                        best_11, warnings = get_best_11(squad, gw_scores, ir_player)
+                        total_points = sum(p['score'] for p in best_11)
+                        
+                        standings.append({
+                            "Participant": p_name,
+                            "Points": total_points,
+                            "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "...",
+                            "Warnings": " ".join(warnings) if warnings else "OK"
+                        })
+
+            else:
+                # === OVERALL CUMULATIVE VIEW ===
+                # Logic: Sum of (Score for GW_i using Squad_Locked_at_GW_i)
+                # Correctly accounts for transfers/loans over time.
                 
-                best_11, warnings = get_best_11(squad, gw_scores, ir_player)
-                total_points = sum(p['score'] for p in best_11)
-                standings.append({
-                    "Participant": participant['name'],
-                    "Points": total_points,
-                    "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "...",
-                    "Warnings": " ".join(warnings) if warnings else "OK"
-                })
+                p_totals = {p['name']: 0 for p in room['participants']}
+                p_details = {p['name']: [] for p in room['participants']} # Store top players per GW
+                
+                # Iterate ALL processed gameweeks
+                for gw, scores in room.get('gameweek_scores', {}).items():
+                     locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
+                     
+                     for participant in room['participants']:
+                        p_name = participant['name']
+                        
+                        # Resolve Squad for THIS specific GW
+                        squad_data = locked_squads.get(p_name)
+                        if squad_data:
+                            if isinstance(squad_data, list):
+                                squad = squad_data
+                                ir_player = None
+                            else:
+                                squad = squad_data.get('squad', [])
+                                ir_player = squad_data.get('injury_reserve')
+                        else:
+                            # Fallback: Use current squad if snapshot missing? 
+                            # Better to use current as best-effort than 0.
+                            squad = participant['squad']
+                            ir_player = participant.get('injury_reserve')
+                        
+                        best_11, warnings = get_best_11(squad, scores, ir_player)
+                        gw_points = sum(p['score'] for p in best_11)
+                        p_totals[p_name] += gw_points
+                        
+                # Build Table
+                for p_name, total in p_totals.items():
+                    standings.append({
+                        "Participant": p_name,
+                        "Points": total,
+                        "Best 11": "Cumulative Score", 
+                        "Warnings": "OK"
+                    })
             
             standings.sort(key=lambda x: x['Points'], reverse=True)
             
