@@ -1373,7 +1373,20 @@ def show_main_app():
                     for trade in my_incoming:
                         with st.container():
                             player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
-                            st.write(f"From **{trade['from']}**: {trade['type']} - {player_info} | **Price: {trade['price']}M**")
+                            
+                            # Format Price String
+                            p_val = trade.get('price', 0)
+                            if trade['type'] == 'Exchange':
+                                if p_val > 0:
+                                    price_str = f"💰 You Receive: {p_val}M"
+                                elif p_val < 0:
+                                    price_str = f"💸 You Pay: {abs(p_val)}M"
+                                else:
+                                    price_str = "No Cash"
+                            else:
+                                price_str = f"Price: {p_val}M"
+
+                            st.write(f"From **{trade['from']}**: {trade['type']} - {player_info} | **{price_str}**")
                             c1, c2 = st.columns(2)
                             if c1.button("✅ Accept", key=f"acc_{trade['id']}"):
                                 sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
