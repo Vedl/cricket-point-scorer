@@ -1605,20 +1605,37 @@ def show_main_app():
                         with c2:
                             get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad']], key="exch_get")
                         
-                        net_cash = st.number_input("Net Cash Payment (from You to Them)", -500, 500, 0, help="Positive: You pay them. Negative: They pay you.")
+                        cash_dir = st.radio("Cash Adjustment", ["No Cash Involved", "I Pay Them (Extra Cash)", "They Pay Me (Extra Cash)"], horizontal=True)
+                        
+                        net_cash = 0
+                        if cash_dir == "I Pay Them (Extra Cash)":
+                            amt = st.number_input("Amount you pay", 1, 500, 10, key="exch_pay_out")
+                            net_cash = amt
+                        elif cash_dir == "They Pay Me (Extra Cash)":
+                            amt = st.number_input("Amount they pay", 1, 500, 10, key="exch_pay_in")
+                            net_cash = -amt
                         
                         if st.button("Send Exchange Offer"):
-                            room['pending_trades'].append({
-                                'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                'type': t_type, 
-                                'give_player': give_pl,
-                                'get_player': get_pl,
-                                'price': net_cash,
-                                'created_at': get_ist_time().isoformat()
-                            })
-                            save_auction_data(auction_data)
-                            st.success("Exchange Proposal Sent!")
-                            st.rerun()
+                            # Check Duplicate
+                            is_dup = any(t for t in room['pending_trades'] 
+                                         if t['from'] == my_p_name and t['to'] == to_p_name 
+                                         and t['type'] == t_type and t.get('give_player') == give_pl
+                                         and t.get('get_player') == get_pl and t.get('price') == net_cash)
+                            
+                            if is_dup:
+                                st.error("Duplicate Exchange Offer already sent.")
+                            else:
+                                room['pending_trades'].append({
+                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                    'type': t_type, 
+                                    'give_player': give_pl,
+                                    'get_player': get_pl,
+                                    'price': net_cash,
+                                    'created_at': get_ist_time().isoformat()
+                                })
+                                save_auction_data(auction_data)
+                                st.success("Exchange Proposal Sent!")
+                                st.rerun()
 
                     elif t_type == "Loan":
                         loan_dir = st.radio("Direction", ["Loan Out (You Give)", "Loan In (You Get)"], horizontal=True)
