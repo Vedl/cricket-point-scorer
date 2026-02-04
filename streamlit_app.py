@@ -909,23 +909,58 @@ def show_main_app():
     
     is_admin = room['admin'] == user
     
-    # Auto-enroll existing members as participants if missing (Retroactive Fix)
-    member_added = False
-    participant_names = {p.get('user', p['name']) for p in room['participants']}
+    # === TEAM ASSIGNMENT LOGIC (Auto-Match or Claim) ===
+    # 1. Check if user is already managing a team
+    my_p = next((p for p in room['participants'] if p.get('user') == user), None)
     
-    for member in room['members']:
-        if member not in participant_names:
-            room['participants'].append({
-                'name': member,
-                'squad': [],
-                'budget': 500,
-                'user': member
-            })
-            member_added = True
-    
-    if member_added:
-        save_auction_data(auction_data)
-        st.toast("Updated participant list with existing room members.")
+    if not my_p:
+        # 2. Try Auto-Match (Username == Participant Name)
+        # Look for UNCLAIMED participant with exact name match
+        auto_match = next((p for p in room['participants'] if p['name'] == user and p.get('user') is None), None)
+        
+        if auto_match:
+            auto_match['user'] = user
+            save_auction_data(auction_data)
+            st.toast(f"✅ Recognized you as **{auto_match['name']}**. Auto-assigned!")
+            time.sleep(1)
+            st.rerun()
+            return
+
+        # 3. If still no team, FORCE CLAIM (Blocking UI)
+        # Check for any unclaimed teams
+        unclaimed = [p['name'] for p in room['participants'] if p.get('user') is None]
+        
+        if unclaimed:
+            st.container().warning(f"👋 Welcome, **{user}**! You are not linked to a team yet.")
+            st.markdown("### 🛡️ Claim Your Squad")
+            st.info("You must join one of the generated teams to continue.")
+            
+            selected_team = st.selectbox("Select which team belongs to you:", unclaimed, key="force_claim_sel")
+            
+            if st.button("🚀 Join Team & Enter Room", type="primary"):
+                p_claim = next((p for p in room['participants'] if p['name'] == selected_team), None)
+                if p_claim:
+                    p_claim['user'] = user
+                    save_auction_data(auction_data)
+                    st.success(f"Successfully joined as **{selected_team}**!")
+                    st.rerun()
+            
+            st.image("https://media.giphy.com/media/l0HlHFRbmaX9ivvWw/giphy.gif", width=300) # Optional fun element
+            return # BLOCK ACCESS until claimed
+        else:
+            # OPTIONAL: If no unclaimed teams left, maybe let them be a generic viewer or create a new team?
+            # For now, we assume they must be one of the imported teams.
+            if is_admin:
+                st.warning("⚠️ You are Admin but not linked to a team. You can manage the room below.")
+            else:
+                st.error("🔒 Room is full or all teams are claimed. Please ask Admin.")
+                if st.button("Refresh"): st.rerun()
+                return
+
+    # If we get here, 'my_p' is valid (or user is Admin bypassing check, though Admin usually has a team too)
+    if my_p:
+        # Update session for display if needed
+        pass
     
     # --- Sidebar ---
     st.sidebar.title(f"🏏 {room['name']}")
