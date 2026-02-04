@@ -1549,9 +1549,10 @@ def show_main_app():
                                         options=valid_parts + ["UNKNOWN"],
                                         required=True
                                     ),
-                                    "Player (DB)": st.column_config.TextColumn(
+                                    "Player (DB)": st.column_config.SelectboxColumn(
                                         "Player Name (DB)",
-                                        help="Must match Database exactly",
+                                        help="Select the valid player from Database",
+                                        options=sorted(player_names),
                                         required=True,
                                         width="large"
                                     )
@@ -1563,15 +1564,23 @@ def show_main_app():
                             
                             if st.button("✅ Confirm & Import Squads", type="primary"):
                                 success = 0
+                                import time
+                                
+                                # Prepare Unsold List if not present
+                                if 'unsold_players' not in room:
+                                    # If missing, init with all players minus those in squads (expensive but safe)
+                                    all_owned = [pl['name'] for p in room['participants'] for pl in p['squad']]
+                                    room['unsold_players'] = [p for p in player_names if p not in all_owned]
+                                
                                 for _, row in edited_df.iterrows():
                                     p_curr = row['Participant (Matched)']
-                                    if p_curr == "UNKNOWN": continue
+                                    pl_name = row['Player (DB)']
+                                    
+                                    if p_curr == "UNKNOWN" or not pl_name: continue
                                     
                                     # Add to Participant
                                     part_obj = next((p for p in room['participants'] if p['name'] == p_curr), None)
                                     if part_obj:
-                                        pl_name = row['Player (DB)']
-                                        
                                         # Dedupe
                                         if any(x['name'] == pl_name for x in part_obj['squad']): continue
                                         
@@ -1585,6 +1594,11 @@ def show_main_app():
                                             'team': info.get('country', 'Unknown')
                                         })
                                         part_obj['budget'] -= row['Price']
+                                        
+                                        # Remove from Unsold Pool
+                                        if pl_name in room['unsold_players']:
+                                            room['unsold_players'].remove(pl_name)
+                                            
                                         success += 1
                                 
                                 save_auction_data(auction_data)
