@@ -1689,6 +1689,7 @@ def show_main_app():
                                         room['participants'].append(new_p)
                                         new_parts_created.append(p_raw)
                                 if new_parts_created:
+                                    save_auction_data(auction_data)
                                     st.toast(f"Created Auto-Teams: {', '.join(new_parts_created)}")
 
                                 # Fuzzy Match Logic (Run ONCE during parse)
