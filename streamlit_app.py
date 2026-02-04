@@ -1453,7 +1453,16 @@ def show_main_app():
                     st.info("No incoming proposals.")
                 
                 st.divider()
-                st.subheader("Send Proposal")
+                # Check Trading Deadline
+                trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
+                is_trading_locked = False
+                
+                if trading_deadline and now > trading_deadline:
+                    st.error(f"🔒 Trading is CLOSED for this Gameweek (Deadline + 30m passed: {trading_deadline.strftime('%H:%M')})")
+                    is_trading_locked = True
+                
+                if not is_trading_locked:
+                    st.subheader("Send Proposal")
                 
                 parts = [p['name'] for p in room['participants']]
                 to_p_name = st.selectbox("Offer To", [x for x in parts if x != my_p_name], key="tp_to")
@@ -1600,6 +1609,7 @@ def show_main_app():
                 team_to_knockout = st.selectbox("Select team to knockout", active_teams)
                 
                 col1, col2 = st.columns(2)
+                # ... existing columns ...
                 with col1:
                     if st.button("🚫 Knockout Team"):
                         room.setdefault('knocked_out_teams', []).append(team_to_knockout)
@@ -1617,6 +1627,33 @@ def show_main_app():
                             st.rerun()
                                 
             st.divider()
+
+            st.divider()
+            
+            # === ADMIN DEADLINE SETTER ===
+            st.markdown("### ⏰ Set Gameweek Deadline")
+            st.info("This deadline controls Bidding Phases and Trading Locks.")
+            
+            # Default to now + 24h if not set
+            current_dl_str = room.get('bidding_deadline')
+            if current_dl_str:
+                curr_dl = datetime.fromisoformat(current_dl_str)
+            else:
+                curr_dl = get_ist_time() + timedelta(days=1)
+            
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                new_date = st.date_input("Deadline Date", curr_dl.date())
+            with col_d2:
+                new_time = st.time_input("Deadline Time", curr_dl.time())
+                
+            if st.button("💾 Set Deadline", type="primary"):
+                final_dt = datetime.combine(new_date, new_time)
+                room['bidding_deadline'] = final_dt.isoformat()
+                save_auction_data(auction_data)
+                st.success(f"Deadline updated to: {final_dt.strftime('%b %d, %H:%M')}")
+                st.rerun()
+            
             st.divider()
             st.subheader("📥 Bulk Squad Import (CSV with Staging)")
             
