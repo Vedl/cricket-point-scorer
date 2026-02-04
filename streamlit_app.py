@@ -57,22 +57,21 @@ def get_ist_time():
 storage_mgr = StorageManager(AUCTION_DATA_FILE)
 
 # --- Load/Save Functions for Persistence ---
-# Use a short TTL cache to prevent flooding JSONBin with requests from multiple users
-@st.cache_data(ttl=2, show_spinner=False)
+# Removed st.cache_data to ensure we always get fresh data from disk
+# The local file read is fast enough (ms) and this prevents stale state bugs.
 def get_cached_auction_data(_mgr_dummy_arg):
-    # _mgr_dummy_arg is a hack to allow caching if manager object isn't hashable, 
-    # but storage_mgr is global here. simpler to just call global.
     return storage_mgr.load_data()
 
 def load_auction_data():
-    """Load auction data with caching."""
+    """Load auction data directly."""
     return get_cached_auction_data("global_key")
 
 def save_auction_data(data):
     """Save auction data to Storage Manager (Remote + Local)."""
     storage_mgr.save_data(data)
-    # Clear cache so next read gets fresh data
-    get_cached_auction_data.clear()
+    storage_mgr.save_data(data)
+    # Cache clearing no longer needed as we don't cache
+    # get_cached_auction_data.clear()
 
 @st.cache_data
 def load_players_database():
