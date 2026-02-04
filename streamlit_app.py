@@ -2375,7 +2375,8 @@ def show_main_app():
                     return best_team, []
                 else:
                     # Fallback to top 11 if no valid team
-                    return scored_players[:11], ["⚠️ Could not satisfy role constraints (WK:1-3, BAT:1-4, AR:2-6, BWL:3-4). Showed top scorers instead."]
+                    range_str = ", ".join([f"{k}:{v[0]}-{v[1]}" for k, v in valid_ranges.items()])
+                    return scored_players[:11], [f"⚠️ Could not satisfy role constraints ({range_str}). Showed top scorers instead."]
             
             # Calculate standings
             standings = []
