@@ -2,6 +2,8 @@ import json
 import os
 import requests
 import streamlit as st
+import threading
+import fcntl
 
 class StorageManager:
     def __init__(self, local_file_path):
@@ -17,9 +19,7 @@ class StorageManager:
             }
             self.url = f"https://api.jsonbin.io/v3/b/{self.bin_id}"
 
-    import threading
-    import fcntl
-    
+
     def load_data(self):
         """Load data: Prefer Local File (Speed), Fallback to Remote (Backup). Uses File Locking."""
         # 1. Try Local File (Fast Cache) with LOCK_SH (Shared Lock) for Reading
