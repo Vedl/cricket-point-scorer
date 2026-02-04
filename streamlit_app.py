@@ -1307,18 +1307,24 @@ def show_main_app():
                             player_country = player_country_lookup.get(player_to_remove, 'Unknown')
                             is_knocked_out_team = player_country in knocked_out_teams
                             
-                            if current_gw == 0:
+                            is_knocked_out_team = player_country in knocked_out_teams
+                            
+                            # Release Logic Check
+                            # 1. Before Deadline (or GW0) -> Unlimited 50% Refund
+                            is_pre_deadline = (global_deadline and now < global_deadline)
+                            
+                            if is_pre_deadline:
                                 release_type = "unlimited"
-                                st.markdown("**🔄 Release Player (Before GW1 - 50% Refund)**")
-                            elif is_knocked_out_team and current_gw >= 5:
+                                st.markdown("**🔄 Pre-Deadline Release (Unlimited - 50% Refund)**")
+                            elif is_knocked_out_team:
                                 release_type = "knockout_free"
-                                st.markdown("**🔄 Release Player (Knocked-Out Team - FREE 50%)**")
+                                st.markdown("**🔄 Knocked-Out Team Release (Exempt - 50% Refund)**")
                             elif not used_paid_this_gw:
                                 release_type = "paid"
-                                st.markdown(f"**🔄 Release Player (GW{current_gw} - Paid 50%)**")
+                                st.markdown(f"**🔄 Release Player (Paid Attempt 1/1 - 50% Refund)**")
                             else:
                                 release_type = "free"
-                                st.markdown(f"**🔄 Release Player (GW{current_gw} - Free 0%)**")
+                                st.markdown(f"**🔄 Release Player (Free Release - 0% Refund)**")
                             
                             if release_type in ["unlimited", "paid", "knockout_free"]:
                                 refund_amount = int(math.ceil(player_obj.get('buy_price', 0) / 2))
@@ -1657,6 +1663,49 @@ def show_main_app():
         st.markdown("View match schedule and gameweek data.")
         if not is_admin:
             st.info(f"👑 **Admin:** {room['admin']} (Only admin can process scores)")
+        
+        # === GAMEWEEK CONTROL CENTER ===
+        if is_admin:
+            st.divider()
+            st.subheader("⚔️ Gameweek Control Center")
+            curr_gw = room.get('current_gameweek', 1)
+            st.metric("Current Gameweek", f"GW {curr_gw}")
+            
+            c_gw1, c_gw2 = st.columns(2)
+            with c_gw1:
+                # Lock Squads
+                if st.button(f"🔒 Lock Squads for GW{curr_gw}"):
+                    # Save snapshot
+                    snap = {p['name']: [x.copy() for x in p['squad']] for p in room['participants']}
+                    room.setdefault('gameweek_squads', {})[str(curr_gw)] = snap
+                    save_auction_data(auction_data)
+                    st.success(f"Squads locked for GW{curr_gw}!")
+            
+            with c_gw2:
+                # Advance GW
+                if st.button(f"⏩ Start Gameweek {curr_gw + 1}"):
+                    room['current_gameweek'] = curr_gw + 1
+                    # Reset paid releases for new GW
+                    for p in room['participants']:
+                        p['paid_releases'] = {} 
+                    save_auction_data(auction_data)
+                    st.success(f"Started Gameweek {curr_gw + 1}!")
+                    st.rerun()
+
+            # ONE TIME BOOST (GW1 -> GW2)
+            if curr_gw == 1 or curr_gw == 2:
+                st.info("Special Actions")
+                if not room.get('gw2_boost_given'):
+                    if st.button("💰 Grant 100M Budget Boost (GW1 -> GW2)"):
+                        for p in room['participants']:
+                            p['budget'] = p.get('budget', 0) + 100
+                        room['gw2_boost_given'] = True
+                        save_auction_data(auction_data)
+                        st.balloons()
+                        st.success("Everyone received +100M!")
+                        st.rerun()
+                else:
+                    st.success("✅ 100M Boost has been granted.")
         
         # Knocked-out Teams Admin (for Super 8s and beyond)
         if is_admin:
