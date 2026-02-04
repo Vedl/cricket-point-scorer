@@ -1307,7 +1307,7 @@ def show_main_app():
                             player_country = player_country_lookup.get(player_to_remove, 'Unknown')
                             is_knocked_out_team = player_country in knocked_out_teams
                             
-                            is_knocked_out_team = player_country in knocked_out_teams
+
                             
                             # Release Logic Check
                             # 1. Before Deadline (or GW0) -> Unlimited 50% Refund
