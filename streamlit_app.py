@@ -1929,46 +1929,112 @@ def show_main_app():
             st.caption("Format: Participant Name, Player Name, Price (One per line)")
             import_text = st.text_area("Paste CSV Data", height=150, placeholder="Ladda CC, Virat Kohli, 15\nTeam B, Rohit Sharma, 12")
             if st.button("Run Import"):
-                lines = [l.strip() for l in import_text.split('\n') if l.strip()]
+                lines = [l for l in import_text.split('\n') if l.strip()]
                 added_count = 0
                 errors_log = []
                 
-                for line in lines:
-                    parts = [p.strip() for p in line.split(',')]
-                    if len(parts) >= 2:
-                        p_name = parts[0]
-                        pl_name = parts[1]
-                        price = float(parts[2]) if len(parts) > 2 else 0
+                if not lines:
+                    st.error("No data found.")
+                else:
+                    # --- MODE CHECK: Grid (TSV) or List (CSV)? ---
+                    first_line = lines[0]
+                    is_grid = '\t' in first_line
+                    
+                    if is_grid:
+                        # === GRID MODE (Spreadsheet Copy-Paste) ===
+                        # Row 0 = Headers (Participant Names)
+                        headers = first_line.split('\t')
                         
-                        # Find Participant
-                        participant = next((p for p in room['participants'] if p['name'].lower() == p_name.lower()), None)
-                        if participant:
-                            # Check if player already in squad
-                            if any(s['name'] == pl_name for s in participant['squad']):
-                                pass # Already exists
-                            else:
-                                # Find Player Role/Team from DB
-                                info = player_info_map.get(pl_name, {})
-                                participant['squad'].append({
-                                    'name': pl_name,
-                                    'role': info.get('role', 'Unknown'),
-                                    'active': True,
-                                    'buy_price': price,
-                                    'team': info.get('country', 'Unknown')
-                                })
-                                participant['budget'] -= price
-                                added_count += 1
+                        # Map Col Index -> Participant Object
+                        col_map = {}
+                        for idx, h in enumerate(headers):
+                            if h.strip():
+                                # Find matching participant
+                                p_obj = next((p for p in room['participants'] if p['name'].lower() == h.strip().lower()), None)
+                                if p_obj:
+                                    col_map[idx] = p_obj
+                        
+                        if not col_map:
+                            errors_log.append("No valid participant names found in header row.")
                         else:
-                            errors_log.append(f"Participant not found: {p_name}")
+                            # Iterate Data Rows (Skip Header)
+                            for line in lines[1:]:
+                                cols = line.split('\t')
+                                # We iterate distinct participant columns found in header
+                                # Assuming structure: [Player Name] [Price] [Player Name] [Price] ...
+                                # Actually, checking the image: "Adnan" is Col A. "Ladda" is Col C.
+                                # The header for Price is often empty or labeled "Price".
+                                # Strategy: For each identified participant at Col X, read Col X (Player) and Col X+1 (Price).
+                                
+                                for col_idx, participant in col_map.items():
+                                    if col_idx < len(cols):
+                                        player_val = cols[col_idx].strip()
+                                        
+                                        # Skip empty cells
+                                        if not player_val: continue
+                                        
+                                        # Get Price from next col if exists
+                                        price_val = 0
+                                        if col_idx + 1 < len(cols):
+                                            try:
+                                                p_str = cols[col_idx + 1].strip().replace(',','')
+                                                if p_str and p_str[0].isdigit(): # basic check
+                                                    price_val = float(p_str)
+                                            except: pass
+                                        
+                                        # ADD PLAYER LOGIC
+                                        if any(s['name'] == player_val for s in participant['squad']):
+                                            pass # Exists
+                                        else:
+                                            info = player_info_map.get(player_val, {})
+                                            participant['squad'].append({
+                                                'name': player_val,
+                                                'role': info.get('role', 'Unknown'),
+                                                'active': True,
+                                                'buy_price': price_val,
+                                                'team': info.get('country', 'Unknown')
+                                            })
+                                            participant['budget'] -= price_val
+                                            added_count += 1
+                    
                     else:
-                        errors_log.append(f"Invalid format: {line}")
-                
-                save_auction_data(auction_data)
-                st.success(f"Imported {added_count} players!")
-                if errors_log:
-                    with st.expander("Import Errors"):
-                        for e in errors_log: st.write(e)
-                st.rerun()
+                        # === LIST MODE (CSV: P_Name, Player, Price) ===
+                        for line in lines:
+                            parts = [p.strip() for p in line.split(',')]
+                            if len(parts) >= 2:
+                                p_name = parts[0]
+                                pl_name = parts[1]
+                                price = float(parts[2]) if len(parts) > 2 else 0
+                                
+                                # Find Participant
+                                participant = next((p for p in room['participants'] if p['name'].lower() == p_name.lower()), None)
+                                if participant:
+                                    # Check if player already in squad
+                                    if any(s['name'] == pl_name for s in participant['squad']):
+                                        pass # Already exists
+                                    else:
+                                        # Find Player Role/Team from DB
+                                        info = player_info_map.get(pl_name, {})
+                                        participant['squad'].append({
+                                            'name': pl_name,
+                                            'role': info.get('role', 'Unknown'),
+                                            'active': True,
+                                            'buy_price': price,
+                                            'team': info.get('country', 'Unknown')
+                                        })
+                                        participant['budget'] -= price
+                                        added_count += 1
+                                else:
+                                    errors_log.append(f"Participant not found: {p_name}")
+                            else:
+                                errors_log.append(f"Invalid format: {line}")
+                    
+                    save_auction_data(auction_data)
+                    st.success(f"Imported {added_count} players!")
+                    if errors_log:
+                        with st.expander("Import Errors"):
+                            for e in errors_log: st.write(e)
+            st.rerun()
         st.divider()
         
         # Two tabs: Schedule-based and Manual
