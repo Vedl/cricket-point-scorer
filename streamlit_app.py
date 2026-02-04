@@ -941,7 +941,7 @@ def show_main_app():
     
     # Navigation
     st.sidebar.divider()
-    page = st.sidebar.radio("Navigation", ["📊 Calculator", "🎯 Auction Room", "📅 Schedule & Admin", "🏆 Standings"])
+    page = st.sidebar.radio("Navigation", ["📊 Calculator", "📅 Schedule & Admin", "🏆 Standings"])
     
     # Leave Room / Logout
     st.sidebar.divider()
@@ -1007,878 +1007,7 @@ def show_main_app():
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
 
-    # =====================================
-    # PAGE 2: Auction Room
-    # =====================================
-    elif page == "🎯 Auction Room":
-        st.title("🎯 Auction Room")
-        st.markdown(f"Manage participants and squads for **{room['name']}**.")
-        
-        # Admin: Show invite code prominently
-        if is_admin:
-            st.info(f"📤 **Invite Code:** `{room_code}` — Share this with friends to join!")
-            
-            # Admin Actions
-            st.sidebar.divider()
-            st.sidebar.subheader("⚠️ Admin Actions")
-            if st.sidebar.button("🔄 Reset Room Data", type="secondary"):
-                room['participants'] = []
-                room['gameweek_scores'] = {}
-                room['active_bids'] = []
-                room['unsold_players'] = []
-                save_auction_data(auction_data)
-                st.sidebar.success("Room data reset!")
-                st.rerun()
-            
-            # Backup & Restore
-            st.sidebar.divider()
-            with st.sidebar.expander("💾 Backup & Restore"):
-                st.caption("Download a backup to save locally. Upload to restore if data is wiped.")
-                
-                # Download
-                json_str = json.dumps(auction_data, indent=2)
-                st.download_button(
-                    label="⬇️ Download Backup",
-                    data=json_str,
-                    file_name=f"auction_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-                    mime="application/json",
-                    key="backup_dl_btn"
-                )
-                
-                # Upload
-                uploaded_file = st.file_uploader("Restore Data", type="json", key="restore_uploader")
-                if uploaded_file is not None:
-                    if st.button("⚠️ Confirm Restore", type="primary", key="restore_confirm"):
-                        try:
-                            restored_data = json.load(uploaded_file)
-                            # Basic validation: Must include 'rooms'
-                            if "rooms" in restored_data:
-                                # Overwrite data
-                                save_auction_data(restored_data)
-                                st.success("✅ Data Restored! Reloading...")
-                                import time
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error("Invalid File: Missing 'rooms' key.")
-                        except Exception as e:
-                            st.error(f"Restore Failed: {e}")
-            
-            # Toggle Big Auction Complete
-            big_auction_done = room.get('big_auction_complete', False)
-            if st.sidebar.checkbox("Big Auction Complete", value=big_auction_done):
-                room['big_auction_complete'] = True
-                room['bidding_open'] = True  # Open bidding after big auction
-                save_auction_data(auction_data)
-            else:
-                room['big_auction_complete'] = False
-                room['bidding_open'] = False
-                save_auction_data(auction_data)
-        
-            # --- GAMEWEEK MANAGER (Sidebar) ---
-            st.sidebar.divider()
-            with st.sidebar.expander("📅 Gameweek Manager"):
-                current_gw = room.get('current_gameweek', 1)
-                current_phase = room.get('game_phase', 'Bidding')
-                
-                st.write(f"**GW {current_gw} | {current_phase}**")
-                
-                # 1. End Live Auction
-                if current_phase == 'Bidding':
-                    if st.button("🛑 End Live Auction"):
-                        room['game_phase'] = 'Trading'
-                        save_auction_data(auction_data)
-                        st.success("Phase: Trading Only")
-                        st.rerun()
-                
-                # 2. Lock Squads
-                if current_phase == 'Trading':
-                    if st.button("🔒 LOCK SQUADS"):
-                        errors = []
-                        # 2a. Validate Squad Size (19 with IR, 18 without)
-                        for p in room['participants']:
-                            # Determine Limit
-                            limit = 19 if p.get('injury_reserve', False) else 18
-                            
-                            if len(p['squad']) > limit:
-                                excess = len(p['squad']) - limit
-                                removed = []
-                                for _ in range(excess):
-                                    # Pop the LAST added player (assumed last in list)
-                                    released_p = p['squad'].pop()
-                                    room.setdefault('unsold_players', []).append(released_p['name'])
-                                    removed.append(released_p['name'])
-                                errors.append(f"{p['name']} Limit {limit}. Excess {excess} released: {', '.join(removed)}")
-                        
-                        # 2b. Deduct IR Cost
-                        ir_deductions = []
-                        for p in room['participants']:
-                            if p.get('injury_reserve'):
-                                p['budget'] -= 2
-                                ir_deductions.append(p['name'])
-                        
-                        # 2c. Create Snapshot
-                        gameweek_squads = {}
-                        for participant in room['participants']:
-                            gameweek_squads[participant['name']] = {
-                                'squad': [pl.copy() for pl in participant['squad']], # Deep copy players
-                                'injury_reserve': participant.get('injury_reserve'),
-                                'budget': participant.get('budget'),
-                                'locked_at': get_ist_time().isoformat()
-                            }
-                        room.setdefault('gameweek_squads', {})[str(current_gw)] = gameweek_squads
 
-                        room['game_phase'] = 'Locked'
-                        save_auction_data(auction_data)
-                        
-                        if errors:
-                            for e in errors: st.sidebar.error(e)
-                        if ir_deductions:
-                            st.sidebar.info(f"IR Deductions: {', '.join(ir_deductions)}")
-                        
-                        st.sidebar.success("Squads Locked & Snapshotted!")
-                        st.rerun()
-
-                # 3. Start Next GW
-                if current_phase == 'Locked':
-                    if st.button(f"🚀 Start GW {current_gw + 1}"):
-                        # 3a. Budget Boost (GW1->2 only)
-                        if current_gw == 1:
-                            for p in room['participants']:
-                                p['budget'] += 100
-                        
-                        # 3b. Reverse Loans
-                        active_loans = room.get('active_loans', [])
-                        reversed_cnt = 0
-                        remaining_loans = []
-                        
-                        for loan in active_loans:
-                            if int(loan.get('gameweek', 0)) == int(current_gw):
-                                borrower = next((p for p in room['participants'] if p['name'] == loan['to']), None)
-                                lender = next((p for p in room['participants'] if p['name'] == loan['from']), None)
-                                
-                                if borrower and lender:
-                                    p_obj = next((p for p in borrower['squad'] if p['name'] == loan['player']), None)
-                                    if p_obj:
-                                        borrower['squad'].remove(p_obj)
-                                        if 'on_loan' in p_obj: del p_obj['on_loan']
-                                        if 'loan_from' in p_obj: del p_obj['loan_from']
-                                        lender['squad'].append(p_obj)
-                                        reversed_cnt += 1
-                            else:
-                                remaining_loans.append(loan)
-                        
-                        room['active_loans'] = remaining_loans
-                        room['current_gameweek'] = current_gw + 1
-                        room['game_phase'] = 'Bidding'
-                        save_auction_data(auction_data)
-                        st.sidebar.success(f"GW {current_gw+1} Started! {reversed_cnt} Loans Reversed.")
-                        st.rerun()
-        st.markdown("### 👥 Participants")
-        st.caption("Members automatically become participants when they join the room.")
-        
-        # Show existing participants
-        if room['participants']:
-            for p in room['participants']:
-                st.write(f"• **{p['name']}** - Budget: {p.get('budget', 500)}M | Squad: {len(p.get('squad', []))}")
-        
-        # Admin fallback: manually add participant (for guests/non-members)
-        if is_admin:
-            with st.expander("➕ Add Non-Member Participant (Admin)"):
-                st.caption("Use this to add participants who aren't room members (e.g., guest accounts)")
-                new_name = st.text_input("Participant Name", key="new_participant")
-                if st.button("Add Participant"):
-                    participant_names = [p['name'] for p in room['participants']]
-                    if new_name and new_name not in participant_names:
-                        room['participants'].append({
-                            'name': new_name, 
-                            'squad': [],
-                            'ir_player': None,
-                            'budget': 500
-                        })
-                        save_auction_data(auction_data)
-                        st.success(f"Added {new_name} with 500M budget!")
-                        st.rerun()
-                    elif new_name:
-                        st.warning("Participant already exists.")
-        st.divider()
-        
-        # === AUCTION TABS ===
-        auction_tabs = st.tabs(["🔴 Live Auction", "💰 Open Bidding", "🔄 Trading", "👤 Squads (Dashboard)"])
-        
-        # ================ TAB 0: LIVE AUCTION ================
-        with auction_tabs[0]:
-            render_live_auction_fragment(st.session_state.current_room, st.session_state.logged_in_user)
-        with auction_tabs[1]:
-            st.subheader("💰 Open Bidding")
-            
-            # Phase Check (Soft)
-            is_bidding_active = room.get('game_phase', 'Bidding') == 'Bidding'
-            if not is_bidding_active:
-                st.warning(f"🔒 Bidding Disabled (Phase: {room.get('game_phase')})")
-
-            if True: # Unhide content (User IR, Release Player) while maintaining indentation
-                # Helper: Get current participant info
-                my_p_name_check = st.session_state.get('logged_in_user')
-                my_participant = next((p for p in room['participants'] if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
-
-                if my_participant and not is_admin:
-                    with st.expander("🚑 Manage Injury Reserve (IR)"):
-                        st.info("Designating an IR player costs **2M** (deducted when squads lock). IR players get **0 points**.")
-                        current_ir = my_participant.get('injury_reserve')
-                        squad_names = [p['name'] for p in my_participant['squad']]
-                        
-                        # Add None option
-                        opts = ["None"] + squad_names
-                        def_idx = 0
-                        if current_ir in squad_names:
-                            def_idx = opts.index(current_ir)
-                        
-                        new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
-                        
-                        if st.button("Save IR Choice"):
-                            my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
-                            save_auction_data(auction_data)
-                            st.success("Injury Reserve Updated!")
-                
-                # --- GAMEWEEK MANAGER MOVED TO SIDEBAR ---
-                
-                # Show countdown to deadline
-                now = get_ist_time()
-                deadline_str = room.get('bidding_deadline')
-                global_deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
-                
-                if global_deadline:
-                    if now < global_deadline:
-                        time_left = global_deadline - now
-                        hours_left = time_left.total_seconds() / 3600
-                        st.warning(f"⏰ **Bidding closes in {hours_left:.1f} hours** ({global_deadline.strftime('%b %d, %H:%M')})")
-                    else:
-                        st.error("⏰ **Bidding deadline has passed!** All active bids will be awarded.")
-                
-                # Process expired bids (auto-award to winners)
-                active_bids = room.get('active_bids', [])
-                awarded_bids = []
-                
-
-                
-                for bid in active_bids:
-                    expires = datetime.fromisoformat(bid['expires'])
-                    # Award if: bid expired OR deadline passed
-                    should_award = now >= expires
-                    if global_deadline and now >= global_deadline:
-                        should_award = True  # Deadline passed, award all bids
-                    
-                    if should_award:
-                        # Award the player to the bidder
-                        bidder_participant = next((p for p in room['participants'] if p['name'] == bid['bidder']), None)
-                        if bidder_participant and bid['amount'] <= bidder_participant.get('budget', 0):
-                            bidder_participant['squad'].append({
-                                'name': bid['player'],
-                                'role': player_role_lookup.get(bid['player'], 'Unknown'),
-                                'team': player_team_lookup.get(bid['player'], 'Unknown'),
-                                'buy_price': bid['amount']
-                            })
-                            bidder_participant['budget'] -= bid['amount']
-                            awarded_bids.append(bid)
-                            # Remove from unsold
-                            with st.spinner(f"Awarding {bid['player']}..."):
-                                 if bid['player'] in room.get('unsold_players', []):
-                                     room['unsold_players'].remove(bid['player'])
-                
-                # Remove awarded bids
-                for ab in awarded_bids:
-                    active_bids.remove(ab)
-                    st.success(f"🎉 {ab['player']} awarded to {ab['bidder']} for {ab['amount']}M!")
-                
-                room['active_bids'] = active_bids
-                if awarded_bids:
-                    save_auction_data(auction_data)
-                
-                # Show current active bids
-                st.markdown("### 📋 Active Bids")
-                if active_bids:
-                    bids_data = []
-                    for bid in active_bids:
-                        bid_expires = datetime.fromisoformat(bid['expires'])
-                        # Effective expiry is min(bid expiry, global deadline)
-                        effective_expires = bid_expires
-                        if global_deadline and global_deadline < bid_expires:
-                             effective_expires = global_deadline
-                        
-                        time_left = effective_expires - now
-                        minutes_left = max(0, time_left.total_seconds() / 60)
-                        
-                        bids_data.append({
-                            "Player": bid['player'],
-                            "Current Bid": f"{bid['amount']}M",
-                            "Bidder": bid['bidder'],
-                            "Time Left": f"{minutes_left/60:.1f} hours", # Changed display to hours
-                            "Expires": effective_expires.strftime("%b %d, %H:%M")
-                        })
-                    st.dataframe(pd.DataFrame(bids_data), use_container_width=True, hide_index=True)
-                else:
-                    st.info("No active bids. Place a bid on an unsold player below!")
-                
-                # Get unsold players logic
-                all_drafted = []
-                for p in room['participants']:
-                    all_drafted.extend([pl['name'] for pl in p['squad']])
-                
-                unsold_players = room.get('unsold_players', [])
-                # Add players that went unsold (not in any squad)
-                for name in player_names:
-                    if name not in all_drafted and name not in unsold_players:
-                        unsold_players.append(name)
-                
-                # Ensure uniqueness
-                unsold_players = list(set(unsold_players))
-                room['unsold_players'] = unsold_players
-                
-                # Allow bidding on ANY unsold player, even if there is an active bid (outbid logic)
-                biddable_players = unsold_players
-                
-                # Place a new bid
-                st.markdown("### 🆕 Place New Bid")
-                
-                # Get current user's participant profile
-                current_participant = next((p for p in room['participants'] if p['name'] == user), None)
-                if not current_participant:
-                    # Check if user is in any participant's name loosely (for flexibility)
-                    participant_options = [p['name'] for p in room['participants']]
-                    if participant_options:
-                        selected_bidder = st.selectbox("Select Your Name", participant_options, key="bidder_select")
-                        current_participant = next((p for p in room['participants'] if p['name'] == selected_bidder), None)
-                    else:
-                        st.warning("No participants yet. Admin needs to add you first.")
-                
-                if current_participant:
-                    target_player = st.selectbox(
-                        "Select Player", 
-                        [""] + sorted(biddable_players), 
-                        key="bid_player",
-                        format_func=format_player_name
-                    )
-                    
-                    if target_player:
-                        existing_bid = next((b for b in active_bids if b['player'] == target_player), None)
-                        
-                        min_bid = 5
-                        if existing_bid:
-                            curr_amt = float(existing_bid['amount'])
-                            if curr_amt >= 100:
-                                interval = 10
-                            elif curr_amt >= 50:
-                                interval = 5
-                            else:
-                                interval = 1
-                            min_bid = int(math.ceil(curr_amt + interval))
-                        
-                        step_val = 10 if min_bid >= 100 else (5 if min_bid >= 50 else 1)
-                        bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=int(min_bid), step=step_val, format="%d", key="bid_input_val")
-                        
-                        if st.button("Place Bid", key="place_bid", disabled=not is_bidding_active):
-                            if bid_amount > current_participant.get('budget', 0):
-                                st.error(f"Insufficient budget! You have {current_participant.get('budget')}M.")
-                            else:
-                                # Remove old bid if exists
-                                if existing_bid:
-                                    active_bids.remove(existing_bid)
-                                    st.toast(f"Outbid previous bid of {existing_bid['amount']}M!")
-                                
-                                expiry_time = now + timedelta(hours=24) # PRODUCTION: 24h
-                                
-                                new_bid = {
-                                    'player': target_player,
-                                    'amount': int(bid_amount),
-                                    'bidder': current_participant['name'],
-                                    'expires': expiry_time.isoformat()
-                                }
-                                active_bids.append(new_bid)
-                                room['active_bids'] = active_bids
-                                save_auction_data(auction_data)
-                                st.success(f"Bid placed on {target_player} for {bid_amount}M! Win in 24h.")
-                                st.rerun()
-                
-
-                
-                # --- Release Player Section (Added to Open Bidding) ---
-                st.divider()
-                st.subheader("🔄 Manage Squad / Release Player")
-                
-                # Get current participant for release
-                my_p_name = user if user else None
-                # If admin, maybe allow selecting? But user wants "releasing player feature". 
-                # Let's trust "current_participant" logic above or re-select.
-                
-                # We reuse current_participant from bidding logic if available
-                if current_participant:
-                    st.caption(f"Managing Squad for: **{current_participant['name']}**")
-                    
-                    if current_participant['squad']:
-                        # --- RELEASE LOGIC START (Copied/Adapted) ---
-                        # Calculate current gameweek (based on locked gameweeks)
-                        locked_gws = list(room.get('gameweek_squads', {}).keys())
-                        current_gw = max([int(gw) for gw in locked_gws]) if locked_gws else 0
-                        
-                        # Check if participant has used their paid release this GW
-                        paid_releases = current_participant.get('paid_releases', {})
-                        used_paid_this_gw = paid_releases.get(str(current_gw), False) if current_gw > 0 else False
-                        
-                        knocked_out_teams = set(room.get('knocked_out_teams', []))
-                        player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
-                        
-                        remove_options = [p['name'] for p in current_participant['squad']]
-                        player_to_remove = st.selectbox(
-                            "Select Player to Release", 
-                            [""] + remove_options, 
-                            key="open_release_player",
-                            format_func=format_player_name
-                        )
-                        
-                        if player_to_remove:
-                             player_obj = next((p for p in current_participant['squad'] if p['name'] == player_to_remove), None)
-                             player_country = player_country_lookup.get(player_to_remove, 'Unknown')
-                             is_knocked_out_team = player_country in knocked_out_teams
-                             
-                             if current_gw == 0:
-                                 release_type = "unlimited"
-                                 st.markdown("**🔄 Release Player (Before GW1 - 50% Refund)**")
-                             elif is_knocked_out_team and current_gw >= 5:
-                                 release_type = "knockout_free"
-                                 st.markdown("**🔄 Release Player (Knocked-Out Team - FREE 50%)**")
-                             elif not used_paid_this_gw:
-                                 release_type = "paid"
-                                 st.markdown(f"**🔄 Release Player (GW{current_gw} - Paid 50%)**")
-                             else:
-                                 release_type = "free"
-                                 st.markdown(f"**🔄 Release Player (GW{current_gw} - Free 0%)**")
-                             
-                             if release_type in ["unlimited", "paid", "knockout_free"]:
-                                 refund_amount = int(math.ceil(player_obj.get('buy_price', 0) / 2))
-                             else:
-                                 refund_amount = 0
-                                 
-                             st.caption(f"Refund: **{refund_amount}M**")
-                             
-                             if st.button("🔓 Release Player", key="open_release_btn"):
-                                 current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
-                                 current_participant['budget'] += refund_amount
-                                 if current_participant.get('ir_player') == player_to_remove:
-                                     current_participant['ir_player'] = None
-                                 
-                                 room.setdefault('unsold_players', []).append(player_to_remove)
-                                 
-                                 if release_type == "paid":
-                                     current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
-                                 
-                                 save_auction_data(auction_data)
-                                 st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
-                                 st.rerun()
-                    else:
-                        st.info("Your squad is empty.")
-                else:
-                    st.warning("Please select your participant name above to manage squad.")
-                
-                # RECENT: Removed redundant bidding section.
-        
-        # ================ TAB 3: TRADING ================
-        with auction_tabs[2]:
-            st.subheader("🔄 Trade Center")
-            
-            # Check Phase for Trading
-            current_phase = room.get('game_phase', 'Bidding')
-            if current_phase == 'Locked':
-                st.info("🔒 Trading is currently LOCKED for Gameweek processing.")
-            else:
-                # Helper: Get current participant info
-                my_p_name = user
-                
-                # Ensure pending_trades list exists
-                if 'pending_trades' not in room:
-                    room['pending_trades'] = []
-                
-                # Handling Counter-Offer Prefill
-                prefill = st.session_state.pop('trade_prefill', None)
-                
-                # ---------------- INBOX ----------------
-                st.markdown("### 📬 Incoming Proposals")
-                my_incoming = [t for t in room['pending_trades'] if t['to'] == my_p_name]
-                
-                if my_incoming:
-                    for trade in my_incoming:
-                        with st.container():
-                            # Aesthetic Card
-                            details_html = ""
-                            if trade['type'] == "Transfer (Sell)":
-                                details_html = f"Selling <b>{trade['player']}</b> for <b>{trade['price']}M</b>"
-                            elif trade['type'] == "Transfer (Buy)":
-                                details_html = f"Wants to Buy <b>{trade['player']}</b> for <b>{trade['price']}M</b>"
-                            elif trade['type'] == "Exchange":
-                                cash_txt = ""
-                                if trade['cash_amount'] > 0:
-                                    payer = trade['cash_payer']
-                                    cash_txt = f" <span style='color:#7ee787'>(+ {trade['cash_amount']}M from {payer})</span>"
-                                details_html = f"Swap: <b>{trade['get_player']}</b> (You Get) ↔ <b>{trade['give_player']}</b> (You Give){cash_txt}"
-                            elif trade['type'] == "Loan (1 GW)":
-                                details_html = f"Loan: <b>{trade['player']}</b> for GW{trade['gw']} @ <b>{trade['fee']}M</b>"
-
-                            st.markdown(f"""
-                            <div class="trade-card">
-                                <div class="trade-header">From {trade['from']} <span style='font-size:0.8em; color:#8b949e; float:right'>{trade['type']}</span></div>
-                                <div class="trade-details">{details_html}</div>
-                                <div class="trade-sub">ID: {trade['id'][:8]}...</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            c1, c2, c3 = st.columns([1, 1, 1])
-                            
-                            # ACTION: ACCEPT
-                            if c1.button("✅ Accept", key=f"acc_{trade['id']}"):
-                                sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
-                                receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
-                                success = False
-                                
-                                if sender and receiver:
-                                    if trade['type'] == "Transfer (Sell)":
-                                        p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
-                                        if p_obj and receiver['budget'] >= trade['price']:
-                                            sender['squad'].remove(p_obj)
-                                            # FIX: Restore Team Name
-                                            p_obj['team'] = player_team_lookup.get(p_obj['name'], 'Unknown')
-                                            p_obj['buy_price'] = trade['price']
-                                            receiver['squad'].append(p_obj)
-                                            sender['budget'] += trade['price']
-                                            receiver['budget'] -= trade['price']
-                                            success = True
-                                    
-                                    elif trade['type'] == "Transfer (Buy)":
-                                        # Sender (Buyer) wants to buy from Receiver (Seller)
-                                        p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
-                                        if p_obj and sender['budget'] >= trade['price']:
-                                            receiver['squad'].remove(p_obj)
-                                            # Restore Team
-                                            p_obj['team'] = player_team_lookup.get(p_obj['name'], 'Unknown')
-                                            p_obj['buy_price'] = trade['price']
-                                            sender['squad'].append(p_obj)
-                                            receiver['budget'] += trade['price']
-                                            sender['budget'] -= trade['price']
-                                            success = True
-                                    
-                                    elif trade['type'] == "Exchange":
-                                        # Sender GIVES 'give_player'
-                                        # Sender GETS 'get_player' (so Receiver gives this)
-                                        p_from_sender = next((p for p in sender['squad'] if p['name'] == trade['give_player']), None)
-                                        p_from_receiver = next((p for p in receiver['squad'] if p['name'] == trade['get_player']), None)
-                                        
-                                        # Budget Check
-                                        budget_ok = True
-                                        if trade['cash_amount'] > 0:
-                                            payer_name = trade['cash_payer']
-                                            payer_budget = sender['budget'] if payer_name == sender['name'] else receiver['budget']
-                                            if payer_budget < trade['cash_amount']:
-                                                budget_ok = False
-                                        
-                                        if p_from_sender and p_from_receiver and budget_ok:
-                                            sender['squad'].remove(p_from_sender)
-                                            receiver['squad'].remove(p_from_receiver)
-                                            
-                                            # Restore Teams
-                                            p_from_sender['team'] = player_team_lookup.get(p_from_sender['name'], 'Unknown')
-                                            p_from_receiver['team'] = player_team_lookup.get(p_from_receiver['name'], 'Unknown')
-                                            
-                                            receiver['squad'].append(p_from_sender)
-                                            sender['squad'].append(p_from_receiver)
-                                            
-                                            if trade['cash_amount'] > 0:
-                                                if trade['cash_payer'] == receiver['name']:
-                                                    receiver['budget'] -= trade['cash_amount']
-                                                    sender['budget'] += trade['cash_amount']
-                                                else:
-                                                    sender['budget'] -= trade['cash_amount']
-                                                    receiver['budget'] += trade['cash_amount']
-                                            success = True
-                                    
-                                    elif trade['type'] == "Loan (1 GW)":
-                                        p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
-                                        if p_obj and receiver['budget'] >= trade['fee']:
-                                            room.setdefault('active_loans', []).append({
-                                                'player': trade['player'], 'from': sender['name'], 'to': receiver['name'],
-                                                'fee': trade['fee'], 'gameweek': trade['gw'], 
-                                                'original_buy_price': p_obj.get('buy_price', 0),
-                                                'created_at': get_ist_time().isoformat()
-                                            })
-                                            sender['squad'].remove(p_obj)
-                                            receiver['squad'].append({
-                                                'name': trade['player'], 'role': p_obj['role'],
-                                                'buy_price': p_obj.get('buy_price', 0), 'on_loan': True, 'loan_from': sender['name'],
-                                                'team': player_team_lookup.get(trade['player'], 'Unknown')
-                                            })
-                                            sender['budget'] += trade['fee']
-                                            receiver['budget'] -= trade['fee']
-                                            success = True
-
-                                if success:
-                                    room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                    save_auction_data(auction_data)
-                                    st.success("Trade Executed Successfully!")
-                                    st.rerun()
-                                else:
-                                    st.error("Execution failed (Budget/Player missing).")
-
-                            # ACTION: REJECT
-                            if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
-                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                save_auction_data(auction_data)
-                                st.toast("Trade Rejected")
-                                st.rerun()
-
-                            st.markdown("---") # Spacer
-                else:
-                    st.info("No incoming proposals.")
-
-                # ---------------- OUTBOX ----------------
-                with st.expander("📤 Sent Proposals"):
-                    sent = [t for t in room['pending_trades'] if t['from'] == my_p_name]
-                    if sent:
-                        for s in sent:
-                             st.write(f"To **{s['to']}**: {s['type']}")
-                             if st.button("Cancel", key=f"can_{s['id']}"):
-                                room['pending_trades'].remove(s)
-                                save_auction_data(auction_data)
-                                st.rerun()
-                    else:
-                        st.caption("No sent proposals.")
-
-                # ---------------- PROPOSE FORM ----------------
-                st.markdown("### 📝 Propose Trade")
-                
-                parts = [p['name'] for p in room['participants']]
-                
-                # Determine Defaults
-                def_to_idx = 0
-                def_type_idx = 0
-                is_countering = False
-                
-                if prefill:
-                    is_countering = prefill.get('is_counter', False)
-                    if prefill['to'] in parts:
-                        def_to_idx = parts.index(prefill['to'])
-                        # If I am default_to, shift
-                        if prefill['to'] == my_p_name:
-                             def_to_idx = (def_to_idx + 1) % len(parts)
-                    
-                    types = ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"]
-                    if prefill['type'] in types:
-                        def_type_idx = types.index(prefill['type'])
-                
-                if is_countering:
-                    st.info(f"🔄 **Drafting Counter-Offer to {prefill['to']}**")
-                
-                # SECURITY FIX: Always lock FROM to Current User
-                from_p_name = my_p_name
-                if from_p_name not in parts:
-                    st.error("You are not a participant in this auction room.")
-                    st.stop()
-                
-                # Filter 'to' options
-                to_opts = [x for x in parts if x != from_p_name]
-                real_def_idx = 0
-                if prefill and prefill['to'] in to_opts:
-                    real_def_idx = to_opts.index(prefill['to'])
-                    
-                to_p_name = st.selectbox("Offer To", to_opts, index=real_def_idx, key="tp_to")
-
-                from_p = next((p for p in room['participants'] if p['name'] == from_p_name), None)
-                to_p = next((p for p in room['participants'] if p['name'] == to_p_name), None)
-
-                if from_p and to_p:
-                    # FIX: Use key and handle default
-                    # If prefill exists, we want to force format.
-                    # But index works reliably only if we didn't touch it.
-                    # Best way: Check if match.
-                    
-                    t_type = st.radio("Type", ["Transfer (Sell)", "Transfer (Buy)", "Exchange", "Loan (1 GW)"], index=def_type_idx, horizontal=True, key="tp_type_radio")
-                    
-                    # Force Update if Prefill (Session State Hack)
-                    # If prefill type != current state, update state and rerun? No, infinite loop.
-                    # We rely on 'index' being respected on first load.
-                    # But user said it didn't switch.
-                    # The 'Counter' button logic should have cleared this key if we want to reset?
-                    # Let's add that to Counter button logic instead.
-                    # See chunk 1.
-                    
-                    payload = {}
-                    ready = False
-                    
-                    if t_type == "Transfer (Sell)":
-                        from_p_squad_names = [str(p['name']) for p in from_p['squad']]
-                        if from_p_squad_names:
-                            pl = st.selectbox(
-                                "Player to Sell", 
-                                from_p_squad_names, 
-                                format_func=format_player_name
-                            )
-                            pr = st.number_input("Asking Price (M)", 1, 500, 10, format="%d", help="Amount you want to receive")
-                            payload = {'type': t_type, 'player': pl, 'price': pr}
-                            ready = True
-                        else:
-                            st.warning("You have no players to sell.")
-
-                    elif t_type == "Transfer (Buy)":
-                        if to_p['squad']:
-                            # Default player selection from prefill
-                            pl_opts = [str(p['name']) for p in to_p['squad']]
-                            pl_idx = 0
-                            if prefill and prefill.get('player') in pl_opts:
-                                pl_idx = pl_opts.index(prefill['player'])
-                            
-                            pl = st.selectbox(
-                                "Player to Buy", 
-                                pl_opts, 
-                                index=pl_idx,
-                                format_func=format_player_name
-                            )
-                            
-                            # Default price from prefill
-                            def_price = 10
-                            if prefill and prefill.get('price'):
-                                def_price = int(prefill['price'])
-                            
-                            pr = st.number_input("Offer Price (M)", 1, 500, def_price, format="%d", help="Amount you want to pay")
-                            payload = {'type': t_type, 'player': pl, 'price': pr}
-                            ready = True
-                        else:
-                            st.warning(f"{to_p['name']} has no players to buy.")
-                    
-                    elif t_type == "Exchange":
-                        if from_p['squad'] and to_p['squad']:
-                            c1, c2 = st.columns(2)
-                            p1 = c1.selectbox(f"Your Player (Give)", [p['name'] for p in from_p['squad']])
-                            p2 = c2.selectbox(f"Their Player (Get)", [p['name'] for p in to_p['squad']])
-                            
-                            c_dir = st.radio("Cash Adjustment", ["None", f"I pay {to_p_name}", f"{to_p_name} pays Me"], horizontal=True)
-                            c_amt = 0
-                            if c_dir != "None":
-                                c_amt = st.number_input("Cash Amount (M)", 1, 100, 5, format="%d")
-                            
-                            payer = None
-                            if c_dir == f"I pay {to_p_name}":
-                                payer = from_p_name
-                            elif c_dir == f"{to_p_name} pays Me":
-                                payer = to_p_name
-                            
-                            payload = {'type': t_type, 'give_player': p1, 'get_player': p2, 'cash_amount': c_amt, 'cash_payer': payer}
-                            ready = True
-                        else:
-                            st.warning("Both participants need players.")
-
-                    elif t_type == "Loan (1 GW)":
-                        with st.popover("About Loans"):
-                             st.write("Loans are for 1 Gameweek only. Player returns automatically.")
-                        
-                        if from_p['squad']:
-                            pl = st.selectbox(
-                                "Player to Loan Out", 
-                                [p['name'] for p in from_p['squad']],
-                                format_func=format_player_name
-                            )
-                            fee = st.number_input("Loan Fee (M)", 0, 50, 5, format="%d")
-                            # GW Logic - Use integer consistency
-                            # Loan is for Current Gameweek (to be valid until NEXT start)
-                            # Actually, usually loans are for "Next Gameweek" if done during trading?
-                            # User said "Trading closes for GW1... Start GW2... Loans executed in PREV gw reversed".
-                            # So if I am in GW1 (Bidding/Trading): Loan is for GW1.
-                            current_gw = int(room.get('current_gameweek', 1))
-                            st.caption(f"Loan Duration: Gameweek {current_gw}")
-                            payload = {'type': t_type, 'player': pl, 'fee': fee, 'gw': current_gw}
-                            ready = True
-                    
-                    if ready:
-                        if st.button("📤 Send Proposal", type="primary"):
-                            new_t = {
-                                'id': str(uuid_lib.uuid4()),
-                                'from': from_p_name, 'to': to_p_name,
-                                'created_at': get_ist_time().strftime("%Y-%m-%d %H:%M:%S"),
-                                **payload
-                            }
-                            room['pending_trades'].append(new_t)
-                            
-                            # Auto-Delete Original if Countering
-                            if is_countering and prefill and 'original_id' in prefill:
-                                orig_id = prefill['original_id']
-                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != orig_id]
-                                st.caption("Original trade rejected/replaced.")
-
-                            save_auction_data(auction_data)
-                            st.success("Proposal Sent!")
-                            if is_countering:
-                                st.session_state.pop('trade_prefill', None) # Clear prefill
-                            st.rerun()
-
-        # ================ TAB 4: SQUADS DASHBOARD ================
-        with auction_tabs[3]:
-            st.subheader("👤 Squad Dashboard")
-            
-            # Auto-Refresh Logic (using st.fragment if supported, otherwise just render)
-            # Since we can't easily check imports, we'll try a conditional block if possible.
-            # But simpler: Just render. User can click 'Refresh' button.
-            
-            # Auto-Refresh Toggle & Manual Refresh
-            cR1, cR2 = st.columns([1, 4])
-            if cR1.button("🔄 Refresh Now"):
-                st.rerun()
-            
-            enable_ar = cR2.checkbox("Enable Auto-Refresh (5s)", value=False, help="Automatically refreshes the dashboard every 5 seconds.")
-            if enable_ar:
-                import time
-                time.sleep(5)
-                st.rerun()
-
-            # Global Squad Table
-            all_squads_data = []
-            for p in room['participants']:
-                for pl in p['squad']:
-                    all_squads_data.append({
-                        'Participant': p['name'],
-                        'Player': pl['name'],
-                        'Role': pl['role'],
-                        'Team': pl.get('team', player_team_lookup.get(pl['name'], 'Unknown')),
-                        'Price': pl.get('buy_price', 0)
-                    })
-            
-            if all_squads_data:
-                df = pd.DataFrame(all_squads_data)
-                
-                # Filters
-                c1, c2 = st.columns(2)
-                with c1:
-                    sel_p = st.multiselect("Filter by Participant", [p['name'] for p in room['participants']])
-                with c2:
-                    search = st.text_input("Search Player")
-                
-                if sel_p:
-                    df = df[df['Participant'].isin(sel_p)]
-                if search:
-                    df = df[df['Player'].str.contains(search, case=False)]
-                
-                st.dataframe(
-                    df, 
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config={
-                        "Price": st.column_config.NumberColumn(format="%dM")
-                    }
-                )
-            else:
-                st.info("No squads yet.")
-
-    # ================ PAGE 3: GAMEWEEK ADMIN ================
-
-
-    # =====================================
-    # PAGE 3: Schedule & Admin
-    # =====================================
     elif page == "📅 Schedule & Admin":
         st.title("📅 Schedule & Admin")
         
@@ -1925,95 +1054,113 @@ def show_main_app():
                             st.rerun()
                                 
             st.divider()
-            st.subheader("📥 Bulk Squad Import")
-            st.caption("Format: Participant Name, Player Name, Price (One per line)")
-            import_text = st.text_area("Paste CSV Data", height=150, placeholder="Ladda CC, Virat Kohli, 15\nTeam B, Rohit Sharma, 12")
-            if st.button("Run Import"):
-                lines = [l for l in import_text.split('\n') if l.strip()]
-                added_count = 0
-                errors_log = []
-                
-                if not lines:
-                    st.error("No data found.")
-                else:
-                    # --- MODE CHECK: Grid (TSV) or List (CSV)? ---
-                    first_line = lines[0]
-                    is_grid = '\t' in first_line
+            st.divider()
+            st.subheader("📥 Bulk Squad Import (CSV with Staging)")
+            
+            uploaded_file = st.file_uploader("Upload Squads CSV", type=['csv'], key="admin_squad_import")
+            
+            if uploaded_file is not None:
+                try:
+                    # 1. Read CSV
+                    df_in = pd.read_csv(uploaded_file)
+                    st.write("Preview:")
+                    st.dataframe(df_in.head())
+
+                    # 2. Prepare Match Data
+                    # We need to map Participant Name -> DB Match (Dropdown)
+                    # We also need to map Player Name -> DB Match
                     
-                    if is_grid:
-                        # === GRID MODE (Spreadsheet Copy-Paste) ===
-                        # Row 0 = Headers (Participant Names)
-                        headers = first_line.split('\t')
-                        
-                        # Map Col Index -> Participant Object
-                        col_map = {}
-                        for idx, h in enumerate(headers):
-                            if h.strip():
-                                # Find matching participant
-                                p_obj = next((p for p in room['participants'] if p['name'].lower() == h.strip().lower()), None)
-                                if p_obj:
-                                    col_map[idx] = p_obj
-                        
-                        if not col_map:
-                            errors_log.append("No valid participant names found in header row.")
-                        else:
-                            # Iterate Data Rows (Skip Header)
-                            for line in lines[1:]:
-                                cols = line.split('\t')
-                                # We iterate distinct participant columns found in header
-                                # Assuming structure: [Player Name] [Price] [Player Name] [Price] ...
-                                # Actually, checking the image: "Adnan" is Col A. "Ladda" is Col C.
-                                # The header for Price is often empty or labeled "Price".
-                                # Strategy: For each identified participant at Col X, read Col X (Player) and Col X+1 (Price).
-                                
-                                for col_idx, participant in col_map.items():
-                                    if col_idx < len(cols):
-                                        player_val = cols[col_idx].strip()
-                                        
-                                        # Skip empty cells
-                                        if not player_val: continue
-                                        
-                                        # Get Price from next col if exists
-                                        price_val = 0
-                                        if col_idx + 1 < len(cols):
-                                            try:
-                                                p_str = cols[col_idx + 1].strip().replace(',','')
-                                                if p_str and p_str[0].isdigit(): # basic check
-                                                    price_val = float(p_str)
-                                            except: pass
-                                        
-                                        # ADD PLAYER LOGIC
-                                        if any(s['name'] == player_val for s in participant['squad']):
-                                            pass # Exists
-                                        else:
-                                            info = player_info_map.get(player_val, {})
-                                            participant['squad'].append({
-                                                'name': player_val,
-                                                'role': info.get('role', 'Unknown'),
-                                                'active': True,
-                                                'buy_price': price_val,
-                                                'team': info.get('country', 'Unknown')
-                                            })
-                                            participant['budget'] -= price_val
-                                            added_count += 1
-                    
+                    # Columns expected: [Participant, Player, Price]
+                    if len(df_in.columns) < 2:
+                        st.error("CSV must have at least 2 columns: Participant, Player Name. Optional: Price")
                     else:
-                        # === LIST MODE (CSV: P_Name, Player, Price) ===
-                        for line in lines:
-                            parts = [p.strip() for p in line.split(',')]
-                            if len(parts) >= 2:
-                                p_name = parts[0]
-                                pl_name = parts[1]
-                                price = float(parts[2]) if len(parts) > 2 else 0
+                        # Normalize columns
+                        p_col_idx = 0
+                        pl_col_idx = 1
+                        pr_col_idx = 2 if len(df_in.columns) > 2 else -1
+                        
+                        matches = []
+                        for idx, row in df_in.iterrows():
+                            p_raw = str(row.iloc[p_col_idx]).strip()
+                            pl_raw = str(row.iloc[pl_col_idx]).strip()
+                            price = 0
+                            if pr_col_idx != -1:
+                                try:
+                                    price = float(str(row.iloc[pr_col_idx]).replace(',', ''))
+                                except: pass
+                            
+                            # Auto-match
+                            # 1. Participant
+                            part_match = next((p['name'] for p in room['participants'] if p['name'].lower() == p_raw.lower()), None)
+                            # 2. Player
+                            pl_info = player_info_map.get(pl_raw) # Direct Match
+                            if pl_info:
+                                pl_match = pl_raw
+                                status = "✅ Exact"
+                            else:
+                                # Fuzzy or Raw
+                                pl_match = pl_raw
+                                status = "⚠️ Check"
+                            
+                            matches.append({
+                                "Row": idx + 1,
+                                "Participant (Raw)": p_raw,
+                                "Participant (Matched)": part_match if part_match else "UNKNOWN",
+                                "Player (Raw)": pl_raw,
+                                "Player (DB)": pl_match,
+                                "Price": price,
+                                "Status": status
+                            })
+                        
+                        st.divider()
+                        st.subheader("🕵️ Review & Edit (Staging Area)")
+                        
+                        df_matches = pd.DataFrame(matches)
+                        
+                        # Configurable Editor
+                        valid_parts = [p['name'] for p in room['participants']]
+                        
+                        edited_df = st.data_editor(
+                            df_matches,
+                            column_config={
+                                "Participant (Matched)": st.column_config.SelectboxColumn(
+                                    "Participant",
+                                    help="Select the valid participant",
+                                    width="medium",
+                                    options=valid_parts + ["UNKNOWN"],
+                                    required=True
+                                ),
+                                "Player (DB)": st.column_config.TextColumn(
+                                    "Player Name (DB)",
+                                    help="Edit to match Database Name exactly",
+                                    width="large",
+                                    required=True
+                                )
+                            },
+                            hide_index=True,
+                            num_rows="dynamic",
+                            use_container_width=True
+                        )
+                        
+                        if st.button("✅ Confirm & Import Squads", type="primary"):
+                            success_count = 0
+                            failed_log = []
+                            
+                            for idx, row in edited_df.iterrows():
+                                part_name = row['Participant (Matched)']
+                                pl_name = row['Player (DB)']
+                                price = row['Price']
                                 
-                                # Find Participant
-                                participant = next((p for p in room['participants'] if p['name'].lower() == p_name.lower()), None)
+                                if part_name == "UNKNOWN":
+                                    failed_log.append(f"Row {row['Row']}: Skipped (Unknown Participant)")
+                                    continue
+                                
+                                # Logic Add
+                                participant = next((p for p in room['participants'] if p['name'] == part_name), None)
                                 if participant:
-                                    # Check if player already in squad
                                     if any(s['name'] == pl_name for s in participant['squad']):
-                                        pass # Already exists
+                                        pass
                                     else:
-                                        # Find Player Role/Team from DB
                                         info = player_info_map.get(pl_name, {})
                                         participant['squad'].append({
                                             'name': pl_name,
@@ -2023,18 +1170,31 @@ def show_main_app():
                                             'team': info.get('country', 'Unknown')
                                         })
                                         participant['budget'] -= price
-                                        added_count += 1
-                                else:
-                                    errors_log.append(f"Participant not found: {p_name}")
-                            else:
-                                errors_log.append(f"Invalid format: {line}")
-                    
+                                        success_count += 1
+                                
+                            save_auction_data(auction_data)
+                            st.success(f"Successfully imported {success_count} players!")
+                            if failed_log:
+                                with st.expander("Skipped Rows"):
+                                    for f in failed_log: st.write(f)
+                            import time
+                            time.sleep(2)
+                            st.rerun()
+
+                except Exception as e:
+                    st.error(f"Error reading CSV: {e}")
+            
+            st.divider()
+            with st.expander("⚠️ Danger Zone (Reset)"):
+                 st.write("This will clear all participants and their squads. Use with caution.")
+                 if st.button("🔄 Reset Room Data", type="primary"):
+                    room['participants'] = []
+                    room['gameweek_scores'] = {}
+                    room['active_bids'] = []
+                    room['unsold_players'] = []
                     save_auction_data(auction_data)
-                    st.success(f"Imported {added_count} players!")
-                    if errors_log:
-                        with st.expander("Import Errors"):
-                            for e in errors_log: st.write(e)
-            st.rerun()
+                    st.success("Room data reset! All participants and squads cleared.")
+                    st.rerun()
         st.divider()
         
         # Two tabs: Schedule-based and Manual
