@@ -9,6 +9,7 @@ import hashlib
 import uuid as uuid_lib
 from datetime import datetime, timedelta
 import sys
+import time
 
 # --- Robust Import Helper ---
 def safe_import_module(module_name):
@@ -522,7 +523,6 @@ def render_live_auction_fragment(room_code, user):
                 st.json({"status": "waiting", "admin": room['admin'], "time": get_ist_time().strftime("%H:%M:%S")})
                 
                 # Auto-refresh to check for start
-                import time
                 time.sleep(5)
                 st.rerun()
         
@@ -1779,7 +1779,6 @@ def show_main_app():
                 
                 if st.button("✅ Confirm & Import Squads", type="primary"):
                     success = 0
-                    import time
                     
                     if 'unsold_players' not in room:
                         all_owned = [pl['name'] for p in room['participants'] for pl in p['squad']]
