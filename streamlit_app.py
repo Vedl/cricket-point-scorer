@@ -1484,7 +1484,12 @@ def show_main_app():
                                        st.success("Trade Executed!")
                                        st.rerun()
                                    else:
-                                       st.error("Failed (Budget/Player missing)")
+                                       st.error("Failed: Player no longer available or Insufficient Budget. proposal invalid.")
+                                       # Auto-Cleanup Invalid Trade
+                                       room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                       save_auction_data(auction_data)
+                                       time.sleep(1)
+                                       st.rerun()
                             if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
                                 room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                 save_auction_data(auction_data)
@@ -1553,11 +1558,20 @@ def show_main_app():
                         pl = st.selectbox("Player to Sell", [p['name'] for p in my_part['squad']], key="sell_pl")
                         pr = st.number_input("Selling Price", 1, 500, 10, key="sell_pr")
                         if st.button("Send Offer"):
-                            room['pending_trades'].append({
-                                'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                'type': t_type, 'player': pl, 'price': pr,
-                                'created_at': get_ist_time().isoformat()
-                            })
+                            # Check Duplicate
+                            is_dup = any(t for t in room['pending_trades'] 
+                                         if t['from'] == my_p_name and t['to'] == to_p_name 
+                                         and t['type'] == t_type and t.get('player') == pl 
+                                         and t.get('price') == pr)
+                            
+                            if is_dup:
+                                st.error("Duplicate Proposal: You have already sent this exact offer.")
+                            else:
+                                room['pending_trades'].append({
+                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                    'type': t_type, 'player': pl, 'price': pr,
+                                    'created_at': get_ist_time().isoformat()
+                                })
                             save_auction_data(auction_data)
                             st.success("Proposal Sent!")
                             st.rerun()
@@ -1566,11 +1580,20 @@ def show_main_app():
                         pl = st.selectbox("Player to Buy", [p['name'] for p in their_part['squad']], key="buy_pl")
                         pr = st.number_input("Offer Price", 1, 500, 10, key="buy_pr")
                         if st.button("Send Offer"):
-                            room['pending_trades'].append({
-                                'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                'type': t_type, 'player': pl, 'price': pr,
-                                'created_at': get_ist_time().isoformat()
-                            })
+                            # Check Duplicate
+                            is_dup = any(t for t in room['pending_trades'] 
+                                         if t['from'] == my_p_name and t['to'] == to_p_name 
+                                         and t['type'] == t_type and t.get('player') == pl 
+                                         and t.get('price') == pr)
+                            
+                            if is_dup:
+                                st.error("Duplicate Proposal: You have already sent this exact offer.")
+                            else:
+                                room['pending_trades'].append({
+                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                    'type': t_type, 'player': pl, 'price': pr,
+                                    'created_at': get_ist_time().isoformat()
+                                })
                             save_auction_data(auction_data)
                             st.success("Proposal Sent!")
                             st.rerun()
@@ -1603,11 +1626,19 @@ def show_main_app():
                             pl = st.selectbox("Player to Loan Out", [p['name'] for p in my_part['squad']], key="loan_out_pl")
                             fee = st.number_input("Loan Fee (They pay you)", 0, 100, 0, key="loan_fee_out")
                             if st.button("Offer Loan"):
-                                room['pending_trades'].append({
-                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                    'type': "Loan Out", 'player': pl, 'price': fee,
-                                    'created_at': get_ist_time().isoformat()
-                                })
+                                # Check Duplicate
+                                is_dup = any(t for t in room['pending_trades'] 
+                                             if t['from'] == my_p_name and t['to'] == to_p_name 
+                                             and t['type'] == "Loan Out" and t.get('player') == pl 
+                                             and t.get('price') == fee)
+                                if is_dup:
+                                    st.error("Duplicate Loan Offer already sent.")
+                                else:
+                                    room['pending_trades'].append({
+                                        'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                        'type': "Loan Out", 'player': pl, 'price': fee,
+                                        'created_at': get_ist_time().isoformat()
+                                    })
                                 save_auction_data(auction_data)
                                 st.success("Loan Offer Sent!")
                                 st.rerun()
@@ -1615,11 +1646,19 @@ def show_main_app():
                             pl = st.selectbox("Player to Loan In", [p['name'] for p in their_part['squad']], key="loan_in_pl")
                             fee = st.number_input("Loan Fee (You pay them)", 0, 100, 0, key="loan_fee_in")
                             if st.button("Request Loan"):
-                                room['pending_trades'].append({
-                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                    'type': "Loan In", 'player': pl, 'price': fee,
-                                    'created_at': get_ist_time().isoformat()
-                                })
+                                # Check Duplicate
+                                is_dup = any(t for t in room['pending_trades'] 
+                                             if t['from'] == my_p_name and t['to'] == to_p_name 
+                                             and t['type'] == "Loan In" and t.get('player') == pl 
+                                             and t.get('price') == fee)
+                                if is_dup:
+                                    st.error("Duplicate Loan Request already sent.")
+                                else:
+                                    room['pending_trades'].append({
+                                        'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                        'type': "Loan In", 'player': pl, 'price': fee,
+                                        'created_at': get_ist_time().isoformat()
+                                    })
                                 save_auction_data(auction_data)
                                 st.success("Loan Request Sent!")
                                 st.rerun()
