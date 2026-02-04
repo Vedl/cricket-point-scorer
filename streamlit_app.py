@@ -941,7 +941,7 @@ def show_main_app():
     
     # Navigation
     st.sidebar.divider()
-    page = st.sidebar.radio("Navigation", ["📊 Calculator", "� Squads & Trading", "�📅 Schedule & Admin", "🏆 Standings"])
+    page = st.sidebar.radio("Navigation", ["📊 Calculator", "👤 Squads & Trading", "📅 Schedule & Admin", "🏆 Standings"])
     
     # Leave Room / Logout
     st.sidebar.divider()
