@@ -1237,6 +1237,14 @@ def show_main_app():
                         if curr_amt >= 100: interval = 10
                         elif curr_amt >= 50: interval = 5
                         else: interval = 1
+                        
+                        # Rule: Sniper Mode (< 30 mins) -> Min Increment 5M
+                        if global_deadline:
+                            mins_left = (global_deadline - now).total_seconds() / 60
+                            if mins_left < 30:
+                                interval = max(interval, 5)
+                                st.caption(f"🔥 Sniper Mode Active (Extension + 5M Min Incr)")
+                        
                         min_bid = int(math.ceil(curr_amt + interval))
                     
                     step_val = 10 if min_bid >= 100 else (5 if min_bid >= 50 else 1)
