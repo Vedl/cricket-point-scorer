@@ -1186,15 +1186,15 @@ def show_main_app():
             st.markdown("### 🆕 Place New Bid")
             
             # Get current user's participant profile
-            current_participant = next((p for p in room['participants'] if p['name'] == user), None)
+            # Strict check: Must be linked user or exact match name
+            current_participant = next((p for p in room['participants'] if p.get('user') == user or p['name'] == user), None)
+            
             if not current_participant:
-                # Check if user is in any participant's name loosely (for flexibility)
-                participant_options = [p['name'] for p in room['participants']]
-                if participant_options:
-                    selected_bidder = st.selectbox("Select Your Name", participant_options, key="bidder_select")
-                    current_participant = next((p for p in room['participants'] if p['name'] == selected_bidder), None)
-                else:
-                    st.warning("No participants.")
+                st.error("⚠️ You are not linked to any team. You cannot place bids.")
+                # st.stop() # Optional: Stop rendering rest of bid UI
+            
+            else:
+                 st.caption(f"Bidding as: **{current_participant['name']}** (Budget: {current_participant.get('budget', 0)}M)")
             
             if current_participant:
                 target_player = st.selectbox(
