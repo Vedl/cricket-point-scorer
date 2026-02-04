@@ -1701,14 +1701,51 @@ def show_main_app():
                         if potential_participants:
                             # Horizontal Mode Logic
                             start_row_idx = 2 
+                            # Budget Extraction Storage
+                            extracted_budgets = {} # Participant Name -> Budget Amount
+
                             for r_idx in range(start_row_idx, len(df_in)):
                                 row = df_in.iloc[r_idx]
+                                
+                                # Check for Budget Row (Row 27 = Index 26)
+                                is_budget_row = (r_idx == 26)
+                                
                                 for col_idx, p_name in potential_participants.items():
                                     pl_raw = row[col_idx]
                                     if pd.isna(pl_raw) or str(pl_raw).strip() == '': continue
                                     pl_raw = str(pl_raw).strip()
                                     
-                                    if "remaining" in pl_raw.lower() or "budget" in pl_raw.lower(): continue
+                                    # If this is the specific Budget Row or explicitly labeled
+                                    if is_budget_row or "remaining" in pl_raw.lower() or "budget" in pl_raw.lower():
+                                        # Try to extract the budget value from the expected price column (col_idx + 1)
+                                        # OR if the cell itself is the number (unlikely for "Remaining" text, but possible for row 27 data)
+                                        # User said "Row 27 has everyone's remaining budgets". 
+                                        # It likely implies the cell under the participant is the budget? 
+                                        # Or is it in the price column?
+                                        # Usually standard is Name | Price. 
+                                        # If Row 27 is "Remaining", maybe the price column has the value?
+                                        # Let's try both: Cell content or Neighbor.
+                                        
+                                        try:
+                                            # Try Neighbor (Price Column) first as per standard format
+                                            budget_val = 0
+                                            if col_idx + 1 < len(df_in.columns):
+                                                val_neigh = row[col_idx + 1]
+                                                if pd.notna(val_neigh):
+                                                    budget_val = float(str(val_neigh).replace(',', '').replace('$',''))
+                                            
+                                            # If neighbor is empty/0, maybe the cell itself is the value?
+                                            if budget_val == 0:
+                                                try:
+                                                    budget_val = float(str(pl_raw).replace(',', '').replace('$',''))
+                                                except: pass # It was text
+                                            
+                                            if budget_val > 0 or (budget_val == 0 and is_budget_row):
+                                                extracted_budgets[p_name] = budget_val
+                                        except: pass
+                                        continue # Skip parsing this as a player
+
+                                    # Normal Player Parsing logic...
                                     
                                     price = 0
                                     if col_idx + 1 < len(df_in.columns):
@@ -1771,6 +1808,12 @@ def show_main_app():
                                         m['Status'] = "⚠️ Fuzzy Match" if best_matches[0] != pl_raw else "✅ Exact"
 
                                 # Store in Session State
+                                if 'extracted_budgets' not in st.session_state:
+                                    st.session_state.extracted_budgets = {}
+                                if extracted_budgets:
+                                    st.session_state.extracted_budgets = extracted_budgets
+                                    st.toast(f"💰 Found budgets for {len(extracted_budgets)} teams")
+                                    
                                 st.session_state.import_staging_df = pd.DataFrame(matches)
                                 st.session_state.import_file_id = file_id
                                 st.rerun() # Rerun to display editor with fresh data
@@ -1841,20 +1884,28 @@ def show_main_app():
                                 'buy_price': row['Price'],
                                 'team': info.get('country', 'Unknown')
                             })
-                            part_obj['budget'] -= row['Price']
+                            # part_obj['budget'] -= row['Price'] # REMOVED: We will set absolute budget below
                             
                             if pl_name in room['unsold_players']:
                                 room['unsold_players'].remove(pl_name)
                                 
                             success += 1
                     
+                    # 4. Apply Extracted Budgets Overrides
+                    if 'extracted_budgets' in st.session_state:
+                        for p_name, budget in st.session_state.extracted_budgets.items():
+                            # Find participant (handle name changes via map could be tricky, but usually name matches)
+                            part = next((p for p in room['participants'] if p['name'] == p_name), None)
+                            if part:
+                                part['budget'] = budget
+                                
                     save_auction_data(auction_data)
-                    st.success(f"Finalized Import! Added {success} players.")
+                    st.success(f"Finalized Import! Added {success} players. Budgets Updated.")
                     
-                    # Updates Session State w/ latest edits to be safe? 
-                    # Or just clear it to finish.
+                    # Cleanup
                     st.session_state.import_staging_df = None # Clear staging
                     st.session_state.import_file_id = None
+                    st.session_state.extracted_budgets = {} # Clear budgets too
                     time.sleep(2)
                     st.rerun()
             
