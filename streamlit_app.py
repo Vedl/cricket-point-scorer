@@ -1351,29 +1351,47 @@ def show_main_app():
                                        # Loan Out: Sender GIVES player, Receives FEE.
                                        # Loan In: Sender TAKES player, Pays FEE.
                                        
-                                       if trade['type'] == "Loan Out":
-                                            pl_name = trade['player']
-                                            fee = trade['price'] # Sender receives this
-                                            p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
+                                            current_gw = 0
+                                            locked_gws = list(room.get('gameweek_squads', {}).keys())
+                                            if locked_gws:
+                                                current_gw = max([int(gw) for gw in locked_gws])
                                             
-                                            if p_obj and receiver['budget'] >= fee:
-                                                sender['squad'].remove(p_obj)
-                                                receiver['squad'].append(p_obj)
-                                                sender['budget'] += fee
-                                                receiver['budget'] -= fee
-                                                success = True
+                                            # Loan Return: Next Gameweek (Current + 1)
+                                            return_gw = current_gw + 1
+                                            
+                                            if trade['type'] == "Loan Out":
+                                                pl_name = trade['player']
+                                                fee = trade['price'] # Sender receives this
+                                                p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
+                                                
+                                                if p_obj and receiver['budget'] >= fee:
+                                                    sender['squad'].remove(p_obj)
+                                                    
+                                                    # Tag metadata
+                                                    p_obj['loan_origin'] = sender['name']
+                                                    p_obj['loan_expiry_gw'] = return_gw
+                                                    
+                                                    receiver['squad'].append(p_obj)
+                                                    sender['budget'] += fee
+                                                    receiver['budget'] -= fee
+                                                    success = True
 
-                                       elif trade['type'] == "Loan In":
-                                            pl_name = trade['player']
-                                            fee = trade['price'] # Sender PAYS this
-                                            p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
-                                            
-                                            if p_obj and sender['budget'] >= fee:
-                                                receiver['squad'].remove(p_obj)
-                                                sender['squad'].append(p_obj)
-                                                receiver['budget'] += fee
-                                                sender['budget'] -= fee
-                                                success = True
+                                            elif trade['type'] == "Loan In":
+                                                pl_name = trade['player']
+                                                fee = trade['price'] # Sender PAYS this
+                                                p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
+                                                
+                                                if p_obj and sender['budget'] >= fee:
+                                                    receiver['squad'].remove(p_obj)
+                                                    
+                                                    # Tag metadata
+                                                    p_obj['loan_origin'] = receiver['name']
+                                                    p_obj['loan_expiry_gw'] = return_gw
+                                                    
+                                                    sender['squad'].append(p_obj)
+                                                    receiver['budget'] += fee
+                                                    sender['budget'] -= fee
+                                                    success = True
                                    
                                    if success:
                                        room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
@@ -1646,8 +1664,37 @@ def show_main_app():
                         st.subheader("🕵️ Review & Edit (Staging Area)")
                         
                         if matches:
-                            df_matches = pd.DataFrame(matches)
+                            import difflib
                             valid_parts = [p['name'] for p in room['participants']]
+                            
+                            # Auto-create Shadow Participants if new names found in header
+                            found_parts_raw = set(row.get('Participant (Raw)') for row in matches)
+                            new_parts_created = []
+                            for p_raw in found_parts_raw:
+                                if p_raw and p_raw not in valid_parts:
+                                    # Create shadow participant
+                                    new_p = {
+                                        'name': p_raw.strip(),
+                                        'budget': 100, # Default budget
+                                        'squad': [],
+                                        'user': None # No user claimed yet
+                                    }
+                                    room['participants'].append(new_p)
+                                    new_parts_created.append(p_raw)
+                            
+                            if new_parts_created:
+                                st.toast(f"Created {len(new_parts_created)} new teams: {', '.join(new_parts_created)}")
+                                valid_parts = [p['name'] for p in room['participants']]
+                                
+                            # Pre-calculate fuzzy matches
+                            for m in matches:
+                                pl_raw = m['Player (Raw)']
+                                best_matches = difflib.get_close_matches(str(pl_raw), player_names, n=1, cutoff=0.5)
+                                if best_matches:
+                                    m['Player (DB)'] = best_matches[0]
+                                    m['Status'] = "⚠️ Fuzzy Match" if best_matches[0] != pl_raw else "✅ Exact"
+                            
+                            df_matches = pd.DataFrame(matches)
                             
                             edited_df = st.data_editor(
                                 df_matches,
@@ -1817,6 +1864,36 @@ def show_main_app():
                                 
                                 status.text("✅ Processing Complete!")
                                 st.success(f"Gameweek {selected_gw} processed! {len(all_scores)} players scored.")
+                                
+                                # Process Loan Returns (End of this Gameweek)
+                                returned_loans = []
+                                current_gw_int = int(selected_gw)
+                                
+                                for p in room['participants']:
+                                    to_remove = []
+                                    for pl in p['squad']:
+                                        expiry = pl.get('loan_expiry_gw')
+                                        origin = pl.get('loan_origin')
+                                        
+                                        # If expiry matches current processed GW, return now
+                                        if expiry and expiry == current_gw_int and origin:
+                                            origin_p = next((x for x in room['participants'] if x['name'] == origin), None)
+                                            if origin_p:
+                                                to_remove.append(pl)
+                                                # Clean metadata
+                                                pl_ret = pl.copy()
+                                                pl_ret.pop('loan_expiry_gw', None)
+                                                pl_ret.pop('loan_origin', None)
+                                                origin_p['squad'].append(pl_ret)
+                                                returned_loans.append(f"{pl['name']} ({p['name']} -> {origin})")
+                                    
+                                    # Remove from borrower
+                                    for tr in to_remove:
+                                        p['squad'].remove(tr)
+                                        
+                                if returned_loans:
+                                    st.info(f"↩️ Processed Loan Returns: {', '.join(returned_loans)}")
+                                    save_auction_data(auction_data)
                                 
                                 # Show preview
                                 st.subheader("📊 Scores Preview")
