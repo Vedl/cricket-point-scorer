@@ -1797,6 +1797,58 @@ def show_main_app():
 
             st.divider()
             
+            if is_admin:
+                with st.expander("👮 Admin: Force Add Player"):
+                    st.info("Forcefully add a player to a squad for a specific price. If the player is owned by someone else, they will be moved.")
+                    f_part_name = st.selectbox("Select Target Participant", [p['name'] for p in room['participants']], key="force_part_sel")
+                    f_player_name = st.selectbox("Select Player to Add", sorted(player_names), key="force_player_sel")
+                    f_price = st.number_input("Force Price (M)", value=0, step=1, key="force_price_val")
+                    
+                    if st.button("🚨 Force Add Player"):
+                        # 1. Find Target Participant
+                        target_p = next((p for p in room['participants'] if p['name'] == f_part_name), None)
+                        
+                        if target_p:
+                            # 2. Check Ownership & Remove if necessary
+                            prev_owner = None
+                            for p in room['participants']:
+                                found = next((pl for pl in p['squad'] if pl['name'] == f_player_name), None)
+                                if found:
+                                    p['squad'].remove(found)
+                                    prev_owner = p['name']
+                                    break
+                            
+                            # 3. Add to New Squad
+                            info = player_info_map.get(f_player_name, {})
+                            target_p['squad'].append({
+                                'name': f_player_name,
+                                'role': info.get('role', 'Unknown'),
+                                'active': True,
+                                'buy_price': int(f_price),
+                                'team': info.get('country', 'Unknown')
+                            })
+                            
+                            # 4. Deduct Budget
+                            target_p['budget'] -= int(f_price)
+                            
+                            # 5. Remove from Unsold/active bids if present
+                            if f_player_name in room.get('unsold_players', []):
+                                room['unsold_players'].remove(f_player_name)
+                            
+                            room['active_bids'] = [b for b in room.get('active_bids', []) if b['player'] != f_player_name]
+
+                            save_auction_data(auction_data)
+                            
+                            msg = f"Force Added {f_player_name} to {f_part_name} for {f_price}M!"
+                            if prev_owner:
+                                msg += f" (Stolen from {prev_owner})"
+                            
+                            st.success(msg)
+                            time.sleep(1)
+                            st.rerun()
+
+            st.divider()
+            
             # === ADMIN DEADLINE SETTER ===
             st.markdown("### ⏰ Set Gameweek Deadline")
             st.info("This deadline controls Bidding Phases and Trading Locks.")
