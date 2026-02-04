@@ -983,6 +983,15 @@ def show_main_app():
                     st.rerun()
     else:
         st.sidebar.success(f"👤 Managing: **{my_p['name']}**")
+        st.sidebar.markdown(f"### 💰 Budget: **{my_p.get('budget', 0)}M**")
+        
+        # Admin View of ALL Budgets
+        if is_admin:
+            with st.sidebar.expander("🏦 All Team Budgets"):
+                all_budgets = [{"Team": p['name'], "Budget": p.get('budget', 0)} for p in room['participants']]
+                # Sort by budget ascending (lowest first = most spent usually) or name
+                all_budgets.sort(key=lambda x: x['Team'])
+                st.dataframe(pd.DataFrame(all_budgets), hide_index=True)
     
     # Navigation
     st.sidebar.divider()
