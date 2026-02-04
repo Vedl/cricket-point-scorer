@@ -1761,34 +1761,32 @@ def show_main_app():
                                     pl_raw = str(pl_raw).strip()
                                     
                                     # If this is the specific Budget Row or explicitly labeled
-                                    if is_budget_row or "remaining" in pl_raw.lower() or "budget" in pl_raw.lower():
-                                        # Try to extract the budget value from the expected price column (col_idx + 1)
-                                        # OR if the cell itself is the number (unlikely for "Remaining" text, but possible for row 27 data)
-                                        # User said "Row 27 has everyone's remaining budgets". 
-                                        # It likely implies the cell under the participant is the budget? 
-                                        # Or is it in the price column?
-                                        # Usually standard is Name | Price. 
-                                        # If Row 27 is "Remaining", maybe the price column has the value?
-                                        # Let's try both: Cell content or Neighbor.
-                                        
+                                    # If this is the specific Budget Row (index 26)
+                                    if is_budget_row:
+                                        # Try extracting from CELL ITSELF (Name Column) - Common in user's sheet
+                                        budget_found = 0
                                         try:
-                                            # Try Neighbor (Price Column) first as per standard format
-                                            budget_val = 0
-                                            if col_idx + 1 < len(df_in.columns):
-                                                val_neigh = row[col_idx + 1]
-                                                if pd.notna(val_neigh):
-                                                    budget_val = float(str(val_neigh).replace(',', '').replace('$',''))
-                                            
-                                            # If neighbor is empty/0, maybe the cell itself is the value?
-                                            if budget_val == 0:
-                                                try:
-                                                    budget_val = float(str(pl_raw).replace(',', '').replace('$',''))
-                                                except: pass # It was text
-                                            
-                                            if budget_val > 0 or (budget_val == 0 and is_budget_row):
-                                                extracted_budgets[p_name] = budget_val
-                                        except: pass
+                                            # Clean string: remove $, commas
+                                            b_str = str(pl_raw).replace(',', '').replace('$', '').strip()
+                                            budget_found = float(b_str)
+                                        except:
+                                            # If Name col failed to be a number, try Price col (Col+1)
+                                            try:
+                                                if col_idx + 1 < len(df_in.columns):
+                                                    val_neigh = row[col_idx + 1]
+                                                    if pd.notna(val_neigh):
+                                                        b_str_n = str(val_neigh).replace(',', '').replace('$', '').strip()
+                                                        budget_found = float(b_str_n)
+                                            except: pass
+                                        
+                                        # Any valid number (even 0) on this row counts as budget if found
+                                        if budget_found > -99999: 
+                                            extracted_budgets[p_name] = budget_found
+                                        
                                         continue # Skip parsing this as a player
+
+                                    # Skip other metadata rows if they exist
+                                    if "remaining" in pl_raw.lower() or "budget" in pl_raw.lower(): continue
 
                                     # Normal Player Parsing logic...
                                     
@@ -1871,6 +1869,15 @@ def show_main_app():
                 st.divider()
                 st.subheader("🕵️ Review & Edit (Staging Area)")
                 st.info("✅ Data parsed and cached. Edits here will NOT be lost on refresh unless you clear/re-upload.")
+
+                # Show Extracted Budgets
+                if 'extracted_budgets' in st.session_state and st.session_state.extracted_budgets:
+                    st.markdown("### 💰 Detected Remaining Budgets (Row 27)")
+                    b_list = [{"Participant": k, "Remaining Budget": v} for k,v in st.session_state.extracted_budgets.items()]
+                    b_df = pd.DataFrame(b_list)
+                    st.dataframe(b_df, hide_index=True)
+                else:
+                    st.warning("⚠️ No Budgets detected in Row 27. Default calculation will apply.")
                 
                 valid_parts = [p['name'] for p in room['participants']]
                 
