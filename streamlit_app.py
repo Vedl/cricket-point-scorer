@@ -1462,7 +1462,6 @@ def show_main_app():
                     is_trading_locked = True
                 
                 if not is_trading_locked:
-                if not is_trading_locked:
                     
                     # === ADMIN FORCE TRADE ===
                     if is_admin:
