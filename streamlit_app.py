@@ -1361,7 +1361,8 @@ def show_main_app():
             if current_phase == 'Locked':
                 st.info("🔒 Trading is currently LOCKED for Gameweek processing.")
             else:
-                my_p_name = user
+                # Fix: Use Participant Name (not just username) to filter trades
+                my_p_name = my_p['name'] if my_p else user
                 if 'pending_trades' not in room: room['pending_trades'] = []
                 prefill = st.session_state.pop('trade_prefill', None)
                 
