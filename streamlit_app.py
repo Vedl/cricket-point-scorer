@@ -1748,6 +1748,12 @@ def show_main_app():
                                 p['injury_reserve'] = ir_cand
                                 changes.append(f"Auto-assigned IR: {ir_cand} (Most Expensive)")
                         
+                        # Fix: Clear IR if squad dropped below 19
+                        elif len(p['squad']) < 19:
+                            if p.get('injury_reserve'):
+                                p['injury_reserve'] = None
+                                changes.append("Cleared IR (Squad < 19)")
+                        
                         # 3. IR FEE DEDUCTION
                         if p.get('injury_reserve'):
                             p['budget'] -= 2
@@ -1775,12 +1781,36 @@ def show_main_app():
             with c_gw2:
                 # Advance GW
                 if st.button(f"⏩ Start Gameweek {curr_gw + 1}"):
-                    room['current_gameweek'] = curr_gw + 1
+                    new_gw = curr_gw + 1
+                    room['current_gameweek'] = new_gw
+                    
+                    # === PROCESS LOAN RETURNS ===
+                    start_gw_log = []
+                    for p in room['participants']:
+                        # Iterate copy since we might modify
+                        for pl in p['squad'][:]:
+                            expiry = pl.get('loan_expiry_gw')
+                            origin = pl.get('loan_origin')
+                            
+                            if expiry and origin and expiry <= new_gw:
+                                # Return Player
+                                origin_p = next((x for x in room['participants'] if x['name'] == origin), None)
+                                if origin_p:
+                                    p['squad'].remove(pl)
+                                    # Clean metadata
+                                    pl.pop('loan_expiry_gw', None)
+                                    pl.pop('loan_origin', None)
+                                    origin_p['squad'].append(pl)
+                                    start_gw_log.append(f"returned {pl['name']} from {p['name']} to {origin}")
+                    
                     # Reset paid releases for new GW
                     for p in room['participants']:
                         p['paid_releases'] = {} 
+                    
                     save_auction_data(auction_data)
-                    st.success(f"Started Gameweek {curr_gw + 1}!")
+                    msg = f"Started Gameweek {new_gw}!"
+                    if start_gw_log: msg += f" Loan Returns: {', '.join(start_gw_log)}"
+                    st.success(msg)
                     st.rerun()
 
             # ONE TIME BOOST (GW1 -> GW2)
