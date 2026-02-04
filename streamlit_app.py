@@ -1675,6 +1675,49 @@ def show_main_app():
             with c_gw1:
                 # Lock Squads
                 if st.button(f"🔒 Lock Squads for GW{curr_gw}"):
+                    # === AUTO-FIX & VALIDATION LOGIC ===
+                    sanitization_log = []
+                    
+                    for p in room['participants']:
+                        changes = []
+                        
+                        # 1. TRIM SQUAD (>19 Players)
+                        if len(p['squad']) > 19:
+                            # Sort by Price ASC (Cheapest First)
+                            p['squad'].sort(key=lambda x: x.get('buy_price', 0))
+                            
+                            excess = len(p['squad']) - 19
+                            to_remove = p['squad'][:excess]
+                            p['squad'] = p['squad'][excess:] # Keep the rest
+                            
+                            # Add to Unsold
+                            room.setdefault('unsold_players', []).extend([pl['name'] for pl in to_remove])
+                            changes.append(f"Released {excess} cheapest players")
+                        
+                        # 2. MANDATORY IR CHECK (>=19 Players)
+                        # Rule: If squad is full (19), MUST have IR.
+                        if len(p['squad']) >= 19:
+                            if not p.get('injury_reserve'):
+                                # Auto-Assign Most Expensive as IR
+                                # Sort by Price DESC
+                                p['squad'].sort(key=lambda x: x.get('buy_price', 0), reverse=True)
+                                
+                                # Pick most expensive
+                                ir_cand = p['squad'][0]['name']
+                                p['injury_reserve'] = ir_cand
+                                changes.append(f"Auto-assigned IR: {ir_cand} (Most Expensive)")
+                        
+                        # 3. IR FEE DEDUCTION
+                        if p.get('injury_reserve'):
+                            p['budget'] -= 2
+                            changes.append("Deducted 2M IR Fee")
+                        
+                        if changes:
+                            sanitization_log.append(f"**{p['name']}**: {', '.join(changes)}")
+
+                    if sanitization_log:
+                        st.info("🛠️ **Auto-Corrections Applied:**\n" + "\n".join([f"- {l}" for l in sanitization_log]))
+                    
                     # Save snapshot
                     snap = {
                         p['name']: {
