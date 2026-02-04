@@ -931,6 +931,7 @@ def show_main_app():
     st.sidebar.title(f"🏏 {room['name']}")
     
     # Room Info
+    # Room Info
     st.sidebar.markdown(f"**Room Code:** `{room_code}`")
     if is_admin:
         st.sidebar.success("👑 You are the Admin")
@@ -938,6 +939,25 @@ def show_main_app():
         st.sidebar.info(f"👑 Admin: {room['admin']}")
     
     st.sidebar.markdown(f"**Members:** {len(room['members'])}")
+
+    # === CLAIM TEAM LOGIC ===
+    my_p = next((p for p in room['participants'] if p.get('user') == user), None)
+    if not my_p:
+        # Check for unclaimed teams
+        unclaimed = [p['name'] for p in room['participants'] if p.get('user') is None]
+        if unclaimed:
+            st.sidebar.divider()
+            st.sidebar.warning("⚠️ You are not managing a team!")
+            claim_name = st.sidebar.selectbox("Select Your Team", [""] + unclaimed, key="claim_team_sel")
+            if claim_name and st.sidebar.button("Claim Team"):
+                p_claim = next((p for p in room['participants'] if p['name'] == claim_name), None)
+                if p_claim:
+                    p_claim['user'] = user
+                    save_auction_data(auction_data)
+                    st.sidebar.success(f"You are now managing {claim_name}!")
+                    st.rerun()
+    else:
+        st.sidebar.success(f"👤 Managing: **{my_p['name']}**")
     
     # Navigation
     st.sidebar.divider()
@@ -1731,7 +1751,8 @@ def show_main_app():
                                     p_curr = row['Participant (Matched)']
                                     pl_name = row['Player (DB)']
                                     
-                                    if p_curr == "UNKNOWN" or not pl_name: continue
+                                    if p_curr == "UNKNOWN" or not pl_name or pd.isna(pl_name): continue
+                                    pl_name = str(pl_name).strip()
                                     
                                     # Add to Participant
                                     part_obj = next((p for p in room['participants'] if p['name'] == p_curr), None)
