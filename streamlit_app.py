@@ -1595,195 +1595,198 @@ def show_main_app():
             st.divider()
             st.subheader("📥 Bulk Squad Import (CSV with Staging)")
             
+            # Session State for Import Persistence
+            if 'import_staging_df' not in st.session_state:
+                st.session_state.import_staging_df = None
+            if 'import_file_id' not in st.session_state:
+                st.session_state.import_file_id = None
+                
             uploaded_file = st.file_uploader("Upload Squads CSV", type=['csv'], key="admin_squad_import")
             
+            # CLEAR/RESET Button
+            if st.session_state.import_staging_df is not None:
+                if st.button("🔄 Clear Staging Area / Upload New"):
+                    st.session_state.import_staging_df = None
+                    st.session_state.import_file_id = None
+                    st.rerun()
 
             if uploaded_file is not None:
-                try:
-                    df_in = pd.read_csv(uploaded_file, header=None) # Read without header to handle Row 0 manually
-                    st.write("Preview:")
-                    st.dataframe(df_in.head())
-
-                    matches = []
-                    
-                    # DETECT MODE
-                    # Check Row 0 for Participant Names (assuming they are in room)
-                    first_row = df_in.iloc[0].tolist()
-                    potential_participants = {} # index -> Name
-                    
-                    # Scan Row 0 (skip blank cells)
-                    for idx, val in enumerate(first_row):
-                        if pd.isna(val) or str(val).strip() == '': continue
+                # Check if this is a new file or we already have staged data
+                file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+                
+                # If new file, PARSE IT. If same file and data exists, SKIP PARSING.
+                if st.session_state.import_file_id != file_id:
+                    try:
+                        df_in = pd.read_csv(uploaded_file, header=None) # Read without header to handle Row 0 manually
                         
-                        val_str = str(val).strip()
-                        # Fuzzy match or check against room
-                        p_match = next((p for p in room['participants'] if p['name'].lower() == val_str.lower()), None)
-                        if p_match:
-                            potential_participants[idx] = p_match['name']
-                        else:
-                            # If not found but looks like a name (not price), assume UNKNOWN participant
-                            # Heuristic: Price is usually number. Name is string.
-                             potential_participants[idx] = val_str # Mark as Raw Name
-
-                    if not potential_participants:
-                        st.warning("No participant names detected in Row 1. Falling back to Standard CSV (Col1=Participant, Col2=Player).")
-                        # FALLBACK LOIC (Standard List)
-                        # ... (Simplified standard logic or just error)
-                    else:
-                        st.info(f"Detected {len(potential_participants)} Teams: {', '.join(potential_participants.values())}. Mode: Horizontal Columns.")
+                        matches = []
                         
-                        # Iterate Rows starting from Row 2 (Index 2, since Row 1 is usually blank/header spacing)
-                        # User said: "First row teams. Second row blank. Third row onwards players."
-                        start_row_idx = 2 
+                        # DETECT MODE
+                        first_row = df_in.iloc[0].tolist()
+                        potential_participants = {} # index -> Name
                         
-                        for r_idx in range(start_row_idx, len(df_in)):
-                            row = df_in.iloc[r_idx]
+                        # Scan Row 0 (skip blank cells)
+                        for idx, val in enumerate(first_row):
+                            if pd.isna(val) or str(val).strip() == '': continue
                             
-                            # For each identified participant column
-                            for col_idx, p_name in potential_participants.items():
-                                # Player Name is at col_idx
-                                pl_raw = row[col_idx]
-                                
-                                if pd.isna(pl_raw) or str(pl_raw).strip() == '': continue
-                                pl_raw = str(pl_raw).strip()
-                                
-                                # Stop phrases
-                                if "remaining" in pl_raw.lower() or "budget" in pl_raw.lower(): continue
-                                
-                                # Price is at col_idx + 1 (if exists)
-                                price = 0
-                                if col_idx + 1 < len(df_in.columns):
-                                    price_raw = row[col_idx + 1]
-                                    try:
-                                        if pd.notna(price_raw):
-                                            price = float(str(price_raw).replace(',', '').replace('$',''))
-                                    except: pass
-                                
-                                # Match Player
-                                # Direct Match
-                                pl_info = player_info_map.get(pl_raw)
-                                if pl_info:
-                                    pl_match = pl_raw
-                                    status = "✅ Exact"
-                                else:
-                                    # Fuzzy?
-                                    pl_match = pl_raw
+                            val_str = str(val).strip()
+                            p_match = next((p for p in room['participants'] if p['name'].lower() == val_str.lower()), None)
+                            if p_match:
+                                potential_participants[idx] = p_match['name']
+                            else:
+                                 potential_participants[idx] = val_str # Mark as Raw Name
+                        
+                        if potential_participants:
+                            # Horizontal Mode Logic
+                            start_row_idx = 2 
+                            for r_idx in range(start_row_idx, len(df_in)):
+                                row = df_in.iloc[r_idx]
+                                for col_idx, p_name in potential_participants.items():
+                                    pl_raw = row[col_idx]
+                                    if pd.isna(pl_raw) or str(pl_raw).strip() == '': continue
+                                    pl_raw = str(pl_raw).strip()
+                                    
+                                    if "remaining" in pl_raw.lower() or "budget" in pl_raw.lower(): continue
+                                    
+                                    price = 0
+                                    if col_idx + 1 < len(df_in.columns):
+                                        price_raw = row[col_idx + 1]
+                                        try:
+                                            if pd.notna(price_raw):
+                                                price = float(str(price_raw).replace(',', '').replace('$',''))
+                                        except: pass
+                                    
+                                    # Matches
+                                    pl_match = pl_raw # Default
                                     status = "⚠️ Check"
-                                
-                                matches.append({
-                                    "Row": r_idx + 1,
-                                    "Participant (Matched)": p_name if any(p['name'] == p_name for p in room['participants']) else "UNKNOWN",
-                                    "Participant (Raw)": p_name,
-                                    "Player (Raw)": pl_raw,
-                                    "Player (DB)": pl_match,
-                                    "Price": price,
-                                    "Status": status
-                                })
-
-                        st.divider()
-                        st.subheader("🕵️ Review & Edit (Staging Area)")
-                        
-                        if matches:
-                            import difflib
-                            valid_parts = [p['name'] for p in room['participants']]
+                                    
+                                    matches.append({
+                                        "Row": r_idx + 1,
+                                        "Participant (Matched)": p_name if any(p['name'] == p_name for p in room['participants']) else "UNKNOWN",
+                                        "Participant (Raw)": p_name,
+                                        "Player (Raw)": pl_raw,
+                                        "Player (DB)": pl_match, # To be filled by fuzzy
+                                        "Price": price,
+                                        "Status": status
+                                    })
                             
-                            # Auto-create Shadow Participants if new names found in header
-                            found_parts_raw = set(row.get('Participant (Raw)') for row in matches)
-                            new_parts_created = []
-                            for p_raw in found_parts_raw:
-                                if p_raw and p_raw not in valid_parts:
-                                    # Create shadow participant
-                                    new_p = {
-                                        'name': p_raw.strip(),
-                                        'budget': 100, # Default budget
-                                        'squad': [],
-                                        'user': None # No user claimed yet
-                                    }
-                                    room['participants'].append(new_p)
-                                    new_parts_created.append(p_raw)
-                            
-                            if new_parts_created:
-                                st.toast(f"Created {len(new_parts_created)} new teams: {', '.join(new_parts_created)}")
+                            if matches:
+                                import difflib
                                 valid_parts = [p['name'] for p in room['participants']]
                                 
-                            # Pre-calculate fuzzy matches
-                            for m in matches:
-                                pl_raw = m['Player (Raw)']
-                                best_matches = difflib.get_close_matches(str(pl_raw), player_names, n=1, cutoff=0.5)
-                                if best_matches:
-                                    m['Player (DB)'] = best_matches[0]
-                                    m['Status'] = "⚠️ Fuzzy Match" if best_matches[0] != pl_raw else "✅ Exact"
-                            
-                            df_matches = pd.DataFrame(matches)
-                            
-                            edited_df = st.data_editor(
-                                df_matches,
-                                column_config={
-                                    "Participant (Matched)": st.column_config.SelectboxColumn(
-                                        "Participant",
-                                        options=valid_parts + ["UNKNOWN"],
-                                        required=True
-                                    ),
-                                    "Player (DB)": st.column_config.SelectboxColumn(
-                                        "Player Name (DB)",
-                                        help="Select the valid player from Database",
-                                        options=sorted(player_names),
-                                        required=True,
-                                        width="large"
-                                    )
-                                },
-                                hide_index=True,
-                                num_rows="dynamic",
-                                use_container_width=True
-                            )
-                            
-                            if st.button("✅ Confirm & Import Squads", type="primary"):
-                                success = 0
-                                import time
-                                
-                                # Prepare Unsold List if not present
-                                if 'unsold_players' not in room:
-                                    # If missing, init with all players minus those in squads (expensive but safe)
-                                    all_owned = [pl['name'] for p in room['participants'] for pl in p['squad']]
-                                    room['unsold_players'] = [p for p in player_names if p not in all_owned]
-                                
-                                for _, row in edited_df.iterrows():
-                                    p_curr = row['Participant (Matched)']
-                                    pl_name = row['Player (DB)']
-                                    
-                                    if p_curr == "UNKNOWN" or not pl_name or pd.isna(pl_name): continue
-                                    pl_name = str(pl_name).strip()
-                                    
-                                    # Add to Participant
-                                    part_obj = next((p for p in room['participants'] if p['name'] == p_curr), None)
-                                    if part_obj:
-                                        # Dedupe
-                                        if any(x['name'] == pl_name for x in part_obj['squad']): continue
-                                        
-                                        # Fetch Role
-                                        info = player_info_map.get(pl_name, {})
-                                        part_obj['squad'].append({
-                                            'name': pl_name,
-                                            'role': info.get('role', 'Unknown'),
-                                            'active': True,
-                                            'buy_price': row['Price'],
-                                            'team': info.get('country', 'Unknown')
-                                        })
-                                        part_obj['budget'] -= row['Price']
-                                        
-                                        # Remove from Unsold Pool
-                                        if pl_name in room['unsold_players']:
-                                            room['unsold_players'].remove(pl_name)
-                                            
-                                        success += 1
-                                
-                                save_auction_data(auction_data)
-                                st.success(f"Imported {success} players!")
-                                time.sleep(2)
-                                st.rerun()
+                                # Auto-create Shadow Participants
+                                found_parts_raw = set(m['Participant (Raw)'] for m in matches)
+                                new_parts_created = []
+                                for p_raw in found_parts_raw:
+                                    if p_raw and p_raw not in valid_parts:
+                                        # Create shadow participant
+                                        new_p = {
+                                            'name': p_raw.strip(),
+                                            'budget': 100,
+                                            'squad': [],
+                                            'user': None
+                                        }
+                                        room['participants'].append(new_p)
+                                        new_parts_created.append(p_raw)
+                                if new_parts_created:
+                                    st.toast(f"Created Auto-Teams: {', '.join(new_parts_created)}")
 
-                except Exception as e:
-                    st.error(f"Error processing upload: {e}")
+                                # Fuzzy Match Logic (Run ONCE during parse)
+                                for m in matches:
+                                    pl_raw = m['Player (Raw)']
+                                    best_matches = difflib.get_close_matches(str(pl_raw), player_names, n=1, cutoff=0.5)
+                                    if best_matches:
+                                        m['Player (DB)'] = best_matches[0]
+                                        m['Status'] = "⚠️ Fuzzy Match" if best_matches[0] != pl_raw else "✅ Exact"
+
+                                # Store in Session State
+                                st.session_state.import_staging_df = pd.DataFrame(matches)
+                                st.session_state.import_file_id = file_id
+                                st.rerun() # Rerun to display editor with fresh data
+
+                    except Exception as e:
+                         st.error(f"Error parsing CSV: {e}")
+
+            # === DISPLAY STAGING AREA (From Session State) ===
+            if st.session_state.import_staging_df is not None:
+                st.divider()
+                st.subheader("🕵️ Review & Edit (Staging Area)")
+                st.info("✅ Data parsed and cached. Edits here will NOT be lost on refresh unless you clear/re-upload.")
+                
+                valid_parts = [p['name'] for p in room['participants']]
+                
+                # Bind Editor to Session State? No, just initialize from it.
+                # Actually, to keep edits across reruns (if they click other buttons), we need logic.
+                # But 'st.data_editor' maintains its own state if key is constant.
+                # The issue before was 'uploaded_file' triggering a re-parse that overwrote the editor.
+                # Now, re-parse is blocked by 'import_file_id' check.
+                
+                edited_df = st.data_editor(
+                    st.session_state.import_staging_df,
+                    column_config={
+                        "Participant (Matched)": st.column_config.SelectboxColumn(
+                            "Participant",
+                            options=valid_parts + ["UNKNOWN"],
+                            required=True
+                        ),
+                        "Player (DB)": st.column_config.SelectboxColumn(
+                            "Player Name (DB)",
+                            help="Select the valid player from Database",
+                            options=sorted(player_names),
+                            required=True,
+                            width="large"
+                        )
+                    },
+                    hide_index=True,
+                    num_rows="dynamic",
+                    use_container_width=True,
+                    key="staging_editor_persist"
+                )
+                
+                if st.button("✅ Confirm & Import Squads", type="primary"):
+                    success = 0
+                    import time
+                    
+                    if 'unsold_players' not in room:
+                        all_owned = [pl['name'] for p in room['participants'] for pl in p['squad']]
+                        room['unsold_players'] = [p for p in player_names if p not in all_owned]
+                    
+                    for _, row in edited_df.iterrows():
+                        p_curr = row['Participant (Matched)']
+                        pl_name = row['Player (DB)']
+                        
+                        if p_curr == "UNKNOWN" or not pl_name or pd.isna(pl_name): continue
+                        pl_name = str(pl_name).strip()
+                        
+                        part_obj = next((p for p in room['participants'] if p['name'] == p_curr), None)
+                        if part_obj:
+                            # Dedupe
+                            if any(x['name'] == pl_name for x in part_obj['squad']): continue
+                            
+                            info = player_info_map.get(pl_name, {})
+                            part_obj['squad'].append({
+                                'name': pl_name,
+                                'role': info.get('role', 'Unknown'),
+                                'active': True,
+                                'buy_price': row['Price'],
+                                'team': info.get('country', 'Unknown')
+                            })
+                            part_obj['budget'] -= row['Price']
+                            
+                            if pl_name in room['unsold_players']:
+                                room['unsold_players'].remove(pl_name)
+                                
+                            success += 1
+                    
+                    save_auction_data(auction_data)
+                    st.success(f"Finalized Import! Added {success} players.")
+                    
+                    # Updates Session State w/ latest edits to be safe? 
+                    # Or just clear it to finish.
+                    st.session_state.import_staging_df = None # Clear staging
+                    st.session_state.import_file_id = None
+                    time.sleep(2)
+                    st.rerun()
             
             st.divider()
             with st.expander("⚠️ Danger Zone (Reset)"):
