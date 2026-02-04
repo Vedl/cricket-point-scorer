@@ -1676,7 +1676,14 @@ def show_main_app():
                 # Lock Squads
                 if st.button(f"🔒 Lock Squads for GW{curr_gw}"):
                     # Save snapshot
-                    snap = {p['name']: [x.copy() for x in p['squad']] for p in room['participants']}
+                    snap = {
+                        p['name']: {
+                            'squad': [x.copy() for x in p['squad']],
+                            'injury_reserve': p.get('injury_reserve'),
+                            'budget': p.get('budget', 0)
+                        } 
+                        for p in room['participants']
+                    }
                     room.setdefault('gameweek_squads', {})[str(curr_gw)] = snap
                     save_auction_data(auction_data)
                     st.success(f"Squads locked for GW{curr_gw}!")
@@ -2081,7 +2088,15 @@ def show_main_app():
                         # Show locked squads overview
                         with st.expander("View Locked Squads"):
                              for participant_name, squad_data in locked_squads.items():
-                                 st.markdown(f"**{participant_name}** - {len(squad_data['squad'])} players, IR: {squad_data.get('injury_reserve', 'None')}")
+                                 # Robustness: Handle if squad_data is just a list (legacy bug fix)
+                                 if isinstance(squad_data, list):
+                                     s_len = len(squad_data)
+                                     ir_pl = "N/A (Old Format)"
+                                 else:
+                                     s_len = len(squad_data.get('squad', []))
+                                     ir_pl = squad_data.get('injury_reserve', 'None')
+                                     
+                                 st.markdown(f"**{participant_name}** - {s_len} players, IR: {ir_pl}")
                     else:
                         st.info("ℹ️ Squads have not been locked for this gameweek yet. Use the **Gameweek Manager** in the Sidebar/Auction Room to lock squads.")
                     
