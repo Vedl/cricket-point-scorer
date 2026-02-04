@@ -1691,6 +1691,14 @@ def show_main_app():
                                 if new_parts_created:
                                     save_auction_data(auction_data)
                                     st.toast(f"Created Auto-Teams: {', '.join(new_parts_created)}")
+                                    
+                                    # REFRESH valid_parts to include new ones
+                                    valid_parts = [p['name'] for p in room['participants']]
+                                    
+                                    # UPDATE Matches to reflect new teams (Replace UNKNOWN)
+                                    for m in matches:
+                                        if m['Participant (Matched)'] == "UNKNOWN" and m['Participant (Raw)'] in valid_parts:
+                                            m['Participant (Matched)'] = m['Participant (Raw)']
 
                                 # Fuzzy Match Logic (Run ONCE during parse)
                                 for m in matches:
