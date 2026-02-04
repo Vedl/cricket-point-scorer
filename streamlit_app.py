@@ -501,7 +501,7 @@ def render_live_auction_fragment(room_code, user):
                              
                              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
                                  <span style="color: #8b949e;">SQUAD</span>
-                                 <span class="status-badge" style="background: rgba(0, 204, 255, 0.1); color: #00CCFF;">{len(p['squad'])} / 19</span>
+                                <span class="status-badge" style="background: rgba(0, 204, 255, 0.1); color: #00CCFF;">{len(p['squad'])} / 30</span>
                              </div>
                          </div>
                          """, unsafe_allow_html=True)
@@ -551,7 +551,7 @@ def render_live_auction_fragment(room_code, user):
                          budget_val = p.get('budget', 0)
                          # Progress bar (Green to Blue gradient via CSS)
                          st.progress(min(1.0, max(0.0, budget_val / 100.0)))
-                         st.caption(f"💰 **{budget_val}M** Left | 🦅 {len(p['squad'])} / 19 Players")
+                         st.caption(f"💰 **{budget_val}M** Left | 🦅 {len(p['squad'])} / 30 Players")
 
                  st.markdown("---")
                  st.caption("📋 **Detailed Squad View**")
@@ -1095,16 +1095,20 @@ def show_main_app():
                 if current_phase == 'Trading':
                     if st.button("🔒 LOCK SQUADS"):
                         errors = []
-                        # 2a. Validate Squad Size
+                        # 2a. Validate Squad Size (19 with IR, 18 without)
                         for p in room['participants']:
-                            if len(p['squad']) > 19:
-                                excess = len(p['squad']) - 19
+                            # Determine Limit
+                            limit = 19 if p.get('injury_reserve', False) else 18
+                            
+                            if len(p['squad']) > limit:
+                                excess = len(p['squad']) - limit
                                 removed = []
                                 for _ in range(excess):
+                                    # Pop the LAST added player (assumed last in list)
                                     released_p = p['squad'].pop()
                                     room.setdefault('unsold_players', []).append(released_p['name'])
                                     removed.append(released_p['name'])
-                                errors.append(f"{p['name']} > 19. Released: {', '.join(removed)}")
+                                errors.append(f"{p['name']} Limit {limit}. Excess {excess} released: {', '.join(removed)}")
                         
                         # 2b. Deduct IR Cost
                         ir_deductions = []
@@ -1919,7 +1923,52 @@ def show_main_app():
                             save_auction_data(auction_data)
                             st.success(f"{team_to_restore} restored!")
                             st.rerun()
-        
+                                
+            st.divider()
+            st.subheader("📥 Bulk Squad Import")
+            st.caption("Format: Participant Name, Player Name, Price (One per line)")
+            import_text = st.text_area("Paste CSV Data", height=150, placeholder="Ladda CC, Virat Kohli, 15\nTeam B, Rohit Sharma, 12")
+            if st.button("Run Import"):
+                lines = [l.strip() for l in import_text.split('\n') if l.strip()]
+                added_count = 0
+                errors_log = []
+                
+                for line in lines:
+                    parts = [p.strip() for p in line.split(',')]
+                    if len(parts) >= 2:
+                        p_name = parts[0]
+                        pl_name = parts[1]
+                        price = float(parts[2]) if len(parts) > 2 else 0
+                        
+                        # Find Participant
+                        participant = next((p for p in room['participants'] if p['name'].lower() == p_name.lower()), None)
+                        if participant:
+                            # Check if player already in squad
+                            if any(s['name'] == pl_name for s in participant['squad']):
+                                pass # Already exists
+                            else:
+                                # Find Player Role/Team from DB
+                                info = player_info_map.get(pl_name, {})
+                                participant['squad'].append({
+                                    'name': pl_name,
+                                    'role': info.get('role', 'Unknown'),
+                                    'active': True,
+                                    'buy_price': price,
+                                    'team': info.get('country', 'Unknown')
+                                })
+                                participant['budget'] -= price
+                                added_count += 1
+                        else:
+                            errors_log.append(f"Participant not found: {p_name}")
+                    else:
+                        errors_log.append(f"Invalid format: {line}")
+                
+                save_auction_data(auction_data)
+                st.success(f"Imported {added_count} players!")
+                if errors_log:
+                    with st.expander("Import Errors"):
+                        for e in errors_log: st.write(e)
+                st.rerun()
         st.divider()
         
         # Two tabs: Schedule-based and Manual
