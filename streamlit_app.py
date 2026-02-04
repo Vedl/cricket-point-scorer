@@ -1189,7 +1189,22 @@ def show_main_app():
             unsold_players = list(set(unsold_players))
             room['unsold_players'] = unsold_players
             
+            # --- RULES ENFORCEMENT ---
             biddable_players = unsold_players
+            nominations_blocked = False
+            
+            if global_deadline:
+                time_to_deadline = global_deadline - now
+                minutes_remaining = time_to_deadline.total_seconds() / 60
+                
+                # Rule: No new nominations if < 60 mins left
+                if minutes_remaining < 60:
+                    nominations_blocked = True
+                    active_player_names = [b['player'] for b in active_bids]
+                    # Filter: Only allow players who are ALREADY active
+                    biddable_players = [p for p in unsold_players if p in active_player_names]
+                    
+                    st.warning(f"⛔ Nominations Closed (Deadline < 1h). You can ONLY bid on Active players ({len(biddable_players)}).")
             
             # Place a new bid
             st.markdown("### 🆕 Place New Bid")
