@@ -1757,33 +1757,36 @@ def show_main_app():
                                 
                                 for col_idx, p_name in potential_participants.items():
                                     pl_raw = row[col_idx]
-                                    if pd.isna(pl_raw) or str(pl_raw).strip() == '': continue
-                                    pl_raw = str(pl_raw).strip()
+                                    pl_str = str(pl_raw).strip() if pd.notna(pl_raw) else ""
                                     
-                                    # If this is the specific Budget Row or explicitly labeled
-                                    # If this is the specific Budget Row (index 26)
+                                    # === BUDGET ROW HANDLING (Priority) ===
                                     if is_budget_row:
-                                        # Try extracting from CELL ITSELF (Name Column) - Common in user's sheet
-                                        budget_found = 0
-                                        try:
-                                            # Clean string: remove $, commas
-                                            b_str = str(pl_raw).replace(',', '').replace('$', '').strip()
-                                            budget_found = float(b_str)
-                                        except:
-                                            # If Name col failed to be a number, try Price col (Col+1)
+                                        budget_found = -999999
+                                        
+                                        # 1. Try Neighbor (Price Column) -> Priority for Ladda CC case
+                                        if col_idx + 1 < len(df_in.columns):
+                                            val_neigh = row[col_idx + 1]
+                                            if pd.notna(val_neigh):
+                                                try:
+                                                    b_str_n = str(val_neigh).replace(',', '').replace('$', '').strip()
+                                                    if b_str_n: budget_found = float(b_str_n)
+                                                except: pass
+                                        
+                                        # 2. If neighbor failed, try Name Column (pl_str)
+                                        if budget_found == -999999 and pl_str:
                                             try:
-                                                if col_idx + 1 < len(df_in.columns):
-                                                    val_neigh = row[col_idx + 1]
-                                                    if pd.notna(val_neigh):
-                                                        b_str_n = str(val_neigh).replace(',', '').replace('$', '').strip()
-                                                        budget_found = float(b_str_n)
+                                                b_str = pl_str.replace(',', '').replace('$', '')
+                                                budget_found = float(b_str)
                                             except: pass
                                         
-                                        # Any valid number (even 0) on this row counts as budget if found
-                                        if budget_found > -99999: 
+                                        if budget_found != -999999: 
                                             extracted_budgets[p_name] = budget_found
                                         
-                                        continue # Skip parsing this as a player
+                                        continue # Finished processing for this participant on budget row
+
+                                    # === NORMAL PLAYER HANDLING ===
+                                    if not pl_str: continue # Skip empty cells for normal rows
+                                    pl_raw = pl_str # Use clean string
 
                                     # Skip other metadata rows if they exist
                                     if "remaining" in pl_raw.lower() or "budget" in pl_raw.lower(): continue
