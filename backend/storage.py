@@ -111,10 +111,35 @@ class StorageManager:
             return False, "Remote storage not configured."
         
         try:
-            json_str = json.dumps(data, indent=2)
+            # === COMPRESSION LOGIC ===
+            # Deep copy to avoid mutating active state
+            import copy
+            compressed = copy.deepcopy(data)
+            
+            # Minimize 'gameweek_squads' history (High Impact)
+            rooms = compressed.get('rooms', {})
+            for room_key, room_data in rooms.items():
+                gw_squads = room_data.get('gameweek_squads', {})
+                for gw, participants in gw_squads.items():
+                    for p_name, p_data in participants.items():
+                        # Strip squad list to essentials
+                        minimized_squad = []
+                        for pl in p_data.get('squad', []):
+                            # Only keep essential fields for history
+                            minimized_squad.append({
+                                'name': pl['name'],
+                                'buy_price': pl.get('buy_price', 0)
+                            })
+                        p_data['squad'] = minimized_squad
+            
+            json_str = json.dumps(compressed, separators=(',', ':')) # Removing whitespace saves ~20%
+            
+            if len(json_str) > 100000:
+                print(f"⚠️ Warning: Payload size {len(json_str)} bytes approaches 100KB limit.")
+            
             response = requests.put(self.url, headers=self.headers, data=json_str, timeout=10)
             if response.status_code == 200:
-                return True, "Successfully synced to Cloud!"
+                return True, "Successfully synced to Cloud! (Compressed)"
             else:
                 return False, f"Cloud Upload Failed: {response.status_code} - {response.text}"
         except Exception as e:

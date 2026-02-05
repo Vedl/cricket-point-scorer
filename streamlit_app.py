@@ -2640,8 +2640,14 @@ def show_main_app():
                 scored_players = []
                 for p in active_squad: 
                     score = player_scores.get(p['name'], 0)
-                    # Normalize Role
-                    role_str = p.get('role', '').lower()
+                    
+                    # Normalize Role (Lookup if missing)
+                    role_str = p.get('role', '')
+                    if not role_str:
+                         role_str = player_role_lookup.get(p['name'], 'Unknown')
+                    
+                    role_str = role_str.lower()
+                    
                     if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
                     elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
                     elif 'bat' in role_str: cat = 'BAT'
