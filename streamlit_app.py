@@ -1338,7 +1338,9 @@ def show_main_app():
                     knocked_out_teams = set(room.get('knocked_out_teams', []))
                     player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
                     
-                    remove_options = [p['name'] for p in current_participant['squad']]
+                    # Filter out Loaned Players
+                    remove_options = [p['name'] for p in current_participant['squad'] if not p.get('loan_origin')]
+                    
                     player_to_remove = st.selectbox(
                         "Select Player to Release", 
                         [""] + remove_options, 
@@ -1348,6 +1350,10 @@ def show_main_app():
                     
                     if player_to_remove:
                             player_obj = next((p for p in current_participant['squad'] if p['name'] == player_to_remove), None)
+                            
+                            if player_obj and player_obj.get('loan_origin'):
+                                st.error(f"🚫 Cannot release {player_to_remove} because they are on loan.")
+                            elif player_obj:
                             player_country = player_country_lookup.get(player_to_remove, 'Unknown')
                             is_knocked_out_team = player_country in knocked_out_teams
                             
