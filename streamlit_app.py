@@ -1492,6 +1492,48 @@ def show_main_app():
                                                     success = True
                                    
                                    if success:
+                                       # === LOGGING ===
+                                       log_msg = ""
+                                       t_type = trade.get('type')
+                                       t_price = trade.get('price', 0)
+                                       timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                       
+                                       if "Transfer" in t_type:
+                                           # Determine direction name
+                                           if t_type == "Transfer (Sell)":
+                                               log_msg = f"🔄 Transfer: **{trade['from']}** sold **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
+                                           else:
+                                               log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
+                                       
+                                       elif t_type == "Exchange":
+                                            give = trade.get('give_player')
+                                            get = trade.get('get_player')
+                                            if t_price > 0: cash_txt = f"(+{t_price}M)"
+                                            elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
+                                            else: cash_txt = "(Flat)"
+                                            log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
+                                       
+                                       elif "Loan" in t_type:
+                                           # Logic handled above already defines direction, but let's be safe
+                                           # For Loan Out: From gives Player to To.
+                                           # For Loan In: From (Requester) takes Player from To?? No, logic above:
+                                           # Loan Out: Sender(From) -> Receiver(To). 
+                                           # Loan In: Receiver(To) -> Sender(From).
+                                           # Let's stick to "A loaned X to B" format
+                                           
+                                           sender_name = trade['from']
+                                           receiver_name = trade['to']
+                                           p_name = trade['player']
+                                           
+                                           if t_type == "Loan Out":
+                                               log_msg = f"⏳ Loan: **{sender_name}** loaned **{p_name}** to **{receiver_name}** for **{t_price}M**"
+                                           else:
+                                               # Request Loan In: Sender(From) requested. Code above: receiver(to) gave player to sender(from).
+                                               log_msg = f"⏳ Loan: **{receiver_name}** loaned **{p_name}** to **{sender_name}** for **{t_price}M**"
+                                       
+                                       if log_msg:
+                                           room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                       
                                        room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                        save_auction_data(auction_data)
                                        st.success("Trade Executed!")
@@ -1547,6 +1589,11 @@ def show_main_app():
                                         
                                         sender_part['budget'] += trade_price
                                         receiver_part['budget'] -= trade_price
+                                        
+                                        # === LOGGING ===
+                                        timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                        log_msg = f"👑 Admin Force: **{pl_to_move}** moved from **{sender_name}** to **{receiver_name}** for **{trade_price}M**"
+                                        room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
                                         
                                         save_auction_data(auction_data)
                                         st.success(f"Trade Executed! {pl_to_move} moved from {sender_name} to {receiver_name} for {trade_price}M.")
@@ -1692,6 +1739,17 @@ def show_main_app():
                                 save_auction_data(auction_data)
                                 st.success("Loan Request Sent!")
                                 st.rerun()
+
+            st.divider()
+            st.subheader("📜 Global Trade Log")
+            
+            trade_log = room.get('trade_log', [])
+            if trade_log:
+                # Reverse order to show newest first
+                for log in reversed(trade_log):
+                    st.markdown(f"<small><b>{log['time']}</b>: {log['msg']}</small>", unsafe_allow_html=True)
+            else:
+                st.info("No trades executed yet.")
 
         # ================ TAB 3: SQUADS DASHBOARD ================
         with squad_tabs[2]:
