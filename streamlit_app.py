@@ -997,11 +997,46 @@ def show_main_app():
     st.sidebar.divider()
     page = st.sidebar.radio("Navigation", ["📊 Calculator", "👤 Squads & Trading", "📅 Schedule & Admin", "🏆 Standings"])
     
-    # Leave Room / Logout
+    # Display User Info
+    st.sidebar.caption(f"Logged in as: **{user}**")
+    
+    if my_p:
+        st.sidebar.success(f"Managing: **{my_p['name']}**")
+        
+        # === SWITCH TEAM LOGIC (ONE-TIME) ===
+        user_switches = room.get('user_switches', {})
+        switch_count = user_switches.get(user, 0)
+        
+        if switch_count < 1:
+            with st.sidebar.expander("⚠️ Made a mistake? Switch Team"):
+                st.caption("You can switch your team **once**.")
+                unclaimed_teams = [p['name'] for p in room['participants'] if p.get('user') is None]
+                
+                if unclaimed_teams:
+                    new_team_sel = st.selectbox("Switch to:", unclaimed_teams, key="switch_team_sel")
+                    
+                    if st.button("Confirm Switch"):
+                        # Unlink Old
+                        my_p['user'] = None
+                        
+                        # Link New
+                        new_p = next((p for p in room['participants'] if p['name'] == new_team_sel), None)
+                        if new_p:
+                            new_p['user'] = user
+                            room.setdefault('user_switches', {})[user] = switch_count + 1
+                            save_auction_data(auction_data)
+                            st.success(f"Switched to {new_team_sel}!")
+                            st.rerun()
+                else:
+                    st.info("No unclaimed teams available.")
+    else:
+        st.sidebar.warning("No Team Assigned")
+        
     st.sidebar.divider()
     if st.sidebar.button("🔙 Back to Rooms"):
         st.session_state.current_room = None
         st.rerun()
+
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in_user = None
         st.session_state.current_room = None
