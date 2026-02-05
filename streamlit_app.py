@@ -2379,6 +2379,29 @@ def show_main_app():
                     st.rerun()
             
             st.divider()
+            with st.expander("☁️ Cloud Storage Control (Backup & Restore)"):
+                 st.info("Manually force a sync to the cloud (JSONBin) or restore from the last cloud save. Useful if local state seems out of sync.")
+                 
+                 cols_cloud = st.columns(2)
+                 with cols_cloud[0]:
+                     if st.button("☁️ Force Save to Cloud"):
+                         with st.spinner("Uploading to Cloud..."):
+                             success, msg = storage_mgr.force_sync_to_remote(auction_data)
+                             if success: st.success(msg)
+                             else: st.error(msg)
+                 
+                 with cols_cloud[1]:
+                     if st.button("📥 Restore from Cloud"):
+                         with st.spinner("Downloading from Cloud..."):
+                             data, msg = storage_mgr.force_fetch_from_remote()
+                             if data:
+                                 st.success(msg)
+                                 time.sleep(1)
+                                 st.rerun()
+                             else:
+                                 st.error(msg)
+            
+            st.divider()
             with st.expander("⚠️ Danger Zone (Reset)"):
                  st.write("This will clear all participants and their squads. Use with caution.")
                  if st.button("🔄 Reset Room Data", type="primary"):

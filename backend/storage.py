@@ -104,3 +104,47 @@ class StorageManager:
         except Exception as e:
             st.error(f"SAVE FAILED: {str(e)}")
             print(f"Save Data Error: {e}")
+
+    def force_sync_to_remote(self, data):
+        """Manual Trigger: Force Synchronous Upload to Remote (Blocking)."""
+        if not self.use_remote:
+            return False, "Remote storage not configured."
+        
+        try:
+            json_str = json.dumps(data, indent=2)
+            response = requests.put(self.url, headers=self.headers, data=json_str, timeout=10)
+            if response.status_code == 200:
+                return True, "Successfully synced to Cloud!"
+            else:
+                return False, f"Cloud Upload Failed: {response.status_code} - {response.text}"
+        except Exception as e:
+            return False, f"Cloud Exception: {str(e)}"
+
+    def force_fetch_from_remote(self):
+        """Manual Trigger: Force Download from Remote and Overwrite Local (Blocking)."""
+        if not self.use_remote:
+            return None, "Remote storage not configured."
+            
+        try:
+            response = requests.get(self.url + "/latest", headers=self.headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json().get('record', {})
+                
+                # Overwrite Local File Immediately
+                fd = os.open(self.local_file_path, os.O_RDWR | os.O_CREAT)
+                with os.fdopen(fd, 'r+') as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    try:
+                        f.truncate(0)
+                        f.seek(0)
+                        json.dump(data, f, indent=2)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    finally:
+                        fcntl.flock(f, fcntl.LOCK_UN)
+                
+                return data, "Successfully restored from Cloud!"
+            else:
+                return None, f"Cloud Download Failed: {response.status_code}"
+        except Exception as e:
+            return None, f"Cloud Exception: {str(e)}"
