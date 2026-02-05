@@ -1173,6 +1173,12 @@ def show_main_app():
                         })
                         bidder_participant['budget'] -= bid['amount']
                         awarded_bids.append(bid)
+                        
+                        # === LOGGING ===
+                        timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                        log_msg = f"🔨 Won Bid: **{bid['player']}** won by **{bid['bidder']}** for **{bid['amount']}M**"
+                        room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                        
                         if bid['player'] in room.get('unsold_players', []):
                             room['unsold_players'].remove(bid['player'])
             
@@ -1378,6 +1384,11 @@ def show_main_app():
                                 
                                 if release_type == "paid":
                                     current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
+                                
+                                # === LOGGING ===
+                                timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                log_msg = f"🗑️ Released: **{player_to_remove}** by **{current_participant['name']}** (Refund: {refund_amount}M)"
+                                room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
                                 
                                 save_auction_data(auction_data)
                                 st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
@@ -1776,7 +1787,7 @@ def show_main_app():
                                 st.rerun()
 
             st.divider()
-            st.subheader("📜 Global Trade Log")
+            st.subheader("📜 Global Transaction Log")
             
             trade_log = room.get('trade_log', [])
             if trade_log:
