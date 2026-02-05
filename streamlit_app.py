@@ -1118,24 +1118,27 @@ def show_main_app():
             my_p_name_check = st.session_state.get('logged_in_user')
             my_participant = next((p for p in room['participants'] if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
 
-            if my_participant and not is_admin:
+            if my_participant:
                 with st.expander("🚑 Manage Injury Reserve (IR)"):
-                    st.info("Designating an IR player costs **2M** (deducted when squads lock). IR players get **0 points**.")
-                    current_ir = my_participant.get('injury_reserve')
-                    squad_names = [p['name'] for p in my_participant['squad']]
-                    
-                    # Add None option
-                    opts = ["None"] + squad_names
-                    def_idx = 0
-                    if current_ir in squad_names:
-                        def_idx = opts.index(current_ir)
-                    
-                    new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
-                    
-                    if st.button("Save IR Choice"):
-                        my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
-                        save_auction_data(auction_data)
-                        st.success("Injury Reserve Updated!")
+                    if len(my_participant['squad']) >= 19:
+                        st.info("Designating an IR player costs **2M** (deducted when squads lock). IR players get **0 points**.")
+                        current_ir = my_participant.get('injury_reserve')
+                        squad_names = [p['name'] for p in my_participant['squad']]
+                        
+                        # Add None option
+                        opts = ["None"] + squad_names
+                        def_idx = 0
+                        if current_ir in squad_names:
+                            def_idx = opts.index(current_ir)
+                        
+                        new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
+                        
+                        if st.button("Save IR Choice"):
+                            my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
+                            save_auction_data(auction_data)
+                            st.success("Injury Reserve Updated!")
+                    else:
+                        st.warning(f"You need at least 19 players to designate an IR player. (Current: {len(my_participant['squad'])})")
             
             # Show countdown to deadline
             now = get_ist_time()
