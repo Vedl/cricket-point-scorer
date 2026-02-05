@@ -118,19 +118,32 @@ class StorageManager:
             
             # Minimize 'gameweek_squads' history (High Impact)
             rooms = compressed.get('rooms', {})
-            for room_key, room_data in rooms.items():
-                gw_squads = room_data.get('gameweek_squads', {})
-                for gw, participants in gw_squads.items():
-                    for p_name, p_data in participants.items():
-                        # Strip squad list to essentials
-                        minimized_squad = []
-                        for pl in p_data.get('squad', []):
-                            # Only keep essential fields for history
-                            minimized_squad.append({
-                                'name': pl['name'],
-                                'buy_price': pl.get('buy_price', 0)
-                            })
-                        p_data['squad'] = minimized_squad
+            if isinstance(rooms, dict):
+                for room_key, room_data in rooms.items():
+                    if not isinstance(room_data, dict): continue
+                    
+                    gw_squads = room_data.get('gameweek_squads', {})
+                    if isinstance(gw_squads, dict):
+                        for gw, participants in gw_squads.items():
+                            if not isinstance(participants, dict): continue
+                            
+                            for p_name, p_data in participants.items():
+                                if not isinstance(p_data, dict): continue
+                                
+                                # Strip squad list to essentials
+                                minimized_squad = []
+                                squad_list = p_data.get('squad', [])
+                                if isinstance(squad_list, list):
+                                    for pl in squad_list:
+                                        if isinstance(pl, dict):
+                                            minimized_squad.append({
+                                                'name': pl.get('name', 'Unknown'),
+                                                'buy_price': pl.get('buy_price', 0)
+                                            })
+                                        else:
+                                            # Handle edge case where pl might be just a string name?
+                                            pass
+                                    p_data['squad'] = minimized_squad
             
             json_str = json.dumps(compressed, separators=(',', ':')) # Removing whitespace saves ~20%
             
