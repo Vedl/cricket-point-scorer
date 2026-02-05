@@ -2379,6 +2379,42 @@ def show_main_app():
                     st.rerun()
             
             st.divider()
+            with st.expander("👮 Manage Users (Delete Account)"):
+                st.warning("Deleting a USER ACCOUNT removes their login access globally. Their team remains in the room but becomes 'orphaned' (no controller).")
+                
+                # Get members of THIS room
+                current_members = room.get('members', [])
+                # Filter out myself (Admin)
+                deletable_users = [u for u in current_members if u != user]
+                
+                if not deletable_users:
+                    st.info("No other members to manage.")
+                else:
+                    user_to_delete = st.selectbox("Select User to Delete", deletable_users)
+                    
+                    if st.button(f"🚨 Delete Account: {user_to_delete}", type="primary"):
+                        # 1. Global Delete
+                        if user_to_delete in auction_data['users']:
+                            del auction_data['users'][user_to_delete]
+                        
+                        # 2. Cleanup ALL joined rooms (to ensure global consistency)
+                        all_rooms = auction_data['rooms']
+                        for r_code, r_data in all_rooms.items():
+                            # Remove from members list
+                            if user_to_delete in r_data.get('members', []):
+                                r_data['members'].remove(user_to_delete)
+                            
+                            # Unlink from participants (The crucial requirement: Team stays, User goes)
+                            for p in r_data.get('participants', []):
+                                if p.get('user') == user_to_delete:
+                                    p['user'] = None # Orphan the team
+                        
+                        save_auction_data(auction_data)
+                        st.success(f"User {user_to_delete} deleted. Their team (if any) is now orphaned and claimable.")
+                        time.sleep(2)
+                        st.rerun()
+
+            st.divider()
             with st.expander("💾 Manual Backup & Restore (Local File)"):
                  st.info("Download a backup of the entire room state to your computer, listing limitless history. You can restore from this file anytime.")
                  
