@@ -2379,27 +2379,48 @@ def show_main_app():
                     st.rerun()
             
             st.divider()
-            with st.expander("☁️ Cloud Storage Control (Backup & Restore)"):
-                 st.info("Manually force a sync to the cloud (JSONBin) or restore from the last cloud save. Useful if local state seems out of sync.")
+            with st.expander("💾 Manual Backup & Restore (Local File)"):
+                 st.info("Download a backup of the entire room state to your computer, listing limitless history. You can restore from this file anytime.")
                  
-                 cols_cloud = st.columns(2)
-                 with cols_cloud[0]:
-                     if st.button("☁️ Force Save to Cloud"):
-                         with st.spinner("Uploading to Cloud..."):
-                             success, msg = storage_mgr.force_sync_to_remote(auction_data)
-                             if success: st.success(msg)
-                             else: st.error(msg)
+                 # 1. DOWNLOAD
+                 # Serialize current data
+                 backup_json = json.dumps(auction_data, indent=2)
+                 st.download_button(
+                     label="⬇️ Download Backup (JSON)",
+                     data=backup_json,
+                     file_name=f"auction_backup_{get_ist_time().strftime('%Y%m%d_%H%M')}.json",
+                     mime="application/json",
+                     help="Save a snapshot of the current auction state to your device."
+                 )
                  
-                 with cols_cloud[1]:
-                     if st.button("📥 Restore from Cloud"):
-                         with st.spinner("Downloading from Cloud..."):
-                             data, msg = storage_mgr.force_fetch_from_remote()
-                             if data:
-                                 st.success(msg)
+                 st.divider()
+                 
+                 # 2. UPLOAD (Restore)
+                 st.write("### ⬆️ Restore from Backup")
+                 uploaded_backup = st.file_uploader("Upload a previously saved JSON file", type=["json"], key="backup_uploader")
+                 
+                 if uploaded_backup:
+                     st.warning("⚠️ Restoring will OVERWRITE all current data. This action cannot be undone.")
+                     if st.button("🚨 Confirm Restore Data", type="primary"):
+                         try:
+                             restored_data = json.load(uploaded_backup)
+                             
+                             # Basic Schema Validation
+                             required_keys = ['participants', 'rooms'] # 'rooms' might not be strictly needed if we just use participants, but good check
+                             valid = True
+                             # Loose validation allowing for legacy formats if needed, but checking basic structure
+                             if not isinstance(restored_data, dict):
+                                 valid = False
+                             
+                             if valid:
+                                 save_auction_data(restored_data)
+                                 st.success("✅ Successfully restored from backup file!")
                                  time.sleep(1)
                                  st.rerun()
                              else:
-                                 st.error(msg)
+                                 st.error("Invalid Backup File format. Root must be a dictionary.")
+                         except Exception as e:
+                             st.error(f"Error reading backup file: {e}")
             
             st.divider()
             with st.expander("⚠️ Danger Zone (Reset)"):
