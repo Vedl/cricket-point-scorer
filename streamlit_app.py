@@ -1354,54 +1354,54 @@ def show_main_app():
                             if player_obj and player_obj.get('loan_origin'):
                                 st.error(f"🚫 Cannot release {player_to_remove} because they are on loan.")
                             elif player_obj:
-                            player_country = player_country_lookup.get(player_to_remove, 'Unknown')
-                            is_knocked_out_team = player_country in knocked_out_teams
+                                player_country = player_country_lookup.get(player_to_remove, 'Unknown')
+                                is_knocked_out_team = player_country in knocked_out_teams
                             
 
                             
-                            # Release Logic Check
-                            # 1. Before Deadline (or GW0) -> Unlimited 50% Refund
-                            is_pre_deadline = (global_deadline and now < global_deadline)
+                                # Release Logic Check
+                                # 1. Before Deadline (or GW0) -> Unlimited 50% Refund
+                                is_pre_deadline = (global_deadline and now < global_deadline)
                             
-                            if is_pre_deadline:
-                                release_type = "unlimited"
-                                st.markdown("**🔄 Pre-Deadline Release (Unlimited - 50% Refund)**")
-                            elif is_knocked_out_team:
-                                release_type = "knockout_free"
-                                st.markdown("**🔄 Knocked-Out Team Release (Exempt - 50% Refund)**")
-                            elif not used_paid_this_gw:
-                                release_type = "paid"
-                                st.markdown(f"**🔄 Release Player (Paid Attempt 1/1 - 50% Refund)**")
-                            else:
-                                release_type = "free"
-                                st.markdown(f"**🔄 Release Player (Free Release - 0% Refund)**")
+                                if is_pre_deadline:
+                                    release_type = "unlimited"
+                                    st.markdown("**🔄 Pre-Deadline Release (Unlimited - 50% Refund)**")
+                                elif is_knocked_out_team:
+                                    release_type = "knockout_free"
+                                    st.markdown("**🔄 Knocked-Out Team Release (Exempt - 50% Refund)**")
+                                elif not used_paid_this_gw:
+                                    release_type = "paid"
+                                    st.markdown(f"**🔄 Release Player (Paid Attempt 1/1 - 50% Refund)**")
+                                else:
+                                    release_type = "free"
+                                    st.markdown(f"**🔄 Release Player (Free Release - 0% Refund)**")
                             
-                            if release_type in ["unlimited", "paid", "knockout_free"]:
-                                refund_amount = int(math.ceil(player_obj.get('buy_price', 0) / 2))
-                            else:
-                                refund_amount = 0
+                                if release_type in ["unlimited", "paid", "knockout_free"]:
+                                    refund_amount = int(math.ceil(player_obj.get('buy_price', 0) / 2))
+                                else:
+                                    refund_amount = 0
                                 
-                            st.caption(f"Refund: **{refund_amount}M**")
+                                st.caption(f"Refund: **{refund_amount}M**")
                             
-                            if st.button("🔓 Release Player", key="open_release_btn"):
-                                current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
-                                current_participant['budget'] += refund_amount
-                                if current_participant.get('ir_player') == player_to_remove:
-                                    current_participant['ir_player'] = None
+                                if st.button("🔓 Release Player", key="open_release_btn"):
+                                    current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
+                                    current_participant['budget'] += refund_amount
+                                    if current_participant.get('ir_player') == player_to_remove:
+                                        current_participant['ir_player'] = None
                                 
-                                room.setdefault('unsold_players', []).append(player_to_remove)
+                                    room.setdefault('unsold_players', []).append(player_to_remove)
                                 
-                                if release_type == "paid":
-                                    current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
+                                    if release_type == "paid":
+                                        current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
                                 
-                                # === LOGGING ===
-                                timestamp = get_ist_time().strftime('%d-%b %H:%M')
-                                log_msg = f"🗑️ Released: **{player_to_remove}** by **{current_participant['name']}** (Refund: {refund_amount}M)"
-                                room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                    # === LOGGING ===
+                                    timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                    log_msg = f"🗑️ Released: **{player_to_remove}** by **{current_participant['name']}** (Refund: {refund_amount}M)"
+                                    room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
                                 
-                                save_auction_data(auction_data)
-                                st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
-                                st.rerun()
+                                    save_auction_data(auction_data)
+                                    st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
+                                    st.rerun()
                 else:
                     st.info("Your squad is empty.")
             else:
