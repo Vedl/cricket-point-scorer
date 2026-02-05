@@ -1601,6 +1601,32 @@ def show_main_app():
                 else:
                     st.info("No incoming proposals.")
                 
+                # OUTGOING (Sent by me)
+                st.markdown("### 📤 Outgoing Proposals (Sent by You)")
+                my_outgoing = [t for t in room['pending_trades'] if t['from'] == my_p_name]
+                if my_outgoing:
+                    for trade in my_outgoing:
+                        with st.container():
+                            player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                            
+                            # Price Display Logic
+                            price_str = f"Price: {trade.get('price')}M"
+                            if trade['type'] == "Exchange":
+                                # Customize text based on direction
+                                p_val = trade.get('price', 0)
+                                if p_val > 0: price_str = f"You Pay: {p_val}M"
+                                elif p_val < 0: price_str = f"You Receive: {abs(p_val)}M"
+                                else: price_str = "No Cash"
+                            
+                            st.write(f"To **{trade['to']}**: {trade['type']} - {player_info} | **{price_str}**")
+                            if st.button("🚫 Cancel Proposal", key=f"cancel_{trade['id']}"):
+                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                save_auction_data(auction_data)
+                                st.success("Proposal Cancelled!")
+                                st.rerun()
+                else:
+                    st.caption("No pending outgoing proposals.")
+                
                 st.divider()
                 # Check Trading Deadline
                 trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
