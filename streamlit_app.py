@@ -74,7 +74,7 @@ def save_auction_data(data):
     # Cache clearing no longer needed as we don't cache
     # get_cached_auction_data.clear()
 
-@st.cache_data
+# @st.cache_data removed to ensure updates are reflected immediately
 def load_players_database():
     """Load master player database."""
     if os.path.exists(PLAYERS_DB_FILE):
