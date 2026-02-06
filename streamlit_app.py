@@ -2085,7 +2085,55 @@ def show_main_app():
                             
                             st.success(msg)
                             time.sleep(1)
+                            st.success(msg)
+                            time.sleep(1)
                             st.rerun()
+
+            elif is_admin: # Fallback alignment if needed, but we are inside 'if is_admin' block already
+                pass
+
+            if is_admin:
+                 with st.expander("👮 Admin: Force Release Player (Full Refund)"):
+                    st.info("Release a player from a squad and grant 100% refund (e.g. for Ruled Out players). Player returns to Unsold pool.")
+                    
+                    f_rel_part_name = st.selectbox("Select Participant", [p['name'] for p in room['participants']], key="force_rel_part_sel")
+                    
+                    # Find squad
+                    target_p_rel = next((p for p in room['participants'] if p['name'] == f_rel_part_name), None)
+                    if target_p_rel and target_p_rel['squad']:
+                        squad_opts = [p['name'] for p in target_p_rel['squad']]
+                        f_rel_player = st.selectbox("Select Player to Release", squad_opts, key="force_rel_player_sel")
+                        
+                        # Find player object to show price
+                        player_to_rel_obj = next((p for p in target_p_rel['squad'] if p['name'] == f_rel_player), None)
+                        refund_val = player_to_rel_obj.get('buy_price', 0) if player_to_rel_obj else 0
+                        
+                        st.write(f"**Refund Amount:** {refund_val}M")
+                        
+                        if st.button("🚨 Force Release & Refund"):
+                            # Logic
+                            target_p_rel['squad'] = [p for p in target_p_rel['squad'] if p['name'] != f_rel_player]
+                            target_p_rel['budget'] += refund_val
+                            
+                            # Add back to unsold
+                            if f_rel_player not in room.get('unsold_players', []):
+                                room.setdefault('unsold_players', []).append(f_rel_player)
+                            
+                            # Clean up IR if needed
+                            if target_p_rel.get('ir_player') == f_rel_player:
+                                target_p_rel['ir_player'] = None
+
+                            # Log
+                            log_msg = f"👮 Admin Force Released: **{f_rel_player}** from **{f_rel_part_name}** (Refund: {refund_val}M)"
+                            timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                            room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                            
+                            save_auction_data(auction_data)
+                            st.success(f"Released {f_rel_player}! {refund_val}M refunded.")
+                            time.sleep(1)
+                            st.rerun()
+                    elif target_p_rel:
+                        st.warning("This participant has no players.")
 
             st.divider()
             
