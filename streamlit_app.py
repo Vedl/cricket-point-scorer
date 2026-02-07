@@ -1004,10 +1004,10 @@ def show_main_app():
         for p in room['participants']:
             squad_list = p['squad']
             # Count Roles
-            n_bat = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Batter')
+            n_bat = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Batsman')
             n_bowl = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Bowler')
-            n_ar = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'All-Rounder')
-            n_wk = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Wicket Keeper')
+            n_ar = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) in ['Batting Allrounder', 'Bowling Allrounder'])
+            n_wk = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'WK-Batsman')
             
             stats_data.append({
                 "Team": p['name'], 
