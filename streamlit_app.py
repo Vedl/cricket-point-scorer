@@ -998,11 +998,27 @@ def show_main_app():
     
     # Navigation
     # === GLOBAL BUDGET VISIBILITY ===
-    with st.sidebar.expander("💰 All Team Budgets", expanded=False):
-        budget_data = []
+    # === GLOBAL TEAM STATS VISIBILITY ===
+    with st.sidebar.expander("📊 All Team Stats & Budgets", expanded=False):
+        stats_data = []
         for p in room['participants']:
-            budget_data.append({"Team": p['name'], "Budget": f"{p.get('budget', 0)}M"})
-        st.sidebar.dataframe(pd.DataFrame(budget_data), hide_index=True, use_container_width=True)
+            squad_list = p['squad']
+            # Count Roles
+            n_bat = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Batter')
+            n_bowl = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Bowler')
+            n_ar = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'All-Rounder')
+            n_wk = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Wicket Keeper')
+            
+            stats_data.append({
+                "Team": p['name'], 
+                "Plyrs": len(squad_list),
+                "Bat": n_bat,
+                "Bowl": n_bowl,
+                "AR": n_ar,
+                "WK": n_wk,
+                "Budget": f"{p.get('budget', 0)}M"
+            })
+        st.sidebar.dataframe(pd.DataFrame(stats_data), hide_index=True, use_container_width=True)
 
     st.sidebar.divider()
     page = st.sidebar.radio("Navigation", ["📊 Calculator", "👤 Squads & Trading", "📅 Schedule & Admin", "🏆 Standings"])
@@ -1144,9 +1160,12 @@ def show_main_app():
                         new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
                         
                         if st.button("Save IR Choice"):
-                            my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
-                            save_auction_data(auction_data)
-                            st.success("Injury Reserve Updated!")
+                            if room.get('squads_locked'):
+                                st.error("🔒 Cannot change IR status. Squads are locked.")
+                            else:
+                                my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
+                                save_auction_data(auction_data)
+                                st.success("Injury Reserve Updated!")
                     else:
                         st.warning(f"You need at least 19 players to designate an IR player. (Current: {len(my_participant['squad'])})")
             
