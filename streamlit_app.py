@@ -997,6 +997,13 @@ def show_main_app():
                 st.dataframe(pd.DataFrame(all_budgets), hide_index=True)
     
     # Navigation
+    # === GLOBAL BUDGET VISIBILITY ===
+    with st.sidebar.expander("💰 All Team Budgets", expanded=False):
+        budget_data = []
+        for p in room['participants']:
+            budget_data.append({"Team": p['name'], "Budget": f"{p.get('budget', 0)}M"})
+        st.sidebar.dataframe(pd.DataFrame(budget_data), hide_index=True, use_container_width=True)
+
     st.sidebar.divider()
     page = st.sidebar.radio("Navigation", ["📊 Calculator", "👤 Squads & Trading", "📅 Schedule & Admin", "🏆 Standings"])
     
