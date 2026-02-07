@@ -1992,40 +1992,7 @@ def show_main_app():
                     save_auction_data(auction_data)
                     st.success(f"Squads locked for GW{curr_gw}! Market is now CLOSED 🔒.")
             
-            # === VIEW LOCKED SQUADS SNAPSHOT ===
-            st.divider()
-            st.subheader("🔒 Locked Squads Viewer")
-            
-            gameweek_squads = room.get('gameweek_squads', {})
-            if gameweek_squads:
-                gw_options = sorted(list(gameweek_squads.keys()), key=lambda x: int(x))
-                selected_view_gw = st.selectbox("Select Gameweek Snapshot", gw_options, key="view_locked_gw")
-                
-                snapshot = gameweek_squads[selected_view_gw]
-                
-                # Convert snapshot to DataFrame for easy viewing
-                snapshot_data = []
-                for p_name, data in snapshot.items():
-                    # Handle data structure variations (list vs dict)
-                    if isinstance(data, list):
-                        squad_list = data
-                        ir_player = "N/A (Legacy)"
-                    else:
-                        squad_list = data.get('squad', [])
-                        ir_player = data.get('injury_reserve', 'None')
-                    
-                    squad_names = ", ".join([p['name'] for p in squad_list])
-                    
-                    snapshot_data.append({
-                        "Participant": p_name,
-                        "Squad Size": len(squad_list),
-                        "IR Player": ir_player,
-                        "Full Squad": squad_names
-                    })
-                
-                st.dataframe(pd.DataFrame(snapshot_data), use_container_width=True, hide_index=True)
-            else:
-                st.info("No locked squads found.")
+
             
             with c_gw2:
                 # Advance GW
@@ -2119,6 +2086,41 @@ def show_main_app():
             st.divider()
 
             st.divider()
+
+            # === VIEW LOCKED SQUADS SNAPSHOT (PUBLIC) ===
+            st.divider()
+            st.subheader("🔒 Locked Squads Viewer")
+            
+            gameweek_squads = room.get('gameweek_squads', {})
+            if gameweek_squads:
+                gw_options = sorted(list(gameweek_squads.keys()), key=lambda x: int(x))
+                selected_view_gw = st.selectbox("Select Gameweek Snapshot", gw_options, key="view_locked_gw")
+                
+                snapshot = gameweek_squads[selected_view_gw]
+                
+                # Convert snapshot to DataFrame for easy viewing
+                snapshot_data = []
+                for p_name, data in snapshot.items():
+                    # Handle data structure variations (list vs dict)
+                    if isinstance(data, list):
+                        squad_list = data
+                        ir_player = "N/A (Legacy)"
+                    else:
+                        squad_list = data.get('squad', [])
+                        ir_player = data.get('injury_reserve', 'None')
+                    
+                    squad_names = ", ".join([p['name'] for p in squad_list])
+                    
+                    snapshot_data.append({
+                        "Participant": p_name,
+                        "Squad Size": len(squad_list),
+                        "IR Player": ir_player,
+                        "Full Squad": squad_names
+                    })
+                
+                st.dataframe(pd.DataFrame(snapshot_data), use_container_width=True, hide_index=True)
+            else:
+                st.info("No locked squads found.")
             
             if is_admin:
                 with st.expander("👮 Admin: Force Add Player"):
