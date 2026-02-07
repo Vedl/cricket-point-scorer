@@ -652,83 +652,86 @@ def render_live_auction_fragment(room_code, user):
                 
                 # Use a container to isolate layout
                 with st.container():
-                    col1, col2, col3 = st.columns([1, 1, 1])
-                    
-                    # Column 1: Bidder Selection
-                    with col1:
-                        if is_admin:
-                            bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
-                            default_idx = 0
-                            if my_participant and my_participant['name'] in bidder_options:
-                                default_idx = bidder_options.index(my_participant['name'])
-                            bidder_name = st.selectbox("Bidder", bidder_options, index=default_idx, key=f"bid_select_{current_player}_uniq")
-                        else:
-                            if my_participant and my_participant['name'] not in opted_out:
-                                bidder_name = my_participant['name']
-                                st.text_input("Bidder", value=bidder_name, disabled=True, key=f"bid_select_{current_player}_uniq")
-                            else:
-                                bidder_name = None
-                                st.warning("You are not an active participant for this player")
+                    if room.get('squads_locked'):
+                        st.error("🔒 Market Closed. Bidding Suspended (Squads Locked).")
+                    else:
+                        col1, col2, col3 = st.columns([1, 1, 1])
                         
-                        bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
-
-                    # Column 2: Bid Amount
-                    with col2:
-                        if bidder:
-                            # Dynamic Bidding Rules
-                            if current_bid >= 100:
-                                increment = 10
-                            elif current_bid >= 50:
-                                increment = 5
+                        # Column 1: Bidder Selection
+                        with col1:
+                            if is_admin:
+                                bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
+                                default_idx = 0
+                                if my_participant and my_participant['name'] in bidder_options:
+                                    default_idx = bidder_options.index(my_participant['name'])
+                                bidder_name = st.selectbox("Bidder", bidder_options, index=default_idx, key=f"bid_select_{current_player}_uniq")
                             else:
-                                increment = 1
+                                if my_participant and my_participant['name'] not in opted_out:
+                                    bidder_name = my_participant['name']
+                                    st.text_input("Bidder", value=bidder_name, disabled=True, key=f"bid_select_{current_player}_uniq")
+                                else:
+                                    bidder_name = None
+                                    st.warning("You are not an active participant for this player")
                             
-                            min_bid = max(5, current_bid + increment)
-                            max_bid_allowed = bidder.get('budget', 0)
-                            
-                            step_val = 10 if min_bid >= 100 else (5 if min_bid >= 50 else 1)
-                            
-                            if max_bid_allowed >= min_bid:
-                                bid_amount = st.number_input(
-                                    f"Bid (Min: {int(min_bid)}M)", 
-                                    min_value=int(min_bid), 
-                                    max_value=int(max_bid_allowed),
-                                    value=int(min_bid),
-                                    step=step_val,
-                                    format="%d",
-                                    key=f"bid_input_{current_player}_uniq"
-                                )
+                            bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
+    
+                        # Column 2: Bid Amount
+                        with col2:
+                            if bidder:
+                                # Dynamic Bidding Rules
+                                if current_bid >= 100:
+                                    increment = 10
+                                elif current_bid >= 50:
+                                    increment = 5
+                                else:
+                                    increment = 1
+                                
+                                min_bid = max(5, current_bid + increment)
+                                max_bid_allowed = bidder.get('budget', 0)
+                                
+                                step_val = 10 if min_bid >= 100 else (5 if min_bid >= 50 else 1)
+                                
+                                if max_bid_allowed >= min_bid:
+                                    bid_amount = st.number_input(
+                                        f"Bid (Min: {int(min_bid)}M)", 
+                                        min_value=int(min_bid), 
+                                        max_value=int(max_bid_allowed),
+                                        value=int(min_bid),
+                                        step=step_val,
+                                        format="%d",
+                                        key=f"bid_input_{current_player}_uniq"
+                                    )
+                                else:
+                                    st.error(f"Low Budget")
+                                    bid_amount = 0
                             else:
-                                st.error(f"Low Budget")
                                 bid_amount = 0
-                        else:
-                            bid_amount = 0
-
-                    # Column 3: Actions
-                    with col3:
-                        # Bid Button
-                        if st.button("🔨 BID!", type="primary", disabled=(bid_amount==0), key=f"bid_btn_{current_player}_uniq"):
-                            live_auction['current_bid'] = bid_amount
-                            live_auction['current_bidder'] = bidder_name
-                            live_auction['timer_start'] = get_ist_time().isoformat()
-                            room['live_auction'] = live_auction
-                            save_auction_data(auction_data)
-                            st.rerun()
-                        
-                        st.write("") # Spacer
-                        
-                        # Actions: Success or Opt Out
-                        # Helper: Check if I am the active bidder holding the bid
-                        am_i_holding = my_participant and my_participant['name'] == current_bidder
-                        
-                        if am_i_holding:
-                            st.success("👑 You hold the bid")
-                        elif is_my_turn:
-                            if st.button("❌ Opt Out", key=f"optout_btn_{current_player}_uniq"):
-                                live_auction.setdefault('opted_out', []).append(my_participant['name'])
+    
+                        # Column 3: Actions
+                        with col3:
+                            # Bid Button
+                            if st.button("🔨 BID!", type="primary", disabled=(bid_amount==0), key=f"bid_btn_{current_player}_uniq"):
+                                live_auction['current_bid'] = bid_amount
+                                live_auction['current_bidder'] = bidder_name
+                                live_auction['timer_start'] = get_ist_time().isoformat()
                                 room['live_auction'] = live_auction
                                 save_auction_data(auction_data)
                                 st.rerun()
+                            
+                            st.write("") # Spacer
+                            
+                            # Actions: Success or Opt Out
+                            # Helper: Check if I am the active bidder holding the bid
+                            am_i_holding = my_participant and my_participant['name'] == current_bidder
+                            
+                            if am_i_holding:
+                                st.success("👑 You hold the bid")
+                            elif is_my_turn:
+                                if st.button("❌ Opt Out", key=f"optout_btn_{current_player}_uniq"):
+                                    live_auction.setdefault('opted_out', []).append(my_participant['name'])
+                                    room['live_auction'] = live_auction
+                                    save_auction_data(auction_data)
+                                    st.rerun()
 
 
             # Admin Override Flags
@@ -1384,24 +1387,27 @@ def show_main_app():
                                 st.caption(f"Refund: **{refund_amount}M**")
                             
                                 if st.button("🔓 Release Player", key="open_release_btn"):
-                                    current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
-                                    current_participant['budget'] += refund_amount
-                                    if current_participant.get('ir_player') == player_to_remove:
-                                        current_participant['ir_player'] = None
-                                
-                                    room.setdefault('unsold_players', []).append(player_to_remove)
-                                
-                                    if release_type == "paid":
-                                        current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
-                                
-                                    # === LOGGING ===
-                                    timestamp = get_ist_time().strftime('%d-%b %H:%M')
-                                    log_msg = f"🗑️ Released: **{player_to_remove}** by **{current_participant['name']}** (Refund: {refund_amount}M)"
-                                    room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
-                                
-                                    save_auction_data(auction_data)
-                                    st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
-                                    st.rerun()
+                                    if room.get('squads_locked'):
+                                        st.error("🔒 Market is Closed. Squads are locked until next Gameweek starts.")
+                                    else:
+                                        current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
+                                        current_participant['budget'] += refund_amount
+                                        if current_participant.get('ir_player') == player_to_remove:
+                                            current_participant['ir_player'] = None
+                                    
+                                        room.setdefault('unsold_players', []).append(player_to_remove)
+                                    
+                                        if release_type == "paid":
+                                            current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
+                                    
+                                        # === LOGGING ===
+                                        timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                        log_msg = f"🗑️ Released: **{player_to_remove}** by **{current_participant['name']}** (Refund: {refund_amount}M)"
+                                        room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                    
+                                        save_auction_data(auction_data)
+                                        st.success(f"Released {player_to_remove}! Refunded {refund_amount}M.")
+                                        st.rerun()
                 else:
                     st.info("Your squad is empty.")
             else:
@@ -1443,167 +1449,173 @@ def show_main_app():
 
                             st.write(f"From **{trade['from']}**: {trade['type']} - {player_info} | **{price_str}**")
                             c1, c2 = st.columns(2)
-                            if c1.button("✅ Accept", key=f"acc_{trade['id']}"):
-                                sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
-                                receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
-                                
-                                success = False
-                                if sender and receiver:
-                                   if trade['type'] == "Transfer (Sell)":
-                                       p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
-                                       if p_obj and receiver['budget'] >= trade['price']:
-                                           sender['squad'].remove(p_obj)
-                                           p_obj['buy_price'] = trade['price']
-                                           receiver['squad'].append(p_obj)
-                                           sender['budget'] += trade['price']
-                                           receiver['budget'] -= trade['price']
-                                           success = True
-                                   # Simplified execution check for other types (would need expansion in real usage)
-                                   # Assuming users mainly do simple transfers for now.
-                                   elif trade['type'] == "Transfer (Buy)":
-                                       p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
-                                       if p_obj and sender['budget'] >= trade['price']:
-                                           receiver['squad'].remove(p_obj)
-                                           p_obj['buy_price'] = trade['price']
-                                           sender['squad'].append(p_obj)
-                                           sender['budget'] -= trade['price']
-                                           success = True
-                                   
-                                   elif trade['type'] == "Exchange":
-                                       # Sender GIVES 'give_player' and RECEIVES 'get_player'.
-                                       # Sender PAYS 'price' (net cash).
-                                       give_pl_name = trade['give_player']
-                                       get_pl_name = trade['get_player']
-                                       net_cash = trade['price']
-                                       
-                                       p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
-                                       p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
-                                       
-                                       if p_give and p_get:
-                                           # Check budget if net_cash positive (Sender pays)
-                                           if net_cash > 0 and sender['budget'] < net_cash:
-                                               success = False
-                                           # Check budget if net_cash negative (Receiver pays)
-                                           elif net_cash < 0 and receiver['budget'] < abs(net_cash):
-                                               success = False
-                                           else:
-                                               # Execute Swap
-                                               sender['squad'].remove(p_give)
-                                               receiver['squad'].remove(p_get)
-                                               sender['squad'].append(p_get)
-                                               receiver['squad'].append(p_give)
-                                               
-                                               # Cash
-                                               sender['budget'] -= net_cash
-                                               receiver['budget'] += net_cash
+                            
+                            # GUARD: Squads Locked
+                            if room.get('squads_locked'):
+                                c1.warning("🔒 Market Closed")
+                                c2.warning("🔒 Market Closed")
+                            else:
+                                if c1.button("✅ Accept", key=f"acc_{trade['id']}"):
+                                    sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
+                                    receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
+                                    
+                                    success = False
+                                    if sender and receiver:
+                                       if trade['type'] == "Transfer (Sell)":
+                                           p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
+                                           if p_obj and receiver['budget'] >= trade['price']:
+                                               sender['squad'].remove(p_obj)
+                                               p_obj['buy_price'] = trade['price']
+                                               receiver['squad'].append(p_obj)
+                                               sender['budget'] += trade['price']
+                                               receiver['budget'] -= trade['price']
                                                success = True
-
-                                   elif trade['type'] in ["Loan Out", "Loan In"]:
-                                       # Loan Logic: Move player, but maybe mark as 'loaned'?
-                                       # For simplicity in this version, we just move them.
-                                       # Loan Out: Sender GIVES player, Receives FEE.
-                                       # Loan In: Sender TAKES player, Pays FEE.
+                                       # Simplified execution check for other types (would need expansion in real usage)
+                                       # Assuming users mainly do simple transfers for now.
+                                       elif trade['type'] == "Transfer (Buy)":
+                                           p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
+                                           if p_obj and sender['budget'] >= trade['price']:
+                                               receiver['squad'].remove(p_obj)
+                                               p_obj['buy_price'] = trade['price']
+                                               sender['squad'].append(p_obj)
+                                               sender['budget'] -= trade['price']
+                                               success = True
                                        
-                                            current_gw = 0
-                                            locked_gws = list(room.get('gameweek_squads', {}).keys())
-                                            if locked_gws:
-                                                current_gw = max([int(gw) for gw in locked_gws])
-                                            
-                                            # Loan Return: Next Gameweek (Current + 1)
-                                            return_gw = current_gw + 1
-                                            
-                                            if trade['type'] == "Loan Out":
-                                                pl_name = trade['player']
-                                                fee = trade['price'] # Sender receives this
-                                                p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
-                                                
-                                                if p_obj and receiver['budget'] >= fee:
-                                                    sender['squad'].remove(p_obj)
-                                                    
-                                                    # Tag metadata
-                                                    p_obj['loan_origin'] = sender['name']
-                                                    p_obj['loan_expiry_gw'] = return_gw
-                                                    
-                                                    receiver['squad'].append(p_obj)
-                                                    sender['budget'] += fee
-                                                    receiver['budget'] -= fee
-                                                    success = True
-
-                                            elif trade['type'] == "Loan In":
-                                                pl_name = trade['player']
-                                                fee = trade['price'] # Sender PAYS this
-                                                p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
-                                                
-                                                if p_obj and sender['budget'] >= fee:
-                                                    receiver['squad'].remove(p_obj)
-                                                    
-                                                    # Tag metadata
-                                                    p_obj['loan_origin'] = receiver['name']
-                                                    p_obj['loan_expiry_gw'] = return_gw
-                                                    
-                                                    sender['squad'].append(p_obj)
-                                                    receiver['budget'] += fee
-                                                    sender['budget'] -= fee
-                                                    success = True
-                                   
-                                   if success:
-                                       # === LOGGING ===
-                                       log_msg = ""
-                                       t_type = trade.get('type')
-                                       t_price = trade.get('price', 0)
-                                       timestamp = get_ist_time().strftime('%d-%b %H:%M')
-                                       
-                                       if "Transfer" in t_type:
-                                           # Determine direction name
-                                           if t_type == "Transfer (Sell)":
-                                               log_msg = f"🔄 Transfer: **{trade['from']}** sold **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
-                                           else:
-                                               log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
-                                       
-                                       elif t_type == "Exchange":
-                                            give = trade.get('give_player')
-                                            get = trade.get('get_player')
-                                            if t_price > 0: cash_txt = f"(+{t_price}M)"
-                                            elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
-                                            else: cash_txt = "(Flat)"
-                                            log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
-                                       
-                                       elif "Loan" in t_type:
-                                           # Logic handled above already defines direction, but let's be safe
-                                           # For Loan Out: From gives Player to To.
-                                           # For Loan In: From (Requester) takes Player from To?? No, logic above:
-                                           # Loan Out: Sender(From) -> Receiver(To). 
-                                           # Loan In: Receiver(To) -> Sender(From).
-                                           # Let's stick to "A loaned X to B" format
+                                       elif trade['type'] == "Exchange":
+                                           # Sender GIVES 'give_player' and RECEIVES 'get_player'.
+                                           # Sender PAYS 'price' (net cash).
+                                           give_pl_name = trade['give_player']
+                                           get_pl_name = trade['get_player']
+                                           net_cash = trade['price']
                                            
-                                           sender_name = trade['from']
-                                           receiver_name = trade['to']
-                                           p_name = trade['player']
+                                           p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
+                                           p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
                                            
-                                           if t_type == "Loan Out":
-                                               log_msg = f"⏳ Loan: **{sender_name}** loaned **{p_name}** to **{receiver_name}** for **{t_price}M**"
-                                           else:
-                                               # Request Loan In: Sender(From) requested. Code above: receiver(to) gave player to sender(from).
-                                               log_msg = f"⏳ Loan: **{receiver_name}** loaned **{p_name}** to **{sender_name}** for **{t_price}M**"
+                                           if p_give and p_get:
+                                               # Check budget if net_cash positive (Sender pays)
+                                               if net_cash > 0 and sender['budget'] < net_cash:
+                                                   success = False
+                                               # Check budget if net_cash negative (Receiver pays)
+                                               elif net_cash < 0 and receiver['budget'] < abs(net_cash):
+                                                   success = False
+                                               else:
+                                                   # Execute Swap
+                                                   sender['squad'].remove(p_give)
+                                                   receiver['squad'].remove(p_get)
+                                                   sender['squad'].append(p_get)
+                                                   receiver['squad'].append(p_give)
+                                                   
+                                                   # Cash
+                                                   sender['budget'] -= net_cash
+                                                   receiver['budget'] += net_cash
+                                                   success = True
+    
+                                       elif trade['type'] in ["Loan Out", "Loan In"]:
+                                           # Loan Logic: Move player, but maybe mark as 'loaned'?
+                                           # For simplicity in this version, we just move them.
+                                           # Loan Out: Sender GIVES player, Receives FEE.
+                                           # Loan In: Sender TAKES player, Pays FEE.
+                                           
+                                                current_gw = 0
+                                                locked_gws = list(room.get('gameweek_squads', {}).keys())
+                                                if locked_gws:
+                                                    current_gw = max([int(gw) for gw in locked_gws])
+                                                
+                                                # Loan Return: Next Gameweek (Current + 1)
+                                                return_gw = current_gw + 1
+                                                
+                                                if trade['type'] == "Loan Out":
+                                                    pl_name = trade['player']
+                                                    fee = trade['price'] # Sender receives this
+                                                    p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
+                                                    
+                                                    if p_obj and receiver['budget'] >= fee:
+                                                        sender['squad'].remove(p_obj)
+                                                        
+                                                        # Tag metadata
+                                                        p_obj['loan_origin'] = sender['name']
+                                                        p_obj['loan_expiry_gw'] = return_gw
+                                                        
+                                                        receiver['squad'].append(p_obj)
+                                                        sender['budget'] += fee
+                                                        receiver['budget'] -= fee
+                                                        success = True
+    
+                                                elif trade['type'] == "Loan In":
+                                                    pl_name = trade['player']
+                                                    fee = trade['price'] # Sender PAYS this
+                                                    p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
+                                                    
+                                                    if p_obj and sender['budget'] >= fee:
+                                                        receiver['squad'].remove(p_obj)
+                                                        
+                                                        # Tag metadata
+                                                        p_obj['loan_origin'] = receiver['name']
+                                                        p_obj['loan_expiry_gw'] = return_gw
+                                                        
+                                                        sender['squad'].append(p_obj)
+                                                        receiver['budget'] += fee
+                                                        sender['budget'] -= fee
+                                                        success = True
                                        
-                                       if log_msg:
-                                           room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
-                                       
-                                       room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                       save_auction_data(auction_data)
-                                       st.success("Trade Executed!")
-                                       st.rerun()
-                                   else:
-                                       st.error("Failed: Player no longer available or Insufficient Budget. proposal invalid.")
-                                       # Auto-Cleanup Invalid Trade
-                                       room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                       save_auction_data(auction_data)
-                                       time.sleep(1)
-                                       st.rerun()
-                            if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
-                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                save_auction_data(auction_data)
-                                st.rerun()
+                                       if success:
+                                           # === LOGGING ===
+                                           log_msg = ""
+                                           t_type = trade.get('type')
+                                           t_price = trade.get('price', 0)
+                                           timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                           
+                                           if "Transfer" in t_type:
+                                               # Determine direction name
+                                               if t_type == "Transfer (Sell)":
+                                                   log_msg = f"🔄 Transfer: **{trade['from']}** sold **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
+                                               else:
+                                                   log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
+                                           
+                                           elif t_type == "Exchange":
+                                                give = trade.get('give_player')
+                                                get = trade.get('get_player')
+                                                if t_price > 0: cash_txt = f"(+{t_price}M)"
+                                                elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
+                                                else: cash_txt = "(Flat)"
+                                                log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
+                                           
+                                           elif "Loan" in t_type:
+                                               # Logic handled above already defines direction, but let's be safe
+                                               # For Loan Out: From gives Player to To.
+                                               # For Loan In: From (Requester) takes Player from To?? No, logic above:
+                                               # Loan Out: Sender(From) -> Receiver(To). 
+                                               # Loan In: Receiver(To) -> Sender(From).
+                                               # Let's stick to "A loaned X to B" format
+                                               
+                                               sender_name = trade['from']
+                                               receiver_name = trade['to']
+                                               p_name = trade['player']
+                                               
+                                               if t_type == "Loan Out":
+                                                   log_msg = f"⏳ Loan: **{sender_name}** loaned **{p_name}** to **{receiver_name}** for **{t_price}M**"
+                                               else:
+                                                   # Request Loan In: Sender(From) requested. Code above: receiver(to) gave player to sender(from).
+                                                   log_msg = f"⏳ Loan: **{receiver_name}** loaned **{p_name}** to **{sender_name}** for **{t_price}M**"
+                                           
+                                           if log_msg:
+                                               room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                           
+                                           room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                           save_auction_data(auction_data)
+                                           st.success("Trade Executed!")
+                                           st.rerun()
+                                       else:
+                                           st.error("Failed: Player no longer available or Insufficient Budget. proposal invalid.")
+                                           # Auto-Cleanup Invalid Trade
+                                           room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                           save_auction_data(auction_data)
+                                           time.sleep(1)
+                                           st.rerun()
+                                if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
+                                    room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                    save_auction_data(auction_data)
+                                    st.rerun()
                 else:
                     st.info("No incoming proposals.")
                 
@@ -1638,7 +1650,10 @@ def show_main_app():
                 trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
                 is_trading_locked = False
                 
-                if trading_deadline and now > trading_deadline:
+                if room.get('squads_locked'):
+                    st.error("🔒 Trading is CLOSED (Market Locked by Admin).")
+                    is_trading_locked = True
+                elif trading_deadline and now > trading_deadline:
                     st.error(f"🔒 Trading is CLOSED for this Gameweek (Deadline + 30m passed: {trading_deadline.strftime('%H:%M')})")
                     is_trading_locked = True
                 
@@ -1944,8 +1959,12 @@ def show_main_app():
                         for p in room['participants']
                     }
                     room.setdefault('gameweek_squads', {})[str(curr_gw)] = snap
+                    
+                    # === LOCK MARKET ===
+                    room['squads_locked'] = True
+                    
                     save_auction_data(auction_data)
-                    st.success(f"Squads locked for GW{curr_gw}!")
+                    st.success(f"Squads locked for GW{curr_gw}! Market is now CLOSED 🔒.")
             
             with c_gw2:
                 # Advance GW
@@ -1976,8 +1995,11 @@ def show_main_app():
                     for p in room['participants']:
                         p['paid_releases'] = {} 
                     
+                    # === UNLOCK MARKET ===
+                    room['squads_locked'] = False
+                    
                     save_auction_data(auction_data)
-                    msg = f"Started Gameweek {new_gw}!"
+                    msg = f"Started Gameweek {new_gw}! Market is now OPEN 🔓."
                     if start_gw_log: msg += f" Loan Returns: {', '.join(start_gw_log)}"
                     st.success(msg)
                     st.rerun()
