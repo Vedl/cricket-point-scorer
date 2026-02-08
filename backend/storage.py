@@ -12,14 +12,21 @@ class StorageManager:
     def __init__(self, local_file_path):
         self.local_file_path = local_file_path
         
-        # Firebase Configuration
-        self.firebase_url = st.secrets.get("FIREBASE_DATABASE_URL")
-        self.firebase_api_key = st.secrets.get("FIREBASE_API_KEY")
-        self.use_remote = bool(self.firebase_url)
+        # Firebase Configuration - try multiple ways to get secrets
+        try:
+            self.firebase_url = st.secrets.get("FIREBASE_DATABASE_URL", "")
+        except:
+            self.firebase_url = ""
         
-        if self.use_remote:
-            # Firebase REST API endpoint
+        # Debug: Print Firebase config status
+        if self.firebase_url:
+            print(f"[StorageManager] Firebase URL configured: {self.firebase_url[:50]}...")
+            self.use_remote = True
             self.db_url = f"{self.firebase_url}/auction_data.json"
+        else:
+            print("[StorageManager] WARNING: Firebase URL not found in secrets!")
+            self.use_remote = False
+            self.db_url = ""
     
     def _normalize_firebase_data(self, data):
         """
@@ -104,6 +111,7 @@ class StorageManager:
             
             # 2. Save to Firebase (synchronous - MUST succeed for cloud)
             if self.use_remote:
+                print(f"[StorageManager] Saving to Firebase: {self.db_url[:60]}...")
                 try:
                     response = requests.put(
                         self.db_url,
@@ -111,11 +119,16 @@ class StorageManager:
                         headers={'Content-Type': 'application/json'},
                         timeout=15
                     )
-                    if response.status_code != 200:
-                        print(f"Firebase Save Warning: {response.status_code}")
+                    if response.status_code == 200:
+                        print(f"[StorageManager] Firebase save SUCCESS")
+                    else:
+                        print(f"[StorageManager] Firebase save FAILED: {response.status_code} - {response.text[:200]}")
+                        st.warning(f"⚠️ Cloud save failed: {response.status_code}")
                 except Exception as e:
-                    print(f"Firebase Save Error: {e}")
+                    print(f"[StorageManager] Firebase Save Error: {e}")
                     st.warning(f"⚠️ Cloud save failed: {e}")
+            else:
+                print("[StorageManager] WARNING: use_remote is False, not saving to Firebase!")
                     
         except Exception as e:
             st.error(f"SAVE FAILED: {str(e)}")
