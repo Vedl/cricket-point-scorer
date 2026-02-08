@@ -1362,7 +1362,11 @@ def show_main_app():
                     
                     # Check if participant has used their paid release this GW
                     paid_releases = current_participant.get('paid_releases', {})
-                    used_paid_this_gw = paid_releases.get(str(current_gw), False) if current_gw > 0 else False
+                    # Handle Firebase converting dict to list
+                    if isinstance(paid_releases, list):
+                        used_paid_this_gw = paid_releases[current_gw] if current_gw < len(paid_releases) and paid_releases[current_gw] else False
+                    else:
+                        used_paid_this_gw = paid_releases.get(str(current_gw), False) if current_gw > 0 else False
                     
                     knocked_out_teams = set(room.get('knocked_out_teams', []))
                     player_country_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
