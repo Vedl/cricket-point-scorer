@@ -1784,1679 +1784,981 @@
         "Falcon ",
         "Johnthedon69",
         "Mithuphetamine",
-        "Suvaan"
+        "Suvaan",
+        "Smudge49"
       ],
       "participants": [
-        {
-          "name": "Ladda CC",
-          "squad": [
-            {
-              "name": "Miller",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Nortje",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Salt",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Overton",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "I Zadran",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "J Charles",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "A Hosein",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Stoinis",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Mitchell",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Theekshana",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "R Singh",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "A Sharma",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "H Pandya",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 120.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "H Rana",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 7.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "K Yadav",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "A Ahmed",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 41.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Blessing",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Max ODowd",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Netherlands"
-            },
-            {
-              "name": "Waseem",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "David Miller",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Anrich Nortje",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Philip Salt",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "England"
-            },
-            {
-              "name": "Jamie Overton",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "England"
-            },
-            {
-              "name": "Ibrahim Zadran",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Afghanistan"
-            },
-            {
-              "name": "Johnson Charles",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Akeal Hosein",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Marcus Stoinis",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Australia"
-            },
-            {
-              "name": "Daryl Mitchell",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Maheesh Theekshana",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Sri Lanka"
-            },
-            {
-              "name": "Rinku Singh",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "India"
-            },
-            {
-              "name": "Abhishek Sharma",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "India"
-            },
-            {
-              "name": "Hardik Pandya",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 120.0,
-              "team": "India"
-            },
-            {
-              "name": "Harshit Rana",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 7.0,
-              "team": "India"
-            },
-            {
-              "name": "Kuldeep Yadav",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "India"
-            },
-            {
-              "name": "Abrar Ahmed",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 41.0,
-              "team": "Pakistan"
-            },
-            {
-              "name": "Blessing Muzarabani",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "Zimbabwe"
-            },
-            {
-              "name": "Muhammad Waseem",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "UAE"
-            }
-          ],
-          "budget": -488.0,
-          "user": "Ladda CC"
-        },
-        {
-          "name": "Arrow",
-          "squad": [
-            {
-              "name": "Stubbs",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 31.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Bosch",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 21.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Gurbaz",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Nabi",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Omarzai",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Hope",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "King",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Rutherford",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 25.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Forde",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "M Marsh",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Seifert",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Ferguson",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Jamieson",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Mendis",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Shanaka",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Hasaranga",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Wellalage",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Sky",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 80.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Bumrah",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 80.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Fakhar",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Shadab Khan",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Pakistan"
-            },
-            {
-              "name": "Yuvraj samra",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Tristan Stubbs",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 31.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Corbin Bosch",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 21.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Rahmanullah Gurbaz",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "Afghanistan"
-            },
-            {
-              "name": "Mohammad Nabi",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Afghanistan"
-            },
-            {
-              "name": "Azmatullah Omarzai",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "Afghanistan"
-            },
-            {
-              "name": "Shai Hope",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Brandon King",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Sherfane Rutherford",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 25.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Matthew Forde",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Mitchell Marsh",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Australia"
-            },
-            {
-              "name": "Tim Seifert",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Lockie Ferguson",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Kyle Jamieson",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Kusal Mendis",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Sri Lanka"
-            },
-            {
-              "name": "Dasun Shanaka",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Sri Lanka"
-            },
-            {
-              "name": "Wanindu Hasaranga",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Sri Lanka"
-            },
-            {
-              "name": "Dunith Wellalage",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Sri Lanka"
-            },
-            {
-              "name": "Suryakumar Yadav",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 80.0,
-              "team": "India"
-            },
-            {
-              "name": "Jasprit Bumrah",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 80.0,
-              "team": "India"
-            },
-            {
-              "name": "Fakhar Zaman",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Pakistan"
-            },
-            {
-              "name": "Yuvraj Samra",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Canada"
-            }
-          ],
-          "budget": -495.0,
-          "user": "Arrow"
-        },
-        {
-          "name": "Falcon ",
-          "squad": [],
-          "budget": 500,
-          "user": "Falcon "
-        },
         {
           "name": "Smudge49",
           "squad": [
             {
-              "name": "Buttler",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 60.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Brook",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Dawson",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Rashid",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 55.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "mujeeb",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Chase",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Cooper",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Maxwell",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Santa",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Mishara",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Babar",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 13.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Agha",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 28.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Saim",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "nawaz",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "naseem",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 9.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Sandeep",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Ryan",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "stirling",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Tucker",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "camphor",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "monak",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 21.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "gous",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 13.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "ali khan",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 19.0,
-              "team": "Unknown"
-            },
-            {
               "name": "Jos Buttler",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 60.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 60,
+              "active": true
             },
             {
               "name": "Harry Brook",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 70,
+              "active": true
             },
             {
               "name": "Liam Dawson",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 16,
+              "active": true
             },
             {
               "name": "Adil Rashid",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 55.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 55,
+              "active": true
             },
             {
               "name": "Mujeeb Ur Rahman",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 17.0,
-              "team": "Afghanistan"
-            },
-            {
-              "name": "Roston Chase",
-              "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "West Indies"
-            },
-            {
-              "name": "Cooper Connolly",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Australia"
+              "team": "Afghanistan",
+              "buy_price": 17,
+              "active": true
             },
             {
               "name": "Glenn Maxwell",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Australia"
+              "team": "Australia",
+              "buy_price": 15,
+              "active": true
             },
             {
               "name": "Mitchell Santner",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "New Zealand"
+              "team": "New Zealand",
+              "buy_price": 50,
+              "active": true
             },
             {
               "name": "Kamil Mishara",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Sri Lanka"
+              "team": "Sri Lanka",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Babar Azam",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 13.0,
-              "team": "Pakistan"
+              "team": "Pakistan",
+              "buy_price": 13,
+              "active": true
             },
             {
               "name": "Salman Agha",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 28.0,
-              "team": "Pakistan"
+              "team": "Pakistan",
+              "buy_price": 28,
+              "active": true
             },
             {
               "name": "Saim Ayub",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Pakistan"
+              "team": "Pakistan",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Mohammad Nawaz",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Pakistan"
+              "team": "Pakistan",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Naseem Shah",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 9.0,
-              "team": "Pakistan"
+              "team": "Pakistan",
+              "buy_price": 9,
+              "active": true
             },
             {
-              "name": "Sandeep Lamichhane",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Nepal"
-            },
-            {
-              "name": "Ryan Rickelton",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Paul Stirling",
+              "name": "Ryan Burl",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Ireland"
-            },
-            {
-              "name": "Lorcan Tucker",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Ireland"
+              "team": "Zimbabwe",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Curtis Campher",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Ireland"
-            },
-            {
-              "name": "Monank Patel",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 21.0,
-              "team": "United States"
+              "team": "Ireland",
+              "buy_price": 11,
+              "active": true
             },
             {
               "name": "Andries Gous",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 13.0,
-              "team": "United States"
+              "team": "United States",
+              "buy_price": 13,
+              "active": true
             },
             {
-              "name": "Ali Khan",
+              "name": "Roelof van der Merwe",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 19.0,
-              "team": "United States"
+              "team": "Netherlands",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "JJ Smuts",
+              "role": "Batting Allrounder",
+              "team": "Italy",
+              "buy_price": 16,
+              "active": true
+            },
+            {
+              "name": "Chris Greaves",
+              "role": "Bowler",
+              "team": "Scotland",
+              "buy_price": 12,
+              "active": true
             }
           ],
-          "budget": -384.0,
-          "user": null
-        },
-        {
-          "name": "Johnthedon69",
-          "squad": [
-            {
-              "name": "markram",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "rabada",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "duckett",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 8.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "will jacks",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 55.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "jofra archer",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "travis head",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "conway",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "bracewell",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "pathirana",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "samson",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "tector",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 26.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "jasdeep",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "Aiden Markram",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Kagiso Rabada",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "South Africa"
-            },
-            {
-              "name": "Ben Duckett",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 8.0,
-              "team": "England"
-            },
-            {
-              "name": "Will Jacks",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 55.0,
-              "team": "England"
-            },
-            {
-              "name": "Jofra Archer",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "England"
-            },
-            {
-              "name": "Travis Head",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Australia"
-            },
-            {
-              "name": "Devon Conway",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Michael Bracewell",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Matheesha Pathirana",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Sri Lanka"
-            },
-            {
-              "name": "Sanju Samson",
-              "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "India"
-            },
-            {
-              "name": "Harry Tector",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 26.0,
-              "team": "Ireland"
-            },
-            {
-              "name": "Jasdeep Singh",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "United States"
-            }
-          ],
-          "budget": -278.0,
-          "user": "Johnthedon69"
+          "budget": 158,
+          "injury_reserve": "Glenn Maxwell"
         },
         {
           "name": "Mithuphetamine",
           "squad": [
             {
-              "name": "Brewis",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "linde",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "mwaphaka",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "banton",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 25.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "curran",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 55.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "naib",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "farooqi",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "powell",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "motie",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "green",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "ellis",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 25.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "hazlewood",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "duffy",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "kamindu mendis",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "dube",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 42.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "arshdeep",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "shaheen",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "bas de leede",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "van beek",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "anthony mosca",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "krishnamurthi",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
               "name": "Dewald Brevis",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 70.0,
-              "team": "South Africa"
+              "team": "South Africa",
+              "buy_price": 70,
+              "active": true
             },
             {
               "name": "George Linde",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "South Africa"
+              "team": "South Africa",
+              "buy_price": 20,
+              "active": true
             },
             {
               "name": "Kwena Maphaka",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "South Africa"
+              "team": "South Africa",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Tom Banton",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 25.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 25,
+              "active": true
             },
             {
               "name": "Sam Curran",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 55.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 55,
+              "active": true
             },
             {
               "name": "Gulbadin Naib",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Afghanistan"
-            },
-            {
-              "name": "Fazalhaq Farooqi",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "Afghanistan"
+              "team": "Afghanistan",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Rovman Powell",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 10.0,
-              "team": "West Indies"
+              "team": "West Indies",
+              "buy_price": 10,
+              "active": true
             },
             {
               "name": "Gudakesh Motie",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "West Indies"
+              "team": "West Indies",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Cameron Green",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Australia"
+              "team": "Australia",
+              "buy_price": 50,
+              "active": true
             },
             {
               "name": "Nathan Ellis",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 25.0,
-              "team": "Australia"
-            },
-            {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "Australia"
+              "team": "Australia",
+              "buy_price": 25,
+              "active": true
             },
             {
               "name": "Jacob Duffy",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 20.0,
-              "team": "New Zealand"
+              "team": "New Zealand",
+              "buy_price": 20,
+              "active": true
             },
             {
               "name": "Kamindu Mendis",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Sri Lanka"
+              "team": "Sri Lanka",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Shivam Dube",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 42.0,
-              "team": "India"
+              "team": "India",
+              "buy_price": 42,
+              "active": true
             },
             {
               "name": "Arshdeep Singh",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "India"
+              "team": "India",
+              "buy_price": 30,
+              "active": true
             },
             {
               "name": "Shaheen Afridi",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Pakistan"
-            },
-            {
-              "name": "Bas de Leede",
-              "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Netherlands"
+              "team": "Pakistan",
+              "buy_price": 15,
+              "active": true
             },
             {
               "name": "Logan van Beek",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Netherlands"
+              "team": "Netherlands",
+              "buy_price": 11,
+              "active": true
             },
             {
               "name": "Anthony Mosca",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Italy"
+              "team": "Italy",
+              "buy_price": 5,
+              "active": true
             },
             {
               "name": "Sanjay Krishnamurthi",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "United States"
+              "team": "United States",
+              "buy_price": 15,
+              "active": true
+            },
+            {
+              "name": "Tristan Stubbs",
+              "role": "WK-Batsman",
+              "team": "South Africa",
+              "buy_price": 31,
+              "active": true
             }
           ],
-          "budget": -438.0,
+          "budget": 152,
+          "injury_reserve": "Sanjay Krishnamurthi",
           "user": "Mithuphetamine"
+        },
+        {
+          "name": "Ladda CC",
+          "squad": [
+            {
+              "name": "David Miller",
+              "role": "Batsman",
+              "team": "South Africa",
+              "buy_price": 6,
+              "active": true
+            },
+            {
+              "name": "Anrich Nortje",
+              "role": "Bowler",
+              "team": "South Africa",
+              "buy_price": 15,
+              "active": true
+            },
+            {
+              "name": "Philip Salt",
+              "role": "WK-Batsman",
+              "team": "England",
+              "buy_price": 70,
+              "active": true
+            },
+            {
+              "name": "Jamie Overton",
+              "role": "Bowling Allrounder",
+              "team": "England",
+              "buy_price": 11,
+              "active": true
+            },
+            {
+              "name": "Johnson Charles",
+              "role": "WK-Batsman",
+              "team": "West Indies",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Akeal Hosein",
+              "role": "Bowler",
+              "team": "West Indies",
+              "buy_price": 15,
+              "active": true
+            },
+            {
+              "name": "Marcus Stoinis",
+              "role": "Batting Allrounder",
+              "team": "Australia",
+              "buy_price": 15,
+              "active": true
+            },
+            {
+              "name": "Daryl Mitchell",
+              "role": "Batting Allrounder",
+              "team": "New Zealand",
+              "buy_price": 17,
+              "active": true
+            },
+            {
+              "name": "Maheesh Theekshana",
+              "role": "Bowler",
+              "team": "Sri Lanka",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Rinku Singh",
+              "role": "Batsman",
+              "team": "India",
+              "buy_price": 35,
+              "active": true
+            },
+            {
+              "name": "Abhishek Sharma",
+              "role": "Batting Allrounder",
+              "team": "India",
+              "buy_price": 70,
+              "active": true
+            },
+            {
+              "name": "Hardik Pandya",
+              "role": "Batting Allrounder",
+              "team": "India",
+              "buy_price": 120,
+              "active": true
+            },
+            {
+              "name": "Kuldeep Yadav",
+              "role": "Bowler",
+              "team": "India",
+              "buy_price": 20,
+              "active": true
+            },
+            {
+              "name": "Abrar Ahmed",
+              "role": "Bowler",
+              "team": "Pakistan",
+              "buy_price": 41,
+              "active": true
+            },
+            {
+              "name": "Max ODowd",
+              "role": "Batsman",
+              "team": "Netherlands",
+              "buy_price": 6,
+              "active": true
+            },
+            {
+              "name": "Kusal Mendis",
+              "role": "WK-Batsman",
+              "team": "Sri Lanka",
+              "buy_price": 6,
+              "active": true
+            },
+            {
+              "name": "Gerhard Erasmus",
+              "role": "Batting Allrounder",
+              "team": "Namibia",
+              "buy_price": 5,
+              "active": true
+            }
+          ],
+          "budget": 123,
+          "injury_reserve": null,
+          "user": "Ladda CC"
         },
         {
           "name": "Suvaan",
           "squad": [
             {
-              "name": "Rickelton",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "smith",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "jansen",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 60.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "bethel",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "rasooli",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 12.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "noor",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 40.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "hetmyer",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "holder",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "shephard",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "ingles",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 19.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "david",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "bartlett",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "allen",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 27.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "henry",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 9.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "nissanka",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "chameera",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "kishan",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "tilak",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 60.0,
-              "team": "Unknown"
-            },
-            {
-              "name": "tariq",
-              "role": "Unknown",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Unknown"
-            },
-            {
               "name": "Ryan Rickelton",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "South Africa"
+              "team": "South Africa",
+              "buy_price": 35,
+              "active": true
             },
             {
               "name": "Jason Smith",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 16.0,
-              "team": "South Africa"
+              "team": "South Africa",
+              "buy_price": 16,
+              "active": true
             },
             {
               "name": "Marco Jansen",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 60.0,
-              "team": "South Africa"
+              "team": "South Africa",
+              "buy_price": 60,
+              "active": true
             },
             {
               "name": "Jacob Bethell",
               "role": "Batting Allrounder",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "England"
+              "team": "England",
+              "buy_price": 35,
+              "active": true
             },
             {
               "name": "Darwish Rasooli",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 12.0,
-              "team": "Afghanistan"
+              "team": "Afghanistan",
+              "buy_price": 12,
+              "active": true
             },
             {
               "name": "Noor Ahmad",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 40.0,
-              "team": "Afghanistan"
+              "team": "Afghanistan",
+              "buy_price": 40,
+              "active": true
             },
             {
               "name": "Shimron Hetmyer",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 30.0,
-              "team": "West Indies"
+              "team": "West Indies",
+              "buy_price": 30,
+              "active": true
             },
             {
               "name": "Jason Holder",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 6.0,
-              "team": "West Indies"
+              "team": "West Indies",
+              "buy_price": 6,
+              "active": true
             },
             {
               "name": "Romario Shepherd",
               "role": "Bowling Allrounder",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "West Indies"
+              "team": "West Indies",
+              "buy_price": 15,
+              "active": true
             },
             {
               "name": "Josh Inglis",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 19.0,
-              "team": "Australia"
+              "team": "Australia",
+              "buy_price": 19,
+              "active": true
             },
             {
               "name": "Tim David",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 35.0,
-              "team": "Australia"
+              "team": "Australia",
+              "buy_price": 35,
+              "active": true
             },
             {
               "name": "Xavier Bartlett",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Australia"
+              "team": "Australia",
+              "buy_price": 11,
+              "active": true
             },
             {
               "name": "Finn Allen",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 27.0,
-              "team": "New Zealand"
+              "team": "New Zealand",
+              "buy_price": 27,
+              "active": true
             },
             {
               "name": "Matt Henry",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 9.0,
-              "team": "New Zealand"
-            },
-            {
-              "name": "Pathum Nissanka",
-              "role": "Batsman",
-              "active": true,
-              "buy_price": 15.0,
-              "team": "Sri Lanka"
+              "team": "New Zealand",
+              "buy_price": 9,
+              "active": true
             },
             {
               "name": "Dushmantha Chameera",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 11.0,
-              "team": "Sri Lanka"
+              "team": "Sri Lanka",
+              "buy_price": 11,
+              "active": true
             },
             {
               "name": "Ishan Kishan",
               "role": "WK-Batsman",
-              "active": true,
-              "buy_price": 50.0,
-              "team": "India"
+              "team": "India",
+              "buy_price": 50,
+              "active": true
             },
             {
               "name": "Tilak Varma",
               "role": "Batsman",
-              "active": true,
-              "buy_price": 60.0,
-              "team": "India"
+              "team": "India",
+              "buy_price": 60,
+              "active": true
             },
             {
               "name": "Usman Tariq",
               "role": "Bowler",
-              "active": true,
-              "buy_price": 5.0,
-              "team": "Pakistan"
+              "team": "Pakistan",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Wanindu Hasaranga",
+              "role": "Bowling Allrounder",
+              "team": "Sri Lanka",
+              "buy_price": 20,
+              "active": true
             }
           ],
-          "budget": -482.0,
+          "budget": 107,
+          "injury_reserve": "Tim David",
           "user": "Suvaan"
         },
         {
+          "name": "Johnthedon69",
+          "squad": [
+            {
+              "name": "Aiden Markram",
+              "role": "Batsman",
+              "team": "South Africa",
+              "buy_price": 70,
+              "active": true
+            },
+            {
+              "name": "Kagiso Rabada",
+              "role": "Bowler",
+              "team": "South Africa",
+              "buy_price": 50,
+              "active": true
+            },
+            {
+              "name": "Ben Duckett",
+              "role": "Batsman",
+              "team": "England",
+              "buy_price": 8,
+              "active": true
+            },
+            {
+              "name": "Will Jacks",
+              "role": "Batting Allrounder",
+              "team": "England",
+              "buy_price": 55,
+              "active": true
+            },
+            {
+              "name": "Jofra Archer",
+              "role": "Bowler",
+              "team": "England",
+              "buy_price": 70,
+              "active": true
+            },
+            {
+              "name": "Travis Head",
+              "role": "Batsman",
+              "team": "Australia",
+              "buy_price": 70,
+              "active": true
+            },
+            {
+              "name": "Devon Conway",
+              "role": "WK-Batsman",
+              "team": "New Zealand",
+              "buy_price": 10,
+              "active": true
+            },
+            {
+              "name": "Michael Bracewell",
+              "role": "Batting Allrounder",
+              "team": "New Zealand",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Matheesha Pathirana",
+              "role": "Bowler",
+              "team": "Sri Lanka",
+              "buy_price": 15,
+              "active": true
+            },
+            {
+              "name": "Sanju Samson",
+              "role": "WK-Batsman",
+              "team": "India",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Harry Tector",
+              "role": "Batsman",
+              "team": "Ireland",
+              "buy_price": 26,
+              "active": true
+            },
+            {
+              "name": "Jasdeep Singh",
+              "role": "Bowler",
+              "team": "United States",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Corbin Bosch",
+              "role": "Bowling Allrounder",
+              "team": "South Africa",
+              "buy_price": 21,
+              "active": true
+            },
+            {
+              "name": "Paul Stirling",
+              "role": "Batting Allrounder",
+              "team": "Ireland",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Monank Patel",
+              "role": "WK-Batsman",
+              "team": "United States",
+              "buy_price": 21,
+              "active": true
+            },
+            {
+              "name": "Ali Khan",
+              "role": "Bowler",
+              "team": "United States",
+              "buy_price": 19,
+              "active": true
+            },
+            {
+              "name": "Brandon McMullen",
+              "role": "Batting Allrounder",
+              "team": "Scotland",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Cooper Connolly",
+              "role": "Batting Allrounder",
+              "team": "Australia",
+              "buy_price": 3,
+              "active": true
+            }
+          ],
+          "budget": 173,
+          "injury_reserve": null,
+          "user": "Johnthedon69"
+        },
+        {
+          "name": "Arrow",
+          "squad": [
+            {
+              "name": "Rahmanullah Gurbaz",
+              "role": "WK-Batsman",
+              "team": "Afghanistan",
+              "buy_price": 30,
+              "active": true
+            },
+            {
+              "name": "Mohammad Nabi",
+              "role": "Bowling Allrounder",
+              "team": "Afghanistan",
+              "buy_price": 11,
+              "active": true
+            },
+            {
+              "name": "Azmatullah Omarzai",
+              "role": "Bowling Allrounder",
+              "team": "Afghanistan",
+              "buy_price": 16,
+              "active": true
+            },
+            {
+              "name": "Shai Hope",
+              "role": "WK-Batsman",
+              "team": "West Indies",
+              "buy_price": 16,
+              "active": true
+            },
+            {
+              "name": "Brandon King",
+              "role": "Batsman",
+              "team": "West Indies",
+              "buy_price": 6,
+              "active": true
+            },
+            {
+              "name": "Sherfane Rutherford",
+              "role": "Batting Allrounder",
+              "team": "West Indies",
+              "buy_price": 25,
+              "active": true
+            },
+            {
+              "name": "Matthew Forde",
+              "role": "Bowler",
+              "team": "West Indies",
+              "buy_price": 10,
+              "active": true
+            },
+            {
+              "name": "Mitchell Marsh",
+              "role": "Batting Allrounder",
+              "team": "Australia",
+              "buy_price": 50,
+              "active": true
+            },
+            {
+              "name": "Tim Seifert",
+              "role": "WK-Batsman",
+              "team": "New Zealand",
+              "buy_price": 16,
+              "active": true
+            },
+            {
+              "name": "Lockie Ferguson",
+              "role": "Bowler",
+              "team": "New Zealand",
+              "buy_price": 20,
+              "active": true
+            },
+            {
+              "name": "Kyle Jamieson",
+              "role": "Bowler",
+              "team": "New Zealand",
+              "buy_price": 10,
+              "active": true
+            },
+            {
+              "name": "Dasun Shanaka",
+              "role": "Batting Allrounder",
+              "team": "Sri Lanka",
+              "buy_price": 20,
+              "active": true
+            },
+            {
+              "name": "Suryakumar Yadav",
+              "role": "Batsman",
+              "team": "India",
+              "buy_price": 80,
+              "active": true
+            },
+            {
+              "name": "Jasprit Bumrah",
+              "role": "Bowler",
+              "team": "India",
+              "buy_price": 80,
+              "active": true
+            },
+            {
+              "name": "Fakhar Zaman",
+              "role": "Batsman",
+              "team": "Pakistan",
+              "buy_price": 11,
+              "active": true
+            },
+            {
+              "name": "Shadab Khan",
+              "role": "Bowling Allrounder",
+              "team": "Pakistan",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Fazalhaq Farooqi",
+              "role": "Bowler",
+              "team": "Afghanistan",
+              "buy_price": 30,
+              "active": true
+            },
+            {
+              "name": "Ibrahim Zadran",
+              "role": "Batsman",
+              "team": "Afghanistan",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Pathum Nissanka",
+              "role": "Batsman",
+              "team": "Sri Lanka",
+              "buy_price": 15,
+              "active": true
+            }
+          ],
+          "budget": 117,
+          "injury_reserve": "Pathum Nissanka",
+          "user": "Arrow"
+        },
+        {
           "name": "Falcon",
-          "budget": 100,
-          "squad": [],
-          "user": null
+          "squad": [
+            {
+              "name": "Quinton de Kock",
+              "role": "WK-Batsman",
+              "team": "South Africa",
+              "buy_price": 75,
+              "active": true
+            },
+            {
+              "name": "Rashid Khan",
+              "role": "Bowling Allrounder",
+              "team": "Afghanistan",
+              "buy_price": 55,
+              "active": true
+            },
+            {
+              "name": "Varun Chakaravarthy",
+              "role": "Bowler",
+              "team": "India",
+              "buy_price": 50,
+              "active": true
+            },
+            {
+              "name": "Axar Patel",
+              "role": "Bowling Allrounder",
+              "team": "India",
+              "buy_price": 44,
+              "active": true
+            },
+            {
+              "name": "Sikandar Raza",
+              "role": "Batting Allrounder",
+              "team": "Zimbabwe",
+              "buy_price": 42,
+              "active": true
+            },
+            {
+              "name": "Keshav Maharaj",
+              "role": "Bowler",
+              "team": "South Africa",
+              "buy_price": 30,
+              "active": true
+            },
+            {
+              "name": "Adam Zampa",
+              "role": "Bowler",
+              "team": "Australia",
+              "buy_price": 29,
+              "active": true
+            },
+            {
+              "name": "Glenn Phillips",
+              "role": "Batting Allrounder",
+              "team": "New Zealand",
+              "buy_price": 20,
+              "active": true
+            },
+            {
+              "name": "Rachin Ravindra",
+              "role": "Batting Allrounder",
+              "team": "New Zealand",
+              "buy_price": 13,
+              "active": true
+            },
+            {
+              "name": "George Munsey",
+              "role": "Batsman",
+              "team": "Scotland",
+              "buy_price": 13,
+              "active": true
+            },
+            {
+              "name": "Wayne Madsen",
+              "role": "Batsman",
+              "team": "Italy",
+              "buy_price": 11,
+              "active": true
+            },
+            {
+              "name": "Jatinder Singh",
+              "role": "Batsman",
+              "team": "Oman",
+              "buy_price": 7,
+              "active": true
+            },
+            {
+              "name": "Josh Tongue",
+              "role": "Bowler",
+              "team": "England",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Ish Sodhi",
+              "role": "Bowler",
+              "team": "New Zealand",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Saiteja Mukkamalla",
+              "role": "Batsman",
+              "team": "United States",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Lorcan Tucker",
+              "role": "WK-Batsman",
+              "team": "Ireland",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Salman Mirza",
+              "role": "Bowler",
+              "team": "Pakistan",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Sandeep Lamichhane",
+              "role": "Bowler",
+              "team": "Nepal",
+              "buy_price": 5,
+              "active": true
+            },
+            {
+              "name": "Washington Sundar",
+              "role": "Bowling Allrounder",
+              "team": "India",
+              "buy_price": 5,
+              "active": true
+            }
+          ],
+          "budget": 175,
+          "injury_reserve": "Quinton de Kock",
+          "user": "Falcon "
         }
       ],
       "gameweek_scores": {},
       "created_at": "2026-02-03T14:09:02.890501",
-      "big_auction_complete": false,
-      "bidding_open": false,
-      "trading_open": false,
+      "big_auction_complete": true,
+      "bidding_open": true,
+      "trading_open": true,
       "unsold_players": [
         "Mohammad Mohsin",
         "Jay Odedra",
@@ -3647,37 +2949,573 @@
         "Nadeem Khan"
       ],
       "active_bids": [],
-      "pending_trades": [
-        {
-          "id": "35fbe664-bfbf-4a21-bcb8-90defde7e6ae",
-          "from": "Suvaan",
-          "to": "Arrow",
-          "type": "Loan In",
-          "player": "Hasaranga",
-          "price": 0,
-          "created_at": "2026-02-05T23:44:21.601933"
-        },
-        {
-          "id": "53e20257-c035-40af-af61-67dad368da8e",
-          "from": "Suvaan",
-          "to": "Arrow",
-          "type": "Loan Out",
-          "player": "nissanka",
-          "price": 0,
-          "created_at": "2026-02-05T23:45:32.718405"
-        },
-        {
-          "id": "cf49f935-de71-4bdc-b8d1-4cecafd9e1d1",
-          "from": "Mithuphetamine",
-          "to": "Arrow",
-          "type": "Exchange",
-          "give_player": "farooqi",
-          "get_player": "Stubbs",
-          "price": 0,
-          "created_at": "2026-02-07T08:13:07.890075"
+      "pending_trades": [],
+      "gameweek_squads": {
+        "1": {
+          "Smudge49": {
+            "squad": [
+              {
+                "name": "Jos Buttler",
+                "buy_price": 60
+              },
+              {
+                "name": "Harry Brook",
+                "buy_price": 70
+              },
+              {
+                "name": "Liam Dawson",
+                "buy_price": 16
+              },
+              {
+                "name": "Adil Rashid",
+                "buy_price": 55
+              },
+              {
+                "name": "Mujeeb Ur Rahman",
+                "buy_price": 17
+              },
+              {
+                "name": "Glenn Maxwell",
+                "buy_price": 15
+              },
+              {
+                "name": "Mitchell Santner",
+                "buy_price": 50
+              },
+              {
+                "name": "Kamil Mishara",
+                "buy_price": 5
+              },
+              {
+                "name": "Babar Azam",
+                "buy_price": 13
+              },
+              {
+                "name": "Salman Agha",
+                "buy_price": 28
+              },
+              {
+                "name": "Saim Ayub",
+                "buy_price": 5
+              },
+              {
+                "name": "Mohammad Nawaz",
+                "buy_price": 5
+              },
+              {
+                "name": "Naseem Shah",
+                "buy_price": 9
+              },
+              {
+                "name": "Ryan Burl",
+                "buy_price": 5
+              },
+              {
+                "name": "Curtis Campher",
+                "buy_price": 11
+              },
+              {
+                "name": "Andries Gous",
+                "buy_price": 13
+              },
+              {
+                "name": "Roelof van der Merwe",
+                "buy_price": 5
+              },
+              {
+                "name": "JJ Smuts",
+                "buy_price": 16
+              },
+              {
+                "name": "Chris Greaves",
+                "buy_price": 12
+              }
+            ],
+            "injury_reserve": "Glenn Maxwell",
+            "budget": 58
+          },
+          "Mithuphetamine": {
+            "squad": [
+              {
+                "name": "Dewald Brevis",
+                "buy_price": 70
+              },
+              {
+                "name": "George Linde",
+                "buy_price": 20
+              },
+              {
+                "name": "Kwena Maphaka",
+                "buy_price": 5
+              },
+              {
+                "name": "Tom Banton",
+                "buy_price": 25
+              },
+              {
+                "name": "Sam Curran",
+                "buy_price": 55
+              },
+              {
+                "name": "Gulbadin Naib",
+                "buy_price": 5
+              },
+              {
+                "name": "Rovman Powell",
+                "buy_price": 10
+              },
+              {
+                "name": "Gudakesh Motie",
+                "buy_price": 5
+              },
+              {
+                "name": "Cameron Green",
+                "buy_price": 50
+              },
+              {
+                "name": "Nathan Ellis",
+                "buy_price": 25
+              },
+              {
+                "name": "Jacob Duffy",
+                "buy_price": 20
+              },
+              {
+                "name": "Kamindu Mendis",
+                "buy_price": 5
+              },
+              {
+                "name": "Shivam Dube",
+                "buy_price": 42
+              },
+              {
+                "name": "Arshdeep Singh",
+                "buy_price": 30
+              },
+              {
+                "name": "Shaheen Afridi",
+                "buy_price": 15
+              },
+              {
+                "name": "Logan van Beek",
+                "buy_price": 11
+              },
+              {
+                "name": "Anthony Mosca",
+                "buy_price": 5
+              },
+              {
+                "name": "Sanjay Krishnamurthi",
+                "buy_price": 15
+              },
+              {
+                "name": "Tristan Stubbs",
+                "buy_price": 31
+              }
+            ],
+            "injury_reserve": "Sanjay Krishnamurthi",
+            "budget": 52
+          },
+          "Ladda CC": {
+            "squad": [
+              {
+                "name": "David Miller",
+                "buy_price": 6
+              },
+              {
+                "name": "Anrich Nortje",
+                "buy_price": 15
+              },
+              {
+                "name": "Philip Salt",
+                "buy_price": 70
+              },
+              {
+                "name": "Jamie Overton",
+                "buy_price": 11
+              },
+              {
+                "name": "Johnson Charles",
+                "buy_price": 5
+              },
+              {
+                "name": "Akeal Hosein",
+                "buy_price": 15
+              },
+              {
+                "name": "Marcus Stoinis",
+                "buy_price": 15
+              },
+              {
+                "name": "Daryl Mitchell",
+                "buy_price": 17
+              },
+              {
+                "name": "Maheesh Theekshana",
+                "buy_price": 5
+              },
+              {
+                "name": "Rinku Singh",
+                "buy_price": 35
+              },
+              {
+                "name": "Abhishek Sharma",
+                "buy_price": 70
+              },
+              {
+                "name": "Hardik Pandya",
+                "buy_price": 120
+              },
+              {
+                "name": "Kuldeep Yadav",
+                "buy_price": 20
+              },
+              {
+                "name": "Abrar Ahmed",
+                "buy_price": 41
+              },
+              {
+                "name": "Max ODowd",
+                "buy_price": 6
+              },
+              {
+                "name": "Kusal Mendis",
+                "buy_price": 6
+              },
+              {
+                "name": "Gerhard Erasmus",
+                "buy_price": 5
+              }
+            ],
+            "injury_reserve": null,
+            "budget": 23
+          },
+          "Suvaan": {
+            "squad": [
+              {
+                "name": "Ryan Rickelton",
+                "buy_price": 35
+              },
+              {
+                "name": "Jason Smith",
+                "buy_price": 16
+              },
+              {
+                "name": "Marco Jansen",
+                "buy_price": 60
+              },
+              {
+                "name": "Jacob Bethell",
+                "buy_price": 35
+              },
+              {
+                "name": "Darwish Rasooli",
+                "buy_price": 12
+              },
+              {
+                "name": "Noor Ahmad",
+                "buy_price": 40
+              },
+              {
+                "name": "Shimron Hetmyer",
+                "buy_price": 30
+              },
+              {
+                "name": "Jason Holder",
+                "buy_price": 6
+              },
+              {
+                "name": "Romario Shepherd",
+                "buy_price": 15
+              },
+              {
+                "name": "Josh Inglis",
+                "buy_price": 19
+              },
+              {
+                "name": "Tim David",
+                "buy_price": 35
+              },
+              {
+                "name": "Xavier Bartlett",
+                "buy_price": 11
+              },
+              {
+                "name": "Finn Allen",
+                "buy_price": 27
+              },
+              {
+                "name": "Matt Henry",
+                "buy_price": 9
+              },
+              {
+                "name": "Dushmantha Chameera",
+                "buy_price": 11
+              },
+              {
+                "name": "Ishan Kishan",
+                "buy_price": 50
+              },
+              {
+                "name": "Tilak Varma",
+                "buy_price": 60
+              },
+              {
+                "name": "Usman Tariq",
+                "buy_price": 5
+              },
+              {
+                "name": "Wanindu Hasaranga",
+                "buy_price": 20
+              }
+            ],
+            "injury_reserve": "Tim David",
+            "budget": 7
+          },
+          "Johnthedon69": {
+            "squad": [
+              {
+                "name": "Aiden Markram",
+                "buy_price": 70
+              },
+              {
+                "name": "Kagiso Rabada",
+                "buy_price": 50
+              },
+              {
+                "name": "Ben Duckett",
+                "buy_price": 8
+              },
+              {
+                "name": "Will Jacks",
+                "buy_price": 55
+              },
+              {
+                "name": "Jofra Archer",
+                "buy_price": 70
+              },
+              {
+                "name": "Travis Head",
+                "buy_price": 70
+              },
+              {
+                "name": "Devon Conway",
+                "buy_price": 10
+              },
+              {
+                "name": "Michael Bracewell",
+                "buy_price": 5
+              },
+              {
+                "name": "Matheesha Pathirana",
+                "buy_price": 15
+              },
+              {
+                "name": "Sanju Samson",
+                "buy_price": 5
+              },
+              {
+                "name": "Harry Tector",
+                "buy_price": 26
+              },
+              {
+                "name": "Jasdeep Singh",
+                "buy_price": 5
+              },
+              {
+                "name": "Corbin Bosch",
+                "buy_price": 21
+              },
+              {
+                "name": "Paul Stirling",
+                "buy_price": 5
+              },
+              {
+                "name": "Monank Patel",
+                "buy_price": 21
+              },
+              {
+                "name": "Ali Khan",
+                "buy_price": 19
+              },
+              {
+                "name": "Brandon McMullen",
+                "buy_price": 5
+              },
+              {
+                "name": "Cooper Connolly",
+                "buy_price": 3
+              }
+            ],
+            "injury_reserve": null,
+            "budget": 73
+          },
+          "Arrow": {
+            "squad": [
+              {
+                "name": "Rahmanullah Gurbaz",
+                "buy_price": 30
+              },
+              {
+                "name": "Mohammad Nabi",
+                "buy_price": 11
+              },
+              {
+                "name": "Azmatullah Omarzai",
+                "buy_price": 16
+              },
+              {
+                "name": "Shai Hope",
+                "buy_price": 16
+              },
+              {
+                "name": "Brandon King",
+                "buy_price": 6
+              },
+              {
+                "name": "Sherfane Rutherford",
+                "buy_price": 25
+              },
+              {
+                "name": "Matthew Forde",
+                "buy_price": 10
+              },
+              {
+                "name": "Mitchell Marsh",
+                "buy_price": 50
+              },
+              {
+                "name": "Tim Seifert",
+                "buy_price": 16
+              },
+              {
+                "name": "Lockie Ferguson",
+                "buy_price": 20
+              },
+              {
+                "name": "Kyle Jamieson",
+                "buy_price": 10
+              },
+              {
+                "name": "Dasun Shanaka",
+                "buy_price": 20
+              },
+              {
+                "name": "Suryakumar Yadav",
+                "buy_price": 80
+              },
+              {
+                "name": "Jasprit Bumrah",
+                "buy_price": 80
+              },
+              {
+                "name": "Fakhar Zaman",
+                "buy_price": 11
+              },
+              {
+                "name": "Shadab Khan",
+                "buy_price": 5
+              },
+              {
+                "name": "Fazalhaq Farooqi",
+                "buy_price": 30
+              },
+              {
+                "name": "Ibrahim Zadran",
+                "buy_price": 5
+              },
+              {
+                "name": "Pathum Nissanka",
+                "buy_price": 15
+              }
+            ],
+            "injury_reserve": "Pathum Nissanka",
+            "budget": 17
+          },
+          "Falcon": {
+            "squad": [
+              {
+                "name": "Quinton de Kock",
+                "buy_price": 75
+              },
+              {
+                "name": "Rashid Khan",
+                "buy_price": 55
+              },
+              {
+                "name": "Varun Chakaravarthy",
+                "buy_price": 50
+              },
+              {
+                "name": "Axar Patel",
+                "buy_price": 44
+              },
+              {
+                "name": "Sikandar Raza",
+                "buy_price": 42
+              },
+              {
+                "name": "Keshav Maharaj",
+                "buy_price": 30
+              },
+              {
+                "name": "Adam Zampa",
+                "buy_price": 29
+              },
+              {
+                "name": "Glenn Phillips",
+                "buy_price": 20
+              },
+              {
+                "name": "Rachin Ravindra",
+                "buy_price": 13
+              },
+              {
+                "name": "George Munsey",
+                "buy_price": 13
+              },
+              {
+                "name": "Wayne Madsen",
+                "buy_price": 11
+              },
+              {
+                "name": "Jatinder Singh",
+                "buy_price": 7
+              },
+              {
+                "name": "Josh Tongue",
+                "buy_price": 5
+              },
+              {
+                "name": "Ish Sodhi",
+                "buy_price": 5
+              },
+              {
+                "name": "Saiteja Mukkamalla",
+                "buy_price": 5
+              },
+              {
+                "name": "Lorcan Tucker",
+                "buy_price": 5
+              },
+              {
+                "name": "Salman Mirza",
+                "buy_price": 5
+              },
+              {
+                "name": "Sandeep Lamichhane",
+                "buy_price": 5
+              },
+              {
+                "name": "Washington Sundar",
+                "buy_price": 5
+              }
+            ],
+            "injury_reserve": "Quinton de Kock",
+            "budget": 75
+          }
         }
-      ],
-      "gameweek_squads": {},
+      },
       "auction_log": [],
       "live_auction": {
         "active": false,
@@ -3706,7 +3544,10 @@
         "timer_duration": 60,
         "opted_out": [],
         "auction_started_at": "2026-02-03T17:05:05.739423"
-      }
+      },
+      "current_gameweek": 2,
+      "squads_locked": false,
+      "game_phase": "Trading"
     },
     "0WS6AS": {
       "name": "YMMO07",

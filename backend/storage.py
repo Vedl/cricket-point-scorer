@@ -10,7 +10,9 @@ class StorageManager:
         self.local_file_path = local_file_path
         self.api_key = st.secrets.get("JSONBIN_KEY")
         self.bin_id = st.secrets.get("JSONBIN_BIN_ID")
-        self.use_remote = bool(self.api_key and self.bin_id)
+        # DISABLED: Remote sync was causing data corruption via race conditions
+        # self.use_remote = bool(self.api_key and self.bin_id)
+        self.use_remote = False  # Local-only mode for stability
         
         if self.use_remote:
             self.headers = {
@@ -72,8 +74,22 @@ class StorageManager:
         return {"users": {}, "rooms": {}}
 
     def save_data(self, data):
-        """Save data: Atomic Rename Pattern (Tmp -> Rename) + Async Remote."""
+        """Save data: Auto-Backup + Atomic Rename Pattern (Tmp -> Rename)."""
         try:
+            # 0. Auto-Backup before save (prevent data loss)
+            import shutil
+            from datetime import datetime
+            if os.path.exists(self.local_file_path):
+                backup_dir = os.path.join(os.path.dirname(self.local_file_path), "backups")
+                os.makedirs(backup_dir, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = os.path.join(backup_dir, f"auction_{timestamp}.json")
+                shutil.copy2(self.local_file_path, backup_path)
+                # Keep only last 20 backups
+                backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.json')])
+                while len(backups) > 20:
+                    os.remove(os.path.join(backup_dir, backups.pop(0)))
+            
             # 1. Serialize
             json_str = json.dumps(data, indent=2)
             
