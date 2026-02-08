@@ -53,9 +53,16 @@ def get_ist_time():
     """Returns the current time in Indian Standard Time (IST)"""
     return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
-
 # Initialize Storage Manager
 storage_mgr = StorageManager(AUCTION_DATA_FILE)
+
+# DEBUG: Show Firebase status in console
+print(f"[DEBUG] Storage Manager: use_remote={storage_mgr.use_remote}")
+if storage_mgr.use_remote:
+    print(f"[DEBUG] Firebase URL: {storage_mgr.db_url}")
+else:
+    print("[DEBUG] WARNING: Firebase is NOT configured - saves will be LOCAL ONLY!")
+
 
 # --- Load/Save Functions for Persistence ---
 # Removed st.cache_data to ensure we always get fresh data from disk
