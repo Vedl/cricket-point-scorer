@@ -56,12 +56,14 @@ def get_ist_time():
 # Initialize Storage Manager
 storage_mgr = StorageManager(AUCTION_DATA_FILE)
 
-# DEBUG: Show Firebase status in console
-print(f"[DEBUG] Storage Manager: use_remote={storage_mgr.use_remote}")
-if storage_mgr.use_remote:
-    print(f"[DEBUG] Firebase URL: {storage_mgr.db_url}")
-else:
-    print("[DEBUG] WARNING: Firebase is NOT configured - saves will be LOCAL ONLY!")
+# DEBUG: Show Firebase status in sidebar - TEMPORARY
+with st.sidebar.expander("🔧 Debug Info", expanded=True):
+    st.write(f"**Firebase Configured:** {storage_mgr.use_remote}")
+    if storage_mgr.use_remote:
+        st.success(f"URL: {storage_mgr.db_url[:50]}...")
+    else:
+        st.error("⚠️ Firebase NOT configured! Saves are LOCAL ONLY.")
+        st.write("Check secrets: FIREBASE_DATABASE_URL")
 
 
 # --- Load/Save Functions for Persistence ---
