@@ -23,8 +23,8 @@ class StorageManager:
     
     def _normalize_firebase_data(self, data):
         """
-        Firebase converts dicts with numeric-looking keys to arrays.
-        This converts them back to dicts where needed.
+        Firebase converts dicts with numeric-looking keys (like '1', '2') to sparse arrays.
+        Only convert back to dict if the array has None entries (sparse).
         """
         if data is None:
             return {}
@@ -36,16 +36,15 @@ class StorageManager:
             return data
         
         if isinstance(data, list):
-            # Check if this should be a dict (Firebase array conversion)
-            # If list contains dicts or has None entries (sparse array), convert to dict
-            if any(item is None for item in data) or \
-               (len(data) > 0 and isinstance(data[0], dict) and 'squad' in str(data)):
+            # Only convert sparse arrays (with None entries) back to dicts
+            # This handles Firebase's conversion of {"1": x, "3": y} to [None, x, None, y]
+            if any(item is None for item in data):
                 result = {}
                 for i, item in enumerate(data):
                     if item is not None:
                         result[str(i)] = self._normalize_firebase_data(item)
                 return result
-            # Otherwise keep as list
+            # Keep normal lists as lists (participants, squad, members, etc.)
             return [self._normalize_firebase_data(item) if isinstance(item, (dict, list)) else item for item in data]
         
         return data
