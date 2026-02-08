@@ -16479,8 +16479,8 @@
       "gameweek_scores": {},
       "created_at": "2026-02-05T01:58:31.046553",
       "big_auction_complete": false,
-      "bidding_open": false,
-      "trading_open": false,
+      "bidding_open": true,
+      "trading_open": true,
       "unsold_players": [
         "Mohammad Mohsin",
         "Jay Odedra",
@@ -17700,8 +17700,10 @@
           "msg": "\ud83d\uddd1\ufe0f Released: **Roston Chase** by **Smudge49** (Refund: 3M)"
         }
       ],
-      "squads_locked": true,
-      "gw2_boost_given": true
+      "squads_locked": false,
+      "gw2_boost_given": true,
+      "current_gameweek": 2,
+      "game_phase": "Bidding"
     }
   }
 }
