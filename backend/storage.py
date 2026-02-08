@@ -70,6 +70,18 @@ class StorageManager:
                     # Normalize Firebase data (arrays back to dicts)
                     data = self._normalize_firebase_data(data)
                     
+                    # Schema Enforcement: Ensure 'squad' list exists (Firebase omits empty lists)
+                    if 'rooms' in data:
+                        for r_val in data['rooms'].values():
+                            if isinstance(r_val, dict) and 'participants' in r_val:
+                                parts = r_val['participants']
+                                if isinstance(parts, list):
+                                    for p in parts:
+                                        if isinstance(p, dict):
+                                            # Ensure squad is a LIST (handle missing, None, or empty dicts from normalization)
+                                            if 'squad' not in p or not isinstance(p['squad'], list):
+                                                p['squad'] = []
+                    
                     if 'users' not in data: data['users'] = {}
                     if 'rooms' not in data: data['rooms'] = {}
                     
@@ -88,6 +100,19 @@ class StorageManager:
             try:
                 with open(self.local_file_path, 'r') as f:
                     data = json.load(f)
+                    
+                    # Schema Enforcement: Ensure 'squad' list exists locally too
+                    if 'rooms' in data:
+                        for r_val in data['rooms'].values():
+                            if isinstance(r_val, dict) and 'participants' in r_val:
+                                parts = r_val['participants']
+                                if isinstance(parts, list):
+                                    for p in parts:
+                                        if isinstance(p, dict):
+                                            # Ensure squad is a LIST (handle missing, None, or empty dicts)
+                                            if 'squad' not in p or not isinstance(p['squad'], list):
+                                                p['squad'] = []
+                    
                     if 'users' not in data: data['users'] = {}
                     if 'rooms' not in data: data['rooms'] = {}
                     return data

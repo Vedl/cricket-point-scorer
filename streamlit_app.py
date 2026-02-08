@@ -1002,7 +1002,7 @@ def show_main_app():
     with st.sidebar.expander("📊 All Team Stats & Budgets", expanded=False):
         stats_data = []
         for p in room['participants']:
-            squad_list = p['squad']
+            squad_list = p.get('squad', [])
             # Count Roles
             n_bat = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Batsman')
             n_bowl = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Bowler')
