@@ -1395,7 +1395,9 @@ def show_main_app():
                             
                                 # Release Logic Check
                                 # 1. Before Deadline (or GW0) -> Unlimited 50% Refund
-                                is_pre_deadline = (global_deadline and now < global_deadline)
+                                # FIX: Only allow unlimited if NO gameweeks have been locked yet (Pre-Season)
+                                has_season_started = len(room.get('gameweek_squads', {})) > 0
+                                is_pre_deadline = (not has_season_started) and (global_deadline and now < global_deadline)
                             
                                 if is_pre_deadline:
                                     release_type = "unlimited"
