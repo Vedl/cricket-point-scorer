@@ -21,6 +21,35 @@ class StorageManager:
             # Firebase REST API endpoint
             self.db_url = f"{self.firebase_url}/auction_data.json"
     
+    def _normalize_firebase_data(self, data):
+        """
+        Firebase converts dicts with numeric-looking keys to arrays.
+        This converts them back to dicts where needed.
+        """
+        if data is None:
+            return {}
+        
+        if isinstance(data, dict):
+            # Recursively normalize nested dicts
+            for key, value in data.items():
+                data[key] = self._normalize_firebase_data(value)
+            return data
+        
+        if isinstance(data, list):
+            # Check if this should be a dict (Firebase array conversion)
+            # If list contains dicts or has None entries (sparse array), convert to dict
+            if any(item is None for item in data) or \
+               (len(data) > 0 and isinstance(data[0], dict) and 'squad' in str(data)):
+                result = {}
+                for i, item in enumerate(data):
+                    if item is not None:
+                        result[str(i)] = self._normalize_firebase_data(item)
+                return result
+            # Otherwise keep as list
+            return [self._normalize_firebase_data(item) if isinstance(item, (dict, list)) else item for item in data]
+        
+        return data
+    
     def load_data(self):
         """Load data: Try Remote First (Source of Truth), Fallback to Local."""
         # 1. Try Firebase (Source of Truth for Cloud)
@@ -31,6 +60,10 @@ class StorageManager:
                     data = response.json()
                     if data is None:
                         data = {}
+                    
+                    # Normalize Firebase data (arrays back to dicts)
+                    data = self._normalize_firebase_data(data)
+                    
                     if 'users' not in data: data['users'] = {}
                     if 'rooms' not in data: data['rooms'] = {}
                     
