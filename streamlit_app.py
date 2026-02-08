@@ -1358,7 +1358,8 @@ def show_main_app():
                 if current_participant['squad']:
                     # Calculate current gameweek (based on locked gameweeks)
                     locked_gws = list(room.get('gameweek_squads', {}).keys())
-                    current_gw = max([int(gw) for gw in locked_gws]) if locked_gws else 0
+                    # FIXED: Use actual current gameweek for logic, not just locked ones
+                    current_gw = room.get('current_gameweek', 1)
                     
                     # Check if participant has used their paid release this GW
                     paid_releases = current_participant.get('paid_releases', {})
@@ -2552,7 +2553,72 @@ def show_main_app():
                         st.rerun()
 
             st.divider()
-            with st.expander("💾 Manual Backup & Restore (Local File)"):
+            with st.expander("🚫 Reverse Player Release (Admin)"):
+                 st.info("Undo a player release: Returns player to squad, deducts the refund from budget, and optionally resets the 'Paid Release' flag.")
+                 
+                 p_names_rev = [p['name'] for p in room['participants']]
+                 selected_p_rev = st.selectbox("Select Participant", [""] + p_names_rev, key="rev_p_select")
+                 
+                 if selected_p_rev:
+                     p_obj_rev = next((p for p in room['participants'] if p['name'] == selected_p_rev), None)
+                     
+                     unsold_list = room.get('unsold_players', [])
+                     player_to_reverse = st.selectbox("Select Player to Restore", [""] + sorted(unsold_list), key="rev_pl_select")
+                     
+                     if player_to_reverse:
+                         col1, col2 = st.columns(2)
+                         with col1:
+                             refund_deduct = st.number_input("Refund Amount to Deduct (M)", min_value=0.0, value=0.0, step=0.5, format="%.1f", help="Amount to SUBTRACT from participant's budget")
+                         with col2:
+                             original_price = st.number_input("Original Buy Price (M)", min_value=0.0, value=refund_deduct*2, step=0.5, format="%.1f", help="Price to set on the restored player")
+                             
+                         current_gw_rev = int(room.get('current_gameweek', 1))
+                         reset_paid_flag = st.checkbox(f"Reset 'Paid Release' flag for GW {current_gw_rev}?", value=True, help="If checked, allows them to make another paid release this GW.")
+                         
+                         if st.button("↩️ Confirm Reversal"):
+                             # 1. Remove from Unsold
+                             if player_to_reverse in room['unsold_players']:
+                                 room['unsold_players'].remove(player_to_reverse)
+                                 
+                                 # 2. Add back to Squad
+                                 # Find role/team from DB
+                                 p_db_info = next((p for p in players_db if p['name'] == player_to_reverse), {})
+                                 
+                                 p_obj_rev['squad'].append({
+                                     'name': player_to_reverse,
+                                     'role': p_db_info.get('role', 'Unknown'),
+                                     'active': True,
+                                     'buy_price': original_price,
+                                     'team': p_db_info.get('country', 'Unknown')
+                                 })
+                                 
+                                 # 3. Deduct Budget
+                                 p_obj_rev['budget'] -= refund_deduct
+                                 
+                                 # 4. Reset Flag
+                                 if reset_paid_flag:
+                                     paid_rels = p_obj_rev.get('paid_releases', {})
+                                     # Handle list/dict
+                                     if isinstance(paid_rels, list):
+                                         if current_gw_rev < len(paid_rels):
+                                             paid_rels[current_gw_rev] = False # Set to False or remove? False is safer for list.
+                                     elif isinstance(paid_rels, dict):
+                                         if str(current_gw_rev) in paid_rels:
+                                             del paid_rels[str(current_gw_rev)]
+                                 
+                                 # Log it
+                                 timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                 log_msg = f"↩️ REVERSED Release: **{player_to_reverse}** returned to **{selected_p_rev}**. Deducted {refund_deduct}M."
+                                 room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                 
+                                 save_auction_data(auction_data)
+                                 st.success(f"Reversed! {player_to_reverse} returned to {selected_p_rev}.")
+                                 time.sleep(1)
+                                 st.rerun()
+                             else:
+                                 st.error("Player no longer in Unsold list!")
+
+
                  st.info("Download a backup of the entire room state to your computer, listing limitless history. You can restore from this file anytime.")
                  
                  # 1. DOWNLOAD
