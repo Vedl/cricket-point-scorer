@@ -10,9 +10,9 @@ class StorageManager:
         self.local_file_path = local_file_path
         self.api_key = st.secrets.get("JSONBIN_KEY")
         self.bin_id = st.secrets.get("JSONBIN_BIN_ID")
-        # DISABLED: Remote sync was causing data corruption via race conditions
-        # self.use_remote = bool(self.api_key and self.bin_id)
-        self.use_remote = False  # Local-only mode for stability
+        # RE-ENABLED: Remote sync is REQUIRED for Streamlit Cloud deployment
+        # Local file is ephemeral on cloud - JSONBIN is the only persistent storage
+        self.use_remote = bool(self.api_key and self.bin_id)
         
         if self.use_remote:
             self.headers = {
