@@ -3,202 +3,128 @@ import os
 import requests
 import streamlit as st
 import threading
-import fcntl
 
 class StorageManager:
+    """
+    Firebase Realtime Database Storage Manager
+    Uses REST API for compatibility with Streamlit Cloud
+    """
     def __init__(self, local_file_path):
         self.local_file_path = local_file_path
-        self.api_key = st.secrets.get("JSONBIN_KEY")
-        self.bin_id = st.secrets.get("JSONBIN_BIN_ID")
-        # RE-ENABLED: Remote sync is REQUIRED for Streamlit Cloud deployment
-        # Local file is ephemeral on cloud - JSONBIN is the only persistent storage
-        self.use_remote = bool(self.api_key and self.bin_id)
+        
+        # Firebase Configuration
+        self.firebase_url = st.secrets.get("FIREBASE_DATABASE_URL")
+        self.firebase_api_key = st.secrets.get("FIREBASE_API_KEY")
+        self.use_remote = bool(self.firebase_url)
         
         if self.use_remote:
-            self.headers = {
-                'X-Master-Key': self.api_key,
-                'Content-Type': 'application/json'
-            }
-            self.url = f"https://api.jsonbin.io/v3/b/{self.bin_id}"
-
-
+            # Firebase REST API endpoint
+            self.db_url = f"{self.firebase_url}/auction_data.json"
+    
     def load_data(self):
-        """Load data: Prefer Local File (Speed), Fallback to Remote (Backup). Uses File Locking."""
-        # 1. Try Local File (Fast Cache) with LOCK_SH (Shared Lock) for Reading
+        """Load data: Try Remote First (Source of Truth), Fallback to Local."""
+        # 1. Try Firebase (Source of Truth for Cloud)
+        if self.use_remote:
+            try:
+                response = requests.get(self.db_url, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data is None:
+                        data = {}
+                    if 'users' not in data: data['users'] = {}
+                    if 'rooms' not in data: data['rooms'] = {}
+                    
+                    # Cache locally
+                    try:
+                        with open(self.local_file_path, 'w') as f:
+                            json.dump(data, f, indent=2)
+                    except: pass
+                    
+                    return data
+            except Exception as e:
+                print(f"Firebase Load Error: {e}")
+        
+        # 2. Local Fallback
         if os.path.exists(self.local_file_path):
             try:
                 with open(self.local_file_path, 'r') as f:
-                    # Acquire Shared Lock (wait if writing)
-                    fcntl.flock(f, fcntl.LOCK_SH)
-                    try:
-                        data = json.load(f)
-                    finally:
-                        fcntl.flock(f, fcntl.LOCK_UN)
-                    
-                    # Basic Validation
+                    data = json.load(f)
                     if 'users' not in data: data['users'] = {}
                     if 'rooms' not in data: data['rooms'] = {}
                     return data
             except Exception as e:
                 print(f"Local Load Error: {e}")
         
-        # 2. Remote Fallback (Cold Start)
-        if self.use_remote:
-            try:
-                # print("Fetching from Remote Storage...")
-                response = requests.get(self.url + "/latest", headers=self.headers, timeout=5)
-                if response.status_code == 200:
-                    data = response.json().get('record', {})
-                    if 'users' not in data: data['users'] = {}
-                    if 'rooms' not in data: data['rooms'] = {}
-                    
-                    # Cache it locally immediately (Atomic-ish)
-                    try:
-                        fd = os.open(self.local_file_path, os.O_RDWR | os.O_CREAT)
-                        with os.fdopen(fd, 'r+') as f:
-                            fcntl.flock(f, fcntl.LOCK_EX)
-                            try:
-                                f.truncate(0)
-                                f.seek(0)
-                                json.dump(data, f, indent=2)
-                                f.flush()
-                                os.fsync(f.fileno())
-                            finally:
-                                fcntl.flock(f, fcntl.LOCK_UN)
-                    except: pass
-                    
-                    return data
-            except Exception as e:
-                print(f"Remote Load Exception: {e}")
-        
         return {"users": {}, "rooms": {}}
-
+    
     def save_data(self, data):
-        """Save data: Auto-Backup + Atomic Rename Pattern (Tmp -> Rename)."""
+        """Save data: Local + Firebase (Synchronous for reliability)."""
         try:
-            # 0. Auto-Backup before save (prevent data loss)
-            import shutil
-            from datetime import datetime
-            if os.path.exists(self.local_file_path):
-                backup_dir = os.path.join(os.path.dirname(self.local_file_path), "backups")
-                os.makedirs(backup_dir, exist_ok=True)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_path = os.path.join(backup_dir, f"auction_{timestamp}.json")
-                shutil.copy2(self.local_file_path, backup_path)
-                # Keep only last 20 backups
-                backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.json')])
-                while len(backups) > 20:
-                    os.remove(os.path.join(backup_dir, backups.pop(0)))
-            
-            # 1. Serialize
             json_str = json.dumps(data, indent=2)
             
-            # 2. Atomic Local Save
-            # Write to a temp file first
+            # 1. Save locally first (fast)
             tmp_file = self.local_file_path + ".tmp"
-            
-            # Use 'w' mode for temp file - we don't care about its previous content
             with open(tmp_file, 'w') as f:
                 f.write(json_str)
                 f.flush()
                 os.fsync(f.fileno())
-            
-            # Atomic Rename: Overwrites target instantly
             os.rename(tmp_file, self.local_file_path)
             
-            # 3. Remote Save (Asynchronous)
+            # 2. Save to Firebase (synchronous - MUST succeed for cloud)
             if self.use_remote:
-                def _push_remote(payload):
-                    try:
-                        requests.put(self.url, headers=self.headers, data=payload, timeout=5)
-                    except Exception as e:
-                        print(f"Async Upload Failed: {e}")
-                
-                t = threading.Thread(target=_push_remote, args=(json_str,))
-                t.start()
-                
+                try:
+                    response = requests.put(
+                        self.db_url,
+                        data=json_str,
+                        headers={'Content-Type': 'application/json'},
+                        timeout=15
+                    )
+                    if response.status_code != 200:
+                        print(f"Firebase Save Warning: {response.status_code}")
+                except Exception as e:
+                    print(f"Firebase Save Error: {e}")
+                    st.warning(f"⚠️ Cloud save failed: {e}")
+                    
         except Exception as e:
             st.error(f"SAVE FAILED: {str(e)}")
-            print(f"Save Data Error: {e}")
-
+            print(f"Save Error: {e}")
+    
     def force_sync_to_remote(self, data):
-        """Manual Trigger: Force Synchronous Upload to Remote (Blocking)."""
+        """Manual sync to Firebase."""
         if not self.use_remote:
-            return False, "Remote storage not configured."
+            return False, "Firebase not configured."
         
         try:
-            # === COMPRESSION LOGIC ===
-            # Deep copy to avoid mutating active state
-            import copy
-            compressed = copy.deepcopy(data)
-            
-            # Minimize 'gameweek_squads' history (High Impact)
-            rooms = compressed.get('rooms', {})
-            if isinstance(rooms, dict):
-                for room_key, room_data in rooms.items():
-                    if not isinstance(room_data, dict): continue
-                    
-                    gw_squads = room_data.get('gameweek_squads', {})
-                    if isinstance(gw_squads, dict):
-                        for gw, participants in gw_squads.items():
-                            if not isinstance(participants, dict): continue
-                            
-                            for p_name, p_data in participants.items():
-                                if not isinstance(p_data, dict): continue
-                                
-                                # Strip squad list to essentials
-                                minimized_squad = []
-                                squad_list = p_data.get('squad', [])
-                                if isinstance(squad_list, list):
-                                    for pl in squad_list:
-                                        if isinstance(pl, dict):
-                                            minimized_squad.append({
-                                                'name': pl.get('name', 'Unknown'),
-                                                'buy_price': pl.get('buy_price', 0)
-                                            })
-                                        else:
-                                            # Handle edge case where pl might be just a string name?
-                                            pass
-                                    p_data['squad'] = minimized_squad
-            
-            json_str = json.dumps(compressed, separators=(',', ':')) # Removing whitespace saves ~20%
-            
-            if len(json_str) > 100000:
-                print(f"⚠️ Warning: Payload size {len(json_str)} bytes approaches 100KB limit.")
-            
-            response = requests.put(self.url, headers=self.headers, data=json_str, timeout=10)
+            json_str = json.dumps(data)
+            response = requests.put(
+                self.db_url,
+                data=json_str,
+                headers={'Content-Type': 'application/json'},
+                timeout=30
+            )
             if response.status_code == 200:
-                return True, "Successfully synced to Cloud! (Compressed)"
+                return True, "Successfully synced to Firebase!"
             else:
-                return False, f"Cloud Upload Failed: {response.status_code} - {response.text}"
+                return False, f"Firebase Error: {response.status_code}"
         except Exception as e:
-            return False, f"Cloud Exception: {str(e)}"
-
+            return False, f"Firebase Exception: {str(e)}"
+    
     def force_fetch_from_remote(self):
-        """Manual Trigger: Force Download from Remote and Overwrite Local (Blocking)."""
+        """Manual fetch from Firebase."""
         if not self.use_remote:
-            return None, "Remote storage not configured."
-            
+            return None, "Firebase not configured."
+        
         try:
-            response = requests.get(self.url + "/latest", headers=self.headers, timeout=10)
+            response = requests.get(self.db_url, timeout=30)
             if response.status_code == 200:
-                data = response.json().get('record', {})
+                data = response.json() or {}
                 
-                # Overwrite Local File Immediately
-                fd = os.open(self.local_file_path, os.O_RDWR | os.O_CREAT)
-                with os.fdopen(fd, 'r+') as f:
-                    fcntl.flock(f, fcntl.LOCK_EX)
-                    try:
-                        f.truncate(0)
-                        f.seek(0)
-                        json.dump(data, f, indent=2)
-                        f.flush()
-                        os.fsync(f.fileno())
-                    finally:
-                        fcntl.flock(f, fcntl.LOCK_UN)
+                # Save locally
+                with open(self.local_file_path, 'w') as f:
+                    json.dump(data, f, indent=2)
                 
-                return data, "Successfully restored from Cloud!"
+                return data, "Successfully restored from Firebase!"
             else:
-                return None, f"Cloud Download Failed: {response.status_code}"
+                return None, f"Firebase Error: {response.status_code}"
         except Exception as e:
-            return None, f"Cloud Exception: {str(e)}"
+            return None, f"Firebase Exception: {str(e)}"
