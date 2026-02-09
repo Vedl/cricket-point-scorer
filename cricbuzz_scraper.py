@@ -267,11 +267,14 @@ class CricbuzzScraper:
         # e.g., 'Holder' stats should merge into 'Jason Holder'
         
         names_to_remove = set()
-        for name1 in canonical_players:
+        names_list = list(canonical_players.keys())
+        
+        for i, name1 in enumerate(names_list):
             if name1 in names_to_remove:
                 continue
-            for name2 in canonical_players:
-                if name1 == name2 or name2 in names_to_remove:
+            for j in range(i + 1, len(names_list)):  # Only compare with later names to avoid double processing
+                name2 = names_list[j]
+                if name2 in names_to_remove:
                     continue
                 
                 n1_norm = normalize(name1)
