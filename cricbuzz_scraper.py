@@ -30,18 +30,13 @@ class CricbuzzScraper:
             
         full_url = f"https://www.cricbuzz.com{profile_url}"
         try:
-            # print(f"DEBUG: Fetching Role from {full_url}")
             response = requests.get(full_url, headers=self.headers)
             if response.status_code != 200: return 'Unknown'
             
             soup = BeautifulSoup(response.content, 'html.parser')
-            # Look for div containing "Role"
-            # Based on debug: <div ...>Role</div> sibling is the value
             role_label = soup.find(string="Role")
             if role_label:
                 parent = role_label.parent
-                # The structure is usually label div -> value div in a flex container
-                # sibling
                 role_value_div = parent.find_next_sibling('div')
                 if role_value_div:
                     return role_value_div.get_text().strip()
@@ -72,84 +67,94 @@ class CricbuzzScraper:
 
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        players = {} 
-
-        def get_best_match_player(name_fragment):
-            """
-            Attempts to find an existing player whose name contains the fragment.
-            Useful for linking 'Conway' (catch) to 'Devon Conway' (batter).
-            """
-            if name_fragment in players:
-                return players[name_fragment]
-            
-            # Helper to normalize names for comparison
-            def normalize(n): return n.lower().replace('.', ' ').strip()
-            
-            fragment_norm = normalize(name_fragment)
-            
-            # 1. Try exact last name match first (most common)
-            # e.g. 'Conway' -> 'Devon Conway'
-            for pname in players:
-                parts = pname.split()
-                if len(parts) > 1 and normalize(parts[-1]) == fragment_norm:
-                    return players[pname]
-                    
-            # 2. Try strict substring (word boundary preferred)
-            # e.g. 'J Bairstow' -> 'Jonny Bairstow' matches 'Bairstow'
-            for pname in players:
-                pname_norm = normalize(pname)
-                # Check if fragment is a distinct part of the name
-                if f" {fragment_norm} " in f" {pname_norm} ":
-                    return players[pname]
-            
-            # 3. Fallback: Loose substring (risky for short names like 'Wade' in 'Wadekar' but rare in match content)
-            for pname in players:
-                if fragment_norm in normalize(pname):
-                    return players[pname]
-                    
-            # No match found, create new (likely sub fielder or unmatched)
-            return get_player(name_fragment)
-
-        def get_player(name, profile_url=None):
-            if name not in players:
-                players[name] = {
-                    'name': name,
-                    'is_batter_or_allrounder': False,
+        # === PHASE 1: Build Canonical Player List from Batting+Bowling Grids ===
+        # These grids contain full player names with profile links
+        canonical_players = {}  # name -> {profile_url, role, ...}
+        
+        def normalize(n): 
+            return n.lower().replace('.', ' ').replace('-', ' ').strip()
+        
+        def add_canonical(name, profile_url=None):
+            name_clean = re.sub(r'\s*\(.*?\)', '', name).strip()
+            if name_clean and name_clean not in canonical_players:
+                canonical_players[name_clean] = {
+                    'name': name_clean,
+                    'profile_url': profile_url,
                     'role': 'Unknown',
-                    'profile_url': profile_url
+                    'is_batter_or_allrounder': False
                 }
-            # Update url if missing
-            if profile_url and not players[name]['profile_url']:
-                players[name]['profile_url'] = profile_url
-            return players[name]
-
-        # --- Pre-Scan Players from Scorecard Sections Only ---
-        # Only scan within scorecard containers to avoid picking up coaches, commentators, etc.
-        # We look for profile links within batting AND bowling grids specifically.
-        scorecard_containers = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 
-            any('scorecard' in c.lower() for c in tag.get('class', [])))
+            elif profile_url and name_clean in canonical_players and not canonical_players[name_clean].get('profile_url'):
+                canonical_players[name_clean]['profile_url'] = profile_url
+            return canonical_players.get(name_clean)
         
-        for container in scorecard_containers:
-            profile_links = container.find_all('a', href=re.compile(r'^/profiles/'))
-            for link in profile_links:
-                name = link.get_text().strip()
-                url = link.get('href')
-                # Valid player names don't have commas (unlike "Lastname, Firstname" format)
-                # and are reasonably short
-                if name and len(name) < 50 and ',' not in name:
-                     name_clean = re.sub(r'\s*\(.*?\)', '', name).strip()
-                     get_player(name_clean, url)
+        def find_canonical_match(name_fragment):
+            """
+            Find the best matching canonical player for a name fragment.
+            Returns the canonical player dict, or None if no match.
+            """
+            if name_fragment in canonical_players:
+                return canonical_players[name_fragment]
+            
+            frag_norm = normalize(name_fragment)
+            
+            # Strategy 1: Exact last name match
+            for pname, pdata in canonical_players.items():
+                parts = pname.split()
+                if len(parts) > 1 and normalize(parts[-1]) == frag_norm:
+                    return pdata
+            
+            # Strategy 2: Fragment is contained in canonical name
+            for pname, pdata in canonical_players.items():
+                pname_norm = normalize(pname)
+                if frag_norm in pname_norm:
+                    return pdata
+            
+            # Strategy 3: Canonical name ends with fragment
+            for pname, pdata in canonical_players.items():
+                if normalize(pname).endswith(frag_norm):
+                    return pdata
+            
+            return None
         
-        # --- Batting Parsing ---
-        # --- Batting Parsing ---
-        # Strictly look for 'wb:scorecard-bat-grid-web' to target desktop view and avoid duplicates
+        def get_or_create_player(name, profile_url=None):
+            """
+            Get a canonical player if match found, otherwise create new entry.
+            """
+            # Try to find canonical match first
+            match = find_canonical_match(name)
+            if match:
+                if profile_url and not match.get('profile_url'):
+                    match['profile_url'] = profile_url
+                return match
+            
+            # No match - add as new canonical player
+            return add_canonical(name, profile_url)
+        
+        # --- PHASE 1a: Pre-scan batting grid for canonical names ---
         bat_rows = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 'wb:scorecard-bat-grid-web' in tag.get('class'))
+        for row in bat_rows:
+            name_tag = row.find('a', href=re.compile(r'^/profiles/'))
+            if name_tag:
+                name = name_tag.get_text().strip()
+                url = name_tag.get('href')
+                add_canonical(name, url)
         
+        # --- PHASE 1b: Pre-scan bowling grid for canonical names ---
+        bowl_rows = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 'wb:scorecard-bowl-grid-web' in tag.get('class'))
+        for row in bowl_rows:
+            cols = row.find_all(recursive=False)
+            if cols and cols[0].name == 'a':
+                name = cols[0].get_text().strip()
+                url = cols[0].get('href')
+                add_canonical(name, url)
+        
+        print(f"DEBUG: Found {len(canonical_players)} canonical players from scorecard")
+        
+        # === PHASE 2: Parse Batting Stats (assign to canonical players) ===
         for row in bat_rows:
             cols = row.find_all(recursive=False)
             if len(cols) < 5: continue 
             
-            # Header check
             if 'Batter' in row.get_text(): continue
             if 'Extras' in row.get_text(): continue
             if 'Total' in row.get_text(): continue
@@ -171,30 +176,24 @@ class CricbuzzScraper:
                 dismissal_text = full_text.replace(player_name, "").strip()
 
             try:
-                # Use assignment = instead of += to be safe against accidental row duplication
-                # T20/ODI logic: 1 innings per player usually. 
                 runs = int(cols[1].get_text().strip())
                 balls = int(cols[2].get_text().strip())
                 fours = int(cols[3].get_text().strip())
                 sixes = int(cols[4].get_text().strip())
                 
-                p = get_player(player_name_clean, profile_url)
+                p = get_or_create_player(player_name_clean, profile_url)
                 p['runs'] = runs
                 p['balls_faced'] = balls
                 p['fours'] = fours
                 p['sixes'] = sixes
                 p['is_batter_or_allrounder'] = True
                 
-                # Dismissal Processing (Fielding)
-                # Note: Fielding stats accumulate because a player can catch multiple times.
-                # However, since we process each unique row once now, += is correct for fielding attribution.
-                
+                # Dismissal Processing (Fielding credits)
                 if 'b ' in dismissal_text: 
                     parts = dismissal_text.split(' b ')
                     if len(parts) > 1:
                         bowler_name = parts[1].strip()
-                        # Can't easily get profile URL here without lookup, assume scraped later in bowling
-                        bp = get_player(bowler_name)
+                        bp = get_or_create_player(bowler_name)
                         if dismissal_text.strip().startswith('b ') or 'lbw ' in dismissal_text:
                             if 'c & b' not in dismissal_text:
                                 bp['lbw_bowled_bonus'] = bp.get('lbw_bowled_bonus', 0) + 1
@@ -202,35 +201,30 @@ class CricbuzzScraper:
                 if 'c ' in dismissal_text:
                      if 'c & b' in dismissal_text:
                          bowler_name = dismissal_text.split('c & b')[1].strip()
-                         # Bowler is usually already in players/processed, but might not be if parsing order varies
-                         # Use simple get for bowler as name is usually more complete here? 
-                         # Actually c & b usually has 'c & b BowlerName'.
-                         cp = get_best_match_player(bowler_name) 
+                         cp = get_or_create_player(bowler_name) 
                          cp['catches'] = cp.get('catches', 0) + 1
                      else:
                          if ' b ' in dismissal_text:
                              catcher_part = dismissal_text.split(' b ')[0]
-                             ifcatcher_name = catcher_part.replace('c ', '', 1).strip()
-                             ifcatcher_name = re.sub(r'\(.*?\)', '', ifcatcher_name).strip()
+                             catcher_name = catcher_part.replace('c ', '', 1).strip()
+                             catcher_name = re.sub(r'\(.*?\)', '', catcher_name).strip()
                              
-                             # Use Fuzzy Match
-                             cp = get_best_match_player(ifcatcher_name)
+                             cp = get_or_create_player(catcher_name)
                              cp['catches'] = cp.get('catches', 0) + 1
 
                 if 'st ' in dismissal_text and 'b ' in dismissal_text:
                      stumper_part = dismissal_text.split(' b ')[0]
                      stumper_name = stumper_part.replace('st ', '', 1).strip()
-                     sp = get_best_match_player(stumper_name)
+                     sp = get_or_create_player(stumper_name)
                      sp['stumpings'] = sp.get('stumpings', 0) + 1
 
                 if 'run out' in dismissal_text:
-                     # Regex to find content in brackets: run out (Fielder1/Fielder2)
                      match = re.search(r'run out \((.*?)\)', dismissal_text)
                      if match:
                          fielders = match.group(1).split('/')
                          for f in fielders:
                              f_clean = re.sub(r'\(.*?\)', '', f).strip()
-                             fp = get_best_match_player(f_clean)
+                             fp = get_or_create_player(f_clean)
                              if len(fielders) == 1:
                                  fp['run_outs_direct'] = fp.get('run_outs_direct', 0) + 1
                              else:
@@ -239,10 +233,7 @@ class CricbuzzScraper:
             except (ValueError, IndexError):
                 pass
                 
-        # --- Bowling Parsing ---
-        # Strictly look for 'wb:scorecard-bowl-grid-web'
-        bowl_rows = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 'wb:scorecard-bowl-grid-web' in tag.get('class'))
-        
+        # === PHASE 3: Parse Bowling Stats ===
         for row in bowl_rows:
             cols = row.find_all(recursive=False)
             if len(cols) < 8: continue
@@ -262,8 +253,8 @@ class CricbuzzScraper:
                 runs = int(cols[3].get_text().strip())
                 wickets = int(cols[4].get_text().strip())
                 
-                p = get_player(bowler_name_clean, profile_url)
-                p['wickets'] = wickets # Assignment =
+                p = get_or_create_player(bowler_name_clean, profile_url)
+                p['wickets'] = wickets
                 p['overs_bowled'] = overs
                 p['maidens'] = maidens
                 p['runs_conceded'] = runs
@@ -271,51 +262,87 @@ class CricbuzzScraper:
             except (ValueError, IndexError):
                 pass
 
-        # --- Assign Roles (Fast Local Lookup) ---
-        # Use local database for instant role lookup; fallback to HTTP only if not found
+        # === PHASE 4: Final Merge Pass ===
+        # Merge any remaining duplicates where one name is a substring of another
+        # e.g., 'Holder' stats should merge into 'Jason Holder'
+        
+        names_to_remove = set()
+        for name1 in canonical_players:
+            if name1 in names_to_remove:
+                continue
+            for name2 in canonical_players:
+                if name1 == name2 or name2 in names_to_remove:
+                    continue
+                
+                n1_norm = normalize(name1)
+                n2_norm = normalize(name2)
+                
+                # Check if names are likely the same person
+                # Method 1: Simple substring
+                is_substring = n1_norm in n2_norm or n2_norm in n1_norm
+                
+                # Method 2: Word-based (all words from shorter appear in longer)
+                words1 = set(n1_norm.split())
+                words2 = set(n2_norm.split())
+                is_word_match = words1.issubset(words2) or words2.issubset(words1)
+                
+                if is_substring or is_word_match:
+                    data1 = canonical_players[name1]
+                    data2 = canonical_players[name2]
+                    
+                    # Check which entry has more stats (batting/bowling stats indicate primary entry)
+                    def has_stats(d):
+                        return d.get('runs') is not None or d.get('wickets') is not None or d.get('overs_bowled') is not None
+                    
+                    stats1 = has_stats(data1)
+                    stats2 = has_stats(data2)
+                    
+                    # Prefer entry with stats; if equal, prefer longer name
+                    if stats1 and not stats2:
+                        keep, discard = name1, name2
+                    elif stats2 and not stats1:
+                        keep, discard = name2, name1
+                    elif len(name2) > len(name1):
+                        keep, discard = name2, name1
+                    else:
+                        keep, discard = name1, name2
+                    
+                    keep_data = canonical_players[keep]
+                    discard_data = canonical_players[discard]
+                    
+                    # Merge cumulative stats
+                    for key in ['catches', 'stumpings', 'run_outs_direct', 'run_outs_throw', 'lbw_bowled_bonus']:
+                        if discard_data.get(key):
+                            keep_data[key] = keep_data.get(key, 0) + discard_data[key]
+                    
+                    # Copy over unique stats if missing in keep
+                    for key in ['runs', 'balls_faced', 'fours', 'sixes', 'wickets', 'overs_bowled', 'maidens', 'runs_conceded']:
+                        if discard_data.get(key) is not None and keep_data.get(key) is None:
+                            keep_data[key] = discard_data[key]
+                    
+                    if discard_data.get('profile_url') and not keep_data.get('profile_url'):
+                        keep_data['profile_url'] = discard_data['profile_url']
+                    
+                    if discard_data.get('is_batter_or_allrounder'):
+                        keep_data['is_batter_or_allrounder'] = True
+                    
+                    names_to_remove.add(discard)
+        
+        for name in names_to_remove:
+            del canonical_players[name]
+        
+        print(f"DEBUG: After merge pass: {len(canonical_players)} players")
+
+        # === PHASE 5: Assign Roles ===
         print("Assigning player roles...")
-        for p in players.values():
+        for p in canonical_players.values():
             name = p['name']
-            # Try local database first (instant)
             if name in self.player_roles:
                 p['role'] = self.player_roles[name]
             else:
-                # Fallback: try HTTP fetch (slow) - only for non-WC players
                 if p.get('profile_url'):
                     p['role'] = self.get_player_role(p['profile_url'])
                 else:
                     p['role'] = 'Unknown'
-        
-        # --- Post-Processing: Deduplicate Fragments ---
-        # Remove fragment entries (short names with no batting/bowling stats) if a matching full name exists
-        def normalize(n): return n.lower().replace('.', ' ').strip()
-        
-        # Identify real players (those with actual stats)
-        real_players = {k: v for k, v in players.items() 
-                        if v.get('runs') is not None or v.get('wickets') is not None or v.get('overs_bowled') is not None}
-        
-        # Identify fragment candidates (no stats, likely from fielding credits)
-        fragments = {k: v for k, v in players.items() if k not in real_players}
-        
-        # Merge fragment stats into real players if match found
-        for frag_name, frag_data in list(fragments.items()):
-            frag_norm = normalize(frag_name)
-            merged = False
-            
-            for real_name, real_data in real_players.items():
-                real_norm = normalize(real_name)
-                # Check if fragment is a suffix/substring of real name
-                if frag_norm in real_norm or real_norm.endswith(frag_norm):
-                    # Merge fielding stats
-                    real_data['catches'] = real_data.get('catches', 0) + frag_data.get('catches', 0)
-                    real_data['stumpings'] = real_data.get('stumpings', 0) + frag_data.get('stumpings', 0)
-                    real_data['run_outs_direct'] = real_data.get('run_outs_direct', 0) + frag_data.get('run_outs_direct', 0)
-                    real_data['run_outs_throw'] = real_data.get('run_outs_throw', 0) + frag_data.get('run_outs_throw', 0)
-                    merged = True
-                    break
-            
-            # If merged, remove the fragment from players dict
-            if merged:
-                del players[frag_name]
                 
-        return list(players.values())
+        return list(canonical_players.values())
