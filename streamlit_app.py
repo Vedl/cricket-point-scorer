@@ -1144,7 +1144,56 @@ def show_main_app():
             my_p_name_check = st.session_state.get('logged_in_user')
             my_participant = next((p for p in room['participants'] if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
 
-            if my_participant:
+            # Check if participant is eliminated
+            is_eliminated = my_participant.get('eliminated', False) if my_participant else False
+            
+            if is_eliminated:
+                st.error("❌ **You have been eliminated from the tournament.** You cannot place bids.")
+                st.info(f"Eliminated in: {my_participant.get('eliminated_phase', 'Unknown').upper()} phase")
+            
+            # Released Players Bidding Section (for qualified participants only)
+            released_players = room.get('released_players', [])
+            if released_players and my_participant and not is_eliminated:
+                with st.expander(f"🔓 Bid on Released Players ({len(released_players)} available)"):
+                    st.caption("These players were released from eliminated participants and are available for bidding.")
+                    
+                    for rp in released_players:
+                        col1, col2, col3 = st.columns([3, 1, 1])
+                        with col1:
+                            st.write(f"**{rp['name']}** ({rp.get('team', '?')}) - {rp.get('role', '?')}")
+                            st.caption(f"From: {rp['from_participant']}")
+                        with col2:
+                            bid_amount = st.number_input(
+                                "Bid (M)", 
+                                min_value=1.0, 
+                                max_value=float(my_participant.get('budget', 100)),
+                                value=1.0,
+                                step=0.5,
+                                key=f"released_bid_{rp['name']}"
+                            )
+                        with col3:
+                            if st.button("🎯 Bid", key=f"released_bid_btn_{rp['name']}"):
+                                budget = my_participant.get('budget', 0)
+                                if bid_amount > budget:
+                                    st.error("Insufficient budget!")
+                                else:
+                                    # Add to squad and deduct budget
+                                    my_participant['squad'].append({
+                                        'name': rp['name'],
+                                        'team': rp.get('team', 'Unknown'),
+                                        'role': rp.get('role', 'Unknown'),
+                                        'price': bid_amount
+                                    })
+                                    my_participant['budget'] = budget - bid_amount
+                                    
+                                    # Remove from released players
+                                    room['released_players'] = [p for p in released_players if p['name'] != rp['name']]
+                                    
+                                    save_auction_data(auction_data)
+                                    st.success(f"✅ Acquired {rp['name']} for {bid_amount}M!")
+                                    st.rerun()
+
+            if my_participant and not is_eliminated:
                 with st.expander("🚑 Manage Injury Reserve (IR)"):
                     squad_names = [p['name'] for p in my_participant['squad']]
                     current_ir = my_participant.get('injury_reserve')
@@ -2937,6 +2986,205 @@ def show_main_app():
                             st.info("No hattrick bonuses for this gameweek.")
             else:
                 st.info("Process a gameweek first to add hattrick bonuses.")
+
+        # === KNOCKOUT ELIMINATION ADMIN SECTION ===
+        if is_admin:
+            st.divider()
+            st.subheader("🏆 Tournament Knockout (Admin)")
+            
+            # Tournament phase tracking
+            phase = room.get('tournament_phase', 'super8')
+            phase_names = {
+                'super8': '🏏 Super 8 Group Stage',
+                'semifinals': '🔥 Semi-finals', 
+                'finals': '🏆 Finals',
+                'completed': '✅ Tournament Completed'
+            }
+            
+            st.info(f"**Current Phase:** {phase_names.get(phase, phase)}")
+            
+            # Qualifying teams for player release
+            st.markdown("**Qualifying Teams for Next Phase:**")
+            st.caption("Enter team codes (comma-separated) whose players qualify for next phase. Example: IND, AUS, ENG, SA")
+            
+            current_qualifying = room.get('qualifying_teams', '')
+            qualifying_teams_input = st.text_input(
+                "Qualifying Teams", 
+                value=current_qualifying, 
+                key="qualifying_teams_input",
+                placeholder="IND, AUS, ENG, SA"
+            )
+            
+            if qualifying_teams_input != current_qualifying:
+                if st.button("💾 Save Qualifying Teams"):
+                    room['qualifying_teams'] = qualifying_teams_input
+                    save_auction_data(auction_data)
+                    st.success("Qualifying teams saved!")
+                    st.rerun()
+            
+            # Show current standings for knockout preview
+            if room.get('gameweek_scores'):
+                with st.expander("👀 Preview Knockout Results", expanded=False):
+                    # Calculate cumulative standings
+                    p_totals = {}
+                    for gw, scores in room.get('gameweek_scores', {}).items():
+                        scores_with_bonus = scores.copy()
+                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                        for player, bonus in hattrick_bonuses.items():
+                            scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
+                        
+                        locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
+                        
+                        for participant in room['participants']:
+                            p_name = participant['name']
+                            if p_name not in p_totals:
+                                p_totals[p_name] = 0
+                            
+                            squad_data = locked_squads.get(p_name)
+                            if squad_data:
+                                if isinstance(squad_data, list):
+                                    squad = squad_data
+                                    ir_player = None
+                                else:
+                                    squad = squad_data.get('squad', [])
+                                    ir_player = squad_data.get('injury_reserve')
+                            else:
+                                squad = participant['squad']
+                                ir_player = participant.get('injury_reserve')
+                            
+                            # Simple sum for preview (skip best 11 complexity)
+                            squad_names = [p['name'] for p in squad if p['name'] != ir_player]
+                            squad_scores = [(n, scores_with_bonus.get(n, 0)) for n in squad_names]
+                            squad_scores.sort(key=lambda x: -x[1])
+                            top_11_score = sum(s[1] for s in squad_scores[:11])
+                            p_totals[p_name] += top_11_score
+                    
+                    # Sort by points
+                    sorted_participants = sorted(p_totals.items(), key=lambda x: -x[1])
+                    
+                    # Determine cutoff
+                    if phase == 'super8':
+                        cutoff = 4
+                        next_phase = 'semifinals'
+                    elif phase == 'semifinals':
+                        cutoff = 2
+                        next_phase = 'finals'
+                    else:
+                        cutoff = len(sorted_participants)
+                        next_phase = 'completed'
+                    
+                    st.markdown("**Standings Preview:**")
+                    for i, (p_name, pts) in enumerate(sorted_participants):
+                        rank = i + 1
+                        qualified = rank <= cutoff
+                        status = "✅ Qualifies" if qualified else "❌ Eliminated"
+                        color = "green" if qualified else "red"
+                        st.markdown(f"**{rank}.** {p_name} - {pts:.0f} pts - :{color}[{status}]")
+                    
+                    st.markdown(f"---\n**Top {cutoff} advance to {phase_names.get(next_phase, next_phase)}**")
+            
+            # Process Knockout Button
+            if phase != 'completed':
+                st.markdown("---")
+                st.warning("⚠️ **Process Knockout** is irreversible! This will eliminate bottom participants and release their qualifying players.")
+                
+                if st.button(f"🔥 Process {phase_names.get(phase, phase)} Knockout", type="primary"):
+                    # Calculate final standings
+                    p_totals = {}
+                    for gw, scores in room.get('gameweek_scores', {}).items():
+                        scores_with_bonus = scores.copy()
+                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                        for player, bonus in hattrick_bonuses.items():
+                            scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
+                        
+                        locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
+                        
+                        for participant in room['participants']:
+                            p_name = participant['name']
+                            if p_name not in p_totals:
+                                p_totals[p_name] = 0
+                            
+                            squad_data = locked_squads.get(p_name)
+                            if squad_data:
+                                if isinstance(squad_data, list):
+                                    squad = squad_data
+                                else:
+                                    squad = squad_data.get('squad', [])
+                            else:
+                                squad = participant['squad']
+                            
+                            squad_names = [p['name'] for p in squad]
+                            squad_scores = [(n, scores_with_bonus.get(n, 0)) for n in squad_names]
+                            squad_scores.sort(key=lambda x: -x[1])
+                            top_11_score = sum(s[1] for s in squad_scores[:11])
+                            p_totals[p_name] += top_11_score
+                    
+                    sorted_participants = sorted(p_totals.items(), key=lambda x: -x[1])
+                    
+                    if phase == 'super8':
+                        cutoff = 4
+                        next_phase = 'semifinals'
+                    elif phase == 'semifinals':
+                        cutoff = 2
+                        next_phase = 'finals'
+                    else:
+                        cutoff = len(sorted_participants)
+                        next_phase = 'completed'
+                    
+                    qualified_names = [p[0] for p in sorted_participants[:cutoff]]
+                    eliminated_names = [p[0] for p in sorted_participants[cutoff:]]
+                    
+                    # Parse qualifying teams
+                    qualifying_teams = [t.strip().upper() for t in room.get('qualifying_teams', '').split(',') if t.strip()]
+                    
+                    # Release players from eliminated participants
+                    released = room.setdefault('released_players', [])
+                    for participant in room['participants']:
+                        if participant['name'] in eliminated_names:
+                            participant['eliminated'] = True
+                            participant['eliminated_phase'] = phase
+                            
+                            # Find players whose teams qualified
+                            for player in participant['squad']:
+                                player_team = player.get('team', '').upper()
+                                if any(qt in player_team for qt in qualifying_teams) or not qualifying_teams:
+                                    released.append({
+                                        'name': player['name'],
+                                        'team': player.get('team', 'Unknown'),
+                                        'role': player.get('role', 'Unknown'),
+                                        'from_participant': participant['name'],
+                                        'phase': phase,
+                                        'price': player.get('price', 0)
+                                    })
+                    
+                    # Record knockout history
+                    room.setdefault('knockout_history', {})[phase] = {
+                        'qualified': qualified_names,
+                        'eliminated': eliminated_names,
+                        'timestamp': get_ist_time().isoformat()
+                    }
+                    
+                    # Advance phase
+                    room['tournament_phase'] = next_phase
+                    save_auction_data(auction_data)
+                    
+                    st.success(f"✅ Knockout processed! {len(eliminated_names)} participants eliminated. {len(released)} players released.")
+                    st.rerun()
+            
+            # Show knockout history
+            if room.get('knockout_history'):
+                with st.expander("📜 Knockout History"):
+                    for ko_phase, data in room.get('knockout_history', {}).items():
+                        st.markdown(f"**{phase_names.get(ko_phase, ko_phase)}:**")
+                        st.write(f"- Qualified: {', '.join(data.get('qualified', []))}")
+                        st.write(f"- Eliminated: {', '.join(data.get('eliminated', []))}")
+            
+            # Show released players
+            released_players = room.get('released_players', [])
+            if released_players:
+                with st.expander(f"🔓 Released Players ({len(released_players)})"):
+                    for rp in released_players:
+                        st.write(f"- **{rp['name']}** ({rp.get('team', '?')}) - from {rp['from_participant']}")
 
     # =====================================
     # PAGE 4: Standings
