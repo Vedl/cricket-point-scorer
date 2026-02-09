@@ -95,7 +95,7 @@ class CricketScoreCalculator:
         
         total = batting_pts + bowling_pts + fielding_pts
         
-        return round(total, 2)
+        return round(total)  # Return whole number
     
     def _calculate_batting(self, stats, role):
         """Calculate batting points based on role-specific multipliers."""
