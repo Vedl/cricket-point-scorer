@@ -284,13 +284,20 @@ class CricbuzzScraper:
                 n1_norm = normalize(name1)
                 n2_norm = normalize(name2)
                 
+                words1 = set(n1_norm.split())
+                words2 = set(n2_norm.split())
+                
+                # SAFEGUARD: Don't merge if either name has only 1 word
+                # Single-word names are too risky for substring matching
+                # (e.g., "Siraj" shouldn't auto-merge with "Mohammed Siraj")
+                if len(words1) <= 1 or len(words2) <= 1:
+                    continue
+                
                 # Check if names are likely the same person
-                # Method 1: Simple substring
+                # Method 1: Simple substring (for multi-word names only)
                 is_substring = n1_norm in n2_norm or n2_norm in n1_norm
                 
                 # Method 2: Word-based (all words from shorter appear in longer)
-                words1 = set(n1_norm.split())
-                words2 = set(n2_norm.split())
                 is_word_match = words1.issubset(words2) or words2.issubset(words1)
                 
                 if is_substring or is_word_match:
