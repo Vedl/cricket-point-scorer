@@ -3109,7 +3109,13 @@ def show_main_app():
                             squad = participant['squad']
                             ir_player = participant.get('injury_reserve')
                         
-                        best_11, warnings = get_best_11(squad, scores, ir_player)
+                        # Apply hattrick bonuses for this specific gameweek
+                        scores_with_bonus = scores.copy()
+                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                        for player, bonus in hattrick_bonuses.items():
+                            scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
+                        
+                        best_11, warnings = get_best_11(squad, scores_with_bonus, ir_player)
                         gw_points = sum(p['score'] for p in best_11)
                         p_totals[p_name] += gw_points
                         
