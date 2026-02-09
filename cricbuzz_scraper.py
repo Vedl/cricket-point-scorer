@@ -123,20 +123,22 @@ class CricbuzzScraper:
                 players[name]['profile_url'] = profile_url
             return players[name]
 
-        # --- Pre-Scan All Players ---
-        # Scan the entire page for player profile links to build a full roster first.
-        # This ensures that even "Did not bat" players or those bowling in the 2nd innings
-        # are known (with Full Name & URL) before we parse fielders/stats.
-        profile_links = soup.find_all('a', href=re.compile(r'^/profiles/'))
-        for link in profile_links:
-            name = link.get_text().strip()
-            url = link.get('href')
-            # valid player names usually don't have newlines or excessive length
-            if name and len(name) < 50:
-                 # Normalize name (remove captain/keeper markers if any, though usually separate)
-                 name_clean = re.sub(r'\s*\(.*?\)', '', name).strip()
-                 # Add to roster if new
-                 get_player(name_clean, url)
+        # --- Pre-Scan Players from Scorecard Sections Only ---
+        # Only scan within scorecard containers to avoid picking up coaches, commentators, etc.
+        # We look for profile links within batting AND bowling grids specifically.
+        scorecard_containers = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 
+            any('scorecard' in c.lower() for c in tag.get('class', [])))
+        
+        for container in scorecard_containers:
+            profile_links = container.find_all('a', href=re.compile(r'^/profiles/'))
+            for link in profile_links:
+                name = link.get_text().strip()
+                url = link.get('href')
+                # Valid player names don't have commas (unlike "Lastname, Firstname" format)
+                # and are reasonably short
+                if name and len(name) < 50 and ',' not in name:
+                     name_clean = re.sub(r'\s*\(.*?\)', '', name).strip()
+                     get_player(name_clean, url)
         
         # --- Batting Parsing ---
         # --- Batting Parsing ---
@@ -283,5 +285,37 @@ class CricbuzzScraper:
                     p['role'] = self.get_player_role(p['profile_url'])
                 else:
                     p['role'] = 'Unknown'
+        
+        # --- Post-Processing: Deduplicate Fragments ---
+        # Remove fragment entries (short names with no batting/bowling stats) if a matching full name exists
+        def normalize(n): return n.lower().replace('.', ' ').strip()
+        
+        # Identify real players (those with actual stats)
+        real_players = {k: v for k, v in players.items() 
+                        if v.get('runs') is not None or v.get('wickets') is not None or v.get('overs_bowled') is not None}
+        
+        # Identify fragment candidates (no stats, likely from fielding credits)
+        fragments = {k: v for k, v in players.items() if k not in real_players}
+        
+        # Merge fragment stats into real players if match found
+        for frag_name, frag_data in list(fragments.items()):
+            frag_norm = normalize(frag_name)
+            merged = False
+            
+            for real_name, real_data in real_players.items():
+                real_norm = normalize(real_name)
+                # Check if fragment is a suffix/substring of real name
+                if frag_norm in real_norm or real_norm.endswith(frag_norm):
+                    # Merge fielding stats
+                    real_data['catches'] = real_data.get('catches', 0) + frag_data.get('catches', 0)
+                    real_data['stumpings'] = real_data.get('stumpings', 0) + frag_data.get('stumpings', 0)
+                    real_data['run_outs_direct'] = real_data.get('run_outs_direct', 0) + frag_data.get('run_outs_direct', 0)
+                    real_data['run_outs_throw'] = real_data.get('run_outs_throw', 0) + frag_data.get('run_outs_throw', 0)
+                    merged = True
+                    break
+            
+            # If merged, remove the fragment from players dict
+            if merged:
+                del players[frag_name]
                 
         return list(players.values())

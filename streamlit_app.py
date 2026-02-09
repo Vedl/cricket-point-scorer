@@ -2916,7 +2916,7 @@ def show_main_app():
                     elif 'bowl' in role_str: cat = 'BWL'
                     else: cat = 'BAT'
                     
-                    scored_players.append({'name': p['name'], 'role': p['role'], 'category': cat, 'score': score})
+                    scored_players.append({'name': p['name'], 'role': p.get('role', ''), 'category': cat, 'score': score})
                 
                 if len(scored_players) <= 11:
                     return scored_players, [] # List of players, empty warnings
