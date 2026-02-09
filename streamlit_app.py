@@ -1146,11 +1146,24 @@ def show_main_app():
 
             if my_participant:
                 with st.expander("🚑 Manage Injury Reserve (IR)"):
-                    if len(my_participant['squad']) >= 19:
-                        st.info("Designating an IR player costs **2M** (deducted when squads lock). IR players get **0 points**.")
-                        current_ir = my_participant.get('injury_reserve')
-                        squad_names = [p['name'] for p in my_participant['squad']]
-                        
+                    squad_names = [p['name'] for p in my_participant['squad']]
+                    current_ir = my_participant.get('injury_reserve')
+                    squad_size = len(my_participant['squad'])
+                    
+                    # Show current IR status
+                    if current_ir:
+                        st.success(f"**Current Saved IR:** {current_ir}")
+                    else:
+                        st.info("**Current Saved IR:** None")
+                    
+                    st.markdown("""
+                    **Rules:**
+                    - IR player gets **0 points** and costs **2M** (deducted at deadline)
+                    - ⚠️ IR **only applies** if you have **19+ players** at deadline
+                    - If you have 18 or fewer players, IR is ignored (all players count)
+                    """)
+                    
+                    if squad_names:
                         # Add None option
                         opts = ["None"] + squad_names
                         def_idx = 0
@@ -1159,15 +1172,20 @@ def show_main_app():
                         
                         new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
                         
-                        if st.button("Save IR Choice"):
+                        if st.button("💾 Save IR Choice"):
                             if room.get('squads_locked'):
                                 st.error("🔒 Cannot change IR status. Squads are locked.")
                             else:
                                 my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
                                 save_auction_data(auction_data)
-                                st.success("Injury Reserve Updated!")
+                                st.success(f"✅ IR Updated to: {new_ir if new_ir != 'None' else 'None'}")
+                                st.rerun()
+                        
+                        # Show warning if squad too small for IR to apply
+                        if squad_size < 19:
+                            st.warning(f"⚠️ Squad size: {squad_size}/19. IR will NOT apply unless you add more players.")
                     else:
-                        st.warning(f"You need at least 19 players to designate an IR player. (Current: {len(my_participant['squad'])})")
+                        st.info("Add players to your squad to select an IR.")
             
             # Show countdown to deadline
             now = get_ist_time()
@@ -2871,6 +2889,55 @@ def show_main_app():
         else:
             st.info("No gameweeks processed yet.")
 
+        # === HATTRICK BONUS ADMIN SECTION ===
+        if is_admin:
+            st.divider()
+            st.subheader("🎩 Hattrick Bonus (Admin)")
+            st.caption("Add a **+20 point** bonus to players who took a hattrick. This bonus is **gameweek-specific** and won't carry over.")
+            
+            hattrick_bonuses = room.setdefault('hattrick_bonuses', {})
+            
+            if room.get('gameweek_scores'):
+                available_gws = list(room['gameweek_scores'].keys())
+                bonus_gw = st.selectbox("Select Gameweek", available_gws, key="hattrick_gw_select")
+                
+                if bonus_gw:
+                    gw_scores = room['gameweek_scores'].get(bonus_gw, {})
+                    all_players = sorted(gw_scores.keys())
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**Add Hattrick Bonus:**")
+                        player_to_bonus = st.selectbox("Select Player", all_players, key="hattrick_player_select")
+                        if st.button("➕ Add 20pt Hattrick Bonus", key="add_hattrick_btn"):
+                            if player_to_bonus:
+                                gw_bonuses = hattrick_bonuses.setdefault(bonus_gw, {})
+                                gw_bonuses[player_to_bonus] = 20
+                                save_auction_data(auction_data)
+                                st.success(f"✅ Added 20pt hattrick bonus to **{player_to_bonus}** for GW{bonus_gw}")
+                                st.rerun()
+                    
+                    with col2:
+                        st.markdown("**Current Bonuses (This GW):**")
+                        gw_bonuses = hattrick_bonuses.get(bonus_gw, {})
+                        if gw_bonuses:
+                            for player, bonus in gw_bonuses.items():
+                                col_name, col_btn = st.columns([3, 1])
+                                with col_name:
+                                    st.write(f"🎩 **{player}**: +{bonus}pts")
+                                with col_btn:
+                                    if st.button("🗑️", key=f"remove_hattrick_{bonus_gw}_{player}"):
+                                        del hattrick_bonuses[bonus_gw][player]
+                                        if not hattrick_bonuses[bonus_gw]:
+                                            del hattrick_bonuses[bonus_gw]
+                                        save_auction_data(auction_data)
+                                        st.rerun()
+                        else:
+                            st.info("No hattrick bonuses for this gameweek.")
+            else:
+                st.info("Process a gameweek first to add hattrick bonuses.")
+
     # =====================================
     # PAGE 4: Standings
     # =====================================
@@ -2886,18 +2953,33 @@ def show_main_app():
             
             if view_mode == "By Gameweek":
                 selected_gw = st.selectbox("Select Gameweek", available_gws)
-                gw_scores = room['gameweek_scores'].get(selected_gw, {})
+                gw_scores = room['gameweek_scores'].get(selected_gw, {}).copy()  # Copy to avoid modifying original
+                
+                # Apply hattrick bonuses for this specific gameweek
+                hattrick_bonuses = room.get('hattrick_bonuses', {}).get(selected_gw, {})
+                for player, bonus in hattrick_bonuses.items():
+                    gw_scores[player] = gw_scores.get(player, 0) + bonus
             else:
                 gw_scores = {}
                 for gw, scores in room['gameweek_scores'].items():
+                    # Add base scores
                     for player, score in scores.items():
                         gw_scores[player] = gw_scores.get(player, 0) + score
+                    # Add hattrick bonuses for this GW
+                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                    for player, bonus in hattrick_bonuses.items():
+                        gw_scores[player] = gw_scores.get(player, 0) + bonus
             
             # Calculate Best 11 for each participant
             def get_best_11(squad, player_scores, ir_player=None):
                 import itertools
                 
-                # Active pool
+                # IMPORTANT: IR only applies if squad >= 19 players
+                # If squad is smaller, ignore IR and count all players
+                if len(squad) < 19:
+                    ir_player = None
+                
+                # Active pool (excluding IR player if applicable)
                 active_squad = [p for p in squad if p['name'] != ir_player]
                 scored_players = []
                 for p in active_squad: 
