@@ -188,6 +188,10 @@ class CricbuzzScraper:
                 p['sixes'] = sixes
                 p['is_batter_or_allrounder'] = True
                 
+                # Check if player is "not out"
+                is_not_out = 'not out' in dismissal_text.lower()
+                p['is_not_out'] = is_not_out
+                
                 # Dismissal Processing (Fielding credits)
                 if 'b ' in dismissal_text: 
                     parts = dismissal_text.split(' b ')
