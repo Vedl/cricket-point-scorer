@@ -2874,6 +2874,21 @@ def show_main_app():
                                 
                                 # Store in room data
                                 room.setdefault('gameweek_scores', {})[selected_gw] = all_scores
+                                
+                                # Auto-snapshot squads if not already locked for this GW
+                                existing_snap = room.get('gameweek_squads', {}).get(selected_gw)
+                                if not existing_snap:
+                                    snap = {
+                                        p['name']: {
+                                            'squad': [x.copy() for x in p['squad']],
+                                            'injury_reserve': p.get('injury_reserve'),
+                                            'budget': p.get('budget', 0)
+                                        }
+                                        for p in room['participants']
+                                    }
+                                    room.setdefault('gameweek_squads', {})[selected_gw] = snap
+                                    st.info(f"📸 Auto-snapshotted current squads for GW{selected_gw} (no prior lock found).")
+                                
                                 save_auction_data(auction_data)
                                 
                                 status.text("✅ Processing Complete!")
@@ -3336,10 +3351,16 @@ def show_main_app():
             
             if view_mode == "By Gameweek":
                 # === SINGLE GAMEWEEK VIEW ===
-                # Logic: Use locked squad for this GW (if available) or current script.
+                # Logic: Use locked squad for this GW (if available) or current squad.
                 if selected_gw:
                     # gw_scores already set above
-                    locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
+                    # Ensure string key for lookup (keys could be int or str)
+                    gw_key = str(selected_gw)
+                    locked_squads = room.get('gameweek_squads', {}).get(gw_key, {})
+                    
+                    # Debug info
+                    squad_source = "🔒 Locked Squads" if locked_squads else "⚠️ Current Squads (no snapshot found)"
+                    st.caption(f"Squad source: {squad_source} | GW key: '{gw_key}' | Available snapshots: {list(room.get('gameweek_squads', {}).keys())}")
                     
                     for participant in room['participants']:
                         p_name = participant['name']
