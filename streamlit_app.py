@@ -3249,8 +3249,14 @@ def show_main_app():
         else:
             view_mode = st.radio("View", ["Overall (Cumulative)", "By Gameweek"], horizontal=True)
             
+            # Key to use for detailed view (None = current squad)
+            display_gw_key = None
+            
             if view_mode == "By Gameweek":
                 selected_gw = st.selectbox("Select Gameweek", available_gws)
+                if selected_gw:
+                    display_gw_key = str(selected_gw)
+                
                 gw_scores = room['gameweek_scores'].get(selected_gw, {}).copy()  # Copy to avoid modifying original
                 
                 # Apply hattrick bonuses for this specific gameweek
@@ -3455,8 +3461,7 @@ def show_main_app():
                 detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
                 if detail_p:
                     # Use locked squad for this GW if available
-                    gw_key = str(selected_gw) if view_mode == "By Gameweek" and selected_gw else None
-                    locked_squads = room.get('gameweek_squads', {}).get(gw_key, {}) if gw_key else {}
+                    locked_squads = room.get('gameweek_squads', {}).get(display_gw_key, {}) if display_gw_key else {}
                     squad_data = locked_squads.get(detail_participant)
                     
                     if squad_data:
@@ -3470,16 +3475,11 @@ def show_main_app():
                         detail_squad = detail_p['squad']
                         detail_ir = detail_p.get('injury_reserve')
                     
-                    # Debug: show which squad source
-                    squad_names = sorted([p['name'] for p in detail_squad])
-                    with st.expander(f"🔍 Squad used ({len(detail_squad)} players)", expanded=False):
-                        st.write(f"DEBUG: gw_key type: {type(gw_key)}, val: '{gw_key}'")
-                        st.write(f"DEBUG: squad keys: {list(room.get('gameweek_squads', {}).keys())}")
-                        st.write(squad_names)
-                        if squad_data:
-                            st.success("Using: 🔒 Locked Gameweek Snapshot")
-                        else:
-                            st.warning("Using: ⚠️ Current Squad (no snapshot found for this GW)")
+                    # Info: show which squad source
+                    if display_gw_key and squad_data:
+                        st.caption(f"🔒 Using Locked Squad from GW {display_gw_key}")
+                    elif display_gw_key:
+                        st.caption(f"⚠️ Using Current Squad (No snapshot found for GW {display_gw_key})")
                     
                     best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir)
                     if warnings:
