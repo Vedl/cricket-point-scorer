@@ -3460,32 +3460,106 @@ def show_main_app():
                 detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room['participants']])
                 detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
                 if detail_p:
-                    # Use locked squad for this GW if available
-                    locked_squads = room.get('gameweek_squads', {}).get(display_gw_key, {}) if display_gw_key else {}
-                    squad_data = locked_squads.get(detail_participant)
-                    
-                    if squad_data:
-                        if isinstance(squad_data, list):
-                            detail_squad = squad_data
-                            detail_ir = None
+                if detail_p:
+                    # === CUMULATIVE VIEW LOGIC ===
+                    if view_mode == "Overall (Cumulative)":
+                        st.caption("📊 Showing cumulative contribution of players across all gameweeks (using Locked Squads).")
+                        
+                        cumulative_best = {} # name -> {stats}
+                        total_score = 0
+                        
+                        # Iterate all processed GWs sorted
+                        sorted_gws = sorted(room.get('gameweek_scores', {}).keys(), key=lambda x: int(x) if x.isdigit() else x)
+                        
+                        for gw in sorted_gws:
+                            scores = room['gameweek_scores'][gw]
+                            gw_str = str(gw)
+                            
+                            # Get Locked Squad
+                            locked_squads = room.get('gameweek_squads', {}).get(gw_str, {})
+                            squad_data = locked_squads.get(detail_participant)
+                            
+                            if squad_data:
+                                if isinstance(squad_data, list):
+                                    gw_squad = squad_data
+                                    gw_ir = None
+                                else:
+                                    gw_squad = squad_data.get('squad', [])
+                                    gw_ir = squad_data.get('injury_reserve')
+                            else:
+                                # Fallback to current if missing (best effort)
+                                gw_squad = detail_p['squad']
+                                gw_ir = detail_p.get('injury_reserve')
+                            
+                            # Apply Hattrick Bonus for this GW
+                            gw_scores_final = scores.copy()
+                            hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                            for player, bonus in hattrick_bonuses.items():
+                                gw_scores_final[player] = gw_scores_final.get(player, 0) + bonus
+                                
+                            # Calculate Best 11 for this GW
+                            b11, _ = get_best_11(gw_squad, gw_scores_final, gw_ir)
+                            
+                            # Aggregate
+                            for p in b11:
+                                name = p['name']
+                                pts = p['score']
+                                total_score += pts
+                                
+                                if name not in cumulative_best:
+                                    cumulative_best[name] = {
+                                        "name": name, 
+                                        "role": p.get('role', 'Unknown'), 
+                                        "category": p.get('category', '?'),
+                                        "score": 0,
+                                        "gameweeks": []
+                                    }
+                                cumulative_best[name]['score'] += pts
+                                cumulative_best[name]['gameweeks'].append(f"GW{gw}({int(pts)})")
+                        
+                        # Convert to List
+                        best_11_data = list(cumulative_best.values())
+                        best_11_data.sort(key=lambda x: x['score'], reverse=True)
+                        
+                        st.markdown(f"**Total Cumulative Score: {int(total_score)}**")
+                        
+                        # Display nicely
+                        if best_11_data:
+                            df = pd.DataFrame(best_11_data)
+                            # Clean up display
+                            df['Breakdown'] = df['gameweeks'].apply(lambda x: ", ".join(x))
+                            st.dataframe(df[['name', 'role', 'score', 'Breakdown']], use_container_width=True, hide_index=True)
                         else:
-                            detail_squad = squad_data.get('squad', [])
-                            detail_ir = squad_data.get('injury_reserve')
+                            st.info("No points scored yet.")
+
+                    # === PER-GAMEWEEK VIEW LOGIC ===
                     else:
-                        detail_squad = detail_p['squad']
-                        detail_ir = detail_p.get('injury_reserve')
-                    
-                    # Info: show which squad source
-                    if display_gw_key and squad_data:
-                        st.caption(f"🔒 Using Locked Squad from GW {display_gw_key}")
-                    elif display_gw_key:
-                        st.caption(f"⚠️ Using Current Squad (No snapshot found for GW {display_gw_key})")
-                    
-                    best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir)
-                    if warnings:
-                        for w in warnings: st.warning(w)
-                    best_11_df = pd.DataFrame(best_11)
-                    st.dataframe(best_11_df, use_container_width=True, hide_index=True)
+                        # Use locked squad for this GW if available
+                        locked_squads = room.get('gameweek_squads', {}).get(display_gw_key, {}) if display_gw_key else {}
+                        squad_data = locked_squads.get(detail_participant)
+                        
+                        if squad_data:
+                            if isinstance(squad_data, list):
+                                detail_squad = squad_data
+                                detail_ir = None
+                            else:
+                                detail_squad = squad_data.get('squad', [])
+                                detail_ir = squad_data.get('injury_reserve')
+                        else:
+                            detail_squad = detail_p['squad']
+                            detail_ir = detail_p.get('injury_reserve')
+                        
+                        # Info: show which squad source
+                        if display_gw_key and squad_data:
+                            st.caption(f"🔒 Using Locked Squad from GW {display_gw_key}")
+                        elif display_gw_key:
+                            st.caption(f"⚠️ Using Current Squad (No snapshot found for GW {display_gw_key})")
+                        
+                        best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir)
+                        if warnings:
+                            for w in warnings: st.warning(w)
+                        best_11_df = pd.DataFrame(best_11)
+                        st.dataframe(best_11_df, use_container_width=True, hide_index=True)
             else:
                 st.info("No participants have been added yet. Go to Auction Room to add participants.")
     
