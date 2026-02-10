@@ -3460,7 +3460,6 @@ def show_main_app():
                 detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room['participants']])
                 detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
                 if detail_p:
-                if detail_p:
                     # === CUMULATIVE VIEW LOGIC ===
                     if view_mode == "Overall (Cumulative)":
                         st.caption("📊 Showing cumulative contribution of players across all gameweeks (using Locked Squads).")
