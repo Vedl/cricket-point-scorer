@@ -2875,19 +2875,10 @@ def show_main_app():
                                 # Store in room data
                                 room.setdefault('gameweek_scores', {})[selected_gw] = all_scores
                                 
-                                # Auto-snapshot squads if not already locked for this GW
-                                existing_snap = room.get('gameweek_squads', {}).get(selected_gw)
+                                # Check if squad snapshot exists for this GW
+                                existing_snap = room.get('gameweek_squads', {}).get(str(selected_gw))
                                 if not existing_snap:
-                                    snap = {
-                                        p['name']: {
-                                            'squad': [x.copy() for x in p['squad']],
-                                            'injury_reserve': p.get('injury_reserve'),
-                                            'budget': p.get('budget', 0)
-                                        }
-                                        for p in room['participants']
-                                    }
-                                    room.setdefault('gameweek_squads', {})[selected_gw] = snap
-                                    st.info(f"📸 Auto-snapshotted current squads for GW{selected_gw} (no prior lock found).")
+                                    st.warning(f"⚠️ No locked squad snapshot found for GW{selected_gw}. Please lock squads first via the Lock Squads button above.")
                                 
                                 save_auction_data(auction_data)
                                 
@@ -3474,6 +3465,15 @@ def show_main_app():
                     else:
                         detail_squad = detail_p['squad']
                         detail_ir = detail_p.get('injury_reserve')
+                    
+                    # Debug: show which squad source
+                    squad_names = sorted([p['name'] for p in detail_squad])
+                    with st.expander(f"🔍 Squad used ({len(detail_squad)} players)", expanded=False):
+                        st.write(squad_names)
+                        if squad_data:
+                            st.success("Using: 🔒 Locked Gameweek Snapshot")
+                        else:
+                            st.warning("Using: ⚠️ Current Squad (no snapshot found for this GW)")
                     
                     best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir)
                     if warnings:
