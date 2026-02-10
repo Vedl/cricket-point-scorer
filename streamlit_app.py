@@ -711,12 +711,26 @@ def render_live_auction_fragment(room_code, user):
                         with col3:
                             # Bid Button
                             if st.button("🔨 BID!", type="primary", disabled=(bid_amount==0), key=f"bid_btn_{current_player}_uniq"):
-                                live_auction['current_bid'] = bid_amount
-                                live_auction['current_bidder'] = bidder_name
-                                live_auction['timer_start'] = get_ist_time().isoformat()
-                                room['live_auction'] = live_auction
-                                save_auction_data(auction_data)
-                                st.rerun()
+                                valid_increment = True
+                                err_msg = ""
+                                
+                                # Validate Increments
+                                if bid_amount > 100 and bid_amount % 10 != 0:
+                                    valid_increment = False
+                                    err_msg = "Bids above 100 must be in increments of 10."
+                                elif bid_amount >= 50 and bid_amount % 5 != 0:
+                                     valid_increment = False
+                                     err_msg = "Bids of 50 or above must be in increments of 5."
+
+                                if not valid_increment:
+                                    st.error(f"❌ {err_msg}")
+                                else:
+                                    live_auction['current_bid'] = bid_amount
+                                    live_auction['current_bidder'] = bidder_name
+                                    live_auction['timer_start'] = get_ist_time().isoformat()
+                                    room['live_auction'] = live_auction
+                                    save_auction_data(auction_data)
+                                    st.rerun()
                             
                             st.write("") # Spacer
                             
@@ -1173,8 +1187,21 @@ def show_main_app():
                             )
                         with col3:
                             if st.button("🎯 Bid", key=f"released_bid_btn_{rp['name']}"):
+                                valid_increment = True
+                                err_msg = ""
+                                
+                                # Validate Increments
+                                if bid_amount > 100 and bid_amount % 10 != 0:
+                                    valid_increment = False
+                                    err_msg = "Bids above 100 must be in increments of 10 (e.g., 110, 120)."
+                                elif bid_amount >= 50 and bid_amount % 5 != 0:
+                                     valid_increment = False
+                                     err_msg = "Bids of 50 or above must be in increments of 5 (e.g., 50, 55)."
+
                                 budget = my_participant.get('budget', 0)
-                                if bid_amount > budget:
+                                if not valid_increment:
+                                    st.error(f"❌ Invalid amount. {err_msg}")
+                                elif bid_amount > budget:
                                     st.error("Insufficient budget!")
                                 else:
                                     # Add to squad and deduct budget
@@ -1298,7 +1325,7 @@ def show_main_app():
                     bid_expires = datetime.fromisoformat(bid['expires'])
                     effective_expires = bid_expires
                     if global_deadline and global_deadline < bid_expires:
-                            effective_expires = global_deadline
+                        effective_expires = global_deadline
                     
                     time_left = effective_expires - now
                     minutes_left = max(0, time_left.total_seconds() / 60)
@@ -1391,7 +1418,20 @@ def show_main_app():
                     bid_amount = st.number_input(f"Your Bid (Min {min_bid}M)", min_value=int(min_bid), step=step_val, format="%d", key="bid_input_val")
                     
                     if st.button("Place Bid", key="place_bid", disabled=not is_bidding_active):
-                        if bid_amount > current_participant.get('budget', 0):
+                        valid_increment = True
+                        err_msg = ""
+                        
+                        # Validate Increments
+                        if bid_amount > 100 and bid_amount % 10 != 0:
+                            valid_increment = False
+                            err_msg = "Bids above 100 must be in increments of 10 (e.g., 110, 120)."
+                        elif bid_amount >= 50 and bid_amount % 5 != 0:
+                             valid_increment = False
+                             err_msg = "Bids of 50 or above must be in increments of 5 (e.g., 50, 55)."
+
+                        if not valid_increment:
+                            st.error(f"❌ Invalid amount. {err_msg}")
+                        elif bid_amount > current_participant.get('budget', 0):
                             st.error(f"Insufficient budget! You have {current_participant.get('budget')}M.")
                         else:
                             # Remove old bid if exists
