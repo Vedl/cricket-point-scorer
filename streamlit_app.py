@@ -3459,7 +3459,23 @@ def show_main_app():
                 detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room['participants']])
                 detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
                 if detail_p:
-                    best_11, warnings = get_best_11(detail_p['squad'], gw_scores, detail_p.get('ir_player'))
+                    # Use locked squad for this GW if available
+                    gw_key = str(selected_gw) if view_mode == "By Gameweek" and selected_gw else None
+                    locked_squads = room.get('gameweek_squads', {}).get(gw_key, {}) if gw_key else {}
+                    squad_data = locked_squads.get(detail_participant)
+                    
+                    if squad_data:
+                        if isinstance(squad_data, list):
+                            detail_squad = squad_data
+                            detail_ir = None
+                        else:
+                            detail_squad = squad_data.get('squad', [])
+                            detail_ir = squad_data.get('injury_reserve')
+                    else:
+                        detail_squad = detail_p['squad']
+                        detail_ir = detail_p.get('injury_reserve')
+                    
+                    best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir)
                     if warnings:
                         for w in warnings: st.warning(w)
                     best_11_df = pd.DataFrame(best_11)
