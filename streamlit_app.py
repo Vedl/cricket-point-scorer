@@ -2809,6 +2809,10 @@ def show_main_app():
                     st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
                     
                     locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
+                    # Debug:
+                    st.write(f"DEBUG: Viewer selected_gw type: {type(selected_gw)}, val: {selected_gw}")
+                    st.write(f"DEBUG: squad keys: {list(room.get('gameweek_squads', {}).keys())}")
+
                     if locked_squads:
                         st.success(f"✅ Squads are locked for GW {selected_gw}. {len(locked_squads)} participants locked.")
                         
