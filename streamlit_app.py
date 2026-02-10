@@ -3473,6 +3473,8 @@ def show_main_app():
                     # Debug: show which squad source
                     squad_names = sorted([p['name'] for p in detail_squad])
                     with st.expander(f"🔍 Squad used ({len(detail_squad)} players)", expanded=False):
+                        st.write(f"DEBUG: gw_key type: {type(gw_key)}, val: '{gw_key}'")
+                        st.write(f"DEBUG: squad keys: {list(room.get('gameweek_squads', {}).keys())}")
                         st.write(squad_names)
                         if squad_data:
                             st.success("Using: 🔒 Locked Gameweek Snapshot")
