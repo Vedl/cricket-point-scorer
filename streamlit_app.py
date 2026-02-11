@@ -1600,104 +1600,143 @@ def show_main_app():
                                     sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
                                     receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
                                     
+                                    # Force fresh reload of critical values from room to ensure no stale object refs
+                                    # (Although 'room' is reloaded, explicit lookups are safe)
+                                    
                                     success = False
+                                    fail_reason = "Unknown Error"
+                                    
                                     if sender and receiver:
-                                       if trade['type'] == "Transfer (Sell)":
-                                           p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
-                                           if p_obj and receiver['budget'] >= trade['price']:
-                                               sender['squad'].remove(p_obj)
-                                               p_obj['buy_price'] = trade['price']
-                                               receiver['squad'].append(p_obj)
-                                               sender['budget'] += trade['price']
-                                               receiver['budget'] -= trade['price']
-                                               success = True
-                                       # Simplified execution check for other types (would need expansion in real usage)
-                                       # Assuming users mainly do simple transfers for now.
-                                       elif trade['type'] == "Transfer (Buy)":
-                                           p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
-                                           if p_obj and sender['budget'] >= trade['price']:
-                                               receiver['squad'].remove(p_obj)
-                                               p_obj['buy_price'] = trade['price']
-                                               sender['squad'].append(p_obj)
-                                               sender['budget'] -= trade['price']
-                                               success = True
-                                       
-                                       elif trade['type'] == "Exchange":
-                                           # Sender GIVES 'give_player' and RECEIVES 'get_player'.
-                                           # Sender PAYS 'price' (net cash).
-                                           give_pl_name = trade['give_player']
-                                           get_pl_name = trade['get_player']
-                                           net_cash = trade['price']
-                                           
-                                           p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
-                                           p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
-                                           
-                                           if p_give and p_get:
-                                               # Check budget if net_cash positive (Sender pays)
-                                               if net_cash > 0 and sender['budget'] < net_cash:
-                                                   success = False
-                                               # Check budget if net_cash negative (Receiver pays)
-                                               elif net_cash < 0 and receiver['budget'] < abs(net_cash):
-                                                   success = False
-                                               else:
-                                                   # Execute Swap
-                                                   sender['squad'].remove(p_give)
-                                                   receiver['squad'].remove(p_get)
-                                                   sender['squad'].append(p_get)
-                                                   receiver['squad'].append(p_give)
-                                                   
-                                                   # Cash
-                                                   sender['budget'] -= net_cash
-                                                   receiver['budget'] += net_cash
-                                                   success = True
+                                        t_type = trade['type']
+                                        t_price = float(trade.get('price', 0))
+                                        
+                                        # --- VALIDATION LOGIC ---
+                                        if t_type == "Transfer (Sell)":
+                                            # Sender SELLS to Receiver. Receiver PAYS.
+                                            # 1. Receiver must have Money
+                                            if float(receiver.get('budget', 0)) < t_price:
+                                                success = False
+                                                fail_reason = f"Buyer ({receiver['name']}) has insufficient funds (Budget: {receiver.get('budget',0)}M < {t_price}M)."
+                                            # 2. Sender must have Player
+                                            else:
+                                                p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
+                                                if not p_obj:
+                                                    success = False
+                                                    fail_reason = f"Seller ({sender['name']}) no longer owns {trade['player']}."
+                                                # 3. Check for Duplicate/Existing (Optional but good)
+                                                elif any(p['name'] == trade['player'] for p in receiver['squad']):
+                                                    success = False
+                                                    fail_reason = f"Buyer ({receiver['name']}) already owns {trade['player']}."
+                                                else:
+                                                    # EXECUTE
+                                                    sender['squad'].remove(p_obj)
+                                                    p_obj['buy_price'] = t_price
+                                                    receiver['squad'].append(p_obj)
+                                                    sender['budget'] = float(sender.get('budget', 0)) + t_price
+                                                    receiver['budget'] = float(receiver.get('budget', 0)) - t_price
+                                                    success = True
+
+                                        elif t_type == "Transfer (Buy)":
+                                            # Sender BUYS from Receiver. Sender PAYS.
+                                            # 1. Sender must have Money
+                                            if float(sender.get('budget', 0)) < t_price:
+                                                success = False
+                                                fail_reason = f"Buyer ({sender['name']}) has insufficient funds (Budget: {sender.get('budget',0)}M < {t_price}M)."
+                                            else:
+                                                # 2. Receiver must have Player
+                                                p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
+                                                if not p_obj:
+                                                    success = False
+                                                    fail_reason = f"Seller ({receiver['name']}) no longer owns {trade['player']}."
+                                                elif any(p['name'] == trade['player'] for p in sender['squad']):
+                                                    success = False
+                                                    fail_reason = f"Buyer ({sender['name']}) already owns {trade['player']}."
+                                                else:
+                                                    # EXECUTE
+                                                    receiver['squad'].remove(p_obj)
+                                                    p_obj['buy_price'] = t_price
+                                                    sender['squad'].append(p_obj)
+                                                    receiver['budget'] = float(receiver.get('budget', 0)) + t_price
+                                                    sender['budget'] = float(sender.get('budget', 0)) - t_price
+                                                    success = True
+                                        
+                                        elif t_type == "Exchange":
+                                            give_pl_name = trade['give_player']
+                                            get_pl_name = trade['get_player']
+                                            net_cash = t_price
+                                            
+                                            p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
+                                            p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                            
+                                            if not p_give:
+                                                success = False
+                                                fail_reason = f"{sender['name']} no longer has {give_pl_name}."
+                                            elif not p_get:
+                                                success = False
+                                                fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
+                                            elif net_cash > 0 and float(sender.get('budget',0)) < net_cash:
+                                                 success = False
+                                                 fail_reason = f"{sender['name']} cannot afford pay {net_cash}M."
+                                            elif net_cash < 0 and float(receiver.get('budget',0)) < abs(net_cash):
+                                                 success = False
+                                                 fail_reason = f"{receiver['name']} cannot afford pay {abs(net_cash)}M."
+                                            else:
+                                                 # Execute Swap
+                                                 sender['squad'].remove(p_give)
+                                                 receiver['squad'].remove(p_get)
+                                                 sender['squad'].append(p_get)
+                                                 receiver['squad'].append(p_give)
+                                                 
+                                                 sender['budget'] = float(sender.get('budget', 0)) - net_cash
+                                                 receiver['budget'] = float(receiver.get('budget', 0)) + net_cash
+                                                 success = True
     
-                                       elif trade['type'] in ["Loan Out", "Loan In"]:
-                                           # Loan Logic: Move player, but maybe mark as 'loaned'?
-                                           # For simplicity in this version, we just move them.
-                                           # Loan Out: Sender GIVES player, Receives FEE.
-                                           # Loan In: Sender TAKES player, Pays FEE.
-                                           
-                                                current_gw = 0
-                                                locked_gws = list(room.get('gameweek_squads', {}).keys())
-                                                if locked_gws:
-                                                    current_gw = max([int(gw) for gw in locked_gws])
-                                                
-                                                # Loan Return: Next Gameweek (Current + 1)
-                                                return_gw = current_gw + 1
-                                                
-                                                if trade['type'] == "Loan Out":
-                                                    pl_name = trade['player']
-                                                    fee = trade['price'] # Sender receives this
-                                                    p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
-                                                    
-                                                    if p_obj and receiver['budget'] >= fee:
-                                                        sender['squad'].remove(p_obj)
-                                                        
-                                                        # Tag metadata
-                                                        p_obj['loan_origin'] = sender['name']
-                                                        p_obj['loan_expiry_gw'] = return_gw
-                                                        
-                                                        receiver['squad'].append(p_obj)
-                                                        sender['budget'] += fee
-                                                        receiver['budget'] -= fee
-                                                        success = True
-    
-                                                elif trade['type'] == "Loan In":
-                                                    pl_name = trade['player']
-                                                    fee = trade['price'] # Sender PAYS this
-                                                    p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
-                                                    
-                                                    if p_obj and sender['budget'] >= fee:
-                                                        receiver['squad'].remove(p_obj)
-                                                        
-                                                        # Tag metadata
-                                                        p_obj['loan_origin'] = receiver['name']
-                                                        p_obj['loan_expiry_gw'] = return_gw
-                                                        
-                                                        sender['squad'].append(p_obj)
-                                                        receiver['budget'] += fee
-                                                        sender['budget'] -= fee
-                                                        success = True
+                                        elif t_type in ["Loan Out", "Loan In"]:
+                                             # Loan Validation
+                                             current_gw = 0
+                                             locked_gws = list(room.get('gameweek_squads', {}).keys())
+                                             if locked_gws: current_gw = max([int(gw) for gw in locked_gws])
+                                             return_gw = current_gw + 1
+                                             
+                                             if t_type == "Loan Out":
+                                                 # Sender loans TO receiver. Sender gets fee? (Assuming Sender is Owner)
+                                                 # Usually Loan Out = I give you player, you give me money.
+                                                 pl_name = trade['player']
+                                                 fee = t_price
+                                                 
+                                                 p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
+                                                 if not p_obj:
+                                                     success = False; fail_reason = f"{sender['name']} doesn't have {pl_name}"
+                                                 elif float(receiver.get('budget',0)) < fee:
+                                                     success = False; fail_reason = f"{receiver['name']} insufficient funds."
+                                                 else:
+                                                     # Execute
+                                                     sender['squad'].remove(p_obj)
+                                                     p_obj['loan_origin'] = sender['name']
+                                                     p_obj['loan_expiry_gw'] = return_gw
+                                                     receiver['squad'].append(p_obj)
+                                                     sender['budget'] = float(sender.get('budget',0)) + fee
+                                                     receiver['budget'] = float(receiver.get('budget',0)) - fee
+                                                     success = True
+                                             
+                                             elif t_type == "Loan In":
+                                                 # Sender requests FROM receiver. Sender pays fee.
+                                                 pl_name = trade['player']
+                                                 fee = t_price
+                                                 p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
+                                                 
+                                                 if not p_obj:
+                                                     success = False; fail_reason = f"{receiver['name']} doesn't have {pl_name}"
+                                                 elif float(sender.get('budget',0)) < fee:
+                                                     success = False; fail_reason = f"{sender['name']} insufficient funds."
+                                                 else:
+                                                     receiver['squad'].remove(p_obj)
+                                                     p_obj['loan_origin'] = receiver['name']
+                                                     p_obj['loan_expiry_gw'] = return_gw
+                                                     sender['squad'].append(p_obj)
+                                                     receiver['budget'] = float(receiver.get('budget',0)) + fee
+                                                     sender['budget'] = float(sender.get('budget',0)) - fee
+                                                     success = True
                                        
                                        if success:
                                            # === LOGGING ===
