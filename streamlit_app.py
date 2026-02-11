@@ -1738,36 +1738,29 @@ def show_main_app():
                                                      sender['budget'] = float(sender.get('budget',0)) - fee
                                                      success = True
                                        
-                                       if success:
-                                           # === LOGGING ===
-                                           log_msg = ""
-                                           t_type = trade.get('type')
-                                           t_price = trade.get('price', 0)
-                                           timestamp = get_ist_time().strftime('%d-%b %H:%M')
-                                           
-                                           if "Transfer" in t_type:
-                                               # Determine direction name
-                                               if t_type == "Transfer (Sell)":
-                                                   log_msg = f"🔄 Transfer: **{trade['from']}** sold **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
-                                               else:
-                                                   log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
-                                           
-                                           elif t_type == "Exchange":
-                                                give = trade.get('give_player')
-                                                get = trade.get('get_player')
-                                                if t_price > 0: cash_txt = f"(+{t_price}M)"
-                                                elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
-                                                else: cash_txt = "(Flat)"
-                                                log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
-                                           
-                                           elif "Loan" in t_type:
-                                               # Logic handled above already defines direction, but let's be safe
-                                               # For Loan Out: From gives Player to To.
-                                               # For Loan In: From (Requester) takes Player from To?? No, logic above:
-                                               # Loan Out: Sender(From) -> Receiver(To). 
-                                               # Loan In: Receiver(To) -> Sender(From).
-                                               # Let's stick to "A loaned X to B" format
-                                               
+                                        if success:
+                                            # === LOGGING ===
+                                            log_msg = ""
+                                            t_type = trade.get('type')
+                                            t_price = trade.get('price', 0)
+                                            timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                            
+                                            if "Transfer" in t_type:
+                                                # Determine direction name
+                                                if t_type == "Transfer (Sell)":
+                                                    log_msg = f"🔄 Transfer: **{trade['from']}** sold **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
+                                                else:
+                                                    log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
+                                            
+                                            elif t_type == "Exchange":
+                                                 give = trade.get('give_player')
+                                                 get = trade.get('get_player')
+                                                 if t_price > 0: cash_txt = f"(+{t_price}M)"
+                                                 elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
+                                                 else: cash_txt = "(Flat)"
+                                                 log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
+                                            
+                                            elif "Loan" in t_type:
                                                sender_name = trade['from']
                                                receiver_name = trade['to']
                                                p_name = trade['player']
@@ -1775,23 +1768,22 @@ def show_main_app():
                                                if t_type == "Loan Out":
                                                    log_msg = f"⏳ Loan: **{sender_name}** loaned **{p_name}** to **{receiver_name}** for **{t_price}M**"
                                                else:
-                                                   # Request Loan In: Sender(From) requested. Code above: receiver(to) gave player to sender(from).
                                                    log_msg = f"⏳ Loan: **{receiver_name}** loaned **{p_name}** to **{sender_name}** for **{t_price}M**"
-                                           
-                                           if log_msg:
-                                               room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
-                                           
-                                           room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                           save_auction_data(auction_data)
-                                           st.success("Trade Executed!")
-                                           st.rerun()
-                                       else:
-                                           st.error("Failed: Player no longer available or Insufficient Budget. proposal invalid.")
-                                           # Auto-Cleanup Invalid Trade
-                                           room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                           save_auction_data(auction_data)
-                                           time.sleep(1)
-                                           st.rerun()
+                                            
+                                            if log_msg:
+                                                room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                            
+                                            room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                            save_auction_data(auction_data)
+                                            st.success("Trade Executed!")
+                                            st.rerun()
+                                        else:
+                                            st.error(f"Failed: {fail_reason}")
+                                            # Auto-Cleanup Invalid Trade
+                                            room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                            save_auction_data(auction_data)
+                                            time.sleep(3)
+                                            st.rerun()
                                 if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
                                     room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                     save_auction_data(auction_data)
