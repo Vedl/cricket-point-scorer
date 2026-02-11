@@ -97,21 +97,26 @@ class CricbuzzScraper:
             
             frag_norm = normalize(name_fragment)
             
-            # Strategy 1: Exact last name match
-            for pname, pdata in canonical_players.items():
-                parts = pname.split()
-                if len(parts) > 1 and normalize(parts[-1]) == frag_norm:
-                    return pdata
+            # Strategy 1: Exact last name match (Strict)
+            # If fragment is single word, match against LAST name only.
+            if ' ' not in name_fragment:
+                 for pname, pdata in canonical_players.items():
+                    parts = pname.split()
+                    if len(parts) > 1 and normalize(parts[-1]) == frag_norm:
+                        return pdata
             
-            # Strategy 2: Fragment is contained in canonical name
-            for pname, pdata in canonical_players.items():
-                pname_norm = normalize(pname)
-                if frag_norm in pname_norm:
-                    return pdata
+            # Strategy 2: Fragment is contained in canonical name (Be careful!)
+            # ONLY if fragment is long enough or contains spaces
+            if len(frag_norm) > 4 or ' ' in frag_norm:
+                for pname, pdata in canonical_players.items():
+                    pname_norm = normalize(pname)
+                    if frag_norm in pname_norm:
+                        return pdata
             
-            # Strategy 3: Canonical name ends with fragment
+            # Strategy 3: Canonical name starts/ends with fragment
             for pname, pdata in canonical_players.items():
-                if normalize(pname).endswith(frag_norm):
+                p_norm = normalize(pname)
+                if p_norm.endswith(frag_norm) or p_norm.startswith(frag_norm):
                     return pdata
             
             return None
@@ -212,6 +217,13 @@ class CricbuzzScraper:
                              catcher_part = dismissal_text.split(' b ')[0]
                              catcher_name = catcher_part.replace('c ', '', 1).strip()
                              catcher_name = re.sub(r'\(.*?\)', '', catcher_name).strip()
+                             
+                             # DEBUG: Check if we are matching "Mitchell" to "Daryl Mitchell" when it should be "Mitchell Santner"
+                             # Logic: If catcher_name is a single word (Last Name), prefer finding a player whose last name matches EXACTLY
+                             # and avoid partial matches if possible.
+                             # Actually `get_or_create_player` has the matching logic. 
+                             # The issue is `find_canonical_match` might be too aggressive with containment.
+                             # Let's clean the name better first?
                              
                              cp = get_or_create_player(catcher_name)
                              cp['catches'] = cp.get('catches', 0) + 1
