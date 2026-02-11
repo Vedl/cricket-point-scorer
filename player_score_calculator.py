@@ -159,7 +159,11 @@ class CricketScoreCalculator:
             pts += 30  # Total +60 for 150
         
         # --- Negative Batting Points (ONLY Batsman, Keeper, Bat_AR) ---
-        if role in ('batsman', 'keeper', 'bat_ar'):
+        # IMPORTANT: Only apply duck penalties if the player actually batted.
+        # Players who didn't bat (not in batting card) should NOT be penalized.
+        # The scraper sets 'is_batter_or_allrounder' when a player appears in the batting card.
+        actually_batted = stats.get('is_batter_or_allrounder', False) or balls > 0
+        if role in ('batsman', 'keeper', 'bat_ar') and actually_batted:
             if runs == 0:
                 if balls == 0:
                     pts -= 10  # Diamond Duck (0 runs, 0 balls)

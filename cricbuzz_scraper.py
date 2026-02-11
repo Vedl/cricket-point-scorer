@@ -336,10 +336,16 @@ class CricbuzzScraper:
                     keep_data = canonical_players[keep]
                     discard_data = canonical_players[discard]
                     
-                    # Merge cumulative stats
+                    # Merge cumulative stats - use MAX not SUM to avoid doubling
+                    # Both entries may already have the same catches/run_outs because
+                    # get_or_create_player may have created a new dict that later
+                    # got the same catches attributed to it. Taking MAX preserves
+                    # the correct count.
                     for key in ['catches', 'stumpings', 'run_outs_direct', 'run_outs_throw', 'lbw_bowled_bonus']:
-                        if discard_data.get(key):
-                            keep_data[key] = keep_data.get(key, 0) + discard_data[key]
+                        keep_val = keep_data.get(key, 0) or 0
+                        discard_val = discard_data.get(key, 0) or 0
+                        if keep_val or discard_val:
+                            keep_data[key] = max(keep_val, discard_val)
                     
                     # Copy over unique stats if missing in keep
                     for key in ['runs', 'balls_faced', 'fours', 'sixes', 'wickets', 'overs_bowled', 'maidens', 'runs_conceded']:
