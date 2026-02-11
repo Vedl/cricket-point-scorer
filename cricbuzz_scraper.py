@@ -136,7 +136,10 @@ class CricbuzzScraper:
             return add_canonical(name, profile_url)
         
         # --- PHASE 1a: Pre-scan batting grid for canonical names ---
-        bat_rows = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 'wb:scorecard-bat-grid-web' in tag.get('class'))
+        # --- PHASE 1a: Pre-scan batting grid for canonical names ---
+        # Simplify selector to avoid nested matches
+        bat_rows = soup.find_all('div', class_='wb:scorecard-bat-grid-web')
+        
         for row in bat_rows:
             name_tag = row.find('a', href=re.compile(r'^/profiles/'))
             if name_tag:
@@ -145,7 +148,7 @@ class CricbuzzScraper:
                 add_canonical(name, url)
         
         # --- PHASE 1b: Pre-scan bowling grid for canonical names ---
-        bowl_rows = soup.find_all(lambda tag: tag.name == 'div' and tag.get('class') and 'wb:scorecard-bowl-grid-web' in tag.get('class'))
+        bowl_rows = soup.find_all('div', class_='wb:scorecard-bowl-grid-web')
         for row in bowl_rows:
             cols = row.find_all(recursive=False)
             if cols and cols[0].name == 'a':
@@ -156,13 +159,21 @@ class CricbuzzScraper:
         print(f"DEBUG: Found {len(canonical_players)} canonical players from scorecard")
         
         # === PHASE 2: Parse Batting Stats (assign to canonical players) ===
+        processed_row_hashes = set()
+        
         for row in bat_rows:
+            # Dedup check: skip if we've seen this exact row content before
+            row_text = row.get_text(separator='|', strip=True)
+            if row_text in processed_row_hashes:
+                continue
+            processed_row_hashes.add(row_text)
+
             cols = row.find_all(recursive=False)
             if len(cols) < 5: continue 
             
-            if 'Batter' in row.get_text(): continue
-            if 'Extras' in row.get_text(): continue
-            if 'Total' in row.get_text(): continue
+            if 'Batter' in row_text: continue
+            if 'Extras' in row_text: continue
+            if 'Total' in row_text: continue
 
             name_col = cols[0]
             player_name_tag = name_col.find('a')
