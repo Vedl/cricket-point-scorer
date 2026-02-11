@@ -1785,9 +1785,23 @@ def show_main_app():
                                             time.sleep(3)
                                             st.rerun()
                                 if c2.button("❌ Reject", key=f"rej_{trade['id']}"):
+                                    # Atomic removal
+                                    before_count = len(room['pending_trades'])
                                     room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
-                                    save_auction_data(auction_data)
-                                    st.rerun()
+                                    after_count = len(room['pending_trades'])
+                                    
+                                    if after_count < before_count:
+                                        # Log rejection
+                                        timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                        rej_msg = f"❌ Proposal Rejected: **{trade['to']}** rejected proposal from **{trade['from']}** for **{trade.get('player', 'Unknown')}**"
+                                        room.setdefault('trade_log', []).append({"time": timestamp, "msg": rej_msg})
+                                        
+                                        save_auction_data(auction_data)
+                                        st.toast("Proposal Rejected!")
+                                        st.rerun()
+                                    else:
+                                        st.warning("Proposal not found (already handled?)")
+                                        st.rerun()
                 else:
                     st.info("No incoming proposals.")
                 
