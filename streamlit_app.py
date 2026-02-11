@@ -1082,6 +1082,7 @@ def show_main_app():
         st.session_state.current_room = None
         st.rerun()
     
+    st.sidebar.text("v1.2 (Fixes: Catches)") # Force reload and verify version
     # =====================================
     # PAGE 1: Calculator
     # =====================================
