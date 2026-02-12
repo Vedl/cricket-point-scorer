@@ -187,7 +187,7 @@ class CricketScoreCalculator:
         # Convert overs from X.Y format to actual overs
         if overs_raw > 0:
             o_int = int(overs_raw)
-            o_dec = (overs_raw - o_int) * 10  # e.g., 3.4 -> 4 balls
+            o_dec = round((overs_raw - o_int) * 10)  # Round to nearest integer ball count (e.g. 2.999 -> 3)
             actual_overs = o_int + (o_dec / 6)
         else:
             actual_overs = 0
