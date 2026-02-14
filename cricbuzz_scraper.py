@@ -91,11 +91,13 @@ class CricbuzzScraper:
             """
             Find the best matching canonical player for a name fragment.
             Returns the canonical player dict, or None if no match.
+            Handles nickname variants like Phil/Philip, Sam/Samuel, etc.
             """
             if name_fragment in canonical_players:
                 return canonical_players[name_fragment]
             
             frag_norm = normalize(name_fragment)
+            frag_words = frag_norm.split()
             
             # Strategy 1: Exact last name match (Strict)
             # If fragment is single word, match against LAST name only.
@@ -110,7 +112,7 @@ class CricbuzzScraper:
             if len(frag_norm) > 4 or ' ' in frag_norm:
                 for pname, pdata in canonical_players.items():
                     pname_norm = normalize(pname)
-                    if frag_norm in pname_norm:
+                    if frag_norm in pname_norm or pname_norm in frag_norm:
                         return pdata
             
             # Strategy 3: Canonical name starts/ends with fragment
@@ -118,6 +120,23 @@ class CricbuzzScraper:
                 p_norm = normalize(pname)
                 if p_norm.endswith(frag_norm) or p_norm.startswith(frag_norm):
                     return pdata
+            
+            # Strategy 4: Shared last name + first name is prefix of the other
+            # Handles nickname variants like "Phil Salt" vs "Philip Salt",
+            # "Sam Curran" vs "Samuel Curran", etc.
+            if len(frag_words) >= 2:
+                frag_last = frag_words[-1]
+                frag_first = frag_words[0]
+                for pname, pdata in canonical_players.items():
+                    p_words = normalize(pname).split()
+                    if len(p_words) >= 2:
+                        p_last = p_words[-1]
+                        p_first = p_words[0]
+                        # Same last name AND one first name starts with the other
+                        if frag_last == p_last and (
+                            p_first.startswith(frag_first) or frag_first.startswith(p_first)
+                        ):
+                            return pdata
             
             return None
         
@@ -323,7 +342,17 @@ class CricbuzzScraper:
                 # Method 2: Word-based (all words from shorter appear in longer)
                 is_word_match = words1.issubset(words2) or words2.issubset(words1)
                 
-                if is_substring or is_word_match:
+                # Method 3: Shared last name + first name is prefix of the other
+                # Handles nickname variants: Phil/Philip, Sam/Samuel, etc.
+                is_nickname_match = False
+                w1_list = n1_norm.split()
+                w2_list = n2_norm.split()
+                if len(w1_list) >= 2 and len(w2_list) >= 2:
+                    if w1_list[-1] == w2_list[-1]:  # Same last name
+                        if w1_list[0].startswith(w2_list[0]) or w2_list[0].startswith(w1_list[0]):
+                            is_nickname_match = True
+                
+                if is_substring or is_word_match or is_nickname_match:
                     data1 = canonical_players[name1]
                     data2 = canonical_players[name2]
                     
