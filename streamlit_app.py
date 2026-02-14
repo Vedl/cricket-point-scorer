@@ -1035,7 +1035,7 @@ def show_main_app():
         st.sidebar.dataframe(pd.DataFrame(stats_data), hide_index=True, use_container_width=True)
 
     st.sidebar.divider()
-    page = st.sidebar.radio("Navigation", ["📊 Calculator", "👤 Squads & Trading", "📅 Schedule & Admin", "🏆 Standings"])
+    page = st.sidebar.radio("Navigation", ["📊 Calculator", "👤 Squads & Trading", "📅 Schedule & Admin", "🏆 Standings", "🏅 Top Scorers"])
     
     # Display User Info
     st.sidebar.caption(f"Logged in as: **{user}**")
@@ -3607,6 +3607,113 @@ def show_main_app():
                         st.dataframe(best_11_df, use_container_width=True, hide_index=True)
             else:
                 st.info("No participants have been added yet. Go to Auction Room to add participants.")
+    
+    # =====================================
+    # PAGE 5: Top Scorers (Player Leaderboard)
+    # =====================================
+    elif page == "🏅 Top Scorers":
+        st.title("🏅 Top Scorers")
+        
+        available_gws = list(room.get('gameweek_scores', {}).keys())
+        
+        if not available_gws:
+            st.info("No gameweeks have been processed yet. Go to Schedule & Admin to process matches.")
+        else:
+            scorer_view = st.radio("View", ["Overall (Cumulative)", "By Gameweek"], horizontal=True, key="scorer_view")
+            
+            # Build player scores based on view mode
+            player_totals = {}  # player_name -> {score, matches, gw_scores}
+            
+            if scorer_view == "By Gameweek":
+                selected_scorer_gw = st.selectbox("Select Gameweek", sorted(available_gws, key=lambda x: int(x) if x.isdigit() else 0), key="scorer_gw")
+                
+                if selected_scorer_gw:
+                    scores = room['gameweek_scores'].get(selected_scorer_gw, {})
+                    # Apply hattrick bonuses
+                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(selected_scorer_gw, {})
+                    
+                    for player, score in scores.items():
+                        bonus = hattrick_bonuses.get(player, 0)
+                        total = score + bonus
+                        player_totals[player] = {
+                            'score': total,
+                            'matches': 1,
+                            'gw_scores': {selected_scorer_gw: total}
+                        }
+            else:
+                # Cumulative across all gameweeks
+                for gw, scores in room.get('gameweek_scores', {}).items():
+                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                    for player, score in scores.items():
+                        bonus = hattrick_bonuses.get(player, 0)
+                        total = score + bonus
+                        if player not in player_totals:
+                            player_totals[player] = {'score': 0, 'matches': 0, 'gw_scores': {}}
+                        player_totals[player]['score'] += total
+                        player_totals[player]['matches'] += 1
+                        player_totals[player]['gw_scores'][gw] = total
+            
+            if player_totals:
+                # Build sorted list
+                sorted_players = sorted(player_totals.items(), key=lambda x: x[1]['score'], reverse=True)
+                
+                # Search filter
+                search = st.text_input("🔍 Search Player", "", key="scorer_search", placeholder="Type a player name...")
+                if search:
+                    sorted_players = [(name, data) for name, data in sorted_players if search.lower() in name.lower()]
+                
+                # Top 3 Podium
+                if len(sorted_players) >= 3 and not search:
+                    st.subheader("🏆 Top 3")
+                    cols = st.columns(3)
+                    medals = ["🥇", "🥈", "🥉"]
+                    for i, col in enumerate(cols):
+                        with col:
+                            p_name, p_data = sorted_players[i]
+                            st.metric(
+                                label=f"{medals[i]} {p_name}",
+                                value=f"{p_data['score']:.0f} pts",
+                                delta=f"{p_data['matches']} match{'es' if p_data['matches'] != 1 else ''}" if scorer_view != "By Gameweek" else None
+                            )
+                    st.divider()
+                
+                # Build DataFrame
+                table_data = []
+                for rank, (name, data) in enumerate(sorted_players, 1):
+                    row = {
+                        "Rank": rank,
+                        "Player": name,
+                        "Points": round(data['score'], 1),
+                    }
+                    if scorer_view != "By Gameweek":
+                        row["Matches"] = data['matches']
+                        row["Avg"] = round(data['score'] / data['matches'], 1) if data['matches'] > 0 else 0
+                        # Show per-GW breakdown
+                        gw_parts = []
+                        for gw_key in sorted(data['gw_scores'].keys(), key=lambda x: int(x) if x.isdigit() else 0):
+                            gw_parts.append(f"GW{gw_key}: {data['gw_scores'][gw_key]:.0f}")
+                        row["Breakdown"] = " | ".join(gw_parts)
+                    
+                    # Find which participant owns this player
+                    owner = "-"
+                    for participant in room.get('participants', []):
+                        squad = participant.get('squad', [])
+                        for sp in squad:
+                            if sp.get('name', '').lower() == name.lower():
+                                owner = participant['name']
+                                break
+                        if owner != "-":
+                            break
+                    row["Owner"] = owner
+                    
+                    table_data.append(row)
+                
+                df = pd.DataFrame(table_data)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                st.caption(f"Showing {len(sorted_players)} players")
+            else:
+                st.info("No player scores found for the selected view.")
     
     # --- Sidebar Scoring Rules ---
     with st.sidebar:
