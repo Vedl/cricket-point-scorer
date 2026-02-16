@@ -467,7 +467,7 @@
         "Jamie Overton",
         "Jaspreet Singh",
         "Will Jacks",
-        "Josh Hazlewood",
+        "Steven Smith",
         "David Miller",
         "Monank Patel",
         "Washington Sundar",
@@ -660,11 +660,11 @@
         "active": true,
         "current_team": "Australia",
         "player_queue": [
-          "Josh Hazlewood",
+          "Steven Smith",
           "Matthew Kuhnemann",
           "Adam Zampa"
         ],
-        "current_player": "Josh Hazlewood",
+        "current_player": "Steven Smith",
         "current_player_role": "Bowler",
         "current_bid": 0,
         "current_bidder": null,
@@ -1066,7 +1066,7 @@
         "Jamie Overton",
         "Jaspreet Singh",
         "Will Jacks",
-        "Josh Hazlewood",
+        "Steven Smith",
         "David Miller",
         "Monank Patel",
         "Washington Sundar",
@@ -1637,7 +1637,7 @@
         "Jamie Overton",
         "Jaspreet Singh",
         "Will Jacks",
-        "Josh Hazlewood",
+        "Steven Smith",
         "David Miller",
         "Monank Patel",
         "Washington Sundar",
@@ -4096,8 +4096,8 @@
               "team": "New Zealand"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -5144,8 +5144,8 @@
               "team": "New Zealand"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -6456,8 +6456,8 @@
               "team": "New Zealand"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -7429,8 +7429,8 @@
               "team": "Australia"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -8428,8 +8428,8 @@
               "team": "Australia"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -9312,8 +9312,8 @@
               "team": "New Zealand"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -10432,8 +10432,8 @@
               "team": "Zimbabwe"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -11895,8 +11895,8 @@
               "team": "New Zealand"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -12784,8 +12784,8 @@
                 "team": "Zimbabwe"
               },
               {
-                "name": "Josh Hazlewood",
-                "role": "Bowler",
+                "name": "Steven Smith",
+                "role": "Batsman",
                 "active": true,
                 "buy_price": 20.0,
                 "team": "Australia"
@@ -13663,8 +13663,8 @@
                 "team": "Zimbabwe"
               },
               {
-                "name": "Josh Hazlewood",
-                "role": "Bowler",
+                "name": "Steven Smith",
+                "role": "Batsman",
                 "active": true,
                 "buy_price": 20.0,
                 "team": "Australia"
@@ -14561,8 +14561,8 @@
               "team": "Australia"
             },
             {
-              "name": "Josh Hazlewood",
-              "role": "Bowler",
+              "name": "Steven Smith",
+              "role": "Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "Australia"
@@ -16489,7 +16489,7 @@
         "Dhruv Parashar",
         "Fred Klaassen",
         "Shubham Ranjane",
-        "Josh Hazlewood",
+        "Steven Smith",
         "Timm van der Gugten",
         "Shivam Sharma",
         "Tashinga Musekiwa",
@@ -17625,79 +17625,79 @@
       "trade_log": [
         {
           "time": "05-Feb 11:14",
-          "msg": "\u23f3 Loan: **Ladda CC** loaned **Ibrahim Zadran** to **Arrow** for **0M**"
+          "msg": "⏳ Loan: **Ladda CC** loaned **Ibrahim Zadran** to **Arrow** for **0M**"
         },
         {
           "time": "05-Feb 11:14",
-          "msg": "\u23f3 Loan: **Arrow** loaned **Kusal Mendis** to **Ladda CC** for **0M**"
+          "msg": "⏳ Loan: **Arrow** loaned **Kusal Mendis** to **Ladda CC** for **0M**"
         },
         {
           "time": "05-Feb 22:21",
-          "msg": "\u23f3 Loan: **Smudge49** loaned **Ali Khan** to **Johnthedon69** for **2M**"
+          "msg": "⏳ Loan: **Smudge49** loaned **Ali Khan** to **Johnthedon69** for **2M**"
         },
         {
           "time": "06-Feb 00:00",
-          "msg": "\u23f3 Loan: **Arrow** loaned **Wanindu Hasaranga** to **Suvaan** for **0M**"
+          "msg": "⏳ Loan: **Arrow** loaned **Wanindu Hasaranga** to **Suvaan** for **0M**"
         },
         {
           "time": "06-Feb 00:00",
-          "msg": "\u23f3 Loan: **Suvaan** loaned **Pathum Nissanka** to **Arrow** for **0M**"
+          "msg": "⏳ Loan: **Suvaan** loaned **Pathum Nissanka** to **Arrow** for **0M**"
         },
         {
           "time": "06-Feb 08:35",
-          "msg": "\ud83d\udd28 Won Bid: **Gerhard Erasmus** won by **Ladda CC** for **5M**"
+          "msg": "🔨 Won Bid: **Gerhard Erasmus** won by **Ladda CC** for **5M**"
         },
         {
           "time": "06-Feb 14:05",
-          "msg": "\ud83d\udd28 Won Bid: **Salman Mirza** won by **Falcon** for **5M**"
+          "msg": "🔨 Won Bid: **Salman Mirza** won by **Falcon** for **5M**"
         },
         {
           "time": "06-Feb 16:23",
-          "msg": "\u23f3 Loan: **Smudge49** loaned **Sandeep Lamichhane** to **Falcon** for **2M**"
+          "msg": "⏳ Loan: **Smudge49** loaned **Sandeep Lamichhane** to **Falcon** for **2M**"
         },
         {
           "time": "06-Feb 17:29",
-          "msg": "\ud83d\uddd1\ufe0f Released: **Dunith Wellalage** by **Arrow** (Refund: 3M)"
+          "msg": "🗑️ Released: **Dunith Wellalage** by **Arrow** (Refund: 3M)"
         },
         {
           "time": "06-Feb 21:19",
-          "msg": "\ud83d\udd04 Transfer: **Smudge49** sold **Cooper Connolly** to **Johnthedon69** for **3M**"
+          "msg": "🔄 Transfer: **Smudge49** sold **Cooper Connolly** to **Johnthedon69** for **3M**"
         },
         {
           "time": "06-Feb 21:43",
-          "msg": "\ud83d\udc6e Admin Force Released: **Josh Hazlewood** from **Mithuphetamine** (Refund: 20.0M)"
+          "msg": "👮 Admin Force Released: **Josh Hazlewood** from **Mithuphetamine** (Refund: 20.0M)"
         },
         {
           "time": "06-Feb 21:44",
-          "msg": "\ud83d\udc6e Admin Force Released: **Harshit Rana** from **Ladda CC** (Refund: 7.0M)"
+          "msg": "👮 Admin Force Released: **Harshit Rana** from **Ladda CC** (Refund: 7.0M)"
         },
         {
           "time": "06-Feb 22:22",
-          "msg": "\ud83d\uddd1\ufe0f Released: **Muhammad Waseem** by **Ladda CC** (Refund: 9M)"
+          "msg": "🗑️ Released: **Muhammad Waseem** by **Ladda CC** (Refund: 9M)"
         },
         {
           "time": "07-Feb 00:04",
-          "msg": "\ud83d\uddd1\ufe0f Released: **Yuvraj Samra** by **Arrow** (Refund: 6M)"
+          "msg": "🗑️ Released: **Yuvraj Samra** by **Arrow** (Refund: 6M)"
         },
         {
           "time": "07-Feb 08:33",
-          "msg": "\ud83d\uddd1\ufe0f Released: **Bas de Leede** by **Mithuphetamine** (Refund: 3M)"
+          "msg": "🗑️ Released: **Bas de Leede** by **Mithuphetamine** (Refund: 3M)"
         },
         {
           "time": "07-Feb 10:00",
-          "msg": "\ud83d\udd28 Won Bid: **Washington Sundar** won by **Falcon** for **5M**"
+          "msg": "🔨 Won Bid: **Washington Sundar** won by **Falcon** for **5M**"
         },
         {
           "time": "07-Feb 10:00",
-          "msg": "\ud83d\udd28 Won Bid: **JJ Smuts** won by **Smudge49** for **16M**"
+          "msg": "🔨 Won Bid: **JJ Smuts** won by **Smudge49** for **16M**"
         },
         {
           "time": "07-Feb 10:00",
-          "msg": "\ud83d\udd28 Won Bid: **Chris Greaves** won by **Smudge49** for **12M**"
+          "msg": "🔨 Won Bid: **Chris Greaves** won by **Smudge49** for **12M**"
         },
         {
           "time": "07-Feb 10:26",
-          "msg": "\ud83d\uddd1\ufe0f Released: **Roston Chase** by **Smudge49** (Refund: 3M)"
+          "msg": "🗑️ Released: **Roston Chase** by **Smudge49** (Refund: 3M)"
         }
       ],
       "squads_locked": false,
