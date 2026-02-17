@@ -2212,10 +2212,10 @@ def show_main_app():
             with st.expander("🚫 Manage Knocked-Out Teams (Super 8s+)"):
                 st.caption("Players from knocked-out teams can be released for 50% without counting as your paid release.")
                 
-                all_teams = ["India", "Australia", "England", "South Africa", "New Zealand", "Pakistan", 
-                            "West Indies", "Sri Lanka", "Afghanistan", "Bangladesh", "Netherlands", 
-                            "Ireland", "Scotland", "UAE", "Zimbabwe", "Namibia", "USA", "Nepal", 
-                            "Oman", "Papua New Guinea"]
+                all_teams = ["India", "Sri Lanka", "Australia", "England", "South Africa", "New Zealand", 
+                            "Pakistan", "West Indies", "Afghanistan", "USA", "Ireland", 
+                            "Scotland", "Netherlands", "Zimbabwe", "Namibia", "Nepal", 
+                            "Oman", "UAE", "Canada", "Italy"]
                 
                 knocked_out = set(room.get('knocked_out_teams', []))
                 active_teams = [t for t in all_teams if t not in knocked_out]
