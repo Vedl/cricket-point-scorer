@@ -3683,6 +3683,7 @@ def show_main_app():
                     row = {
                         "Rank": rank,
                         "Player": name,
+                        "Country": player_team_lookup.get(name, "Unknown"),
                         "Points": round(data['score'], 1),
                     }
                     if scorer_view != "By Gameweek":
