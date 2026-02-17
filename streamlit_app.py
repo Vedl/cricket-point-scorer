@@ -290,11 +290,11 @@ def show_room_selection():
             if code in auction_data['rooms']:
                 room = auction_data['rooms'][code]
                 room_data.append({
-                    "Room Name": room['name'],
+                    "Room Name": room.get('name', 'Unknown'),
                     "Code": code,
-                    "Role": "Admin" if room['admin'] == user else "Member",
-                    "Members": len(room['members']),
-                    "Participants": len(room['participants'])
+                    "Role": "Admin" if room.get('admin') == user else "Member",
+                    "Members": len(room.get('members', [])),
+                    "Participants": len(room.get('participants', []))
                 })
         
         if room_data:
