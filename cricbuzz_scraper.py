@@ -234,12 +234,13 @@ class CricbuzzScraper:
                         bowler_name = parts[1].strip()
                         bp = get_or_create_player(bowler_name)
                         if dismissal_text.strip().startswith('b ') or 'lbw ' in dismissal_text:
-                            if 'c & b' not in dismissal_text:
+                            if 'c & b' not in dismissal_text and 'c and b' not in dismissal_text:
                                 bp['lbw_bowled_bonus'] = bp.get('lbw_bowled_bonus', 0) + 1
 
                 if 'c ' in dismissal_text:
-                     if 'c & b' in dismissal_text:
-                         bowler_name = dismissal_text.split('c & b')[1].strip()
+                     if 'c & b' in dismissal_text or 'c and b' in dismissal_text:
+                         splitter = 'c & b' if 'c & b' in dismissal_text else 'c and b'
+                         bowler_name = dismissal_text.split(splitter)[1].strip()
                          cp = get_or_create_player(bowler_name) 
                          cp['catches'] = cp.get('catches', 0) + 1
                      else:
