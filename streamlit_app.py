@@ -2286,6 +2286,7 @@ def show_main_app():
             st.dataframe(
                 pd.DataFrame(snapshot_data), 
                 use_container_width=False, 
+                width=1500,  # Force wide table to enable scrolling
                 hide_index=True,
                 column_config={
                     "Full Squad": st.column_config.TextColumn("Full Squad", width="large"),
