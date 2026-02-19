@@ -2283,7 +2283,15 @@ def show_main_app():
                     "Full Squad": squad_names
                 })
             
-            st.dataframe(pd.DataFrame(snapshot_data), use_container_width=True, hide_index=True)
+            st.dataframe(
+                pd.DataFrame(snapshot_data), 
+                use_container_width=False, 
+                hide_index=True,
+                column_config={
+                    "Full Squad": st.column_config.TextColumn("Full Squad", width="large"),
+                    "Participant": st.column_config.TextColumn("Participant", width="small"),
+                }
+            )
         else:
             st.info("No locked squads found.")
         
