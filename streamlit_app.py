@@ -2288,7 +2288,7 @@ def show_main_app():
                 use_container_width=True, 
                 hide_index=True,
                 column_config={
-                    "Full Squad": st.column_config.TextColumn("Full Squad", width=800), # Explicit pixel width to force scroll
+                    "Full Squad": st.column_config.TextColumn("Full Squad", width=2000), # Massive width to ensure full scroll
                     "Participant": st.column_config.TextColumn("Participant", width="small"),
                 }
             )
