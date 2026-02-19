@@ -2285,11 +2285,10 @@ def show_main_app():
             
             st.dataframe(
                 pd.DataFrame(snapshot_data), 
-                use_container_width=False, 
-                width=1500,  # Force wide table to enable scrolling
+                use_container_width=True, 
                 hide_index=True,
                 column_config={
-                    "Full Squad": st.column_config.TextColumn("Full Squad", width="large"),
+                    "Full Squad": st.column_config.TextColumn("Full Squad", width=800), # Explicit pixel width to force scroll
                     "Participant": st.column_config.TextColumn("Participant", width="small"),
                 }
             )
