@@ -1148,7 +1148,12 @@ def show_main_app():
         
         # ================ TAB 1: OPEN BIDDING ================
         with squad_tabs[0]:
-            st.subheader("💰 Open Bidding")
+            col_bid_head, col_bid_refresh = st.columns([0.8, 0.2])
+            with col_bid_head:
+                st.subheader("💰 Open Bidding")
+            with col_bid_refresh:
+                if st.button("🔄 Refresh Bids"):
+                    st.rerun()
             
             # Phase Check (Soft)
             is_bidding_active = room.get('game_phase', 'Bidding') == 'Bidding'
