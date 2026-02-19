@@ -2252,95 +2252,92 @@ def show_main_app():
 
             st.divider()
 
-            # === VIEW LOCKED SQUADS SNAPSHOT (PUBLIC) ===
-            st.divider()
-            st.subheader("🔒 Locked Squads Viewer")
+        # === VIEW LOCKED SQUADS SNAPSHOT (PUBLIC) ===
+        st.divider()
+        st.subheader("🔒 Locked Squads Viewer")
+        
+        gameweek_squads = room.get('gameweek_squads', {})
+        if gameweek_squads:
+            gw_options = sorted(list(gameweek_squads.keys()), key=lambda x: int(x))
+            selected_view_gw = st.selectbox("Select Gameweek Snapshot", gw_options, key="view_locked_gw")
             
-            gameweek_squads = room.get('gameweek_squads', {})
-            if gameweek_squads:
-                gw_options = sorted(list(gameweek_squads.keys()), key=lambda x: int(x))
-                selected_view_gw = st.selectbox("Select Gameweek Snapshot", gw_options, key="view_locked_gw")
-                
-                snapshot = gameweek_squads[selected_view_gw]
-                
-                # Convert snapshot to DataFrame for easy viewing
-                snapshot_data = []
-                for p_name, data in snapshot.items():
-                    # Handle data structure variations (list vs dict)
-                    if isinstance(data, list):
-                        squad_list = data
-                        ir_player = "N/A (Legacy)"
-                    else:
-                        squad_list = data.get('squad', [])
-                        ir_player = data.get('injury_reserve', 'None')
-                    
-                    squad_names = ", ".join([p['name'] for p in squad_list])
-                    
-                    snapshot_data.append({
-                        "Participant": p_name,
-                        "Squad Size": len(squad_list),
-                        "IR Player": ir_player,
-                        "Full Squad": squad_names
-                    })
-                
-                st.dataframe(pd.DataFrame(snapshot_data), use_container_width=True, hide_index=True)
-            else:
-                st.info("No locked squads found.")
+            snapshot = gameweek_squads[selected_view_gw]
             
-            if is_admin:
-                with st.expander("👮 Admin: Force Add Player"):
-                    st.info("Forcefully add a player to a squad for a specific price. If the player is owned by someone else, they will be moved.")
-                    f_part_name = st.selectbox("Select Target Participant", [p['name'] for p in room['participants']], key="force_part_sel")
-                    f_player_name = st.selectbox("Select Player to Add", sorted(player_names), key="force_player_sel")
-                    f_price = st.number_input("Force Price (M)", value=0, step=1, key="force_price_val")
+            # Convert snapshot to DataFrame for easy viewing
+            snapshot_data = []
+            for p_name, data in snapshot.items():
+                # Handle data structure variations (list vs dict)
+                if isinstance(data, list):
+                    squad_list = data
+                    ir_player = "N/A (Legacy)"
+                else:
+                    squad_list = data.get('squad', [])
+                    ir_player = data.get('injury_reserve', 'None')
+                
+                squad_names = ", ".join([p['name'] for p in squad_list])
+                
+                snapshot_data.append({
+                    "Participant": p_name,
+                    "Squad Size": len(squad_list),
+                    "IR Player": ir_player,
+                    "Full Squad": squad_names
+                })
+            
+            st.dataframe(pd.DataFrame(snapshot_data), use_container_width=True, hide_index=True)
+        else:
+            st.info("No locked squads found.")
+        
+        if is_admin:
+            with st.expander("👮 Admin: Force Add Player"):
+                st.info("Forcefully add a player to a squad for a specific price. If the player is owned by someone else, they will be moved.")
+                f_part_name = st.selectbox("Select Target Participant", [p['name'] for p in room['participants']], key="force_part_sel")
+                f_player_name = st.selectbox("Select Player to Add", sorted(player_names), key="force_player_sel")
+                f_price = st.number_input("Force Price (M)", value=0, step=1, key="force_price_val")
+                
+                if st.button("🚨 Force Add Player"):
+                    # 1. Find Target Participant
+                    target_p = next((p for p in room['participants'] if p['name'] == f_part_name), None)
                     
-                    if st.button("🚨 Force Add Player"):
-                        # 1. Find Target Participant
-                        target_p = next((p for p in room['participants'] if p['name'] == f_part_name), None)
+                    if target_p:
+                        # 2. Check Ownership & Remove if necessary
+                        prev_owner = None
+                        for p in room['participants']:
+                            found = next((pl for pl in p['squad'] if pl['name'] == f_player_name), None)
+                            if found:
+                                p['squad'].remove(found)
+                                prev_owner = p['name']
+                                break
                         
-                        if target_p:
-                            # 2. Check Ownership & Remove if necessary
-                            prev_owner = None
-                            for p in room['participants']:
-                                found = next((pl for pl in p['squad'] if pl['name'] == f_player_name), None)
-                                if found:
-                                    p['squad'].remove(found)
-                                    prev_owner = p['name']
-                                    break
-                            
-                            # 3. Add to New Squad
-                            info = player_info_map.get(f_player_name, {})
-                            target_p['squad'].append({
-                                'name': f_player_name,
-                                'role': info.get('role', 'Unknown'),
-                                'active': True,
-                                'buy_price': int(f_price),
-                                'team': info.get('country', 'Unknown')
-                            })
-                            
-                            # 4. Deduct Budget
-                            target_p['budget'] -= int(f_price)
-                            
-                            # 5. Remove from Unsold/active bids if present
-                            if f_player_name in room.get('unsold_players', []):
-                                room['unsold_players'].remove(f_player_name)
-                            
-                            room['active_bids'] = [b for b in room.get('active_bids', []) if b['player'] != f_player_name]
+                        # 3. Add to New Squad
+                        info = player_info_map.get(f_player_name, {})
+                        target_p['squad'].append({
+                            'name': f_player_name,
+                            'role': info.get('role', 'Unknown'),
+                            'active': True,
+                            'buy_price': int(f_price),
+                            'team': info.get('country', 'Unknown')
+                        })
+                        
+                        # 4. Deduct Budget
+                        target_p['budget'] -= int(f_price)
+                        
+                        # 5. Remove from Unsold/active bids if present
+                        if f_player_name in room.get('unsold_players', []):
+                            room['unsold_players'].remove(f_player_name)
+                        
+                        room['active_bids'] = [b for b in room.get('active_bids', []) if b['player'] != f_player_name]
 
-                            save_auction_data(auction_data)
-                            
-                            msg = f"Force Added {f_player_name} to {f_part_name} for {f_price}M!"
-                            if prev_owner:
-                                msg += f" (Stolen from {prev_owner})"
-                            
-                            st.success(msg)
-                            time.sleep(1)
-                            st.success(msg)
-                            time.sleep(1)
-                            st.rerun()
-
-            elif is_admin: # Fallback alignment if needed, but we are inside 'if is_admin' block already
-                pass
+                        save_auction_data(auction_data)
+                        
+                        msg = f"Force Added {f_player_name} to {f_part_name} for {f_price}M!"
+                        if prev_owner:
+                            msg += f" (Stolen from {prev_owner})"
+                        
+                        st.success(msg)
+                        time.sleep(1)
+                        st.success(msg)
+                        time.sleep(1)
+                        st.rerun()
 
             if is_admin:
                  with st.expander("👮 Admin: Force Release Player (Full Refund)"):
