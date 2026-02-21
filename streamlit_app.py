@@ -1874,41 +1874,41 @@ def show_main_app():
                 if is_admin:
                     st.subheader("👑 Admin Force Trade (Third Party)")
                     with st.expander("Show Console"):
-                            cols = st.columns(2)
-                            with cols[0]:
-                                sender_name = st.selectbox("Sender Team", [p['name'] for p in room['participants']], key="adm_sender")
-                            with cols[1]:
-                                receiver_name = st.selectbox("Receiver Team", [p['name'] for p in room['participants'] if p['name'] != sender_name], key="adm_receiver")
-                            
-                            sender_part = next((p for p in room['participants'] if p['name'] == sender_name), None)
-                            receiver_part = next((p for p in room['participants'] if p['name'] == receiver_name), None)
-                            
-                            if sender_part and receiver_part:
-                                pl_to_move = st.selectbox("Player to Move", [p['name'] for p in sender_part['squad']], key="adm_mv_pl")
-                                trade_price = st.number_input("Transaction Price (Receiver pays Sender)", 0.0, 500.0, 0.0, step=0.5, key="adm_tr_pr")
-                                
-                                if st.button("⚡ Force Execute Trade", type="primary"):
-                                    # Execute
-                                    p_obj = next((p for p in sender_part['squad'] if p['name'] == pl_to_move), None)
-                                    if p_obj:
-                                        sender_part['squad'].remove(p_obj)
-                                        receiver_part['squad'].append(p_obj)
-                                        
-                                        sender_part['budget'] += trade_price
-                                        receiver_part['budget'] -= trade_price
-                                        
-                                        # === LOGGING ===
-                                        timestamp = get_ist_time().strftime('%d-%b %H:%M')
-                                        log_msg = f"👑 Admin Force: **{pl_to_move}** moved from **{sender_name}** to **{receiver_name}** for **{trade_price}M**"
-                                        room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
-                                        
-                                        save_auction_data(auction_data)
-                                        st.success(f"Trade Executed! {pl_to_move} moved from {sender_name} to {receiver_name} for {trade_price}M.")
-                                        st.rerun()
-                                    else:
-                                        st.error("Player not found in sender squad.")
+                        cols = st.columns(2)
+                        with cols[0]:
+                            sender_name = st.selectbox("Sender Team", [p['name'] for p in room['participants']], key="adm_sender")
+                        with cols[1]:
+                            receiver_name = st.selectbox("Receiver Team", [p['name'] for p in room['participants'] if p['name'] != sender_name], key="adm_receiver")
                         
-                        st.divider()
+                        sender_part = next((p for p in room['participants'] if p['name'] == sender_name), None)
+                        receiver_part = next((p for p in room['participants'] if p['name'] == receiver_name), None)
+                        
+                        if sender_part and receiver_part:
+                            pl_to_move = st.selectbox("Player to Move", [p['name'] for p in sender_part['squad']], key="adm_mv_pl")
+                            trade_price = st.number_input("Transaction Price (Receiver pays Sender)", 0.0, 500.0, 0.0, step=0.5, key="adm_tr_pr")
+                            
+                            if st.button("⚡ Force Execute Trade", type="primary"):
+                                # Execute
+                                p_obj = next((p for p in sender_part['squad'] if p['name'] == pl_to_move), None)
+                                if p_obj:
+                                    sender_part['squad'].remove(p_obj)
+                                    receiver_part['squad'].append(p_obj)
+                                    
+                                    sender_part['budget'] += trade_price
+                                    receiver_part['budget'] -= trade_price
+                                    
+                                    # === LOGGING ===
+                                    timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                    log_msg = f"👑 Admin Force: **{pl_to_move}** moved from **{sender_name}** to **{receiver_name}** for **{trade_price}M**"
+                                    room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                    
+                                    save_auction_data(auction_data)
+                                    st.success(f"Trade Executed! {pl_to_move} moved from {sender_name} to {receiver_name} for {trade_price}M.")
+                                    st.rerun()
+                                else:
+                                    st.error("Player not found in sender squad.")
+                    
+                    st.divider()
 
                 st.subheader("Send Proposal")
                 
