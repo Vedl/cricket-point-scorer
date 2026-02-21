@@ -1867,12 +1867,13 @@ def show_main_app():
                     st.error(f"🔒 Trading is CLOSED for this Gameweek (Deadline + 30m passed: {trading_deadline.strftime('%H:%M')})")
                     is_trading_locked = True
                 
-                if not is_trading_locked:
-                    
-                    # === ADMIN FORCE TRADE ===
-                    if is_admin:
-                        st.subheader("👑 Admin Force Trade (Third Party)")
-                        with st.expander("Show Console"):
+                st.divider()
+                
+                # === ADMIN FORCE TRADE ===
+                # Admin should be able to force trades even if regular trading is locked
+                if is_admin:
+                    st.subheader("👑 Admin Force Trade (Third Party)")
+                    with st.expander("Show Console"):
                             cols = st.columns(2)
                             with cols[0]:
                                 sender_name = st.selectbox("Sender Team", [p['name'] for p in room['participants']], key="adm_sender")
@@ -1909,7 +1910,7 @@ def show_main_app():
                         
                         st.divider()
 
-                    st.subheader("Send Proposal")
+                st.subheader("Send Proposal")
                 
                 parts = [p['name'] for p in room['participants']]
                 to_p_name = st.selectbox("Offer To", [x for x in parts if x != my_p_name], key="tp_to")
