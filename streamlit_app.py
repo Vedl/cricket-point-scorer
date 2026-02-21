@@ -70,11 +70,10 @@ def load_auction_data():
 def save_auction_data(data):
     """Save auction data to Storage Manager (Remote + Local)."""
     storage_mgr.save_data(data)
-    storage_mgr.save_data(data)
     # Cache clearing no longer needed as we don't cache
     # get_cached_auction_data.clear()
 
-# @st.cache_data removed to ensure updates are reflected immediately
+@st.cache_data(ttl=300)  # Cache for 5 minutes - static data that rarely changes
 def load_players_database():
     """Load master player database."""
     if os.path.exists(PLAYERS_DB_FILE):
@@ -94,7 +93,7 @@ def hash_password(password):
     """Hash password using SHA256."""
     return hashlib.sha256(password.encode()).hexdigest()
 
-# @st.cache_data removed to ensure updates are reflected immediately
+@st.cache_data(ttl=300)  # Cache for 5 minutes - static data that rarely changes
 def load_schedule():
     """Load T20 WC schedule."""
     if os.path.exists(SCHEDULE_FILE):
@@ -1153,6 +1152,10 @@ def show_main_app():
                 st.subheader("💰 Open Bidding")
             with col_bid_refresh:
                 if st.button("🔄 Refresh Bids"):
+                    # Force fetch from Firebase to get latest data from other users
+                    fresh_data = storage_mgr.load_data_from_remote()
+                    # Update the global auction_data reference
+                    auction_data.update(fresh_data)
                     st.rerun()
             
             # Phase Check (Soft)

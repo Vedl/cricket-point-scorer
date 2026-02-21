@@ -56,9 +56,34 @@ class StorageManager:
         
         return data
     
+    def _ensure_schema(self, data):
+        """Ensure data has required schema (squad lists, users/rooms dicts)."""
+        if 'rooms' in data:
+            for r_val in data['rooms'].values():
+                if isinstance(r_val, dict) and 'participants' in r_val:
+                    parts = r_val['participants']
+                    if isinstance(parts, list):
+                        for p in parts:
+                            if isinstance(p, dict):
+                                if 'squad' not in p or not isinstance(p['squad'], list):
+                                    p['squad'] = []
+        if 'users' not in data: data['users'] = {}
+        if 'rooms' not in data: data['rooms'] = {}
+        return data
+    
     def load_data(self):
-        """Load data: Try Remote First (Source of Truth), Fallback to Local."""
-        # 1. Try Firebase (Source of Truth for Cloud)
+        """Load data: Local First (fast), then background sync from Firebase."""
+        # 1. Try Local First (fast, <10ms)
+        if os.path.exists(self.local_file_path):
+            try:
+                with open(self.local_file_path, 'r') as f:
+                    data = json.load(f)
+                    data = self._ensure_schema(data)
+                    return data
+            except Exception as e:
+                print(f"Local Load Error: {e}")
+        
+        # 2. Fallback to Firebase if no local file (first run / cloud deploy)
         if self.use_remote:
             try:
                 response = requests.get(self.db_url, timeout=10)
@@ -67,23 +92,8 @@ class StorageManager:
                     if data is None:
                         data = {}
                     
-                    # Normalize Firebase data (arrays back to dicts)
                     data = self._normalize_firebase_data(data)
-                    
-                    # Schema Enforcement: Ensure 'squad' list exists (Firebase omits empty lists)
-                    if 'rooms' in data:
-                        for r_val in data['rooms'].values():
-                            if isinstance(r_val, dict) and 'participants' in r_val:
-                                parts = r_val['participants']
-                                if isinstance(parts, list):
-                                    for p in parts:
-                                        if isinstance(p, dict):
-                                            # Ensure squad is a LIST (handle missing, None, or empty dicts from normalization)
-                                            if 'squad' not in p or not isinstance(p['squad'], list):
-                                                p['squad'] = []
-                    
-                    if 'users' not in data: data['users'] = {}
-                    if 'rooms' not in data: data['rooms'] = {}
+                    data = self._ensure_schema(data)
                     
                     # Cache locally
                     try:
@@ -95,31 +105,35 @@ class StorageManager:
             except Exception as e:
                 print(f"Firebase Load Error: {e}")
         
-        # 2. Local Fallback
-        if os.path.exists(self.local_file_path):
-            try:
-                with open(self.local_file_path, 'r') as f:
-                    data = json.load(f)
-                    
-                    # Schema Enforcement: Ensure 'squad' list exists locally too
-                    if 'rooms' in data:
-                        for r_val in data['rooms'].values():
-                            if isinstance(r_val, dict) and 'participants' in r_val:
-                                parts = r_val['participants']
-                                if isinstance(parts, list):
-                                    for p in parts:
-                                        if isinstance(p, dict):
-                                            # Ensure squad is a LIST (handle missing, None, or empty dicts)
-                                            if 'squad' not in p or not isinstance(p['squad'], list):
-                                                p['squad'] = []
-                    
-                    if 'users' not in data: data['users'] = {}
-                    if 'rooms' not in data: data['rooms'] = {}
-                    return data
-            except Exception as e:
-                print(f"Local Load Error: {e}")
-        
         return {"users": {}, "rooms": {}}
+    
+    def load_data_from_remote(self):
+        """Explicitly load fresh data from Firebase (for Refresh button)."""
+        if not self.use_remote:
+            return self.load_data()
+        
+        try:
+            response = requests.get(self.db_url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data is None:
+                    data = {}
+                
+                data = self._normalize_firebase_data(data)
+                data = self._ensure_schema(data)
+                
+                # Update local cache
+                try:
+                    with open(self.local_file_path, 'w') as f:
+                        json.dump(data, f, indent=2)
+                except: pass
+                
+                return data
+        except Exception as e:
+            print(f"Firebase Remote Load Error: {e}")
+        
+        # Fallback to local
+        return self.load_data()
     
     def save_data(self, data):
         """Save data: Local + Firebase (Synchronous for reliability)."""
