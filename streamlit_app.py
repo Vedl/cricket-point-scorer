@@ -1647,6 +1647,9 @@ def show_main_app():
                                                 if not p_obj:
                                                     success = False
                                                     fail_reason = f"Seller ({sender['name']}) no longer owns {trade['player']}."
+                                                elif p_obj.get('loan_origin'):
+                                                    success = False
+                                                    fail_reason = f"Cannot sell {trade['player']} as they are on loan from {p_obj.get('loan_origin')}."
                                                 # 3. Check for Duplicate/Existing (Optional but good)
                                                 elif any(p['name'] == trade['player'] for p in receiver['squad']):
                                                     success = False
@@ -1672,6 +1675,9 @@ def show_main_app():
                                                 if not p_obj:
                                                     success = False
                                                     fail_reason = f"Seller ({receiver['name']}) no longer owns {trade['player']}."
+                                                elif p_obj.get('loan_origin'):
+                                                    success = False
+                                                    fail_reason = f"Cannot buy {trade['player']} as they are on loan to {receiver['name']} from {p_obj.get('loan_origin')}."
                                                 elif any(p['name'] == trade['player'] for p in sender['squad']):
                                                     success = False
                                                     fail_reason = f"Buyer ({sender['name']}) already owns {trade['player']}."
@@ -1695,9 +1701,15 @@ def show_main_app():
                                             if not p_give:
                                                 success = False
                                                 fail_reason = f"{sender['name']} no longer has {give_pl_name}."
+                                            elif p_give.get('loan_origin'):
+                                                success = False
+                                                fail_reason = f"Cannot exchange {give_pl_name} as they are on loan from {p_give.get('loan_origin')}."
                                             elif not p_get:
                                                 success = False
                                                 fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
+                                            elif p_get.get('loan_origin'):
+                                                success = False
+                                                fail_reason = f"Cannot exchange {get_pl_name} as they are on loan from {p_get.get('loan_origin')}."
                                             elif net_cash > 0 and float(sender.get('budget',0)) < net_cash:
                                                  success = False
                                                  fail_reason = f"{sender['name']} cannot afford pay {net_cash}M."
@@ -1731,6 +1743,8 @@ def show_main_app():
                                                  p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
                                                  if not p_obj:
                                                      success = False; fail_reason = f"{sender['name']} doesn't have {pl_name}"
+                                                 elif p_obj.get('loan_origin'):
+                                                     success = False; fail_reason = f"Cannot loan out {pl_name} (already on loan from {p_obj.get('loan_origin')})."
                                                  elif float(receiver.get('budget',0)) < fee:
                                                      success = False; fail_reason = f"{receiver['name']} insufficient funds."
                                                  else:
@@ -1751,6 +1765,8 @@ def show_main_app():
                                                  
                                                  if not p_obj:
                                                      success = False; fail_reason = f"{receiver['name']} doesn't have {pl_name}"
+                                                 elif p_obj.get('loan_origin'):
+                                                     success = False; fail_reason = f"{receiver['name']} cannot loan out {pl_name} (already on loan from {p_obj.get('loan_origin')})."
                                                  elif float(sender.get('budget',0)) < fee:
                                                      success = False; fail_reason = f"{sender['name']} insufficient funds."
                                                  else:
@@ -1772,9 +1788,11 @@ def show_main_app():
                                             if "Transfer" in t_type:
                                                 # Determine direction name
                                                 if t_type == "Transfer (Sell)":
-                                                    log_msg = f"🔄 Transfer: **{trade['from']}** sold **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
-                                                else:
+                                                    # Sender SELLS to Receiver
                                                     log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
+                                                else:
+                                                    # Sender BUYS from Receiver
+                                                    log_msg = f"🔄 Transfer: **{trade['from']}** bought **{trade['player']}** from **{trade['to']}** for **{t_price}M**"
                                             
                                             elif t_type == "Exchange":
                                                  give = trade.get('give_player')
