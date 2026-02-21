@@ -1391,7 +1391,13 @@ def show_main_app():
                 # st.stop() # Optional: Stop rendering rest of bid UI
             
             else:
-                 st.caption(f"Bidding as: **{current_participant['name']}** (Budget: {current_participant.get('budget', 0)}M)")
+                 total_budget = current_participant.get('budget', 0)
+                 my_active_bids_total = sum(
+                     b['amount'] for b in active_bids 
+                     if b['bidder'] == current_participant['name']
+                 )
+                 avail = total_budget - my_active_bids_total
+                 st.caption(f"Bidding as: **{current_participant['name']}** (Budget: {total_budget}M | Committed in Bids: {my_active_bids_total}M | Available: {avail}M)")
             
             if current_participant:
                 target_player = st.selectbox(
@@ -1435,10 +1441,20 @@ def show_main_app():
                              valid_increment = False
                              err_msg = "Bids of 50 or above must be in increments of 5 (e.g., 50, 55)."
 
+                        # Calculate cumulative committed amount from other active bids
+                        my_name = current_participant['name']
+                        other_bids_total = sum(
+                            b['amount'] for b in active_bids 
+                            if b['bidder'] == my_name and b['player'] != target_player
+                        )
+                        available_budget = current_participant.get('budget', 0) - other_bids_total
+                        
                         if not valid_increment:
                             st.error(f"❌ Invalid amount. {err_msg}")
-                        elif bid_amount > current_participant.get('budget', 0):
-                            st.error(f"Insufficient budget! You have {current_participant.get('budget')}M.")
+                        elif bid_amount > available_budget:
+                            st.error(f"❌ Insufficient budget! You have {current_participant.get('budget')}M total, "
+                                     f"but {other_bids_total}M is committed to other active bids. "
+                                     f"Available: {available_budget}M.")
                         else:
                             # Remove old bid if exists
                             if existing_bid:
