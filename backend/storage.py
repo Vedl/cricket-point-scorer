@@ -72,19 +72,16 @@ class StorageManager:
         return data
     
     def load_data(self):
-        """Load data: Local First (fast), then background sync from Firebase."""
-        # 1. Try Local First (fast, <10ms)
-        if os.path.exists(self.local_file_path):
-            try:
-                with open(self.local_file_path, 'r') as f:
-                    data = json.load(f)
-                    data = self._ensure_schema(data)
-                    return data
-            except Exception as e:
-                print(f"Local Load Error: {e}")
+        """Load data: Firebase on first session load, Local for reruns (fast)."""
+        # Check if we've already loaded from Firebase this session
+        session_synced = False
+        try:
+            session_synced = st.session_state.get('_firebase_synced', False)
+        except:
+            pass
         
-        # 2. Fallback to Firebase if no local file (first run / cloud deploy)
-        if self.use_remote:
+        # FIRST LOAD of session: Always fetch from Firebase (source of truth for Cloud)
+        if not session_synced and self.use_remote:
             try:
                 response = requests.get(self.db_url, timeout=10)
                 if response.status_code == 200:
@@ -95,15 +92,48 @@ class StorageManager:
                     data = self._normalize_firebase_data(data)
                     data = self._ensure_schema(data)
                     
-                    # Cache locally
+                    # Cache locally for fast reruns
                     try:
                         with open(self.local_file_path, 'w') as f:
                             json.dump(data, f, indent=2)
                     except: pass
                     
+                    # Mark session as synced
+                    try:
+                        st.session_state['_firebase_synced'] = True
+                    except: pass
+                    
                     return data
             except Exception as e:
                 print(f"Firebase Load Error: {e}")
+        
+        # SUBSEQUENT RERUNS: Read local file (fast, <10ms)
+        if os.path.exists(self.local_file_path):
+            try:
+                with open(self.local_file_path, 'r') as f:
+                    data = json.load(f)
+                    data = self._ensure_schema(data)
+                    return data
+            except Exception as e:
+                print(f"Local Load Error: {e}")
+        
+        # Last resort fallback to Firebase
+        if self.use_remote:
+            try:
+                response = requests.get(self.db_url, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data is None:
+                        data = {}
+                    data = self._normalize_firebase_data(data)
+                    data = self._ensure_schema(data)
+                    try:
+                        with open(self.local_file_path, 'w') as f:
+                            json.dump(data, f, indent=2)
+                    except: pass
+                    return data
+            except Exception as e:
+                print(f"Firebase Fallback Error: {e}")
         
         return {"users": {}, "rooms": {}}
     
