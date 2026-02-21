@@ -286,7 +286,7 @@
         "Tashinga Musekiwa",
         "Jan Frylinck",
         "Tony Munyonga",
-        "Michael Bracewell",
+        "Cole McConchie",
         "Max ODowd",
         "Khawaja Nafay",
         "Dewald Brevis",
@@ -808,7 +808,7 @@
               "buy_price": 20
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "team": "New Zealand",
               "buy_price": 10
@@ -1168,7 +1168,7 @@
                 "buy_price": 20
               },
               {
-                "name": "Michael Bracewell",
+                "name": "Cole McConchie",
                 "role": "Batting Allrounder",
                 "team": "New Zealand",
                 "buy_price": 10
@@ -1220,7 +1220,7 @@
           "time": "2026-02-03T13:27:26.105910"
         },
         {
-          "player": "Michael Bracewell",
+          "player": "Cole McConchie",
           "buyer": "test1",
           "price": 10,
           "time": "2026-02-03T13:28:05.944750"
@@ -1451,7 +1451,7 @@
         "Tashinga Musekiwa",
         "Jan Frylinck",
         "Tony Munyonga",
-        "Michael Bracewell",
+        "Cole McConchie",
         "Max ODowd",
         "Khawaja Nafay",
         "Dewald Brevis",
@@ -2390,7 +2390,7 @@
               "active": true
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "team": "New Zealand",
               "buy_price": 5,
@@ -3303,7 +3303,7 @@
                 "buy_price": 10
               },
               {
-                "name": "Michael Bracewell",
+                "name": "Cole McConchie",
                 "buy_price": 5
               },
               {
@@ -4355,7 +4355,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -5494,7 +5494,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -6715,7 +6715,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -7695,7 +7695,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -8694,7 +8694,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -9711,7 +9711,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -10834,7 +10834,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -12284,7 +12284,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -13171,7 +13171,7 @@
                 "team": "New Zealand"
               },
               {
-                "name": "Michael Bracewell",
+                "name": "Cole McConchie",
                 "role": "Batting Allrounder",
                 "active": true,
                 "buy_price": 5.0,
@@ -14043,7 +14043,7 @@
                 "team": "New Zealand"
               },
               {
-                "name": "Michael Bracewell",
+                "name": "Cole McConchie",
                 "role": "Batting Allrounder",
                 "active": true,
                 "buy_price": 5.0,
@@ -14974,7 +14974,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -16108,7 +16108,7 @@
               "team": "New Zealand"
             },
             {
-              "name": "Michael Bracewell",
+              "name": "Cole McConchie",
               "role": "Batting Allrounder",
               "active": true,
               "buy_price": 5.0,
@@ -17254,7 +17254,7 @@
                 "team": "New Zealand"
               },
               {
-                "name": "Michael Bracewell",
+                "name": "Cole McConchie",
                 "role": "Batting Allrounder",
                 "active": true,
                 "buy_price": 5.0,
