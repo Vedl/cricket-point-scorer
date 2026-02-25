@@ -2246,7 +2246,7 @@ def show_main_app():
                     all_squads_data.append({
                         'Participant': p['name'],
                         'Player': pl['name'],
-                        'Role': pl['role'],
+                        'Role': pl.get('role', 'Unknown'),
                         'Team': pl.get('team', player_team_lookup.get(pl['name'], 'Unknown')),
                         'Price': pl.get('buy_price', 0)
                     })
