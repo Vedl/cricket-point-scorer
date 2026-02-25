@@ -1594,7 +1594,8 @@ def show_main_app():
                 
                 # INBOX
                 st.markdown("### 📬 Incoming Proposals")
-                my_incoming = [t for t in room['pending_trades'] if t['to'] == my_p_name]
+                # Exclude trades already accepted and waiting for admin
+                my_incoming = [t for t in room['pending_trades'] if t['to'] == my_p_name and t.get('status') != 'pending_admin']
                 if my_incoming:
                     for trade in my_incoming:
                         with st.container():
@@ -1777,47 +1778,13 @@ def show_main_app():
                                                      receiver['budget'] = float(receiver.get('budget',0)) + fee
                                                      sender['budget'] = float(sender.get('budget',0)) - fee
                                                      success = True
-                                       
                                         if success:
-                                            # === LOGGING ===
-                                            log_msg = ""
-                                            t_type = trade.get('type')
-                                            t_price = trade.get('price', 0)
-                                            timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                            # Instead of executing, mark as pending admin
+                                            trade['status'] = 'pending_admin'
+                                            trade['agreed_at'] = get_ist_time().isoformat()
                                             
-                                            if "Transfer" in t_type:
-                                                # Determine direction name
-                                                if t_type == "Transfer (Sell)":
-                                                    # Sender SELLS to Receiver
-                                                    log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
-                                                else:
-                                                    # Sender BUYS from Receiver
-                                                    log_msg = f"🔄 Transfer: **{trade['from']}** bought **{trade['player']}** from **{trade['to']}** for **{t_price}M**"
-                                            
-                                            elif t_type == "Exchange":
-                                                 give = trade.get('give_player')
-                                                 get = trade.get('get_player')
-                                                 if t_price > 0: cash_txt = f"(+{t_price}M)"
-                                                 elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
-                                                 else: cash_txt = "(Flat)"
-                                                 log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
-                                            
-                                            elif "Loan" in t_type:
-                                               sender_name = trade['from']
-                                               receiver_name = trade['to']
-                                               p_name = trade['player']
-                                               
-                                               if t_type == "Loan Out":
-                                                   log_msg = f"⏳ Loan: **{sender_name}** loaned **{p_name}** to **{receiver_name}** for **{t_price}M**"
-                                               else:
-                                                   log_msg = f"⏳ Loan: **{receiver_name}** loaned **{p_name}** to **{sender_name}** for **{t_price}M**"
-                                            
-                                            if log_msg:
-                                                room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
-                                            
-                                            room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
                                             save_auction_data(auction_data)
-                                            st.success("Trade Executed!")
+                                            st.success("Trade Agreed! Waiting for Admin Approval.")
                                             st.rerun()
                                         else:
                                             st.error(f"Failed: {fail_reason}")
@@ -1849,7 +1816,8 @@ def show_main_app():
                 
                 # OUTGOING (Sent by me)
                 st.markdown("### 📤 Outgoing Proposals (Sent by You)")
-                my_outgoing = [t for t in room['pending_trades'] if t['from'] == my_p_name]
+                # Exclude trades already accepted and waiting for admin
+                my_outgoing = [t for t in room['pending_trades'] if t['from'] == my_p_name and t.get('status') != 'pending_admin']
                 if my_outgoing:
                     for trade in my_outgoing:
                         with st.container():
@@ -1874,6 +1842,24 @@ def show_main_app():
                     st.caption("No pending outgoing proposals.")
                 
                 st.divider()
+                
+                # WAITING FOR ADMIN (For Regular Users)
+                st.markdown("### ⏳ Waiting for Admin Approval")
+                my_pending_admin = [t for t in room['pending_trades'] if (t['from'] == my_p_name or t['to'] == my_p_name) and t.get('status') == 'pending_admin']
+                if my_pending_admin:
+                    for trade in my_pending_admin:
+                        with st.container():
+                            player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                            agreed_tm = "Unknown Time"
+                            if trade.get('agreed_at'):
+                                try:
+                                    agreed_tm = datetime.fromisoformat(trade['agreed_at']).strftime('%d-%b %H:%M')
+                                except: pass
+                            st.info(f"**{trade['type']}**: {trade['from']} ↔ {trade['to']} | {player_info} | Agreed At: {agreed_tm}")
+                else:
+                    st.caption("No trades waiting for admin.")
+                
+                st.divider()
                 # Check Trading Deadline
                 trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
                 is_trading_locked = False
@@ -1887,9 +1873,180 @@ def show_main_app():
                 
                 st.divider()
                 
-                # === ADMIN FORCE TRADE ===
-                # Admin should be able to force trades even if regular trading is locked
+                # === ADMIN PENDING TRADES APPROVAL ===
                 if is_admin:
+                    st.subheader("👑 Admin Trade Approvals")
+                    admin_pending = [t for t in room['pending_trades'] if t.get('status') == 'pending_admin']
+                    
+                    if admin_pending:
+                        for trade in admin_pending:
+                            with st.container():
+                                trade_id = trade['id']
+                                player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                                p_val = trade.get('price', 0)
+                                
+                                price_str = f"Price: {p_val}M"
+                                if trade['type'] == "Exchange":
+                                    if p_val > 0: price_str = f"{trade['to']} pays {p_val}M"
+                                    elif p_val < 0: price_str = f"{trade['from']} pays {abs(p_val)}M"
+                                    else: price_str = "No Cash"
+                                
+                                agreed_tm = "Unknown Time"
+                                if trade.get('agreed_at'):
+                                    try:
+                                        agreed_tm = datetime.fromisoformat(trade['agreed_at']).strftime('%d-%b %H:%M')
+                                    except: pass
+                                
+                                st.info(f"**{trade['type']}**: {trade['from']} ↔ {trade['to']} | {player_info} | {price_str} | **Agreed At: {agreed_tm}**")
+                                
+                                c1, c2 = st.columns(2)
+                                if c1.button("✅ Approve", key=f"adm_app_{trade_id}", type="primary"):
+                                    # --- RE-VALIDATE & EXECUTE ---
+                                    sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
+                                    receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
+                                    
+                                    success = False
+                                    fail_reason = "Unknown Error"
+                                    
+                                    if sender and receiver:
+                                        t_type = trade['type']
+                                        t_price = float(trade.get('price', 0))
+                                        
+                                        if t_type == "Transfer (Sell)":
+                                            if float(receiver.get('budget', 0)) < t_price:
+                                                fail_reason = f"Buyer ({receiver['name']}) has insufficient funds."
+                                            else:
+                                                p_obj = next((p for p in sender['squad'] if p['name'] == trade['player']), None)
+                                                if not p_obj: fail_reason = f"Seller ({sender['name']}) no longer owns {trade['player']}."
+                                                elif p_obj.get('loan_origin'): fail_reason = f"{trade['player']} is on loan."
+                                                elif any(p['name'] == trade['player'] for p in receiver['squad']): fail_reason = f"Buyer already owns {trade['player']}."
+                                                else:
+                                                    sender['squad'].remove(p_obj)
+                                                    p_obj['buy_price'] = t_price
+                                                    receiver['squad'].append(p_obj)
+                                                    sender['budget'] = float(sender.get('budget', 0)) + t_price
+                                                    receiver['budget'] = float(receiver.get('budget', 0)) - t_price
+                                                    success = True
+                                                    
+                                        elif t_type == "Transfer (Buy)":
+                                            if float(sender.get('budget', 0)) < t_price:
+                                                fail_reason = f"Buyer ({sender['name']}) has insufficient funds."
+                                            else:
+                                                p_obj = next((p for p in receiver['squad'] if p['name'] == trade['player']), None)
+                                                if not p_obj: fail_reason = f"Seller ({receiver['name']}) no longer owns {trade['player']}."
+                                                elif p_obj.get('loan_origin'): fail_reason = f"{trade['player']} is on loan."
+                                                elif any(p['name'] == trade['player'] for p in sender['squad']): fail_reason = f"Buyer already owns {trade['player']}."
+                                                else:
+                                                    receiver['squad'].remove(p_obj)
+                                                    p_obj['buy_price'] = t_price
+                                                    sender['squad'].append(p_obj)
+                                                    receiver['budget'] = float(receiver.get('budget', 0)) + t_price
+                                                    sender['budget'] = float(sender.get('budget', 0)) - t_price
+                                                    success = True
+                                                    
+                                        elif t_type == "Exchange":
+                                            give_pl_name = trade['give_player']
+                                            get_pl_name = trade['get_player']
+                                            net_cash = t_price
+                                            
+                                            p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
+                                            p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                            
+                                            if not p_give: fail_reason = f"{sender['name']} no longer has {give_pl_name}."
+                                            elif p_give.get('loan_origin'): fail_reason = f"{give_pl_name} is on loan."
+                                            elif not p_get: fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
+                                            elif p_get.get('loan_origin'): fail_reason = f"{get_pl_name} is on loan."
+                                            elif net_cash > 0 and float(sender.get('budget',0)) < net_cash: fail_reason = f"{sender['name']} cannot afford pay {net_cash}M."
+                                            elif net_cash < 0 and float(receiver.get('budget',0)) < abs(net_cash): fail_reason = f"{receiver['name']} cannot afford pay {abs(net_cash)}M."
+                                            else:
+                                                 sender['squad'].remove(p_give)
+                                                 receiver['squad'].remove(p_get)
+                                                 sender['squad'].append(p_get)
+                                                 receiver['squad'].append(p_give)
+                                                 sender['budget'] = float(sender.get('budget', 0)) - net_cash
+                                                 receiver['budget'] = float(receiver.get('budget', 0)) + net_cash
+                                                 success = True
+                                                 
+                                        elif t_type in ["Loan Out", "Loan In"]:
+                                             current_gw = 0
+                                             locked_gws = list(room.get('gameweek_squads', {}).keys())
+                                             if locked_gws: current_gw = max([int(gw) for gw in locked_gws])
+                                             return_gw = current_gw + 1
+                                             
+                                             if t_type == "Loan Out":
+                                                 pl_name = trade['player']
+                                                 fee = t_price
+                                                 p_obj = next((p for p in sender['squad'] if p['name'] == pl_name), None)
+                                                 if not p_obj: fail_reason = f"{sender['name']} doesn't have {pl_name}"
+                                                 elif p_obj.get('loan_origin'): fail_reason = f"Cannot loan out {pl_name} (already on loan)."
+                                                 elif float(receiver.get('budget',0)) < fee: fail_reason = f"{receiver['name']} insufficient funds."
+                                                 else:
+                                                     sender['squad'].remove(p_obj)
+                                                     p_obj['loan_origin'] = sender['name']
+                                                     p_obj['loan_expiry_gw'] = return_gw
+                                                     receiver['squad'].append(p_obj)
+                                                     sender['budget'] = float(sender.get('budget',0)) + fee
+                                                     receiver['budget'] = float(receiver.get('budget',0)) - fee
+                                                     success = True
+                                             elif t_type == "Loan In":
+                                                 pl_name = trade['player']
+                                                 fee = t_price
+                                                 p_obj = next((p for p in receiver['squad'] if p['name'] == pl_name), None)
+                                                 if not p_obj: fail_reason = f"{receiver['name']} doesn't have {pl_name}"
+                                                 elif p_obj.get('loan_origin'): fail_reason = f"{receiver['name']} cannot loan out {pl_name} (already on loan)."
+                                                 elif float(sender.get('budget',0)) < fee: fail_reason = f"{sender['name']} insufficient funds."
+                                                 else:
+                                                     receiver['squad'].remove(p_obj)
+                                                     p_obj['loan_origin'] = receiver['name']
+                                                     p_obj['loan_expiry_gw'] = return_gw
+                                                     sender['squad'].append(p_obj)
+                                                     receiver['budget'] = float(receiver.get('budget',0)) + fee
+                                                     sender['budget'] = float(sender.get('budget',0)) - fee
+                                                     success = True
+                                    
+                                    if success:
+                                        log_msg = ""
+                                        timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                        if "Transfer" in t_type:
+                                            if t_type == "Transfer (Sell)": log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
+                                            else: log_msg = f"🔄 Transfer: **{trade['from']}** bought **{trade['player']}** from **{trade['to']}** for **{t_price}M**"
+                                        elif t_type == "Exchange":
+                                             give = trade.get('give_player')
+                                             get = trade.get('get_player')
+                                             if t_price > 0: cash_txt = f"(+{t_price}M)"
+                                             elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
+                                             else: cash_txt = "(Flat)"
+                                             log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
+                                        elif "Loan" in t_type:
+                                           if t_type == "Loan Out": log_msg = f"⏳ Loan: **{trade['from']}** loaned **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
+                                           else: log_msg = f"⏳ Loan: **{trade['to']}** loaned **{trade['player']}** to **{trade['from']}** for **{t_price}M**"
+                                        
+                                        if log_msg:
+                                            room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                        
+                                        room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade_id]
+                                        save_auction_data(auction_data)
+                                        st.success("Trade Approved and Executed!")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Approval Failed (State Changed): {fail_reason}")
+                                        
+                                if c2.button("❌ Reject", key=f"adm_rej_{trade_id}"):
+                                    room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade_id]
+                                    
+                                    # Log rejection
+                                    timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                    rej_msg = f"❌ Admin Rejected Trade: **{trade['type']}** between **{trade['from']}** and **{trade['to']}**"
+                                    room.setdefault('trade_log', []).append({"time": timestamp, "msg": rej_msg})
+                                    
+                                    save_auction_data(auction_data)
+                                    st.toast("Trade Rejected by Admin.")
+                                    st.rerun()
+                    else:
+                        st.caption("No trades pending admin approval.")
+                    
+                    st.divider()
+                    
                     st.subheader("👑 Admin Force Trade (Third Party)")
                     with st.expander("Show Console"):
                         cols = st.columns(2)
