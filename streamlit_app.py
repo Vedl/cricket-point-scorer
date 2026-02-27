@@ -1656,12 +1656,6 @@ def show_main_app():
                                                     success = False
                                                     fail_reason = f"Buyer ({receiver['name']}) already owns {trade['player']}."
                                                 else:
-                                                    # EXECUTE
-                                                    sender['squad'].remove(p_obj)
-                                                    p_obj['buy_price'] = t_price
-                                                    receiver['squad'].append(p_obj)
-                                                    sender['budget'] = float(sender.get('budget', 0)) + t_price
-                                                    receiver['budget'] = float(receiver.get('budget', 0)) - t_price
                                                     success = True
 
                                         elif t_type == "Transfer (Buy)":
@@ -1683,12 +1677,6 @@ def show_main_app():
                                                     success = False
                                                     fail_reason = f"Buyer ({sender['name']}) already owns {trade['player']}."
                                                 else:
-                                                    # EXECUTE
-                                                    receiver['squad'].remove(p_obj)
-                                                    p_obj['buy_price'] = t_price
-                                                    sender['squad'].append(p_obj)
-                                                    receiver['budget'] = float(receiver.get('budget', 0)) + t_price
-                                                    sender['budget'] = float(sender.get('budget', 0)) - t_price
                                                     success = True
                                         
                                         elif t_type == "Exchange":
@@ -1718,14 +1706,6 @@ def show_main_app():
                                                  success = False
                                                  fail_reason = f"{receiver['name']} cannot afford pay {abs(net_cash)}M."
                                             else:
-                                                 # Execute Swap
-                                                 sender['squad'].remove(p_give)
-                                                 receiver['squad'].remove(p_get)
-                                                 sender['squad'].append(p_get)
-                                                 receiver['squad'].append(p_give)
-                                                 
-                                                 sender['budget'] = float(sender.get('budget', 0)) - net_cash
-                                                 receiver['budget'] = float(receiver.get('budget', 0)) + net_cash
                                                  success = True
     
                                         elif t_type in ["Loan Out", "Loan In"]:
@@ -1749,13 +1729,6 @@ def show_main_app():
                                                  elif float(receiver.get('budget',0)) < fee:
                                                      success = False; fail_reason = f"{receiver['name']} insufficient funds."
                                                  else:
-                                                     # Execute
-                                                     sender['squad'].remove(p_obj)
-                                                     p_obj['loan_origin'] = sender['name']
-                                                     p_obj['loan_expiry_gw'] = return_gw
-                                                     receiver['squad'].append(p_obj)
-                                                     sender['budget'] = float(sender.get('budget',0)) + fee
-                                                     receiver['budget'] = float(receiver.get('budget',0)) - fee
                                                      success = True
                                              
                                              elif t_type == "Loan In":
@@ -1771,12 +1744,6 @@ def show_main_app():
                                                  elif float(sender.get('budget',0)) < fee:
                                                      success = False; fail_reason = f"{sender['name']} insufficient funds."
                                                  else:
-                                                     receiver['squad'].remove(p_obj)
-                                                     p_obj['loan_origin'] = receiver['name']
-                                                     p_obj['loan_expiry_gw'] = return_gw
-                                                     sender['squad'].append(p_obj)
-                                                     receiver['budget'] = float(receiver.get('budget',0)) + fee
-                                                     sender['budget'] = float(sender.get('budget',0)) - fee
                                                      success = True
                                         if success:
                                             # Instead of executing, mark as pending admin
