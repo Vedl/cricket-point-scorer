@@ -3295,24 +3295,7 @@ def show_main_app():
             
             st.info(f"**Current Phase:** {phase_names.get(phase, phase)}")
             
-            # Qualifying teams for player release
-            st.markdown("**Qualifying Teams for Next Phase:**")
-            st.caption("Enter team codes (comma-separated) whose players qualify for next phase. Example: IND, AUS, ENG, SA")
-            
-            current_qualifying = room.get('qualifying_teams', '')
-            qualifying_teams_input = st.text_input(
-                "Qualifying Teams", 
-                value=current_qualifying, 
-                key="qualifying_teams_input",
-                placeholder="IND, AUS, ENG, SA"
-            )
-            
-            if qualifying_teams_input != current_qualifying:
-                if st.button("💾 Save Qualifying Teams"):
-                    room['qualifying_teams'] = qualifying_teams_input
-                    save_auction_data(auction_data)
-                    st.success("Qualifying teams saved!")
-                    st.rerun()
+            # Removed Qualifying teams input per user request
             
             # Show current standings for knockout preview
             if room.get('gameweek_scores'):
@@ -3428,28 +3411,23 @@ def show_main_app():
                     qualified_names = [p[0] for p in sorted_participants[:cutoff]]
                     eliminated_names = [p[0] for p in sorted_participants[cutoff:]]
                     
-                    # Parse qualifying teams
-                    qualifying_teams = [t.strip().upper() for t in room.get('qualifying_teams', '').split(',') if t.strip()]
-                    
-                    # Release players from eliminated participants
+                    # Release ALL players from eliminated participants
                     released = room.setdefault('released_players', [])
                     for participant in room.get('participants', []):
                         if participant['name'] in eliminated_names:
                             participant['eliminated'] = True
                             participant['eliminated_phase'] = phase
                             
-                            # Find players whose teams qualified
+                            # Release their entire squad
                             for player in participant['squad']:
-                                player_team = player.get('team', '').upper()
-                                if any(qt in player_team for qt in qualifying_teams) or not qualifying_teams:
-                                    released.append({
-                                        'name': player['name'],
-                                        'team': player.get('team', 'Unknown'),
-                                        'role': player.get('role', 'Unknown'),
-                                        'from_participant': participant['name'],
-                                        'phase': phase,
-                                        'price': player.get('price', 0)
-                                    })
+                                released.append({
+                                    'name': player['name'],
+                                    'team': player.get('team', 'Unknown'),
+                                    'role': player.get('role', 'Unknown'),
+                                    'from_participant': participant['name'],
+                                    'phase': phase,
+                                    'price': player.get('price', 0)
+                                })
                     
                     # Record knockout history
                     room.setdefault('knockout_history', {})[phase] = {
