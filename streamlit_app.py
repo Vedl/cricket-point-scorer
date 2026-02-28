@@ -2067,6 +2067,7 @@ def show_main_app():
                     st.divider()
 
                 st.subheader("Send Proposal")
+                to_p_name = None
                 
                 # Only non-eliminated participants can send/receive proposals
                 if trade_user_eliminated:
@@ -2079,137 +2080,138 @@ def show_main_app():
                     else:
                         to_p_name = st.selectbox("Offer To", eligible_partners, key="tp_to")
                 
-                t_type = st.radio("Type", ["Transfer (Buy)", "Transfer (Sell)", "Exchange", "Loan"], horizontal=True, key="tp_type_simple")
+                if to_p_name:
+                    t_type = st.radio("Type", ["Transfer (Buy)", "Transfer (Sell)", "Exchange", "Loan"], horizontal=True, key="tp_type_simple")
                 
-                my_part = next((p for p in room['participants'] if p['name'] == my_p_name), None)
-                their_part = next((p for p in room['participants'] if p['name'] == to_p_name), None)
+                    my_part = next((p for p in room['participants'] if p['name'] == my_p_name), None)
+                    their_part = next((p for p in room['participants'] if p['name'] == to_p_name), None)
                 
-                if my_part and their_part:
-                    if t_type == "Transfer (Sell)":
-                        pl = st.selectbox("Player to Sell", [p['name'] for p in my_part['squad']], key="sell_pl")
-                        pr = st.number_input("Selling Price", 1, 500, 10, key="sell_pr")
-                        if st.button("Send Offer"):
-                            # Check Duplicate
-                            is_dup = any(t for t in room['pending_trades'] 
-                                         if t['from'] == my_p_name and t['to'] == to_p_name 
-                                         and t['type'] == t_type and t.get('player') == pl 
-                                         and t.get('price') == pr)
-                            
-                            if is_dup:
-                                st.error("Duplicate Proposal: You have already sent this exact offer.")
-                            else:
-                                room['pending_trades'].append({
-                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                    'type': t_type, 'player': pl, 'price': pr,
-                                    'created_at': get_ist_time().isoformat()
-                                })
-                            save_auction_data(auction_data)
-                            st.success("Proposal Sent!")
-                            st.rerun()
-
-                    elif t_type == "Transfer (Buy)":
-                        pl = st.selectbox("Player to Buy", [p['name'] for p in their_part['squad']], key="buy_pl")
-                        pr = st.number_input("Offer Price", 1, 500, 10, key="buy_pr")
-                        if st.button("Send Offer"):
-                            # Check Duplicate
-                            is_dup = any(t for t in room['pending_trades'] 
-                                         if t['from'] == my_p_name and t['to'] == to_p_name 
-                                         and t['type'] == t_type and t.get('player') == pl 
-                                         and t.get('price') == pr)
-                            
-                            if is_dup:
-                                st.error("Duplicate Proposal: You have already sent this exact offer.")
-                            else:
-                                room['pending_trades'].append({
-                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                    'type': t_type, 'player': pl, 'price': pr,
-                                    'created_at': get_ist_time().isoformat()
-                                })
-                            save_auction_data(auction_data)
-                            st.success("Proposal Sent!")
-                            st.rerun()
-                            
-                    elif t_type == "Exchange":
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            give_pl = st.selectbox("You Give", [p['name'] for p in my_part['squad']], key="exch_give")
-                        with c2:
-                            get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad']], key="exch_get")
-                        
-                        cash_dir = st.radio("Cash Adjustment", ["No Cash Involved", "I Pay Them (Extra Cash)", "They Pay Me (Extra Cash)"], horizontal=True)
-                        
-                        net_cash = 0
-                        if cash_dir == "I Pay Them (Extra Cash)":
-                            amt = st.number_input("Amount you pay", 1, 500, 10, key="exch_pay_out")
-                            net_cash = amt
-                        elif cash_dir == "They Pay Me (Extra Cash)":
-                            amt = st.number_input("Amount they pay", 1, 500, 10, key="exch_pay_in")
-                            net_cash = -amt
-                        
-                        if st.button("Send Exchange Offer"):
-                            # Check Duplicate
-                            is_dup = any(t for t in room['pending_trades'] 
-                                         if t['from'] == my_p_name and t['to'] == to_p_name 
-                                         and t['type'] == t_type and t.get('give_player') == give_pl
-                                         and t.get('get_player') == get_pl and t.get('price') == net_cash)
-                            
-                            if is_dup:
-                                st.error("Duplicate Exchange Offer already sent.")
-                            else:
-                                room['pending_trades'].append({
-                                    'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                    'type': t_type, 
-                                    'give_player': give_pl,
-                                    'get_player': get_pl,
-                                    'price': net_cash,
-                                    'created_at': get_ist_time().isoformat()
-                                })
-                                save_auction_data(auction_data)
-                                st.success("Exchange Proposal Sent!")
-                                st.rerun()
-
-                    elif t_type == "Loan":
-                        loan_dir = st.radio("Direction", ["Loan Out (You Give)", "Loan In (You Get)"], horizontal=True)
-                        if loan_dir == "Loan Out (You Give)":
-                            pl = st.selectbox("Player to Loan Out", [p['name'] for p in my_part['squad']], key="loan_out_pl")
-                            fee = st.number_input("Loan Fee (They pay you)", 0, 100, 0, key="loan_fee_out")
-                            if st.button("Offer Loan"):
+                    if my_part and their_part:
+                        if t_type == "Transfer (Sell)":
+                            pl = st.selectbox("Player to Sell", [p['name'] for p in my_part['squad']], key="sell_pl")
+                            pr = st.number_input("Selling Price", 1, 500, 10, key="sell_pr")
+                            if st.button("Send Offer"):
                                 # Check Duplicate
                                 is_dup = any(t for t in room['pending_trades'] 
                                              if t['from'] == my_p_name and t['to'] == to_p_name 
-                                             and t['type'] == "Loan Out" and t.get('player') == pl 
-                                             and t.get('price') == fee)
+                                             and t['type'] == t_type and t.get('player') == pl 
+                                             and t.get('price') == pr)
+                            
                                 if is_dup:
-                                    st.error("Duplicate Loan Offer already sent.")
+                                    st.error("Duplicate Proposal: You have already sent this exact offer.")
                                 else:
                                     room['pending_trades'].append({
                                         'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                        'type': "Loan Out", 'player': pl, 'price': fee,
+                                        'type': t_type, 'player': pl, 'price': pr,
                                         'created_at': get_ist_time().isoformat()
                                     })
                                 save_auction_data(auction_data)
-                                st.success("Loan Offer Sent!")
+                                st.success("Proposal Sent!")
                                 st.rerun()
-                        else:
-                            pl = st.selectbox("Player to Loan In", [p['name'] for p in their_part['squad']], key="loan_in_pl")
-                            fee = st.number_input("Loan Fee (You pay them)", 0, 100, 0, key="loan_fee_in")
-                            if st.button("Request Loan"):
+
+                        elif t_type == "Transfer (Buy)":
+                            pl = st.selectbox("Player to Buy", [p['name'] for p in their_part['squad']], key="buy_pl")
+                            pr = st.number_input("Offer Price", 1, 500, 10, key="buy_pr")
+                            if st.button("Send Offer"):
                                 # Check Duplicate
                                 is_dup = any(t for t in room['pending_trades'] 
                                              if t['from'] == my_p_name and t['to'] == to_p_name 
-                                             and t['type'] == "Loan In" and t.get('player') == pl 
-                                             and t.get('price') == fee)
+                                             and t['type'] == t_type and t.get('player') == pl 
+                                             and t.get('price') == pr)
+                            
                                 if is_dup:
-                                    st.error("Duplicate Loan Request already sent.")
+                                    st.error("Duplicate Proposal: You have already sent this exact offer.")
                                 else:
                                     room['pending_trades'].append({
                                         'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                        'type': "Loan In", 'player': pl, 'price': fee,
+                                        'type': t_type, 'player': pl, 'price': pr,
                                         'created_at': get_ist_time().isoformat()
                                     })
                                 save_auction_data(auction_data)
-                                st.success("Loan Request Sent!")
+                                st.success("Proposal Sent!")
                                 st.rerun()
+                            
+                        elif t_type == "Exchange":
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                give_pl = st.selectbox("You Give", [p['name'] for p in my_part['squad']], key="exch_give")
+                            with c2:
+                                get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad']], key="exch_get")
+                        
+                            cash_dir = st.radio("Cash Adjustment", ["No Cash Involved", "I Pay Them (Extra Cash)", "They Pay Me (Extra Cash)"], horizontal=True)
+                        
+                            net_cash = 0
+                            if cash_dir == "I Pay Them (Extra Cash)":
+                                amt = st.number_input("Amount you pay", 1, 500, 10, key="exch_pay_out")
+                                net_cash = amt
+                            elif cash_dir == "They Pay Me (Extra Cash)":
+                                amt = st.number_input("Amount they pay", 1, 500, 10, key="exch_pay_in")
+                                net_cash = -amt
+                        
+                            if st.button("Send Exchange Offer"):
+                                # Check Duplicate
+                                is_dup = any(t for t in room['pending_trades'] 
+                                             if t['from'] == my_p_name and t['to'] == to_p_name 
+                                             and t['type'] == t_type and t.get('give_player') == give_pl
+                                             and t.get('get_player') == get_pl and t.get('price') == net_cash)
+                            
+                                if is_dup:
+                                    st.error("Duplicate Exchange Offer already sent.")
+                                else:
+                                    room['pending_trades'].append({
+                                        'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                        'type': t_type, 
+                                        'give_player': give_pl,
+                                        'get_player': get_pl,
+                                        'price': net_cash,
+                                        'created_at': get_ist_time().isoformat()
+                                    })
+                                    save_auction_data(auction_data)
+                                    st.success("Exchange Proposal Sent!")
+                                    st.rerun()
+
+                        elif t_type == "Loan":
+                            loan_dir = st.radio("Direction", ["Loan Out (You Give)", "Loan In (You Get)"], horizontal=True)
+                            if loan_dir == "Loan Out (You Give)":
+                                pl = st.selectbox("Player to Loan Out", [p['name'] for p in my_part['squad']], key="loan_out_pl")
+                                fee = st.number_input("Loan Fee (They pay you)", 0, 100, 0, key="loan_fee_out")
+                                if st.button("Offer Loan"):
+                                    # Check Duplicate
+                                    is_dup = any(t for t in room['pending_trades'] 
+                                                 if t['from'] == my_p_name and t['to'] == to_p_name 
+                                                 and t['type'] == "Loan Out" and t.get('player') == pl 
+                                                 and t.get('price') == fee)
+                                    if is_dup:
+                                        st.error("Duplicate Loan Offer already sent.")
+                                    else:
+                                        room['pending_trades'].append({
+                                            'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                            'type': "Loan Out", 'player': pl, 'price': fee,
+                                            'created_at': get_ist_time().isoformat()
+                                        })
+                                    save_auction_data(auction_data)
+                                    st.success("Loan Offer Sent!")
+                                    st.rerun()
+                            else:
+                                pl = st.selectbox("Player to Loan In", [p['name'] for p in their_part['squad']], key="loan_in_pl")
+                                fee = st.number_input("Loan Fee (You pay them)", 0, 100, 0, key="loan_fee_in")
+                                if st.button("Request Loan"):
+                                    # Check Duplicate
+                                    is_dup = any(t for t in room['pending_trades'] 
+                                                 if t['from'] == my_p_name and t['to'] == to_p_name 
+                                                 and t['type'] == "Loan In" and t.get('player') == pl 
+                                                 and t.get('price') == fee)
+                                    if is_dup:
+                                        st.error("Duplicate Loan Request already sent.")
+                                    else:
+                                        room['pending_trades'].append({
+                                            'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                            'type': "Loan In", 'player': pl, 'price': fee,
+                                            'created_at': get_ist_time().isoformat()
+                                        })
+                                    save_auction_data(auction_data)
+                                    st.success("Loan Request Sent!")
+                                    st.rerun()
 
             st.divider()
             st.subheader("📜 Global Transaction Log")
