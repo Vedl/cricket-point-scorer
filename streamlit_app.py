@@ -1191,10 +1191,10 @@ def show_main_app():
                                 min_value=1.0, 
                                 value=1.0,
                                 step=0.5,
-                                key=f"released_bid_{rp['name']}"
+                                key=f"released_bid_{rp['name']}_{rp.get('from_participant', 'unknown')}"
                             )
                         with col3:
-                            if st.button("🎯 Bid", key=f"released_bid_btn_{rp['name']}"):
+                            if st.button("🎯 Bid", key=f"released_bid_btn_{rp['name']}_{rp.get('from_participant', 'unknown')}"):
                                 valid_increment = True
                                 err_msg = ""
                                 
