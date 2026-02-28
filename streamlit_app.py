@@ -1391,8 +1391,9 @@ def show_main_app():
             
             if not current_participant:
                 st.error("⚠️ You are not linked to any team. You cannot place bids.")
-                # st.stop() # Optional: Stop rendering rest of bid UI
-            
+            elif is_eliminated:
+                st.error("❌ **You are eliminated.** You cannot place bids on unsold players.")
+                current_participant = None  # Prevent further bid UI from rendering
             else:
                  total_budget = current_participant.get('budget', 0)
                  my_active_bids_total = sum(
@@ -1484,7 +1485,12 @@ def show_main_app():
             st.subheader("🔄 Manage Squad / Release Player")
             
             # We reuse current_participant from bidding logic if available
-            if current_participant:
+            # Re-fetch participant in case it was cleared by elimination check above
+            release_participant = next((p for p in room['participants'] if p.get('user') == user or p['name'] == user), None)
+            if is_eliminated:
+                st.error("❌ **You are eliminated.** You cannot release players.")
+            elif release_participant:
+                current_participant = release_participant
                 st.caption(f"Managing Squad for: **{current_participant['name']}**")
                 
                 if current_participant['squad']:
@@ -1582,10 +1588,18 @@ def show_main_app():
         with squad_tabs[1]:
             st.subheader("🔄 Trade Center")
             
+            # Check if current user is eliminated
+            trade_user_eliminated = False
+            if my_p and my_p.get('eliminated', False):
+                trade_user_eliminated = True
+            
             # Check Phase for Trading
             current_phase = room.get('game_phase', 'Bidding')
             if current_phase == 'Locked':
                 st.info("🔒 Trading is currently LOCKED for Gameweek processing.")
+            elif trade_user_eliminated and not is_admin:
+                st.error("❌ **You have been eliminated from the tournament.** You can only spectate trades.")
+                st.info(f"Eliminated in: {my_p.get('eliminated_phase', 'Unknown').upper()} phase")
             else:
                 # Fix: Use Participant Name (not just username) to filter trades
                 my_p_name = my_p['name'] if my_p else user
@@ -2054,8 +2068,16 @@ def show_main_app():
 
                 st.subheader("Send Proposal")
                 
-                parts = [p['name'] for p in room['participants']]
-                to_p_name = st.selectbox("Offer To", [x for x in parts if x != my_p_name], key="tp_to")
+                # Only non-eliminated participants can send/receive proposals
+                if trade_user_eliminated:
+                    st.error("❌ **You are eliminated.** You cannot send trade proposals.")
+                else:
+                    # Filter to only show non-eliminated participants as trade partners
+                    eligible_partners = [p['name'] for p in room['participants'] if p['name'] != my_p_name and not p.get('eliminated', False)]
+                    if not eligible_partners:
+                        st.warning("No eligible trade partners available.")
+                    else:
+                        to_p_name = st.selectbox("Offer To", eligible_partners, key="tp_to")
                 
                 t_type = st.radio("Type", ["Transfer (Buy)", "Transfer (Sell)", "Exchange", "Loan"], horizontal=True, key="tp_type_simple")
                 
@@ -3293,8 +3315,9 @@ def show_main_app():
             # Show current standings for knockout preview
             if room.get('gameweek_scores'):
                 with st.expander("👀 Preview Knockout Results", expanded=False):
-                    # Calculate cumulative standings
+                    # Calculate cumulative standings (only non-eliminated participants)
                     p_totals = {}
+                    active_participants = [p for p in room['participants'] if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
                         scores_with_bonus = scores.copy()
                         hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
@@ -3303,7 +3326,7 @@ def show_main_app():
                         
                         locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
                         
-                        for participant in room['participants']:
+                        for participant in active_participants:
                             p_name = participant['name']
                             if p_name not in p_totals:
                                 p_totals[p_name] = 0
@@ -3357,8 +3380,9 @@ def show_main_app():
                 st.warning("⚠️ **Process Knockout** is irreversible! This will eliminate bottom participants and release their qualifying players.")
                 
                 if st.button(f"🔥 Process {phase_names.get(phase, phase)} Knockout", type="primary"):
-                    # Calculate final standings
+                    # Calculate final standings (only non-eliminated participants)
                     p_totals = {}
+                    active_participants = [p for p in room['participants'] if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
                         scores_with_bonus = scores.copy()
                         hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
@@ -3367,7 +3391,7 @@ def show_main_app():
                         
                         locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
                         
-                        for participant in room['participants']:
+                        for participant in active_participants:
                             p_name = participant['name']
                             if p_name not in p_totals:
                                 p_totals[p_name] = 0
