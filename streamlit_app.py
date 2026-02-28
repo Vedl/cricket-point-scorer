@@ -358,7 +358,7 @@ def render_live_auction_fragment(room_code, user):
     
     if room.get('big_auction_complete'):
         st.success("✅ Big Auction is complete! Use 'Open Bidding' tab to bid on unsold players.")
-    elif not room['participants']:
+    elif not room.get('participants', []):
         st.warning("Add participants before starting the live auction.")
     else:
         # Live auction state
@@ -474,7 +474,7 @@ def render_live_auction_fragment(room_code, user):
                 
                 # 4 Columns Grid
                 cols = st.columns(4)
-                for i, p in enumerate(room['participants']):
+                for i, p in enumerate(room.get('participants', [])):
                      with cols[i % 4]:
                          # Calculate Budget %
                          budget_pct = min(100, max(0, (p['budget'] / 500) * 100))
@@ -501,11 +501,11 @@ def render_live_auction_fragment(room_code, user):
                      
                      st.markdown("---")
                      st.caption("📋 **Detailed Squad View**")
-                     p_options = ["None"] + [p['name'] for p in room['participants']]
+                     p_options = ["None"] + [p['name'] for p in room.get('participants', [])]
                      selected_p_view = st.selectbox("Select Participant to view Squad", p_options, key="waiting_dash_select")
                      
                      if selected_p_view != "None":
-                         p_data = next((p for p in room['participants'] if p['name'] == selected_p_view), None)
+                         p_data = next((p for p in room.get('participants', []) if p['name'] == selected_p_view), None)
                          if p_data and p_data['squad']:
                              squad_df = []
                              for pl in p_data['squad']:
@@ -533,7 +533,7 @@ def render_live_auction_fragment(room_code, user):
             with st.expander("📊 Team Budgets & Rosters", expanded=False):
                  st.markdown("### 🏦 Live Budgets")
                  cols = st.columns(3)
-                 for i, p in enumerate(room['participants']):
+                 for i, p in enumerate(room.get('participants', [])):
                      with cols[i % 3]:
                          st.markdown(f"**{p['name']}**")
                          # Assume 100M is max for visualization base
@@ -544,11 +544,11 @@ def render_live_auction_fragment(room_code, user):
 
                  st.markdown("---")
                  st.caption("📋 **Detailed Squad View**")
-                 p_options = ["Select Team..."] + [p['name'] for p in room['participants']]
+                 p_options = ["Select Team..."] + [p['name'] for p in room.get('participants', [])]
                  selected_p_view = st.selectbox("View Squad", p_options, label_visibility="collapsed", key="active_dash_select")
                  
                  if selected_p_view != "Select Team...":
-                     p_data = next((p for p in room['participants'] if p['name'] == selected_p_view), None)
+                     p_data = next((p for p in room.get('participants', []) if p['name'] == selected_p_view), None)
                      if p_data and p_data['squad']:
                          squad_df = []
                          for pl in p_data['squad']:
@@ -626,7 +626,7 @@ def render_live_auction_fragment(room_code, user):
             
             # Auto-Sell / Auto-Pass Logic
             # If timer expired OR (everyone else opted out and there is a bidder)
-            active_participants_count = len([p for p in room['participants'] if p['name'] not in opted_out])
+            active_participants_count = len([p for p in room.get('participants', []) if p['name'] not in opted_out])
             # If current bidder exists, they are active but we don't count them as "others"
             others_active = active_participants_count - (1 if current_bidder and current_bidder not in opted_out else 0)
             
@@ -643,7 +643,7 @@ def render_live_auction_fragment(room_code, user):
             
             # Determine current user's participant status
             my_name = st.session_state.get('logged_in_user', 'Unknown')
-            my_participant = next((p for p in room['participants'] if p.get('user') == my_name or p['name'] == my_name), None)
+            my_participant = next((p for p in room.get('participants', []) if p.get('user') == my_name or p['name'] == my_name), None)
             is_my_turn = my_participant and my_participant['name'] not in opted_out and my_participant['name'] != current_bidder
             
             if not should_autosell and not should_autopass:
@@ -659,7 +659,7 @@ def render_live_auction_fragment(room_code, user):
                         # Column 1: Bidder Selection
                         with col1:
                             if is_admin:
-                                bidder_options = [p['name'] for p in room['participants'] if p['name'] not in opted_out]
+                                bidder_options = [p['name'] for p in room.get('participants', []) if p['name'] not in opted_out]
                                 default_idx = 0
                                 if my_participant and my_participant['name'] in bidder_options:
                                     default_idx = bidder_options.index(my_participant['name'])
@@ -672,7 +672,7 @@ def render_live_auction_fragment(room_code, user):
                                     bidder_name = None
                                     st.warning("You are not an active participant for this player")
                             
-                            bidder = next((p for p in room['participants'] if p['name'] == bidder_name), None)
+                            bidder = next((p for p in room.get('participants', []) if p['name'] == bidder_name), None)
     
                         # Column 2: Bid Amount
                         with col2:
@@ -789,7 +789,7 @@ def render_live_auction_fragment(room_code, user):
                     st.write("---")
                     if st.button("💸 Boost All Budgets (+150M)"):
                         # One-time migration for existing rooms
-                        for p in room['participants']:
+                        for p in room.get('participants', []):
                             p['budget'] = p.get('budget', 0) + 150
                         save_auction_data(auction_data)
                         st.success("✅ Added 150M to everyone's budget!")
@@ -805,7 +805,7 @@ def render_live_auction_fragment(room_code, user):
                 # We can use a short sleep then execute.
                 
                 # EXECUTE SALE
-                winner = next((p for p in room['participants'] if p['name'] == current_bidder), None)
+                winner = next((p for p in room.get('participants', []) if p['name'] == current_bidder), None)
                 if winner:
                     winner['squad'].append({
                         'name': current_player,
@@ -917,12 +917,12 @@ def show_main_app():
     
     # === TEAM ASSIGNMENT LOGIC (Auto-Match or Claim) ===
     # 1. Check if user is already managing a team
-    my_p = next((p for p in room['participants'] if p.get('user') == user), None)
+    my_p = next((p for p in room.get('participants', []) if p.get('user') == user), None)
     
     if not my_p:
         # 2. Try Auto-Match (Username == Participant Name)
         # Look for UNCLAIMED participant with exact name match
-        auto_match = next((p for p in room['participants'] if p['name'] == user and p.get('user') is None), None)
+        auto_match = next((p for p in room.get('participants', []) if p['name'] == user and p.get('user') is None), None)
         
         if auto_match:
             auto_match['user'] = user
@@ -934,7 +934,7 @@ def show_main_app():
 
         # 3. If still no team, FORCE CLAIM (Blocking UI)
         # Check for any unclaimed teams
-        unclaimed = [p['name'] for p in room['participants'] if p.get('user') is None]
+        unclaimed = [p['name'] for p in room.get('participants', []) if p.get('user') is None]
         
         if unclaimed:
             st.container().warning(f"👋 Welcome, **{user}**! You are not linked to a team yet.")
@@ -944,7 +944,7 @@ def show_main_app():
             selected_team = st.selectbox("Select which team belongs to you:", unclaimed, key="force_claim_sel")
             
             if st.button("🚀 Join Team & Enter Room", type="primary"):
-                p_claim = next((p for p in room['participants'] if p['name'] == selected_team), None)
+                p_claim = next((p for p in room.get('participants', []) if p['name'] == selected_team), None)
                 if p_claim:
                     p_claim['user'] = user
                     save_auction_data(auction_data)
@@ -982,16 +982,16 @@ def show_main_app():
     st.sidebar.markdown(f"**Members:** {len(room['members'])}")
 
     # === CLAIM TEAM LOGIC ===
-    my_p = next((p for p in room['participants'] if p.get('user') == user), None)
+    my_p = next((p for p in room.get('participants', []) if p.get('user') == user), None)
     if not my_p:
         # Check for unclaimed teams
-        unclaimed = [p['name'] for p in room['participants'] if p.get('user') is None]
+        unclaimed = [p['name'] for p in room.get('participants', []) if p.get('user') is None]
         if unclaimed:
             st.sidebar.divider()
             st.sidebar.warning("⚠️ You are not managing a team!")
             claim_name = st.sidebar.selectbox("Select Your Team", [""] + unclaimed, key="claim_team_sel")
             if claim_name and st.sidebar.button("Claim Team"):
-                p_claim = next((p for p in room['participants'] if p['name'] == claim_name), None)
+                p_claim = next((p for p in room.get('participants', []) if p['name'] == claim_name), None)
                 if p_claim:
                     p_claim['user'] = user
                     save_auction_data(auction_data)
@@ -1004,7 +1004,7 @@ def show_main_app():
         # Admin View of ALL Budgets
         if is_admin:
             with st.sidebar.expander("🏦 All Team Budgets"):
-                all_budgets = [{"Team": p['name'], "Budget": p.get('budget', 0)} for p in room['participants']]
+                all_budgets = [{"Team": p['name'], "Budget": p.get('budget', 0)} for p in room.get('participants', [])]
                 # Sort by budget ascending (lowest first = most spent usually) or name
                 all_budgets.sort(key=lambda x: x['Team'])
                 st.dataframe(pd.DataFrame(all_budgets), hide_index=True)
@@ -1014,7 +1014,7 @@ def show_main_app():
     # === GLOBAL TEAM STATS VISIBILITY ===
     with st.sidebar.expander("📊 All Team Stats & Budgets", expanded=False):
         stats_data = []
-        for p in room['participants']:
+        for p in room.get('participants', []):
             squad_list = p.get('squad', [])
             # Count Roles
             n_bat = sum(1 for pl in squad_list if player_role_lookup.get(pl['name']) == 'Batsman')
@@ -1049,7 +1049,7 @@ def show_main_app():
         if switch_count < 1:
             with st.sidebar.expander("⚠️ Made a mistake? Switch Team"):
                 st.caption("You can switch your team **once**.")
-                unclaimed_teams = [p['name'] for p in room['participants'] if p.get('user') is None]
+                unclaimed_teams = [p['name'] for p in room.get('participants', []) if p.get('user') is None]
                 
                 if unclaimed_teams:
                     new_team_sel = st.selectbox("Switch to:", unclaimed_teams, key="switch_team_sel")
@@ -1059,7 +1059,7 @@ def show_main_app():
                         my_p['user'] = None
                         
                         # Link New
-                        new_p = next((p for p in room['participants'] if p['name'] == new_team_sel), None)
+                        new_p = next((p for p in room.get('participants', []) if p['name'] == new_team_sel), None)
                         if new_p:
                             new_p['user'] = user
                             room.setdefault('user_switches', {})[user] = switch_count + 1
@@ -1165,7 +1165,7 @@ def show_main_app():
 
             # Helper: Get current participant info
             my_p_name_check = st.session_state.get('logged_in_user')
-            my_participant = next((p for p in room['participants'] if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
+            my_participant = next((p for p in room.get('participants', []) if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
 
             # Check if participant is eliminated
             is_eliminated = my_participant.get('eliminated', False) if my_participant else False
@@ -1298,7 +1298,7 @@ def show_main_app():
                 
                 if should_award:
                     # Award the player to the bidder
-                    bidder_participant = next((p for p in room['participants'] if p['name'] == bid['bidder']), None)
+                    bidder_participant = next((p for p in room.get('participants', []) if p['name'] == bid['bidder']), None)
                     if bidder_participant and bid['amount'] <= bidder_participant.get('budget', 0):
                         bidder_participant['squad'].append({
                             'name': bid['player'],
@@ -1352,7 +1352,7 @@ def show_main_app():
             
             # Get unsold players logic
             all_drafted = []
-            for p in room['participants']:
+            for p in room.get('participants', []):
                 all_drafted.extend([pl['name'] for pl in p['squad']])
             
             unsold_players = room.get('unsold_players', [])
@@ -1387,7 +1387,7 @@ def show_main_app():
             
             # Get current user's participant profile
             # Strict check: Must be linked user or exact match name
-            current_participant = next((p for p in room['participants'] if p.get('user') == user or p['name'] == user), None)
+            current_participant = next((p for p in room.get('participants', []) if p.get('user') == user or p['name'] == user), None)
             
             if not current_participant:
                 st.error("⚠️ You are not linked to any team. You cannot place bids.")
@@ -1486,7 +1486,7 @@ def show_main_app():
             
             # We reuse current_participant from bidding logic if available
             # Re-fetch participant in case it was cleared by elimination check above
-            release_participant = next((p for p in room['participants'] if p.get('user') == user or p['name'] == user), None)
+            release_participant = next((p for p in room.get('participants', []) if p.get('user') == user or p['name'] == user), None)
             if is_eliminated:
                 st.error("❌ **You are eliminated.** You cannot release players.")
             elif release_participant:
@@ -1636,8 +1636,8 @@ def show_main_app():
                                 c2.warning("🔒 Market Closed")
                             else:
                                 if c1.button("✅ Accept", key=f"acc_{trade['id']}"):
-                                    sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
-                                    receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
+                                    sender = next((p for p in room.get('participants', []) if p['name'] == trade['from']), None)
+                                    receiver = next((p for p in room.get('participants', []) if p['name'] == trade['to']), None)
                                     
                                     # Force fresh reload of critical values from room to ensure no stale object refs
                                     # (Although 'room' is reloaded, explicit lookups are safe)
@@ -1883,8 +1883,8 @@ def show_main_app():
                                 c1, c2 = st.columns(2)
                                 if c1.button("✅ Approve", key=f"adm_app_{trade_id}", type="primary"):
                                     # --- RE-VALIDATE & EXECUTE ---
-                                    sender = next((p for p in room['participants'] if p['name'] == trade['from']), None)
-                                    receiver = next((p for p in room['participants'] if p['name'] == trade['to']), None)
+                                    sender = next((p for p in room.get('participants', []) if p['name'] == trade['from']), None)
+                                    receiver = next((p for p in room.get('participants', []) if p['name'] == trade['to']), None)
                                     
                                     success = False
                                     fail_reason = "Unknown Error"
@@ -2032,12 +2032,12 @@ def show_main_app():
                     with st.expander("Show Console"):
                         cols = st.columns(2)
                         with cols[0]:
-                            sender_name = st.selectbox("Sender Team", [p['name'] for p in room['participants']], key="adm_sender")
+                            sender_name = st.selectbox("Sender Team", [p['name'] for p in room.get('participants', [])], key="adm_sender")
                         with cols[1]:
-                            receiver_name = st.selectbox("Receiver Team", [p['name'] for p in room['participants'] if p['name'] != sender_name], key="adm_receiver")
+                            receiver_name = st.selectbox("Receiver Team", [p['name'] for p in room.get('participants', []) if p['name'] != sender_name], key="adm_receiver")
                         
-                        sender_part = next((p for p in room['participants'] if p['name'] == sender_name), None)
-                        receiver_part = next((p for p in room['participants'] if p['name'] == receiver_name), None)
+                        sender_part = next((p for p in room.get('participants', []) if p['name'] == sender_name), None)
+                        receiver_part = next((p for p in room.get('participants', []) if p['name'] == receiver_name), None)
                         
                         if sender_part and receiver_part:
                             pl_to_move = st.selectbox("Player to Move", [p['name'] for p in sender_part['squad']], key="adm_mv_pl")
@@ -2074,7 +2074,7 @@ def show_main_app():
                     st.error("❌ **You are eliminated.** You cannot send trade proposals.")
                 else:
                     # Filter to only show non-eliminated participants as trade partners
-                    eligible_partners = [p['name'] for p in room['participants'] if p['name'] != my_p_name and not p.get('eliminated', False)]
+                    eligible_partners = [p['name'] for p in room.get('participants', []) if p['name'] != my_p_name and not p.get('eliminated', False)]
                     if not eligible_partners:
                         st.warning("No eligible trade partners available.")
                     else:
@@ -2083,8 +2083,8 @@ def show_main_app():
                 if to_p_name:
                     t_type = st.radio("Type", ["Transfer (Buy)", "Transfer (Sell)", "Exchange", "Loan"], horizontal=True, key="tp_type_simple")
                 
-                    my_part = next((p for p in room['participants'] if p['name'] == my_p_name), None)
-                    their_part = next((p for p in room['participants'] if p['name'] == to_p_name), None)
+                    my_part = next((p for p in room.get('participants', []) if p['name'] == my_p_name), None)
+                    their_part = next((p for p in room.get('participants', []) if p['name'] == to_p_name), None)
                 
                     if my_part and their_part:
                         if t_type == "Transfer (Sell)":
@@ -2232,7 +2232,7 @@ def show_main_app():
             if st.button("🔄 Refresh Now"): st.rerun()
 
             all_squads_data = []
-            for p in room['participants']:
+            for p in room.get('participants', []):
                 for pl in p['squad']:
                     all_squads_data.append({
                         'Participant': p['name'],
@@ -2245,7 +2245,7 @@ def show_main_app():
             if all_squads_data:
                 df = pd.DataFrame(all_squads_data)
                 c1, c2 = st.columns(2)
-                with c1: sel_p = st.multiselect("Filter by Participant", [p['name'] for p in room['participants']])
+                with c1: sel_p = st.multiselect("Filter by Participant", [p['name'] for p in room.get('participants', [])])
                 with c2: search = st.text_input("Search Player")
                 
                 if sel_p: df = df[df['Participant'].isin(sel_p)]
@@ -2280,7 +2280,7 @@ def show_main_app():
                     # === AUTO-FIX & VALIDATION LOGIC ===
                     sanitization_log = []
                     
-                    for p in room['participants']:
+                    for p in room.get('participants', []):
                         changes = []
                         
                         # 1. TRIM SQUAD (>19 Players)
@@ -2333,7 +2333,7 @@ def show_main_app():
                             'injury_reserve': p.get('injury_reserve'),
                             'budget': p.get('budget', 0)
                         } 
-                        for p in room['participants']
+                        for p in room.get('participants', [])
                     }
                     room.setdefault('gameweek_squads', {})[str(curr_gw)] = snap
                     
@@ -2353,7 +2353,7 @@ def show_main_app():
                     
                     # === PROCESS LOAN RETURNS ===
                     start_gw_log = []
-                    for p in room['participants']:
+                    for p in room.get('participants', []):
                         # Iterate copy since we might modify
                         for pl in p['squad'][:]:
                             expiry = pl.get('loan_expiry_gw')
@@ -2361,7 +2361,7 @@ def show_main_app():
                             
                             if expiry and origin and expiry <= new_gw:
                                 # Return Player
-                                origin_p = next((x for x in room['participants'] if x['name'] == origin), None)
+                                origin_p = next((x for x in room.get('participants', []) if x['name'] == origin), None)
                                 if origin_p:
                                     p['squad'].remove(pl)
                                     # Clean metadata
@@ -2371,7 +2371,7 @@ def show_main_app():
                                     start_gw_log.append(f"returned {pl['name']} from {p['name']} to {origin}")
                     
                     # Reset paid releases for new GW
-                    for p in room['participants']:
+                    for p in room.get('participants', []):
                         p['paid_releases'] = {} 
                     
                     # === UNLOCK MARKET ===
@@ -2388,7 +2388,7 @@ def show_main_app():
                 st.info("Special Actions")
                 if not room.get('gw2_boost_given'):
                     if st.button("💰 Grant 100M Budget Boost (GW1 -> GW2)"):
-                        for p in room['participants']:
+                        for p in room.get('participants', []):
                             p['budget'] = p.get('budget', 0) + 100
                         room['gw2_boost_given'] = True
                         save_auction_data(auction_data)
@@ -2484,18 +2484,18 @@ def show_main_app():
         if is_admin:
             with st.expander("👮 Admin: Force Add Player"):
                 st.info("Forcefully add a player to a squad for a specific price. If the player is owned by someone else, they will be moved.")
-                f_part_name = st.selectbox("Select Target Participant", [p['name'] for p in room['participants']], key="force_part_sel")
+                f_part_name = st.selectbox("Select Target Participant", [p['name'] for p in room.get('participants', [])], key="force_part_sel")
                 f_player_name = st.selectbox("Select Player to Add", sorted(player_names), key="force_player_sel")
                 f_price = st.number_input("Force Price (M)", value=0, step=1, key="force_price_val")
                 
                 if st.button("🚨 Force Add Player"):
                     # 1. Find Target Participant
-                    target_p = next((p for p in room['participants'] if p['name'] == f_part_name), None)
+                    target_p = next((p for p in room.get('participants', []) if p['name'] == f_part_name), None)
                     
                     if target_p:
                         # 2. Check Ownership & Remove if necessary
                         prev_owner = None
-                        for p in room['participants']:
+                        for p in room.get('participants', []):
                             found = next((pl for pl in p['squad'] if pl['name'] == f_player_name), None)
                             if found:
                                 p['squad'].remove(found)
@@ -2537,10 +2537,10 @@ def show_main_app():
                  with st.expander("👮 Admin: Force Release Player (Full Refund)"):
                     st.info("Release a player from a squad and grant 100% refund (e.g. for Ruled Out players). Player returns to Unsold pool.")
                     
-                    f_rel_part_name = st.selectbox("Select Participant", [p['name'] for p in room['participants']], key="force_rel_part_sel")
+                    f_rel_part_name = st.selectbox("Select Participant", [p['name'] for p in room.get('participants', [])], key="force_rel_part_sel")
                     
                     # Find squad
-                    target_p_rel = next((p for p in room['participants'] if p['name'] == f_rel_part_name), None)
+                    target_p_rel = next((p for p in room.get('participants', []) if p['name'] == f_rel_part_name), None)
                     if target_p_rel and target_p_rel['squad']:
                         squad_opts = [p['name'] for p in target_p_rel['squad']]
                         f_rel_player = st.selectbox("Select Player to Release", squad_opts, key="force_rel_player_sel")
@@ -2640,7 +2640,7 @@ def show_main_app():
                             if pd.isna(val) or str(val).strip() == '': continue
                             
                             val_str = str(val).strip()
-                            p_match = next((p for p in room['participants'] if p['name'].lower() == val_str.lower()), None)
+                            p_match = next((p for p in room.get('participants', []) if p['name'].lower() == val_str.lower()), None)
                             if p_match:
                                 potential_participants[idx] = p_match['name']
                             else:
@@ -2710,7 +2710,7 @@ def show_main_app():
                                     
                                     matches.append({
                                         "Row": r_idx + 1,
-                                        "Participant (Matched)": p_name if any(p['name'] == p_name for p in room['participants']) else "UNKNOWN",
+                                        "Participant (Matched)": p_name if any(p['name'] == p_name for p in room.get('participants', [])) else "UNKNOWN",
                                         "Participant (Raw)": p_name,
                                         "Player (Raw)": pl_raw,
                                         "Player (DB)": pl_match, # To be filled by fuzzy
@@ -2720,7 +2720,7 @@ def show_main_app():
                             
                             if matches:
                                 import difflib
-                                valid_parts = [p['name'] for p in room['participants']]
+                                valid_parts = [p['name'] for p in room.get('participants', [])]
                                 
                                 # Auto-create Shadow Participants
                                 found_parts_raw = set(m['Participant (Raw)'] for m in matches)
@@ -2734,14 +2734,14 @@ def show_main_app():
                                             'squad': [],
                                             'user': None
                                         }
-                                        room['participants'].append(new_p)
+                                        room.get('participants', []).append(new_p)
                                         new_parts_created.append(p_raw)
                                 if new_parts_created:
                                     save_auction_data(auction_data)
                                     st.toast(f"Created Auto-Teams: {', '.join(new_parts_created)}")
                                     
                                     # REFRESH valid_parts to include new ones
-                                    valid_parts = [p['name'] for p in room['participants']]
+                                    valid_parts = [p['name'] for p in room.get('participants', [])]
                                     
                                     # UPDATE Matches to reflect new teams (Replace UNKNOWN)
                                     for m in matches:
@@ -2785,7 +2785,7 @@ def show_main_app():
                 else:
                     st.warning("⚠️ No Budgets detected in Row 27. Default calculation will apply.")
                 
-                valid_parts = [p['name'] for p in room['participants']]
+                valid_parts = [p['name'] for p in room.get('participants', [])]
                 
                 # Bind Editor to Session State? No, just initialize from it.
                 # Actually, to keep edits across reruns (if they click other buttons), we need logic.
@@ -2819,7 +2819,7 @@ def show_main_app():
                     success = 0
                     
                     if 'unsold_players' not in room:
-                        all_owned = [pl['name'] for p in room['participants'] for pl in p['squad']]
+                        all_owned = [pl['name'] for p in room.get('participants', []) for pl in p['squad']]
                         room['unsold_players'] = [p for p in player_names if p not in all_owned]
                     
                     for _, row in edited_df.iterrows():
@@ -2829,7 +2829,7 @@ def show_main_app():
                         if p_curr == "UNKNOWN" or not pl_name or pd.isna(pl_name): continue
                         pl_name = str(pl_name).strip()
                         
-                        part_obj = next((p for p in room['participants'] if p['name'] == p_curr), None)
+                        part_obj = next((p for p in room.get('participants', []) if p['name'] == p_curr), None)
                         if part_obj:
                             # Dedupe
                             if any(x['name'] == pl_name for x in part_obj['squad']): continue
@@ -2853,7 +2853,7 @@ def show_main_app():
                     if 'extracted_budgets' in st.session_state:
                         for p_name, budget in st.session_state.extracted_budgets.items():
                             # Find participant (handle name changes via map could be tricky, but usually name matches)
-                            part = next((p for p in room['participants'] if p['name'] == p_name), None)
+                            part = next((p for p in room.get('participants', []) if p['name'] == p_name), None)
                             if part:
                                 part['budget'] = budget
                                 
@@ -2907,11 +2907,11 @@ def show_main_app():
             with st.expander("🚫 Reverse Player Release (Admin)"):
                  st.info("Undo a player release: Returns player to squad, deducts the refund from budget, and optionally resets the 'Paid Release' flag.")
                  
-                 p_names_rev = [p['name'] for p in room['participants']]
+                 p_names_rev = [p['name'] for p in room.get('participants', [])]
                  selected_p_rev = st.selectbox("Select Participant", [""] + p_names_rev, key="rev_p_select")
                  
                  if selected_p_rev:
-                     p_obj_rev = next((p for p in room['participants'] if p['name'] == selected_p_rev), None)
+                     p_obj_rev = next((p for p in room.get('participants', []) if p['name'] == selected_p_rev), None)
                      
                      unsold_list = room.get('unsold_players', [])
                      player_to_reverse = st.selectbox("Select Player to Restore", [""] + sorted(unsold_list), key="rev_pl_select")
@@ -3135,7 +3135,7 @@ def show_main_app():
                                 returned_loans = []
                                 current_gw_int = int(selected_gw)
                                 
-                                for p in room['participants']:
+                                for p in room.get('participants', []):
                                     to_remove = []
                                     for pl in p['squad']:
                                         expiry = pl.get('loan_expiry_gw')
@@ -3143,7 +3143,7 @@ def show_main_app():
                                         
                                         # If expiry matches current processed GW, return now
                                         if expiry and expiry == current_gw_int and origin:
-                                            origin_p = next((x for x in room['participants'] if x['name'] == origin), None)
+                                            origin_p = next((x for x in room.get('participants', []) if x['name'] == origin), None)
                                             if origin_p:
                                                 to_remove.append(pl)
                                                 # Clean metadata
@@ -3319,7 +3319,7 @@ def show_main_app():
                 with st.expander("👀 Preview Knockout Results", expanded=False):
                     # Calculate cumulative standings (only non-eliminated participants)
                     p_totals = {}
-                    active_participants = [p for p in room['participants'] if not p.get('eliminated', False)]
+                    active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
                         scores_with_bonus = scores.copy()
                         hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
@@ -3384,7 +3384,7 @@ def show_main_app():
                 if st.button(f"🔥 Process {phase_names.get(phase, phase)} Knockout", type="primary"):
                     # Calculate final standings (only non-eliminated participants)
                     p_totals = {}
-                    active_participants = [p for p in room['participants'] if not p.get('eliminated', False)]
+                    active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
                         scores_with_bonus = scores.copy()
                         hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
@@ -3433,7 +3433,7 @@ def show_main_app():
                     
                     # Release players from eliminated participants
                     released = room.setdefault('released_players', [])
-                    for participant in room['participants']:
+                    for participant in room.get('participants', []):
                         if participant['name'] in eliminated_names:
                             participant['eliminated'] = True
                             participant['eliminated_phase'] = phase
@@ -3607,7 +3607,7 @@ def show_main_app():
                     squad_source = "🔒 Locked Squads" if locked_squads else "⚠️ Current Squads (no snapshot found)"
                     st.caption(f"Squad source: {squad_source} | GW key: '{gw_key}' | Available snapshots: {list(room.get('gameweek_squads', {}).keys())}")
                     
-                    for participant in room['participants']:
+                    for participant in room.get('participants', []):
                         p_name = participant['name']
                         
                         # Resolve Squad
@@ -3638,14 +3638,14 @@ def show_main_app():
                 # Logic: Sum of (Score for GW_i using Squad_Locked_at_GW_i)
                 # Correctly accounts for transfers/loans over time.
                 
-                p_totals = {p['name']: 0 for p in room['participants']}
-                p_details = {p['name']: [] for p in room['participants']} # Store top players per GW
+                p_totals = {p['name']: 0 for p in room.get('participants', [])}
+                p_details = {p['name']: [] for p in room.get('participants', [])} # Store top players per GW
                 
                 # Iterate ALL processed gameweeks
                 for gw, scores in room.get('gameweek_scores', {}).items():
                      locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
                      
-                     for participant in room['participants']:
+                     for participant in room.get('participants', []):
                         p_name = participant['name']
                         
                         # Resolve Squad for THIS specific GW
@@ -3701,8 +3701,8 @@ def show_main_app():
                 
                 st.divider()
                 st.subheader("📋 Detailed Best 11")
-                detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room['participants']])
-                detail_p = next((p for p in room['participants'] if p['name'] == detail_participant), None)
+                detail_participant = st.selectbox("View Best 11 for", [p['name'] for p in room.get('participants', [])])
+                detail_p = next((p for p in room.get('participants', []) if p['name'] == detail_participant), None)
                 if detail_p:
                     # === CUMULATIVE VIEW LOGIC ===
                     if view_mode == "Overall (Cumulative)":
