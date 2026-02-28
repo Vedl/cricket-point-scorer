@@ -643,7 +643,7 @@ def render_live_auction_fragment(room_code, user):
             
             # Determine current user's participant status
             my_name = st.session_state.get('logged_in_user', 'Unknown')
-            my_participant = next((p for p in room.get('participants', []) if p.get('user') == my_name or p['name'] == my_name), None)
+            my_participant = next((p for p in room.get('participants', []) if p.get('user') == my_name), None)
             is_my_turn = my_participant and my_participant['name'] not in opted_out and my_participant['name'] != current_bidder
             
             if not should_autosell and not should_autopass:
@@ -1165,7 +1165,7 @@ def show_main_app():
 
             # Helper: Get current participant info
             my_p_name_check = st.session_state.get('logged_in_user')
-            my_participant = next((p for p in room.get('participants', []) if p.get('user') == my_p_name_check or p['name'] == my_p_name_check), None)
+            my_participant = next((p for p in room.get('participants', []) if p.get('user') == my_p_name_check), None)
 
             # Check if participant is eliminated
             is_eliminated = my_participant.get('eliminated', False) if my_participant else False
@@ -1386,8 +1386,8 @@ def show_main_app():
             st.markdown("### 🆕 Place New Bid")
             
             # Get current user's participant profile
-            # Strict check: Must be linked user or exact match name
-            current_participant = next((p for p in room.get('participants', []) if p.get('user') == user or p['name'] == user), None)
+            # Strict check: Must be linked user
+            current_participant = next((p for p in room.get('participants', []) if p.get('user') == user), None)
             
             if not current_participant:
                 st.error("⚠️ You are not linked to any team. You cannot place bids.")
@@ -1486,7 +1486,7 @@ def show_main_app():
             
             # We reuse current_participant from bidding logic if available
             # Re-fetch participant in case it was cleared by elimination check above
-            release_participant = next((p for p in room.get('participants', []) if p.get('user') == user or p['name'] == user), None)
+            release_participant = next((p for p in room.get('participants', []) if p.get('user') == user), None)
             if is_eliminated:
                 st.error("❌ **You are eliminated.** You cannot release players.")
             elif release_participant:
