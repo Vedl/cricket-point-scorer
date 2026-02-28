@@ -1189,7 +1189,6 @@ def show_main_app():
                             bid_amount = st.number_input(
                                 "Bid (M)", 
                                 min_value=1.0, 
-                                max_value=float(my_participant.get('budget', 100)),
                                 value=1.0,
                                 step=0.5,
                                 key=f"released_bid_{rp['name']}"
