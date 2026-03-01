@@ -1170,13 +1170,14 @@ def show_main_app():
             # Check if participant is eliminated
             is_eliminated = my_participant.get('eliminated', False) if my_participant else False
             
-            if is_eliminated:
+            # Admin can always view the bidding UI for management, even if eliminated
+            if is_eliminated and not is_admin:
                 st.error("❌ **You have been eliminated from the tournament.** You cannot place bids.")
                 st.info(f"Eliminated in: {my_participant.get('eliminated_phase', 'Unknown').upper()} phase")
             
             # Released Players Bidding Section (for qualified participants only)
             released_players = room.get('released_players', [])
-            if released_players and my_participant and not is_eliminated:
+            if released_players and my_participant and not (is_eliminated and not is_admin):
                 with st.expander(f"🔓 Bid on Released Players ({len(released_players)} available)"):
                     st.caption("These players were released from eliminated participants and are available for bidding.")
                     
@@ -1228,7 +1229,7 @@ def show_main_app():
                                     st.success(f"✅ Acquired {rp['name']} for {bid_amount}M!")
                                     st.rerun()
 
-            if my_participant and not is_eliminated:
+            if my_participant and not (is_eliminated and not is_admin):
                 with st.expander("🚑 Manage Injury Reserve (IR)"):
                     squad_names = [p['name'] for p in my_participant['squad']]
                     current_ir = my_participant.get('injury_reserve')
@@ -1282,7 +1283,11 @@ def show_main_app():
                     hours_left = time_left.total_seconds() / 3600
                     st.warning(f"⏰ **Bidding closes in {hours_left:.1f} hours** ({global_deadline.strftime('%b %d, %H:%M')})")
                 else:
-                    st.error("⏰ **Bidding deadline has passed!** All active bids will be awarded.")
+                    st.error("⏰ **Bidding deadline has passed!** No new bids can be placed.")
+            
+            # Hard block: determine if bidding is actually allowed
+            deadline_passed = global_deadline and now >= global_deadline
+            bidding_allowed = is_bidding_active and not deadline_passed and not (is_eliminated and not is_admin)
             
             # Process expired bids (auto-award to winners)
             active_bids = room.get('active_bids', [])
@@ -1390,9 +1395,12 @@ def show_main_app():
             
             if not current_participant:
                 st.error("⚠️ You are not linked to any team. You cannot place bids.")
-            elif is_eliminated:
+            elif is_eliminated and not is_admin:
                 st.error("❌ **You are eliminated.** You cannot place bids on unsold players.")
                 current_participant = None  # Prevent further bid UI from rendering
+            elif not bidding_allowed and not is_admin:
+                st.error("⛔ **Bidding is closed.** The deadline has passed or bidding is disabled.")
+                current_participant = None  # Prevent bid UI from rendering
             else:
                  total_budget = current_participant.get('budget', 0)
                  my_active_bids_total = sum(
@@ -1486,7 +1494,7 @@ def show_main_app():
             # We reuse current_participant from bidding logic if available
             # Re-fetch participant in case it was cleared by elimination check above
             release_participant = next((p for p in room.get('participants', []) if p.get('user') == user), None)
-            if is_eliminated:
+            if is_eliminated and not is_admin:
                 st.error("❌ **You are eliminated.** You cannot release players.")
             elif release_participant:
                 current_participant = release_participant
