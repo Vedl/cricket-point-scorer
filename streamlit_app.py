@@ -2280,6 +2280,9 @@ def show_main_app():
                     sanitization_log = []
                     
                     for p in room.get('participants', []):
+                        # Skip eliminated participants entirely
+                        if p.get('eliminated', False):
+                            continue
                         changes = []
                         
                         # 1. TRIM SQUAD (>19 Players)
@@ -3135,6 +3138,8 @@ def show_main_app():
                                 current_gw_int = int(selected_gw)
                                 
                                 for p in room.get('participants', []):
+                                    if p.get('eliminated', False):
+                                        continue
                                     to_remove = []
                                     for pl in p['squad']:
                                         expiry = pl.get('loan_expiry_gw')
@@ -3427,6 +3432,10 @@ def show_main_app():
                                     'phase': phase,
                                     'price': player.get('price', 0)
                                 })
+                            
+                            # Empty their squad completely
+                            participant['squad'] = []
+                            participant['injury_reserve'] = None
                     
                     # Record knockout history
                     room.setdefault('knockout_history', {})[phase] = {
@@ -3585,6 +3594,8 @@ def show_main_app():
                     st.caption(f"Squad source: {squad_source} | GW key: '{gw_key}' | Available snapshots: {list(room.get('gameweek_squads', {}).keys())}")
                     
                     for participant in room.get('participants', []):
+                        if participant.get('eliminated', False):
+                            continue
                         p_name = participant['name']
                         
                         # Resolve Squad
@@ -3615,14 +3626,15 @@ def show_main_app():
                 # Logic: Sum of (Score for GW_i using Squad_Locked_at_GW_i)
                 # Correctly accounts for transfers/loans over time.
                 
-                p_totals = {p['name']: 0 for p in room.get('participants', [])}
-                p_details = {p['name']: [] for p in room.get('participants', [])} # Store top players per GW
+                active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
+                p_totals = {p['name']: 0 for p in active_participants}
+                p_details = {p['name']: [] for p in active_participants} # Store top players per GW
                 
                 # Iterate ALL processed gameweeks
                 for gw, scores in room.get('gameweek_scores', {}).items():
                      locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
                      
-                     for participant in room.get('participants', []):
+                     for participant in active_participants:
                         p_name = participant['name']
                         
                         # Resolve Squad for THIS specific GW
