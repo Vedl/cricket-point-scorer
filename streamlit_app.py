@@ -1189,9 +1189,9 @@ def show_main_app():
                         with col2:
                             bid_amount = st.number_input(
                                 "Bid (M)", 
-                                min_value=1.0, 
-                                value=1.0,
-                                step=0.5,
+                                min_value=5.0, 
+                                value=5.0,
+                                step=1.0,
                                 key=f"released_bid_{rp['name']}_{rp.get('from_participant', 'unknown')}"
                             )
                         with col3:
