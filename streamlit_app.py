@@ -1176,58 +1176,59 @@ def show_main_app():
                 st.info(f"Eliminated in: {my_participant.get('eliminated_phase', 'Unknown').upper()} phase")
             
             # Released Players Bidding Section (for qualified participants only)
-            released_players = room.get('released_players', [])
-            if released_players and my_participant and not (is_eliminated and not is_admin):
-                with st.expander(f"🔓 Bid on Released Players ({len(released_players)} available)"):
-                    st.caption("These players were released from eliminated participants and are available for bidding.")
-                    
-                    for rp in released_players:
-                        col1, col2, col3 = st.columns([3, 1, 1])
-                        with col1:
-                            st.write(f"**{rp['name']}** ({rp.get('team', '?')}) - {rp.get('role', '?')}")
-                            st.caption(f"From: {rp['from_participant']}")
-                        with col2:
-                            bid_amount = st.number_input(
-                                "Bid (M)", 
-                                min_value=5.0, 
-                                value=5.0,
-                                step=1.0,
-                                key=f"released_bid_{rp['name']}_{rp.get('from_participant', 'unknown')}"
-                            )
-                        with col3:
-                            if st.button("🎯 Bid", key=f"released_bid_btn_{rp['name']}_{rp.get('from_participant', 'unknown')}"):
-                                valid_increment = True
-                                err_msg = ""
-                                
-                                # Validate Increments
-                                if bid_amount > 100 and bid_amount % 10 != 0:
-                                    valid_increment = False
-                                    err_msg = "Bids above 100 must be in increments of 10 (e.g., 110, 120)."
-                                elif bid_amount >= 50 and bid_amount % 5 != 0:
-                                     valid_increment = False
-                                     err_msg = "Bids of 50 or above must be in increments of 5 (e.g., 50, 55)."
-
-                                budget = my_participant.get('budget', 0)
-                                if not valid_increment:
-                                    st.error(f"❌ Invalid amount. {err_msg}")
-                                elif bid_amount > budget:
-                                    st.error("Insufficient budget!")
-                                else:
-                                    # Add to squad and deduct budget
-                                    my_participant['squad'].append({
-                                        'name': rp['name'],
-                                        'team': rp.get('team', 'Unknown'),
-                                        'role': rp.get('role', 'Unknown'),
-                                        'price': bid_amount
-                                    })
-                                    my_participant['budget'] = budget - bid_amount
-                                    
-                                    # Remove from released players
-                                    room['released_players'] = [p for p in released_players if p['name'] != rp['name']]
-                                    
-                                    save_auction_data(auction_data)
-                                    st.success(f"✅ Acquired {rp['name']} for {bid_amount}M!")
-                                    st.rerun()
+            # --- DISABLED PER USER REQUEST ---
+            # released_players = room.get('released_players', [])
+            # if released_players and my_participant and not (is_eliminated and not is_admin):
+            #     with st.expander(f"🔓 Bid on Released Players ({len(released_players)} available)"):
+            #         st.caption("These players were released from eliminated participants and are available for bidding.")
+            #         
+            #         for rp in released_players:
+            #             col1, col2, col3 = st.columns([3, 1, 1])
+            #             with col1:
+            #                 st.write(f"**{rp['name']}** ({rp.get('team', '?')}) - {rp.get('role', '?')}")
+            #                 st.caption(f"From: {rp['from_participant']}")
+            #             with col2:
+            #                 bid_amount = st.number_input(
+            #                     "Bid (M)", 
+            #                     min_value=5.0, 
+            #                     value=5.0,
+            #                     step=1.0,
+            #                     key=f"released_bid_{rp['name']}_{rp.get('from_participant', 'unknown')}"
+            #                 )
+            #             with col3:
+            #                 if st.button("🎯 Bid", key=f"released_bid_btn_{rp['name']}_{rp.get('from_participant', 'unknown')}"):
+            #                     valid_increment = True
+            #                     err_msg = ""
+            #                     
+            #                     # Validate Increments
+            #                     if bid_amount > 100 and bid_amount % 10 != 0:
+            #                         valid_increment = False
+            #                         err_msg = "Bids above 100 must be in increments of 10 (e.g., 110, 120)."
+            #                     elif bid_amount >= 50 and bid_amount % 5 != 0:
+            #                          valid_increment = False
+            #                          err_msg = "Bids of 50 or above must be in increments of 5 (e.g., 50, 55)."
+            # 
+            #                     budget = my_participant.get('budget', 0)
+            #                     if not valid_increment:
+            #                         st.error(f"❌ Invalid amount. {err_msg}")
+            #                     elif bid_amount > budget:
+            #                         st.error("Insufficient budget!")
+            #                     else:
+            #                         # Add to squad and deduct budget
+            #                         my_participant['squad'].append({
+            #                             'name': rp['name'],
+            #                             'team': rp.get('team', 'Unknown'),
+            #                             'role': rp.get('role', 'Unknown'),
+            #                             'price': bid_amount
+            #                         })
+            #                         my_participant['budget'] = budget - bid_amount
+            #                         
+            #                         # Remove from released players
+            #                         room['released_players'] = [p for p in released_players if p['name'] != rp['name']]
+            #                         
+            #                         save_auction_data(auction_data)
+            #                         st.success(f"✅ Acquired {rp['name']} for {bid_amount}M!")
+            #                         st.rerun()
 
             if my_participant and not (is_eliminated and not is_admin):
                 with st.expander("🚑 Manage Injury Reserve (IR)"):
