@@ -458,6 +458,18 @@ def _auto_link_uid(data: dict, room_code: str, participant_name: str,
 
 
 # ----------------------------------------------------------
+# 0. GET /
+# ----------------------------------------------------------
+@app.get("/")
+async def root():
+    return {
+        "message": "Cricket Auction API is Live!",
+        "docs_url": "/docs",
+        "health_check": "/health"
+    }
+
+
+# ----------------------------------------------------------
 # 1.  GET /health
 # ----------------------------------------------------------
 @app.get("/health")

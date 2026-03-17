@@ -157,9 +157,9 @@ class _RoomEntryScreenState extends State<RoomEntryScreen> {
                                 prefixIcon: const Icon(Icons.tag_rounded,
                                     color: AppTheme.textMuted),
                               ),
-                              ),
                             ),
-                            if (_isCreating) ...[
+                          ],
+                          if (_isCreating) ...[
                               const SizedBox(height: 16),
                               Container(
                                 decoration: AppTheme.glassmorphismDecoration,
@@ -185,7 +185,6 @@ class _RoomEntryScreenState extends State<RoomEntryScreen> {
                                 ),
                               ),
                             ],
-                          ],
 
                           if (_error != null) ...[
                             const SizedBox(height: 16),

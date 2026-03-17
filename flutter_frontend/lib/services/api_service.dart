@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// Centralized HTTP client for the Cricket Auction FastAPI backend.
 class ApiService {
   // In dev, point to local FastAPI. In prod, update to your deployed URL.
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  static const String baseUrl = 'https://cricket-point-scorer.onrender.com';
 
   final http.Client _client = http.Client();
 
