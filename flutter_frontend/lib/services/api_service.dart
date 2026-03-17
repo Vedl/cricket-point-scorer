@@ -6,11 +6,24 @@ class ApiService {
   // In dev, point to local FastAPI. In prod, update to your deployed URL.
   static const String baseUrl = 'https://cricket-point-scorer.onrender.com';
 
-  final http.Client _client = http.Client();
+  // 60-second timeout to handle Render free-tier cold starts (~30-40s)
+  static const _timeout = Duration(seconds: 60);
+
+  Future<http.Response> _get(String path) async {
+    return http.get(Uri.parse('$baseUrl$path')).timeout(_timeout);
+  }
+
+  Future<http.Response> _post(String path, Map<String, dynamic> body) async {
+    return http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    ).timeout(_timeout);
+  }
 
   // ── Tournaments ──────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getTournaments() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/tournaments'));
+    final resp = await _get('/tournaments');
     _checkResponse(resp);
     final data = jsonDecode(resp.body);
     return List<Map<String, dynamic>>.from(data['tournaments']);
@@ -28,11 +41,7 @@ class ApiService {
       'admin_playing': adminPlaying,
       if (userId != null) 'user_id': userId,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/create-room'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/create-room', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -49,19 +58,13 @@ class ApiService {
       if (userId != null) 'user_id': userId,
       if (teamName != null) 'team_name': teamName,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/join-room'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/join-room', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   Future<Map<String, dynamic>> getAuctionState(String roomCode) async {
-    final resp = await _client.get(
-      Uri.parse('$baseUrl/auction/state?room_code=$roomCode'),
-    );
+    final resp = await _get('/auction/state?room_code=$roomCode');
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -77,11 +80,7 @@ class ApiService {
       'participant_name': participantName,
       'team_name': teamName,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/claim-team'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/claim-team', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -96,20 +95,14 @@ class ApiService {
       'claim_code': claimCode,
       'uid': uid,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/claim-with-code'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/claim-with-code', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   // ── User Rooms ───────────────────────────────────────────
   Future<Map<String, dynamic>> getUserRooms(String uid) async {
-    final resp = await _client.get(
-      Uri.parse('$baseUrl/user/rooms?uid=$uid'),
-    );
+    final resp = await _get('/user/rooms?uid=$uid');
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -127,11 +120,7 @@ class ApiService {
       'player_name': playerName,
       'amount': amount,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/bid'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/bid', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -157,11 +146,7 @@ class ApiService {
       if (givePlayer != null) 'give_player': givePlayer,
       if (getPlayer != null) 'get_player': getPlayer,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/trade/propose'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/trade/propose', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -178,11 +163,7 @@ class ApiService {
       'participant_name': participantName,
       'action': action,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/trade/respond'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/trade/respond', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -199,11 +180,7 @@ class ApiService {
       'admin_name': adminName,
       'action': action,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/trade/admin-action'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/trade/admin-action', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -224,19 +201,13 @@ class ApiService {
       'player_name': playerName,
       'price': price,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/trade/force'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/trade/force', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   Future<Map<String, dynamic>> getTradeLog(String roomCode) async {
-    final resp = await _client.get(
-      Uri.parse('$baseUrl/auction/trade-log?room_code=$roomCode'),
-    );
+    final resp = await _get('/auction/trade-log?room_code=$roomCode');
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -247,12 +218,7 @@ class ApiService {
     required String adminName,
   }) async {
     final body = {'room_code': roomCode, 'admin_name': adminName};
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/boost'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-    _checkResponse(resp);
+    final resp = await _post('/auction/boost', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -267,11 +233,7 @@ class ApiService {
       'admin_name': adminName,
       'csv_text': csvText,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/import-csv'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/import-csv', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -281,11 +243,7 @@ class ApiService {
     required String adminName,
   }) async {
     final body = {'room_code': roomCode, 'admin_name': adminName};
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/lock-squads'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/lock-squads', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -295,11 +253,7 @@ class ApiService {
     required String adminName,
   }) async {
     final body = {'room_code': roomCode, 'admin_name': adminName};
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/advance-gameweek'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/advance-gameweek', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -316,11 +270,7 @@ class ApiService {
       'cricbuzz_url': cricbuzzUrl,
       if (gameweek != null) 'gameweek': gameweek,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/calculate-scores'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/calculate-scores', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -335,11 +285,7 @@ class ApiService {
       'admin_name': adminName,
       'squads': squads,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/import-squads'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/import-squads', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -355,50 +301,45 @@ class ApiService {
       'participant_name': participantName,
       'player_name': playerName,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/release-player'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/release-player', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   // ── Standings & Schedule ─────────────────────────────────
   Future<Map<String, dynamic>> getStandings(String roomCode, {int? gameweek}) async {
-    var url = '$baseUrl/auction/standings?room_code=$roomCode';
+    var url = '/auction/standings?room_code=$roomCode';
     if (gameweek != null) url += '&gameweek=$gameweek';
-    final resp = await _client.get(Uri.parse(url));
+    final resp = await _get(url);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   Future<Map<String, dynamic>> getSchedule(String roomCode) async {
-    final resp = await _client.get(
-      Uri.parse('$baseUrl/auction/schedule?room_code=$roomCode'),
-    );
+    final resp = await _get('/auction/schedule?room_code=$roomCode');
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   Future<Map<String, dynamic>> getIplSquads() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/auction/ipl-squads'));
+    final resp = await _get('/auction/ipl-squads');
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   // ── Points Calculator ────────────────────────────────────
   Future<Map<String, dynamic>> calculatePoints(String cricbuzzUrl) async {
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/calculate?url=${Uri.encodeComponent(cricbuzzUrl)}'),
-    );
+    // Note: The /calculate endpoint is a GET or POST. In api_server.py it's a GET or POST depending on definition. 
+    // Wait, the python says `app.post("/calculate")`. But it takes URL as a query param.
+    // _post expects a body. Let's send an empty body if so.
+    final resp = await _post('/calculate?url=${Uri.encodeComponent(cricbuzzUrl)}', {});
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
 
   // ── Health ───────────────────────────────────────────────
   Future<Map<String, dynamic>> healthCheck() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/health'));
+    final resp = await _get('/health');
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -414,11 +355,7 @@ class ApiService {
       'admin_name': adminName,
       'deadline_hours': deadlineHours,
     };
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/auction/start'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final resp = await _post('/auction/start', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
