@@ -747,13 +747,15 @@ class _AuctionDashboardState extends State<AuctionDashboard>
 
     return gameweeks.entries.map<Widget>((gw) {
       final gwName = gw.key;
-      final matches = (gw.value as List?) ?? [];
+      final matchData = (gw.value as Map<String, dynamic>?) ?? {};
+      final matches = (matchData['matches'] as List?) ?? [];
+      final gwTitle = matchData['name'] ?? 'Gameweek $gwName';
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text('Gameweek $gwName', style: GoogleFonts.outfit(
+            child: Text(gwTitle, style: GoogleFonts.outfit(
               color: AppTheme.gold, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
           ...matches.map<Widget>((m) => _buildMatchCard(m)),
@@ -764,9 +766,11 @@ class _AuctionDashboardState extends State<AuctionDashboard>
   }
 
   Widget _buildMatchCard(dynamic m) {
-    final team1 = m['team1'] ?? m['home'] ?? '';
-    final team2 = m['team2'] ?? m['away'] ?? '';
+    final teams = m['teams'] as List? ?? [];
+    final team1 = teams.isNotEmpty ? teams[0] : (m['team1'] ?? m['home'] ?? '');
+    final team2 = teams.length > 1 ? teams[1] : (m['team2'] ?? m['away'] ?? '');
     final date = m['date'] ?? '';
+    final time = m['time'] ?? '';
     final venue = m['venue'] ?? '';
 
     return Container(
@@ -785,7 +789,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
           ],
         )),
         if (date.isNotEmpty)
-          Text(date, style: GoogleFonts.outfit(
+          Text('$date\n$time', textAlign: TextAlign.right, style: GoogleFonts.outfit(
             color: AppTheme.textSecondary, fontSize: 11)),
       ]),
     );
