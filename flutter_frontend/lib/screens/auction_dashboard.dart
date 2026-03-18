@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -36,6 +37,11 @@ class _AuctionDashboardState extends State<AuctionDashboard>
   List<dynamic>? _calcResults;
   bool _calcLoading = false;
 
+  // IPL squads cache
+  Map<String, dynamic>? _iplSquads;
+  // Schedule cache
+  Map<String, dynamic>? _schedule;
+
   @override
   void initState() {
     super.initState();
@@ -66,458 +72,898 @@ class _AuctionDashboardState extends State<AuctionDashboard>
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
-      behavior: SnackBarBehavior.floating,
+      content: Text(msg, style: GoogleFonts.outfit()),
+      backgroundColor: isError ? AppTheme.red : AppTheme.green,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: AppTheme.bgDark,
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.bgGradient),
+          child: const Center(child: CircularProgressIndicator(color: AppTheme.accent)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        backgroundColor: AppTheme.bgDark,
-        elevation: 0,
-        title: Row(children: [
-          const Text('🏏 ', style: TextStyle(fontSize: 22)),
-          Text('Room: ${widget.roomCode}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.copy, size: 18),
-            tooltip: 'Copy Room Code',
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: widget.roomCode));
-              _showSnack('Room code copied!');
-            },
-          ),
-          const Spacer(),
-          if (widget.isAdmin)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: AppTheme.accentGradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text('👑 ADMIN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            ),
-        ]),
-        bottom: TabBar(
+      appBar: _buildAppBar(),
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.bgGradient),
+        child: TabBarView(
           controller: _tabController,
-          isScrollable: true,
-          indicatorColor: AppTheme.accentBlue,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(icon: Icon(Icons.dashboard), text: 'Overview'),
-            Tab(icon: Icon(Icons.gavel), text: 'Bidding'),
-            Tab(icon: Icon(Icons.swap_horiz), text: 'Trading'),
-            Tab(icon: Icon(Icons.groups), text: 'Squads'),
-            Tab(icon: Icon(Icons.calendar_month), text: 'Schedule'),
-            Tab(icon: Icon(Icons.emoji_events), text: 'Standings'),
-            Tab(icon: Icon(Icons.calculate), text: 'Calculator'),
+          children: [
+            _buildOverviewTab(),
+            _buildBiddingTab(),
+            _buildTradingTab(),
+            _buildSquadsTab(),
+            _buildScheduleTab(),
+            _buildStandingsTab(),
+            _buildCalculatorTab(),
           ],
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.red)))
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOverviewTab(),
-                    _buildBiddingTab(),
-                    _buildTradingTab(),
-                    _buildSquadsTab(),
-                    _buildScheduleTab(),
-                    _buildStandingsTab(),
-                    _buildCalculatorTab(),
-                  ],
-                ),
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 1: OVERVIEW
-  // ═══════════════════════════════════════════════════
-  Widget _buildOverviewTab() {
-    final participants = List<Map<String, dynamic>>.from(_state?['participants'] ?? []);
-    final phase = _state?['game_phase'] ?? 'Unknown';
-    final gw = _state?['current_gameweek'] ?? 1;
-    final locked = _state?['squads_locked'] ?? false;
-
-    return RefreshIndicator(
-      onRefresh: _fetchState,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Status Card
-          _glassCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                _statusChip(phase),
-                const Spacer(),
-                Text('GW $gw', style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Icon(locked ? Icons.lock : Icons.lock_open,
-                    color: locked ? Colors.red : Colors.green, size: 18),
-              ]),
-              const SizedBox(height: 12),
-              Text('Admin: ${_state?['admin'] ?? 'N/A'}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 14)),
-              Text('Tournament: ${_state?['tournament_type']?.toUpperCase() ?? 'N/A'}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 14)),
-              Text('Participants: ${participants.length}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 14)),
-              if (_state?['bidding_deadline'] != null)
-                Text('Deadline: ${_state!['bidding_deadline']}',
-                    style: TextStyle(color: Colors.amber.shade300, fontSize: 13)),
-            ]),
-          ),
-          const SizedBox(height: 12),
-
-          // Admin Controls
-          if (widget.isAdmin) ...[
-            _glassCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('⚙️ Admin Controls',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  _adminBtn('🔒 Lock Squads', _lockSquads, locked ? Colors.grey : Colors.orange),
-                  _adminBtn('⏭️ Advance GW', _advanceGW, Colors.blue),
-                  _adminBtn('💰 100M Boost', _grantBoost, Colors.green),
-                  _adminBtn('🎬 Start Auction', _startAuction, Colors.purple),
-                  _adminBtn('📂 Upload CSV', _uploadCsv, Colors.teal),
-                ]),
-              ]),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppTheme.bgDark,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      title: Row(children: [
+        Text(widget.roomCode, style: GoogleFonts.outfit(
+          fontWeight: FontWeight.w800, fontSize: 16, color: AppTheme.textPrimary)),
+        const SizedBox(width: 6),
+        IconButton(
+          icon: const Icon(Icons.copy_rounded, size: 16, color: AppTheme.textMuted),
+          tooltip: 'Copy Code',
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: widget.roomCode));
+            _showSnack('Room code copied!');
+          },
+        ),
+        const Spacer(),
+        if (widget.isAdmin)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.gold.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
             ),
-            const SizedBox(height: 12),
-          ],
-
-          // Participants Overview
-          const Text('Participants',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          ...participants.map((p) => _glassCard(
-                child: Row(children: [
-                  CircleAvatar(
-                    backgroundColor: AppTheme.accentBlue.withOpacity(0.3),
-                    child: Text(p['name'][0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      Text('Budget: ${p['budget']}M  |  Squad: ${p['squad_size']} players',
-                          style: const TextStyle(color: Colors.white54, fontSize: 13)),
-                    ]),
-                  ),
-                  if (p['eliminated'] == true)
-                    const Chip(label: Text('OUT'), backgroundColor: Colors.red),
-                ]),
-              )),
+            child: Text('ADMIN', style: GoogleFonts.outfit(
+              color: AppTheme.gold, fontSize: 10, fontWeight: FontWeight.w800)),
+          ),
+      ]),
+      bottom: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+        tabs: const [
+          Tab(text: 'Overview'),
+          Tab(text: 'Bidding'),
+          Tab(text: 'Trading'),
+          Tab(text: 'Squads'),
+          Tab(text: 'Schedule'),
+          Tab(text: 'Standings'),
+          Tab(text: 'Calculator'),
         ],
       ),
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 2: BIDDING
-  // ═══════════════════════════════════════════════════
-  Widget _buildBiddingTab() {
-    final bids = List<Map<String, dynamic>>.from(_state?['active_bids'] ?? []);
+  // ─── OVERVIEW TAB ────────────────────────────────────────
+  Widget _buildOverviewTab() {
+    if (_state == null) return _buildErrorState();
+    final phase = _state!['game_phase'] ?? 'Unknown';
+    final gw = _state!['current_gameweek'] ?? 1;
+    final locked = _state!['squads_locked'] == true;
+    final deadline = _state!['bidding_deadline'];
+    final participants = (_state!['participants'] as List?) ?? [];
 
     return RefreshIndicator(
+      color: AppTheme.accent,
       onRefresh: _fetchState,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Place New Bid
-          _glassCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('🎯 Place a Bid',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              _BidForm(
-                roomCode: widget.roomCode,
-                participantName: widget.participantName,
-                onBidPlaced: () { _fetchState(); _showSnack('Bid placed!'); },
-                onError: (e) => _showSnack(e, isError: true),
-              ),
-            ]),
+          // Status card
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: AppTheme.premiumCard(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  _statusChip(phase, phase == 'Bidding' ? AppTheme.green : AppTheme.orange),
+                  const SizedBox(width: 8),
+                  _statusChip('GW $gw', AppTheme.accent),
+                  const SizedBox(width: 8),
+                  _statusChip(locked ? 'Locked' : 'Open', locked ? AppTheme.red : AppTheme.green),
+                ]),
+                if (deadline != null) ...[
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    const Icon(Icons.timer_outlined, size: 16, color: AppTheme.textMuted),
+                    const SizedBox(width: 6),
+                    Text('Deadline: ${_formatDeadline(deadline)}',
+                      style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 13)),
+                  ]),
+                ],
+              ],
+            ),
           ),
+
           const SizedBox(height: 16),
 
-          // Active Bids
-          Text('Active Bids (${bids.length})',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          if (bids.isEmpty)
-            _glassCard(child: const Center(
-              child: Text('No active bids', style: TextStyle(color: Colors.white54)),
-            ))
-          else
-            ...bids.map((b) => _glassCard(
-                  child: Row(children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(b['player'] ?? 'Unknown',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('by ${b['bidder']}  •  ${b['amount']}M',
-                          style: TextStyle(color: Colors.amber.shade300, fontSize: 14)),
-                      Text('Expires: ${b['expires']?.toString().substring(0, 16) ?? 'N/A'}',
-                          style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                    ])),
-                    if (b['bidder'] != widget.participantName)
-                      ElevatedButton(
-                        onPressed: () => _outbid(b),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                        child: const Text('Outbid'),
-                      ),
-                  ]),
-                )),
+          // Admin controls
+          if (widget.isAdmin) _buildAdminControls(),
+
+          // Participants
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 8),
+            child: Text('Participants (${participants.length})',
+              style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          ),
+          ...participants.map((p) => _buildParticipantCard(p)),
         ],
       ),
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 3: TRADING
-  // ═══════════════════════════════════════════════════
-  Widget _buildTradingTab() {
-    return _TradingTab(
-      roomCode: widget.roomCode,
-      participantName: widget.participantName,
-      isAdmin: widget.isAdmin,
-      state: _state,
-      onRefresh: _fetchState,
-      showSnack: _showSnack,
+  Widget _statusChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label, style: GoogleFonts.outfit(
+        color: color, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 4: SQUADS
-  // ═══════════════════════════════════════════════════
-  Widget _buildSquadsTab() {
-    final participants = List<Map<String, dynamic>>.from(_state?['participants'] ?? []);
+  Widget _buildAdminControls() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.glowCard(glowColor: AppTheme.gold, borderRadius: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Admin Controls', style: GoogleFonts.outfit(
+            color: AppTheme.gold, fontSize: 14, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 14),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            _adminBtn('Start Auction', Icons.play_arrow_rounded, AppTheme.green, _startAuction),
+            _adminBtn('Lock Squads', Icons.lock_rounded, AppTheme.orange, _lockSquads),
+            _adminBtn('Advance GW', Icons.skip_next_rounded, AppTheme.accent, _advanceGW),
+            _adminBtn('100M Boost', Icons.bolt_rounded, AppTheme.gold, _grantBoost),
+            _adminBtn('Import CSV', Icons.upload_file_rounded, AppTheme.purple, _importCsv),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminBtn(String label, IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(label, style: GoogleFonts.outfit(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParticipantCard(dynamic p) {
+    final name = p['name'] ?? '';
+    final budget = (p['budget'] ?? 0).toDouble();
+    final squadSize = p['squad_size'] ?? 0;
+    final eliminated = p['eliminated'] == true;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: AppTheme.glassmorphism(borderRadius: 12),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: eliminated ? AppTheme.red.withValues(alpha: 0.15) : AppTheme.accent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : '?',
+            style: GoogleFonts.outfit(
+              color: eliminated ? AppTheme.red : AppTheme.accent,
+              fontWeight: FontWeight.w800, fontSize: 16),
+          )),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Text(name, style: GoogleFonts.outfit(
+                color: eliminated ? AppTheme.textMuted : AppTheme.textPrimary,
+                fontWeight: FontWeight.w600, fontSize: 14)),
+              if (eliminated) ...[
+                const SizedBox(width: 6),
+                _statusChip('OUT', AppTheme.red),
+              ],
+            ]),
+            const SizedBox(height: 2),
+            Text('$squadSize players', style: GoogleFonts.outfit(
+              color: AppTheme.textMuted, fontSize: 12)),
+          ],
+        )),
+        Text('${budget.toStringAsFixed(0)}M', style: GoogleFonts.outfit(
+          color: AppTheme.green, fontWeight: FontWeight.w700, fontSize: 14)),
+      ]),
+    );
+  }
+
+  // ─── BIDDING TAB ─────────────────────────────────────────
+  Widget _buildBiddingTab() {
+    if (_state == null) return _buildErrorState();
+    final bids = (_state!['active_bids'] as List?) ?? [];
+    final participants = (_state!['participants'] as List?) ?? [];
+
+    // Collect all owned players
+    final Set<String> ownedPlayers = {};
+    for (final p in participants) {
+      for (final sq in (p['squad'] as List?) ?? []) {
+        ownedPlayers.add((sq as Map)['name'] ?? '');
+      }
+    }
 
     return RefreshIndicator(
+      color: AppTheme.accent,
       onRefresh: _fetchState,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ...participants.map((p) {
-            final squad = List<Map<String, dynamic>>.from(p['squad'] ?? []);
-            return _glassCard(
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: Row(children: [
-                  Text(p['name'],
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentBlue.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text('${squad.length} players  |  ${p['budget']}M',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                  ),
-                ]),
-                children: squad.isEmpty
-                    ? [const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('No players yet', style: TextStyle(color: Colors.white38)),
-                      )]
-                    : squad.map((pl) => ListTile(
-                        dense: true,
-                        leading: _roleIcon(pl['role'] ?? ''),
-                        title: Text(pl['name'] ?? '', style: const TextStyle(color: Colors.white)),
-                        subtitle: Text('${pl['role'] ?? 'Unknown'}  •  ${pl['team'] ?? ''}',
-                            style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                        trailing: Text('${pl['price'] ?? 0}M',
-                            style: TextStyle(color: Colors.amber.shade300, fontWeight: FontWeight.bold)),
-                        // Release button for own squad
-                        onLongPress: p['name'] == widget.participantName
-                            ? () => _releasePlayer(pl['name'])
-                            : null,
-                      )).toList(),
-              ),
-            );
-          }),
+          // Active bids
+          Text('Active Bids', style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          if (bids.isEmpty)
+            _buildEmptyCard('No active bids', 'Place a bid on an available player below')
+          else
+            ...bids.map((b) => _buildBidCard(b)),
+
+          const SizedBox(height: 24),
+
+          // Place bid
+          Text('Place a Bid', style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          _buildPlaceBidSection(ownedPlayers),
         ],
       ),
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 5: SCHEDULE
-  // ═══════════════════════════════════════════════════
+  Widget _buildBidCard(dynamic bid) {
+    final player = bid['player'] ?? '';
+    final amount = bid['amount'] ?? 0;
+    final bidder = bid['bidder'] ?? '';
+    final isMyBid = bidder == widget.participantName;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: AppTheme.glassmorphism(
+        borderRadius: 12,
+        borderColor: isMyBid ? AppTheme.accent.withValues(alpha: 0.3) : null,
+      ),
+      child: Row(children: [
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(player, style: GoogleFonts.outfit(
+              color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 2),
+            Text('by $bidder', style: GoogleFonts.outfit(
+              color: AppTheme.textMuted, fontSize: 12)),
+          ],
+        )),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppTheme.gold.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text('${amount}M', style: GoogleFonts.outfit(
+            color: AppTheme.gold, fontWeight: FontWeight.w800, fontSize: 14)),
+        ),
+      ]),
+    );
+  }
+
+  final _bidPlayerCtrl = TextEditingController();
+  final _bidAmountCtrl = TextEditingController();
+
+  Widget _buildPlaceBidSection(Set<String> ownedPlayers) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.premiumCard(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _bidPlayerCtrl,
+            style: GoogleFonts.outfit(color: AppTheme.textPrimary),
+            decoration: const InputDecoration(
+              labelText: 'Player name',
+              prefixIcon: Icon(Icons.person_search, color: AppTheme.textMuted, size: 20),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _bidAmountCtrl,
+            keyboardType: TextInputType.number,
+            style: GoogleFonts.outfit(color: AppTheme.textPrimary),
+            decoration: const InputDecoration(
+              labelText: 'Bid amount (M)',
+              prefixIcon: Icon(Icons.currency_rupee, color: AppTheme.textMuted, size: 20),
+              helperText: 'Min 5M. Increments of 5 above 50M.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+              onPressed: () => _placeBid(ownedPlayers),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Place Bid', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _placeBid(Set<String> ownedPlayers) async {
+    final player = _bidPlayerCtrl.text.trim();
+    final amount = int.tryParse(_bidAmountCtrl.text.trim()) ?? 0;
+
+    if (player.isEmpty || amount <= 0) {
+      _showSnack('Enter player name and amount', isError: true);
+      return;
+    }
+    if (ownedPlayers.contains(player)) {
+      _showSnack('Player already in someone\'s squad', isError: true);
+      return;
+    }
+    try {
+      final api = context.read<ApiService>();
+      await api.placeBid(
+        roomCode: widget.roomCode,
+        participantName: widget.participantName,
+        playerName: player,
+        amount: amount,
+      );
+      _showSnack('Bid placed: $player for ${amount}M');
+      _bidPlayerCtrl.clear();
+      _bidAmountCtrl.clear();
+      _fetchState();
+    } catch (e) {
+      _showSnack(e.toString(), isError: true);
+    }
+  }
+
+  // ─── TRADING TAB ─────────────────────────────────────────
+  Widget _buildTradingTab() {
+    return RefreshIndicator(
+      color: AppTheme.accent,
+      onRefresh: _fetchState,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Trading', style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          _buildEmptyCard('Trading System', 'Propose trades, respond to offers, and manage your squad transactions from this tab.'),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: _loadTradeLog,
+              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+              label: Text('View Trade Log', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── SQUADS TAB ──────────────────────────────────────────
+  Widget _buildSquadsTab() {
+    if (_state == null) return _buildErrorState();
+    final participants = (_state!['participants'] as List?) ?? [];
+
+    return RefreshIndicator(
+      color: AppTheme.accent,
+      onRefresh: _fetchState,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('All Squads', style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          ...participants.map((p) => _buildSquadExpansionCard(p)),
+
+          const SizedBox(height: 24),
+
+          // IPL Squads
+          Row(children: [
+            Text('IPL 2026 Squads', style: GoogleFonts.outfit(
+              color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            if (_iplSquads == null)
+              TextButton(
+                onPressed: _loadIplSquads,
+                child: Text('Load', style: GoogleFonts.outfit(color: AppTheme.accent, fontSize: 13)),
+              ),
+          ]),
+          const SizedBox(height: 10),
+          if (_iplSquads != null) ..._buildIplSquadCards(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSquadExpansionCard(dynamic p) {
+    final name = p['name'] ?? '';
+    final budget = (p['budget'] ?? 0).toDouble();
+    final squad = (p['squad'] as List?) ?? [];
+    final isMe = name == widget.participantName;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: AppTheme.premiumCard(borderRadius: 14),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        leading: Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: (isMe ? AppTheme.accent : AppTheme.surface),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : '?',
+            style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+          )),
+        ),
+        title: Text(name, style: GoogleFonts.outfit(
+          color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Text('${squad.length} players · ${budget.toStringAsFixed(0)}M',
+          style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12)),
+        children: squad.isEmpty
+            ? [Text('No players yet', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13))]
+            : squad.map<Widget>((pl) {
+                final playerName = pl['name'] ?? '';
+                final role = pl['role'] ?? 'Unknown';
+                final price = pl['price'] ?? 0;
+                final roleColor = AppTheme.getRoleColor(role);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: roleColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(AppTheme.getRoleShort(role), style: GoogleFonts.outfit(
+                        color: roleColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(playerName, style: GoogleFonts.outfit(
+                      color: AppTheme.textPrimary, fontSize: 13))),
+                    Text('${price}M', style: GoogleFonts.outfit(
+                      color: AppTheme.textMuted, fontSize: 12)),
+                  ]),
+                );
+              }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _loadIplSquads() async {
+    try {
+      final api = context.read<ApiService>();
+      final data = await api.getIplSquads();
+      if (mounted) setState(() => _iplSquads = data);
+    } catch (e) {
+      _showSnack('Failed to load IPL squads', isError: true);
+    }
+  }
+
+  List<Widget> _buildIplSquadCards() {
+    final teams = _iplSquads?['teams'] as Map<String, dynamic>? ?? {};
+    return teams.entries.map((entry) {
+      final code = entry.key;
+      final team = entry.value as Map<String, dynamic>;
+      final name = team['name'] ?? code;
+      final squad = (team['squad'] as List?) ?? [];
+      final color = AppTheme.getIplTeamColor(code);
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: AppTheme.glowCard(glowColor: color, borderRadius: 14),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          leading: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(child: Text(code, style: GoogleFonts.outfit(
+              color: color, fontWeight: FontWeight.w800, fontSize: 11))),
+          ),
+          title: Text(name, style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+          subtitle: Text('${squad.length} players', style: GoogleFonts.outfit(
+            color: AppTheme.textMuted, fontSize: 12)),
+          children: squad.map<Widget>((pl) {
+            final pName = pl['name'] ?? '';
+            final role = pl['role'] ?? '';
+            final roleColor = AppTheme.getRoleColor(role);
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: roleColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(AppTheme.getRoleShort(role), style: GoogleFonts.outfit(
+                    color: roleColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(pName, style: GoogleFonts.outfit(
+                  color: AppTheme.textPrimary, fontSize: 13))),
+              ]),
+            );
+          }).toList(),
+        ),
+      );
+    }).toList();
+  }
+
+  // ─── SCHEDULE TAB ────────────────────────────────────────
   Widget _buildScheduleTab() {
-    return _ScheduleTab(roomCode: widget.roomCode);
+    return RefreshIndicator(
+      color: AppTheme.accent,
+      onRefresh: _fetchState,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(children: [
+            Text('Match Schedule', style: GoogleFonts.outfit(
+              color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            if (_schedule == null)
+              TextButton(
+                onPressed: _loadSchedule,
+                child: Text('Load', style: GoogleFonts.outfit(color: AppTheme.accent, fontSize: 13)),
+              ),
+          ]),
+          const SizedBox(height: 10),
+          if (_schedule != null) ..._buildScheduleCards()
+          else
+            _buildEmptyCard('Schedule', 'Tap "Load" to view the IPL 2026 match schedule'),
+        ],
+      ),
+    );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 6: STANDINGS
-  // ═══════════════════════════════════════════════════
+  Future<void> _loadSchedule() async {
+    try {
+      final api = context.read<ApiService>();
+      final data = await api.getSchedule(widget.roomCode);
+      if (mounted) setState(() => _schedule = data);
+    } catch (e) {
+      _showSnack('Failed to load schedule', isError: true);
+    }
+  }
+
+  List<Widget> _buildScheduleCards() {
+    final gameweeks = _schedule?['gameweeks'] as Map<String, dynamic>? ?? {};
+    if (gameweeks.isEmpty) {
+      // Try flat schedule format
+      final matches = _schedule?['matches'] as List? ?? [];
+      if (matches.isEmpty) return [_buildEmptyCard('No matches', 'Schedule data is empty')];
+      return matches.map<Widget>((m) => _buildMatchCard(m)).toList();
+    }
+
+    return gameweeks.entries.map<Widget>((gw) {
+      final gwName = gw.key;
+      final matches = (gw.value as List?) ?? [];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('Gameweek $gwName', style: GoogleFonts.outfit(
+              color: AppTheme.gold, fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+          ...matches.map<Widget>((m) => _buildMatchCard(m)),
+          const SizedBox(height: 8),
+        ],
+      );
+    }).toList();
+  }
+
+  Widget _buildMatchCard(dynamic m) {
+    final team1 = m['team1'] ?? m['home'] ?? '';
+    final team2 = m['team2'] ?? m['away'] ?? '';
+    final date = m['date'] ?? '';
+    final venue = m['venue'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: AppTheme.glassmorphism(borderRadius: 12),
+      child: Row(children: [
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$team1 vs $team2', style: GoogleFonts.outfit(
+              color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+            if (venue.isNotEmpty)
+              Text(venue, style: GoogleFonts.outfit(
+                color: AppTheme.textMuted, fontSize: 11)),
+          ],
+        )),
+        if (date.isNotEmpty)
+          Text(date, style: GoogleFonts.outfit(
+            color: AppTheme.textSecondary, fontSize: 11)),
+      ]),
+    );
+  }
+
+  // ─── STANDINGS TAB ───────────────────────────────────────
   Widget _buildStandingsTab() {
-    return _StandingsTab(roomCode: widget.roomCode);
+    return RefreshIndicator(
+      color: AppTheme.accent,
+      onRefresh: _fetchState,
+      child: FutureBuilder(
+        future: context.read<ApiService>().getStandings(widget.roomCode),
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
+          }
+          if (snap.hasError) {
+            return _buildEmptyCard('No standings', snap.error.toString());
+          }
+          final data = snap.data;
+          final standings = (data?['standings'] as List?) ?? [];
+          if (standings.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [_buildEmptyCard('No standings yet', 'Scores will appear after the first gameweek')],
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Standings', style: GoogleFonts.outfit(
+                color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              ...standings.asMap().entries.map((e) {
+                final idx = e.key;
+                final s = e.value;
+                final rank = s['rank'] ?? (idx + 1);
+                final name = s['participant'] ?? '';
+                final pts = (s['points'] ?? 0).toDouble();
+
+                Color rankColor = AppTheme.textMuted;
+                if (rank == 1) rankColor = AppTheme.gold;
+                if (rank == 2) rankColor = AppTheme.accentLight;
+                if (rank == 3) rankColor = AppTheme.orange;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: rank <= 3
+                      ? AppTheme.glowCard(glowColor: rankColor, borderRadius: 12)
+                      : AppTheme.glassmorphism(borderRadius: 12),
+                  child: Row(children: [
+                    SizedBox(
+                      width: 30,
+                      child: Text('#$rank', style: GoogleFonts.outfit(
+                        color: rankColor, fontWeight: FontWeight.w800, fontSize: 16)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(name, style: GoogleFonts.outfit(
+                      color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14))),
+                    Text('${pts.toStringAsFixed(0)} pts', style: GoogleFonts.outfit(
+                      color: rankColor, fontWeight: FontWeight.w800, fontSize: 14)),
+                  ]),
+                );
+              }),
+            ],
+          );
+        },
+      ),
+    );
   }
 
-  // ═══════════════════════════════════════════════════
-  // TAB 7: CALCULATOR
-  // ═══════════════════════════════════════════════════
+  // ─── CALCULATOR TAB ──────────────────────────────────────
   Widget _buildCalculatorTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _glassCard(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('🏏 Fantasy Points Calculator',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('Paste any Cricbuzz scorecard URL to instantly calculate fantasy points.',
-                style: TextStyle(color: Colors.white54, fontSize: 14)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _calcUrlController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'https://www.cricbuzz.com/live-cricket-scorecard/...',
-                hintStyle: const TextStyle(color: Colors.white30),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.link, color: Colors.white38),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _calcLoading ? null : _calculatePoints,
-                icon: _calcLoading
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.calculate),
-                label: Text(_calcLoading ? 'Calculating...' : 'Calculate Points'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        Text('Fantasy Points Calculator', style: GoogleFonts.outfit(
+          color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        Text('Paste a Cricbuzz scorecard URL to calculate points',
+          style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppTheme.premiumCard(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _calcUrlController,
+                style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+                decoration: const InputDecoration(
+                  labelText: 'Cricbuzz URL',
+                  prefixIcon: Icon(Icons.link, color: AppTheme.textMuted, size: 20),
                 ),
               ),
-            ),
-          ]),
-        ),
-        if (_calcResults != null) ...[
-          const SizedBox(height: 16),
-          // Top 3 Podium
-          if (_calcResults!.length >= 3) _buildPodium(_calcResults!),
-          const SizedBox(height: 12),
-          _glassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Full Leaderboard',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ..._calcResults!.asMap().entries.map((e) {
-                  final i = e.key;
-                  final p = e.value;
-                  return ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: i < 3 ? [Colors.amber, Colors.grey.shade400, Colors.brown.shade300][i] : Colors.white12,
-                      child: Text('${i + 1}', style: const TextStyle(fontSize: 12, color: Colors.white)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: SizedBox(height: 42,
+                    child: ElevatedButton(
+                      onPressed: _calcLoading ? null : _calculatePoints,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: _calcLoading
+                          ? const SizedBox(width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text('Calculate', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
                     ),
-                    title: Text(p['name'] ?? '', style: const TextStyle(color: Colors.white)),
-                    subtitle: Text('${p['role'] ?? ''}  •  R:${p['runs'] ?? 0}  W:${p['wickets'] ?? 0}  C:${p['catches'] ?? 0}',
-                        style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                    trailing: Text('${p['points']} pts',
-                        style: TextStyle(color: Colors.amber.shade300, fontWeight: FontWeight.bold, fontSize: 15)),
-                  );
-                }),
-              ],
-            ),
+                  ),
+                ),
+                if (widget.isAdmin) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(height: 42,
+                      child: OutlinedButton(
+                        onPressed: _calcLoading ? null : _computeForGW,
+                        child: Text('Save for GW', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                ],
+              ]),
+            ],
           ),
-        ],
+        ),
+        const SizedBox(height: 16),
+        if (_calcResults != null)
+          ..._calcResults!.asMap().entries.map((e) {
+            final idx = e.key;
+            final p = e.value;
+            final name = p['name'] ?? '';
+            final pts = (p['points'] ?? 0).toDouble();
+
+            Color medal = Colors.transparent;
+            if (idx == 0) medal = AppTheme.gold;
+            if (idx == 1) medal = AppTheme.accentLight;
+            if (idx == 2) medal = AppTheme.orange;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: idx < 3
+                  ? AppTheme.glowCard(glowColor: medal, borderRadius: 10)
+                  : AppTheme.glassmorphism(borderRadius: 10),
+              child: Row(children: [
+                SizedBox(width: 28, child: Text(
+                  '${idx + 1}',
+                  style: GoogleFonts.outfit(color: idx < 3 ? medal : AppTheme.textMuted,
+                    fontWeight: FontWeight.w700, fontSize: 13),
+                )),
+                Expanded(child: Text(name, style: GoogleFonts.outfit(
+                  color: AppTheme.textPrimary, fontSize: 13))),
+                Text('${pts.toStringAsFixed(1)} pts', style: GoogleFonts.outfit(
+                  color: idx < 3 ? medal : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w700, fontSize: 13)),
+              ]),
+            );
+          }),
       ],
     );
   }
 
-  // ═══════════════════════════════════════════════════
-  // HELPER WIDGETS
-  // ═══════════════════════════════════════════════════
-  Widget _glassCard({required Widget child}) {
+  // ─── SHARED WIDGETS ──────────────────────────────────────
+  Widget _buildEmptyCard(String title, String subtitle) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.glassmorphismDecoration,
-      child: child,
-    );
-  }
-
-  Widget _statusChip(String phase) {
-    final colors = {
-      'NotStarted': Colors.grey,
-      'Bidding': Colors.orange,
-      'Playing': Colors.green,
-      'Completed': Colors.blue,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: (colors[phase] ?? Colors.grey).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors[phase] ?? Colors.grey),
+      padding: const EdgeInsets.all(20),
+      decoration: AppTheme.glassmorphism(borderRadius: 14),
+      child: Column(
+        children: [
+          Text(title, style: GoogleFonts.outfit(
+            color: AppTheme.textSecondary, fontSize: 14, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(subtitle, style: GoogleFonts.outfit(
+            color: AppTheme.textMuted, fontSize: 12), textAlign: TextAlign.center),
+        ],
       ),
-      child: Text(phase, style: TextStyle(color: colors[phase] ?? Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
     );
   }
 
-  Widget _adminBtn(String label, VoidCallback onTap, Color color) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(backgroundColor: color.withOpacity(0.8), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-      child: Text(label, style: const TextStyle(fontSize: 13)),
-    );
+  Widget _buildErrorState() {
+    return Center(child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.error_outline, color: AppTheme.red, size: 40),
+        const SizedBox(height: 12),
+        Text(_error ?? 'Failed to load', style: GoogleFonts.outfit(color: AppTheme.textSecondary)),
+        const SizedBox(height: 16),
+        ElevatedButton(onPressed: _fetchState, child: const Text('Retry')),
+      ],
+    ));
   }
 
-  Widget _roleIcon(String role) {
-    final r = role.toLowerCase();
-    if (r.contains('wk') || r.contains('keeper')) return const Icon(Icons.sports_cricket, color: Colors.green, size: 20);
-    if (r.contains('bowl')) return const Icon(Icons.sports_baseball, color: Colors.red, size: 20);
-    if (r.contains('all')) return const Icon(Icons.star, color: Colors.purple, size: 20);
-    return const Icon(Icons.sports_cricket, color: Colors.blue, size: 20);
+  String _formatDeadline(String iso) {
+    try {
+      final dt = DateTime.parse(iso);
+      return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
   }
 
-  Widget _buildPodium(List<dynamic> results) {
-    final medals = ['🥇', '🥈', '🥉'];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(3, (i) {
-        final p = results[i];
-        return _glassCard(
-          child: Column(children: [
-            Text(medals[i], style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 4),
-            Text(p['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-            Text('${p['points']} pts', style: TextStyle(color: Colors.amber.shade300, fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(p['role'] ?? '', style: const TextStyle(color: Colors.white38, fontSize: 11)),
-          ]),
-        );
-      }),
-    );
+  // ─── ADMIN ACTIONS ───────────────────────────────────────
+  Future<void> _startAuction() async {
+    try {
+      final api = context.read<ApiService>();
+      await api.startAuction(roomCode: widget.roomCode, adminName: widget.participantName);
+      _showSnack('Auction started!');
+      _fetchState();
+    } catch (e) { _showSnack(e.toString(), isError: true); }
   }
 
-  // ═══════════════════════════════════════════════════
-  // ACTIONS
-  // ═══════════════════════════════════════════════════
   Future<void> _lockSquads() async {
     try {
       final api = context.read<ApiService>();
@@ -530,8 +976,8 @@ class _AuctionDashboardState extends State<AuctionDashboard>
   Future<void> _advanceGW() async {
     try {
       final api = context.read<ApiService>();
-      final result = await api.advanceGameweek(roomCode: widget.roomCode, adminName: widget.participantName);
-      _showSnack('Advanced to GW${result['gameweek']}');
+      await api.advanceGameweek(roomCode: widget.roomCode, adminName: widget.participantName);
+      _showSnack('Advanced to next gameweek!');
       _fetchState();
     } catch (e) { _showSnack(e.toString(), isError: true); }
   }
@@ -545,640 +991,102 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     } catch (e) { _showSnack(e.toString(), isError: true); }
   }
 
-  Future<void> _startAuction() async {
-    final hoursCtrl = TextEditingController(text: '24');
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: const Text('Start Auction', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Set bidding deadline (in hours):', style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: hoursCtrl,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                suffixText: 'hours',
-                suffixStyle: const TextStyle(color: Colors.white54),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-            child: const Text('Start'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final hours = double.tryParse(hoursCtrl.text) ?? 24.0;
-      try {
-        final api = context.read<ApiService>();
-        await api.startAuction(
-          roomCode: widget.roomCode,
-          adminName: widget.participantName,
-          deadlineHours: hours,
-        );
-        _showSnack('Auction started! Deadline in $hours hours.');
-        _fetchState();
-      } catch (e) { _showSnack(e.toString(), isError: true); }
-    }
-  }
-
-  Future<void> _uploadCsv() async {
+  Future<void> _importCsv() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
         withData: true,
       );
-      if (result != null && result.files.single.bytes != null) {
-        final csvText = utf8.decode(result.files.single.bytes!);
-        final api = context.read<ApiService>();
-        await api.importCsv(
-          roomCode: widget.roomCode,
-          adminName: widget.participantName,
-          csvText: csvText,
-        );
-        _showSnack('CSV uploaded & parsed successfully!');
-        _fetchState();
+      if (result == null || result.files.isEmpty) return;
+      final bytes = result.files.first.bytes;
+      if (bytes == null) {
+        _showSnack('Could not read file', isError: true);
+        return;
       }
-    } catch (e) {
-      _showSnack('Error uploading CSV: $e', isError: true);
-    }
-  }
-
-  Future<void> _outbid(Map<String, dynamic> bid) async {
-    final current = bid['amount'] as int;
-    int step = current >= 100 ? 10 : (current >= 50 ? 5 : 1);
-    int newAmount = current + step;
-    try {
+      final csvText = utf8.decode(bytes);
       final api = context.read<ApiService>();
-      await api.placeBid(
+      final response = await api.importCsv(
         roomCode: widget.roomCode,
-        participantName: widget.participantName,
-        playerName: bid['player'],
-        amount: newAmount,
+        adminName: widget.participantName,
+        csvText: csvText,
       );
-      _showSnack('Outbid! New bid: ${newAmount}M');
+      _showSnack(response['message'] ?? 'CSV imported!');
       _fetchState();
     } catch (e) { _showSnack(e.toString(), isError: true); }
   }
 
-  Future<void> _releasePlayer(String playerName) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: const Text('Release Player', style: TextStyle(color: Colors.white)),
-        content: Text('Release $playerName?', style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Release'),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      try {
-        final api = context.read<ApiService>();
-        final result = await api.releasePlayer(
-          roomCode: widget.roomCode,
-          participantName: widget.participantName,
-          playerName: playerName,
-        );
-        _showSnack('Released $playerName (Refund: ${result['refund']}M)');
-        _fetchState();
-      } catch (e) { _showSnack(e.toString(), isError: true); }
-    }
-  }
-
   Future<void> _calculatePoints() async {
     final url = _calcUrlController.text.trim();
-    if (url.isEmpty) { _showSnack('Please enter a URL', isError: true); return; }
-    setState(() { _calcLoading = true; _calcResults = null; });
+    if (url.isEmpty) { _showSnack('Enter a URL', isError: true); return; }
+    setState(() => _calcLoading = true);
     try {
       final api = context.read<ApiService>();
-      final result = await api.calculatePoints(url);
-      setState(() { _calcResults = result['players']; _calcLoading = false; });
+      final data = await api.calculatePoints(url);
+      if (mounted) setState(() {
+        _calcResults = data['players'] ?? [];
+        _calcLoading = false;
+      });
     } catch (e) {
-      setState(() { _calcLoading = false; });
+      if (mounted) setState(() => _calcLoading = false);
       _showSnack(e.toString(), isError: true);
     }
   }
-}
 
-// ═══════════════════════════════════════════════════════
-// BID FORM WIDGET
-// ═══════════════════════════════════════════════════════
-class _BidForm extends StatefulWidget {
-  final String roomCode;
-  final String participantName;
-  final VoidCallback onBidPlaced;
-  final Function(String) onError;
-
-  const _BidForm({
-    required this.roomCode,
-    required this.participantName,
-    required this.onBidPlaced,
-    required this.onError,
-  });
-
-  @override
-  State<_BidForm> createState() => _BidFormState();
-}
-
-class _BidFormState extends State<_BidForm> {
-  final _playerCtrl = TextEditingController();
-  final _amountCtrl = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      TextField(
-        controller: _playerCtrl,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Player name',
-          hintStyle: const TextStyle(color: Colors.white30),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.05),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      ),
-      const SizedBox(height: 8),
-      TextField(
-        controller: _amountCtrl,
-        keyboardType: TextInputType.number,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Bid amount (M)',
-          hintStyle: const TextStyle(color: Colors.white30),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.05),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      ),
-      const SizedBox(height: 10),
-      SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _placeBid,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-          ),
-          child: const Text('Place Bid'),
-        ),
-      ),
-    ]);
-  }
-
-  Future<void> _placeBid() async {
-    final player = _playerCtrl.text.trim();
-    final amount = int.tryParse(_amountCtrl.text.trim());
-    if (player.isEmpty || amount == null) {
-      widget.onError('Enter player name and amount');
-      return;
-    }
+  Future<void> _computeForGW() async {
+    final url = _calcUrlController.text.trim();
+    if (url.isEmpty) { _showSnack('Enter a URL', isError: true); return; }
+    setState(() => _calcLoading = true);
     try {
-      await context.read<ApiService>().placeBid(
+      final api = context.read<ApiService>();
+      await api.calculateScores(
         roomCode: widget.roomCode,
-        participantName: widget.participantName,
-        playerName: player,
-        amount: amount,
+        adminName: widget.participantName,
+        cricbuzzUrl: url,
       );
-      _playerCtrl.clear();
-      _amountCtrl.clear();
-      widget.onBidPlaced();
+      _showSnack('Scores saved for current GW!');
+      if (mounted) setState(() => _calcLoading = false);
     } catch (e) {
-      widget.onError(e.toString());
+      if (mounted) setState(() => _calcLoading = false);
+      _showSnack(e.toString(), isError: true);
     }
   }
-}
 
-// ═══════════════════════════════════════════════════════
-// TRADING TAB WIDGET
-// ═══════════════════════════════════════════════════════
-class _TradingTab extends StatefulWidget {
-  final String roomCode;
-  final String participantName;
-  final bool isAdmin;
-  final Map<String, dynamic>? state;
-  final VoidCallback onRefresh;
-  final Function(String, {bool isError}) showSnack;
-
-  const _TradingTab({
-    required this.roomCode,
-    required this.participantName,
-    required this.isAdmin,
-    required this.state,
-    required this.onRefresh,
-    required this.showSnack,
-  });
-
-  @override
-  State<_TradingTab> createState() => _TradingTabState();
-}
-
-class _TradingTabState extends State<_TradingTab> {
-  List<dynamic> _pendingTrades = [];
-  List<dynamic> _tradeLog = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTrades();
-  }
-
-  Future<void> _loadTrades() async {
+  Future<void> _loadTradeLog() async {
     try {
       final api = context.read<ApiService>();
       final data = await api.getTradeLog(widget.roomCode);
-      if (mounted) {
-        setState(() {
-          _pendingTrades = data['pending_trades'] ?? [];
-          _tradeLog = data['trade_log'] ?? [];
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-
-    final incoming = _pendingTrades.where((t) => t['to'] == widget.participantName && t['status'] == 'pending').toList();
-    final outgoing = _pendingTrades.where((t) => t['from'] == widget.participantName).toList();
-    final pendingAdmin = _pendingTrades.where((t) => t['status'] == 'pending_admin').toList();
-
-    return RefreshIndicator(
-      onRefresh: _loadTrades,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Incoming Proposals
-          _sectionTitle('📥 Incoming Proposals (${incoming.length})'),
-          if (incoming.isEmpty)
-            _infoCard('No incoming proposals')
-          else
-            ...incoming.map((t) => _tradeCard(t, showActions: true)),
-
-          const SizedBox(height: 16),
-
-          // Outgoing Proposals
-          _sectionTitle('📤 Outgoing Proposals (${outgoing.length})'),
-          if (outgoing.isEmpty)
-            _infoCard('No outgoing proposals')
-          else
-            ...outgoing.map((t) => _tradeCard(t)),
-
-          // Admin Approvals
-          if (widget.isAdmin) ...[
-            const SizedBox(height: 16),
-            _sectionTitle('👑 Pending Admin Approval (${pendingAdmin.length})'),
-            if (pendingAdmin.isEmpty)
-              _infoCard('No trades pending approval')
-            else
-              ...pendingAdmin.map((t) => _tradeCard(t, showAdminActions: true)),
-          ],
-
-          const SizedBox(height: 16),
-
-          // Trade Log
-          _sectionTitle('📜 Transaction Log (${_tradeLog.length})'),
-          if (_tradeLog.isEmpty)
-            _infoCard('No transactions yet')
-          else
-            ..._tradeLog.reversed.take(20).map((log) => Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  padding: const EdgeInsets.all(10),
-                  decoration: AppTheme.glassmorphismDecoration,
-                  child: Text('${log['time']}  •  ${log['msg']}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                )),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-      );
-
-  Widget _infoCard(String text) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: AppTheme.glassmorphismDecoration,
-        child: Center(child: Text(text, style: const TextStyle(color: Colors.white38))),
-      );
-
-  Widget _tradeCard(Map<String, dynamic> t, {bool showActions = false, bool showAdminActions = false}) {
-    final type = t['type'] ?? '';
-    final player = t['player'] ?? t['give_player'] ?? '';
-    final getPlayer = t['get_player'] ?? '';
-    final price = t['price'] ?? 0;
-    final status = t['status'] ?? 'pending';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: AppTheme.glassmorphismDecoration,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.purple.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(type, style: const TextStyle(color: Colors.purpleAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+      final log = (data['trade_log'] as List?) ?? [];
+      if (mounted && log.isNotEmpty) {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: AppTheme.bgCard,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: status == 'pending_admin' ? Colors.amber.withOpacity(0.3) : Colors.blue.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(status.toUpperCase(), style: TextStyle(
-              color: status == 'pending_admin' ? Colors.amber : Colors.blue,
-              fontSize: 10, fontWeight: FontWeight.bold)),
-          ),
-        ]),
-        const SizedBox(height: 8),
-        Text('${t['from']} → ${t['to']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        Text('Player: $player${getPlayer.isNotEmpty ? " ↔ $getPlayer" : ""}  •  ${price}M',
-            style: const TextStyle(color: Colors.white54, fontSize: 13)),
-        if (showActions) ...[
-          const SizedBox(height: 8),
-          Row(children: [
-            ElevatedButton(
-              onPressed: () => _respondTrade(t['id'], 'accept'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('Accept'),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () => _respondTrade(t['id'], 'reject'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Reject'),
-            ),
-          ]),
-        ],
-        if (showAdminActions) ...[
-          const SizedBox(height: 8),
-          Row(children: [
-            ElevatedButton(
-              onPressed: () => _adminAction(t['id'], 'approve'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('✅ Approve'),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () => _adminAction(t['id'], 'reject'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('❌ Reject'),
-            ),
-          ]),
-        ],
-      ]),
-    );
-  }
-
-  Future<void> _respondTrade(String tradeId, String action) async {
-    try {
-      await context.read<ApiService>().respondTrade(
-        roomCode: widget.roomCode,
-        tradeId: tradeId,
-        participantName: widget.participantName,
-        action: action,
-      );
-      widget.showSnack('Trade ${action}ed!');
-      _loadTrades();
-      widget.onRefresh();
-    } catch (e) {
-      widget.showSnack(e.toString(), isError: true);
-    }
-  }
-
-  Future<void> _adminAction(String tradeId, String action) async {
-    try {
-      await context.read<ApiService>().adminTradeAction(
-        roomCode: widget.roomCode,
-        tradeId: tradeId,
-        adminName: widget.participantName,
-        action: action,
-      );
-      widget.showSnack('Trade ${action}d!');
-      _loadTrades();
-      widget.onRefresh();
-    } catch (e) {
-      widget.showSnack(e.toString(), isError: true);
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-// SCHEDULE TAB WIDGET
-// ═══════════════════════════════════════════════════════
-class _ScheduleTab extends StatefulWidget {
-  final String roomCode;
-  const _ScheduleTab({required this.roomCode});
-
-  @override
-  State<_ScheduleTab> createState() => _ScheduleTabState();
-}
-
-class _ScheduleTabState extends State<_ScheduleTab> {
-  Map<String, dynamic>? _schedule;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSchedule();
-  }
-
-  Future<void> _loadSchedule() async {
-    try {
-      final api = context.read<ApiService>();
-      final data = await api.getSchedule(widget.roomCode);
-      if (mounted) setState(() { _schedule = data; _loading = false; });
-    } catch (e) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_schedule == null) {
-      return const Center(child: Text('No schedule available', style: TextStyle(color: Colors.white54)));
-    }
-
-    final gameweeksMap = _schedule!['gameweeks'] as Map<String, dynamic>? ?? {};
-    final gameweeks = gameweeksMap.values.toList();
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: gameweeks.length,
-      itemBuilder: (ctx, i) {
-        final gw = gameweeks[i];
-        final matches = gw['matches'] as List<dynamic>? ?? [];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: AppTheme.glassmorphismDecoration,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('GW${gw['gameweek']}  •  ${gw['dates'] ?? ''}',
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            const Divider(color: Colors.white24),
-            ...matches.map((m) => Padding(
+          builder: (_) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Trade Log', style: GoogleFonts.outfit(
+                  color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                ...log.take(20).map((entry) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(children: [
-                    Text('${m['team1'] ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 13)),
-                    const Text(' vs ', style: TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.bold)),
-                    Text('${m['team2'] ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 13)),
-                    const Spacer(),
-                    Text('${m['date'] ?? ''}', style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                  ]),
+                  child: Text(
+                    '${entry['time']} — ${entry['msg']}'.replaceAll('**', ''),
+                    style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12),
+                  ),
                 )),
-          ]),
-        );
-      },
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-// STANDINGS TAB WIDGET
-// ═══════════════════════════════════════════════════════
-class _StandingsTab extends StatefulWidget {
-  final String roomCode;
-  const _StandingsTab({required this.roomCode});
-
-  @override
-  State<_StandingsTab> createState() => _StandingsTabState();
-}
-
-class _StandingsTabState extends State<_StandingsTab> {
-  Map<String, dynamic>? _standings;
-  bool _loading = true;
-  int? _selectedGW;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStandings();
-  }
-
-  Future<void> _loadStandings() async {
-    setState(() => _loading = true);
-    try {
-      final api = context.read<ApiService>();
-      final data = await api.getStandings(widget.roomCode, gameweek: _selectedGW);
-      if (mounted) setState(() { _standings = data; _loading = false; });
-    } catch (e) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      // GW selector
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          const Text('View: ', style: TextStyle(color: Colors.white, fontSize: 14)),
-          ChoiceChip(
-            label: const Text('Overall'),
-            selected: _selectedGW == null,
-            onSelected: (_) => setState(() { _selectedGW = null; _loadStandings(); }),
-            selectedColor: AppTheme.accentBlue,
-            labelStyle: TextStyle(color: _selectedGW == null ? Colors.white : Colors.white54),
-          ),
-          const SizedBox(width: 8),
-          ...(_standings?['total_gameweeks'] as List<dynamic>? ?? []).map((gw) {
-            final gwInt = int.tryParse(gw.toString());
-            return Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: ChoiceChip(
-                label: Text('GW$gw'),
-                selected: _selectedGW == gwInt,
-                onSelected: (_) => setState(() { _selectedGW = gwInt; _loadStandings(); }),
-                selectedColor: AppTheme.accentBlue,
-                labelStyle: TextStyle(color: _selectedGW == gwInt ? Colors.white : Colors.white54),
-              ),
-            );
-          }),
-        ]),
-      ),
-      Expanded(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _buildStandingsList(),
-      ),
-    ]);
-  }
-
-  Widget _buildStandingsList() {
-    final standings = List<Map<String, dynamic>>.from(_standings?['standings'] ?? []);
-    if (standings.isEmpty) {
-      return const Center(child: Text('No standings data yet', style: TextStyle(color: Colors.white54)));
-    }
-
-    final medals = ['🥇', '🥈', '🥉'];
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: standings.length,
-      itemBuilder: (ctx, i) {
-        final s = standings[i];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(16),
-          decoration: AppTheme.glassmorphismDecoration,
-          child: Row(children: [
-            Text(i < 3 ? medals[i] : '#${s['rank']}',
-                style: TextStyle(
-                  fontSize: i < 3 ? 24 : 16,
-                  color: i < 3 ? Colors.amber : Colors.white54,
-                  fontWeight: FontWeight.bold,
-                )),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(s['participant'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                if (s['best_11'] != null)
-                  Text('Best 11: ${(s['best_11'] as List).take(3).join(', ')}...',
-                      style: const TextStyle(color: Colors.white38, fontSize: 11)),
-              ]),
+              ],
             ),
-            Text('${(s['points'] as num).toStringAsFixed(0)} pts',
-                style: TextStyle(color: Colors.amber.shade300, fontWeight: FontWeight.bold, fontSize: 18)),
-          ]),
+          ),
         );
-      },
-    );
+      } else {
+        _showSnack('No trades yet');
+      }
+    } catch (e) { _showSnack(e.toString(), isError: true); }
   }
 }

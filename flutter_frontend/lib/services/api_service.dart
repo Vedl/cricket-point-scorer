@@ -375,6 +375,56 @@ class ApiService {
     return jsonDecode(resp.body);
   }
 
+  // ── Set Deadline ────────────────────────────────────────
+  Future<Map<String, dynamic>> setDeadline({
+    required String roomCode,
+    required String adminName,
+    required String deadlineIso,
+  }) async {
+    final body = {
+      'room_code': roomCode,
+      'admin_name': adminName,
+      'deadline_iso': deadlineIso,
+    };
+    final resp = await _post('/auction/set-deadline', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
+  // ── Set Injury Reserve ──────────────────────────────────
+  Future<Map<String, dynamic>> setInjuryReserve({
+    required String roomCode,
+    required String participantName,
+    required String playerName,
+  }) async {
+    final body = {
+      'room_code': roomCode,
+      'participant_name': participantName,
+      'player_name': playerName,
+    };
+    final resp = await _post('/auction/set-injury-reserve', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
+  // ── Eliminate ────────────────────────────────────────────
+  Future<Map<String, dynamic>> eliminate({
+    required String roomCode,
+    required String adminName,
+  }) async {
+    final body = {'room_code': roomCode, 'admin_name': adminName};
+    final resp = await _post('/auction/eliminate', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
+  // ── Available Players ────────────────────────────────────
+  Future<Map<String, dynamic>> getAvailablePlayers(String roomCode) async {
+    final resp = await _get('/auction/available-players?room_code=$roomCode');
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
   // ── Helpers ──────────────────────────────────────────────
   void _checkResponse(http.Response resp) {
     if (resp.statusCode >= 400) {

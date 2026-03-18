@@ -255,6 +255,27 @@ class ReleasePlayerRequest(BaseModel):
     user_id: Optional[str] = None
 
 
+class SetDeadlineRequest(BaseModel):
+    """Admin sets bidding deadline for current GW."""
+    room_code: str
+    admin_name: str
+    deadline_iso: str  # ISO datetime string e.g. '2026-03-28T18:00:00+05:30'
+
+
+class SetInjuryReserveRequest(BaseModel):
+    """Participant sets their injury reserve player."""
+    room_code: str
+    participant_name: str
+    player_name: str
+    user_id: Optional[str] = None
+
+
+class EliminateRequest(BaseModel):
+    """Admin triggers elimination after a GW."""
+    room_code: str
+    admin_name: str
+
+
 class CalculateScoresRequest(BaseModel):
     """Admin calculates GW scores from a Cricbuzz URL."""
     room_code: str
@@ -875,19 +896,17 @@ async def auction_start(req: AuctionStartRequest):
 @app.post("/auction/bid")
 async def auction_bid(req: BidRequest):
     """
-    Places or raises a bid.  Mirrors the bidding rules in
-    streamlit_app.py without rewriting them:
-    - min bid 5M
-    - increments: 1M (<50), 5M (50-99), 10M (100+)
-    - budget check (committed bids counted)
-    - 24-hour expiry per bid
+    Places or raises a bid with deadline-phase enforcement:
+    - min bid 5M, increments of 5M once >= 50M
+    - 1 hour before deadline: no NEW player initiations (only outbid existing)
+    - 30 min before deadline: only 5M increments allowed
+    - 30 min AFTER deadline: no trading at all
+    - Rejects bids on players already owned by ANY participant
     """
     if req.amount < 5:
         raise HTTPException(status_code=400, detail="Minimum bid is 5M")
 
-    # Validate increment rules
-    if req.amount > 100 and req.amount % 10 != 0:
-        raise HTTPException(status_code=400, detail="Bids above 100 must be in increments of 10")
+    # Validate increment rules (always: bids >= 50 must be in increments of 5)
     if req.amount >= 50 and req.amount % 5 != 0:
         raise HTTPException(status_code=400, detail="Bids of 50 or above must be in increments of 5")
 
@@ -897,13 +916,44 @@ async def auction_bid(req: BidRequest):
     if not room:
         raise HTTPException(status_code=404, detail=f"Room '{req.room_code}' not found")
 
-    # Check deadline
+    # --- Deadline phase enforcement ---
     deadline_str = room.get("bidding_deadline")
     now = _get_ist_now()
+    is_new_player = True  # will be updated below
     if deadline_str:
         deadline = datetime.fromisoformat(deadline_str)
-        if now.replace(tzinfo=None) >= deadline.replace(tzinfo=None):
-            raise HTTPException(status_code=400, detail="Bidding deadline has passed")
+        dl_naive = deadline.replace(tzinfo=None)
+        now_naive = now.replace(tzinfo=None)
+        diff = (dl_naive - now_naive).total_seconds()
+
+        # 30 min AFTER deadline → no trading at all
+        if diff < -1800:
+            raise HTTPException(status_code=400, detail="Trading window closed (30 min past deadline)")
+
+        # Between deadline and 30 min after → no trading
+        if diff < 0:
+            raise HTTPException(status_code=400, detail="Bidding deadline has passed. No new bids allowed.")
+
+        # 30 min before deadline → only 5M increments
+        if diff <= 1800:
+            if req.amount % 5 != 0:
+                raise HTTPException(status_code=400, detail="Within 30 min of deadline: only increments of 5M allowed")
+
+        # 1 hour before deadline → no new player initiations
+        active_bids = room.get("active_bids", [])
+        existing_bid = next((b for b in active_bids if b["player"] == req.player_name), None)
+        is_new_player = existing_bid is None
+        if diff <= 3600 and is_new_player:
+            raise HTTPException(status_code=400, detail="Within 1 hour of deadline: cannot initiate bids on new players")
+
+    # --- Reject bids on already‐owned players ---
+    for p in room.get("participants", []):
+        for sq_pl in p.get("squad", []):
+            if sq_pl.get("name") == req.player_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Player '{req.player_name}' is already in {p['name']}'s squad",
+                )
 
     # Find participant
     participant = None
@@ -1743,7 +1793,17 @@ async def grant_boost(req: BoostRequest):
 # ----------------------------------------------------------
 @app.post("/auction/lock-squads")
 async def lock_squads(req: LockSquadsRequest):
-    """Admin locks squads for current GW. Creates snapshot."""
+    """
+    Admin locks squads for current GW with full enforcement:
+    - Max 19 players: auto-release cheapest if > 19
+    - Min 12 players: warn but don't block
+    - IR rules:
+      * < 19 players → IR ignored (no cost)
+      * 19 players + IR set → 2M deducted from budget
+      * 19+ players + no IR → most expensive player auto-assigned as IR
+    - Creates snapshot for scoring
+    """
+    import math
     data = _firebase_get()
     room = data.get("rooms", {}).get(req.room_code)
     if not room:
@@ -1753,6 +1813,44 @@ async def lock_squads(req: LockSquadsRequest):
 
     curr_gw = room.get("current_gameweek", 1)
     gw_key = str(curr_gw)
+    lock_log = []
+
+    for p in room.get("participants", []):
+        if p.get("eliminated", False):
+            continue
+        squad = p.get("squad", [])
+        p_name = p["name"]
+
+        # --- Enforce max 19: auto-release cheapest ---
+        while len(squad) > 19:
+            cheapest = min(squad, key=lambda x: float(x.get("buy_price", x.get("price", 0))))
+            squad.remove(cheapest)
+            lock_log.append(f"Auto-released {cheapest.get('name')} from {p_name} (over 19)")
+        p["squad"] = squad
+
+        # --- Injury Reserve rules ---
+        ir_player = p.get("injury_reserve")
+
+        if len(squad) < 19:
+            # < 19 players: IR doesn't count (no cost, ignore it)
+            p["injury_reserve_active"] = None
+        elif len(squad) == 19:
+            if ir_player:
+                # 19 players + IR set → 2M deduction
+                p["budget"] = float(p.get("budget", 0)) - 2
+                p["injury_reserve_active"] = ir_player
+                lock_log.append(f"{p_name}: IR ({ir_player}), -2M")
+            else:
+                # 19 players + no IR set → most expensive player becomes IR
+                most_expensive = max(squad, key=lambda x: float(x.get("buy_price", x.get("price", 0))))
+                p["injury_reserve"] = most_expensive.get("name")
+                p["injury_reserve_active"] = most_expensive.get("name")
+                p["budget"] = float(p.get("budget", 0)) - 2
+                lock_log.append(f"{p_name}: Auto-IR ({most_expensive.get('name')}), -2M")
+
+        # Warn if < 12
+        if len(squad) < 12:
+            lock_log.append(f"WARNING: {p_name} has only {len(squad)} players (min 12 recommended)")
 
     # Snapshot all squads
     gw_squads = room.get("gameweek_squads", {})
@@ -1760,13 +1858,13 @@ async def lock_squads(req: LockSquadsRequest):
     for p in room.get("participants", []):
         snapshot[p["name"]] = {
             "squad": list(p["squad"]),
-            "injury_reserve": p.get("injury_reserve"),
+            "injury_reserve": p.get("injury_reserve_active", p.get("injury_reserve")),
         }
     gw_squads[gw_key] = snapshot
     room["gameweek_squads"] = gw_squads
     room["squads_locked"] = True
     _firebase_put(data)
-    return {"message": f"Squads locked for GW{curr_gw}", "gameweek": curr_gw}
+    return {"message": f"Squads locked for GW{curr_gw}", "gameweek": curr_gw, "log": lock_log}
 
 
 # ----------------------------------------------------------
@@ -1774,13 +1872,15 @@ async def lock_squads(req: LockSquadsRequest):
 # ----------------------------------------------------------
 @app.post("/auction/advance-gameweek")
 async def advance_gameweek(req: AdvanceGameweekRequest):
-    """Admin advances to next GW and reopens market. Returns any loaned players."""
+    """Admin advances to next GW. Requires squads_locked. Returns any loaned players."""
     data = _firebase_get()
     room = data.get("rooms", {}).get(req.room_code)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.get("admin") != req.admin_name:
         raise HTTPException(status_code=403, detail="Admin only")
+    if not room.get("squads_locked"):
+        raise HTTPException(status_code=400, detail="Squads must be locked before advancing to the next gameweek")
 
     curr_gw = room.get("current_gameweek", 1)
     new_gw = curr_gw + 1
@@ -1799,8 +1899,13 @@ async def advance_gameweek(req: AdvanceGameweekRequest):
                 origin["squad"].append(pl)
                 loan_returns.append(f"{pl['name']} returned to {origin_name}")
 
+    # Clear IR active flags for fresh GW
+    for p in room.get("participants", []):
+        p.pop("injury_reserve_active", None)
+
     room["current_gameweek"] = new_gw
     room["squads_locked"] = False
+    room["bidding_deadline"] = None  # Reset deadline for new GW
     _firebase_put(data)
     return {"message": f"Advanced to GW{new_gw}", "gameweek": new_gw, "loan_returns": loan_returns}
 
@@ -2261,6 +2366,198 @@ async def get_standings(
         s["rank"] = i + 1
 
     return {"standings": standings, "gameweek": gameweek, "total_gameweeks": list(gw_scores_all.keys())}
+
+
+# ----------------------------------------------------------
+# 28.  POST /auction/set-deadline
+# ----------------------------------------------------------
+@app.post("/auction/set-deadline")
+async def set_deadline(req: SetDeadlineRequest):
+    """Admin sets bidding deadline for current GW as an ISO datetime."""
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("admin") != req.admin_name:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    try:
+        dt = datetime.fromisoformat(req.deadline_iso)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ISO datetime format")
+
+    room["bidding_deadline"] = dt.isoformat()
+    room["game_phase"] = "Bidding"
+    _firebase_put(data)
+    return {"message": f"Deadline set to {dt.isoformat()}", "deadline": dt.isoformat()}
+
+
+# ----------------------------------------------------------
+# 29.  POST /auction/set-injury-reserve
+# ----------------------------------------------------------
+@app.post("/auction/set-injury-reserve")
+async def set_injury_reserve(req: SetInjuryReserveRequest):
+    """Participant sets their injury reserve player."""
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    participant = next(
+        (p for p in room.get("participants", []) if p["name"] == req.participant_name),
+        None,
+    )
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    # Check player is in their squad
+    in_squad = any(pl.get("name") == req.player_name for pl in participant.get("squad", []))
+    if not in_squad:
+        raise HTTPException(status_code=400, detail="Player not in your squad")
+
+    participant["injury_reserve"] = req.player_name
+    _firebase_put(data)
+    return {"message": f"Injury reserve set to {req.player_name}"}
+
+
+# ----------------------------------------------------------
+# 30.  POST /auction/eliminate
+# ----------------------------------------------------------
+@app.post("/auction/eliminate")
+async def eliminate_participants(req: EliminateRequest):
+    """
+    Admin triggers elimination based on IPL playoff structure:
+    - GW 10 (after league stage): Top 4 survive, rest eliminated
+    - GW 11 (after Q1+Eliminator): Top 3 survive
+    - GW 12 (after Q2): Top 2 survive
+    - GW 13 (after Final): Champion determined
+
+    Eliminated participants' players are released back to the pool.
+    """
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("admin") != req.admin_name:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    curr_gw = room.get("current_gameweek", 1)
+
+    # Determine how many survive this round
+    survive_map = {
+        10: 4,   # After league stage: top 4
+        11: 3,   # After Q1+Eliminator: top 3
+        12: 2,   # After Q2: top 2
+        13: 1,   # After Final: champion
+    }
+    survive_count = survive_map.get(curr_gw)
+    if survive_count is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Elimination not applicable for GW{curr_gw}. Valid: GW 10-13.",
+        )
+
+    # Calculate standings from accumulated scores
+    gw_scores_all = room.get("gameweek_scores", {})
+    active_participants = [
+        p for p in room.get("participants", []) if not p.get("eliminated", False)
+    ]
+
+    # Calculate cumulative points
+    p_totals = {}
+    for p in active_participants:
+        p_totals[p["name"]] = 0.0
+        for gw, scores in gw_scores_all.items():
+            locked = room.get("gameweek_squads", {}).get(str(gw), {})
+            sq_data = locked.get(p["name"])
+            if sq_data:
+                squad = sq_data.get("squad", sq_data) if isinstance(sq_data, dict) else sq_data
+                ir = sq_data.get("injury_reserve") if isinstance(sq_data, dict) else None
+            else:
+                squad = p.get("squad", [])
+                ir = p.get("injury_reserve")
+            # Simple best-11 (top 11 by score, exclude IR)
+            squad_scores = []
+            for pl in squad:
+                name = pl["name"] if isinstance(pl, dict) else pl
+                if name == ir:
+                    continue
+                squad_scores.append(scores.get(name, 0))
+            squad_scores.sort(reverse=True)
+            p_totals[p["name"]] += sum(squad_scores[:11])
+
+    # Sort by points descending
+    ranked = sorted(p_totals.items(), key=lambda x: -x[1])
+    survivors = set(name for name, _ in ranked[:survive_count])
+    eliminated_names = []
+
+    for p in room.get("participants", []):
+        if p.get("eliminated", False):
+            continue
+        if p["name"] not in survivors:
+            p["eliminated"] = True
+            eliminated_names.append(p["name"])
+            # Release their players back to the pool
+            for pl in p.get("squad", []):
+                room.setdefault("unsold_players", []).append(pl.get("name", ""))
+            p["squad"] = []
+
+    phase_names = {10: "League Stage", 11: "Qualifier 1 + Eliminator",
+                   12: "Qualifier 2", 13: "Final"}
+    phase_name = phase_names.get(curr_gw, f"GW{curr_gw}")
+
+    if curr_gw == 13:
+        winner = ranked[0][0] if ranked else "Unknown"
+        room["champion"] = winner
+        room["tournament_phase"] = "completed"
+        message = f"🏆 {winner} is the CHAMPION! Final standings determined."
+    else:
+        room["tournament_phase"] = phase_name.lower().replace(" ", "_")
+        message = f"Elimination after {phase_name}: {len(eliminated_names)} eliminated, {survive_count} survive"
+
+    _firebase_put(data)
+    return {
+        "message": message,
+        "eliminated": eliminated_names,
+        "survivors": list(survivors),
+        "gameweek": curr_gw,
+    }
+
+
+# ----------------------------------------------------------
+# 31.  GET /auction/available-players
+# ----------------------------------------------------------
+@app.get("/auction/available-players")
+async def available_players(room_code: str = Query(...)):
+    """Returns players NOT owned by any participant (available for bidding)."""
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    # Collect all owned player names
+    owned = set()
+    for p in room.get("participants", []):
+        for sq_pl in p.get("squad", []):
+            owned.add(sq_pl.get("name", ""))
+
+    # Load IPL squads JSON as pool
+    squads_path = Path(__file__).parent / "ipl_2026_squads.json"
+    available = []
+    if squads_path.exists():
+        with open(squads_path) as f:
+            squads_data = json.load(f)
+        for team_data in squads_data.get("teams", {}).values():
+            for pl in team_data.get("squad", []):
+                if pl.get("name") not in owned:
+                    available.append({
+                        "name": pl.get("name"),
+                        "role": pl.get("role", "Unknown"),
+                        "team": pl.get("team", "Unknown"),
+                    })
+
+    available.sort(key=lambda x: x["name"])
+    return {"available": available, "total": len(available)}
 
 
 # ----------------------------------------------------------

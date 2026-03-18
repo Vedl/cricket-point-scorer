@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
-import 'dart:ui';
-
-import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../providers/auth_provider.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -13,136 +11,164 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
+class _AuthScreenState extends State<AuthScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _loginUsernameController = TextEditingController();
-  final _loginPasswordController = TextEditingController();
-  final _regUsernameController = TextEditingController();
-  final _regPasswordController = TextEditingController();
-  final _regPasswordConfirmController = TextEditingController();
-  bool _isLoading = false;
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+  String? _success;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() { _error = null; _success = null; });
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _loginUsernameController.dispose();
-    _loginPasswordController.dispose();
-    _regUsernameController.dispose();
-    _regPasswordController.dispose();
-    _regPasswordConfirmController.dispose();
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.red),
-    );
-  }
-
   Future<void> _handleLogin() async {
-    final username = _loginUsernameController.text.trim();
-    final password = _loginPasswordController.text;
-    if (username.isEmpty || password.isEmpty) {
-      _showError('Please enter username and password');
+    if (_usernameCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
+      setState(() => _error = 'Please fill in all fields');
       return;
     }
-
-    setState(() => _isLoading = true);
+    setState(() { _loading = true; _error = null; });
     try {
-      await context.read<AuthProvider>().login(username, password);
+      await context.read<AuthProvider>().login(
+        _usernameCtrl.text.trim(),
+        _passwordCtrl.text,
+      );
     } catch (e) {
-      _showError(e.toString().replaceAll('ApiException(401): ', '').replaceAll('ApiException(404): ', ''));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '').replaceAll('ApiException(401): ', '').replaceAll('ApiException(404): ', '');
+          _loading = false;
+        });
+      }
     }
   }
 
   Future<void> _handleRegister() async {
-    final username = _regUsernameController.text.trim();
-    final password = _regPasswordController.text;
-    final confirm = _regPasswordConfirmController.text;
-
-    if (username.isEmpty || password.isEmpty) {
-      _showError('Please enter a username and password');
-    } else if (password.length < 4) {
-      _showError('Password must be at least 4 characters');
-    } else if (password != confirm) {
-      _showError('Passwords do not match');
-    } else {
-      setState(() => _isLoading = true);
-      try {
-        await context.read<AuthProvider>().register(username, password);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account Created! Logging you in...'), backgroundColor: AppTheme.green),
-          );
-        }
-      } catch (e) {
-        _showError(e.toString().replaceAll('ApiException(400): ', ''));
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+    if (_usernameCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
+      setState(() => _error = 'Please fill in all fields');
+      return;
+    }
+    if (_passwordCtrl.text.length < 4) {
+      setState(() => _error = 'Password must be at least 4 characters');
+      return;
+    }
+    if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
+      setState(() => _error = 'Passwords do not match');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await context.read<AuthProvider>().register(
+        _usernameCtrl.text.trim(),
+        _passwordCtrl.text,
+      );
+      if (mounted) {
+        setState(() {
+          _success = 'Account created! You are now logged in.';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+          _loading = false;
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isWide = size.width > 600;
+
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.bgGradient),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(
-                    width: 400,
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgCard.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isWide ? size.width * 0.25 : 24,
+                vertical: 32,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ── Logo & Branding ──
+                  _buildLogo(),
+                  const SizedBox(height: 40),
+
+                  // ── Auth Card ──
+                  Container(
+                    decoration: AppTheme.premiumCard(borderRadius: 20),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildHeader(),
-                        const SizedBox(height: 32),
-                        TabBar(
-                          controller: _tabController,
-                          indicatorColor: AppTheme.gold,
-                          labelColor: AppTheme.gold,
-                          unselectedLabelColor: Colors.grey,
-                          tabs: const [
-                            Tab(text: '🔐 Login'),
-                            Tab(text: '📝 Register'),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          height: 300,
-                          child: TabBarView(
+                        // Tab Bar
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface.withValues(alpha: 0.5),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          child: TabBar(
                             controller: _tabController,
-                            children: [
-                              _buildLoginTab(),
-                              _buildRegisterTab(),
+                            dividerHeight: 0,
+                            indicatorPadding: const EdgeInsets.symmetric(horizontal: 16),
+                            tabs: const [
+                              Tab(text: 'Sign In'),
+                              Tab(text: 'Create Account'),
                             ],
+                          ),
+                        ),
+
+                        // Form body
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            child: _tabController.index == 0
+                                ? _buildLoginForm()
+                                : _buildRegisterForm(),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+                  Text(
+                    'Fantasy Cricket Auction Platform',
+                    style: GoogleFonts.outfit(
+                      color: AppTheme.textMuted,
+                      fontSize: 12,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -151,111 +177,209 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildLogo() {
     return Column(
       children: [
-        Shimmer.fromColors(
-          baseColor: AppTheme.gold,
-          highlightColor: Colors.white,
-          child: Text(
-            '🏏 Cricket Auction',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.gold,
-                ),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            gradient: AppTheme.goldGradient,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.gold.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
+          child: const Center(
+            child: Text('🏏', style: TextStyle(fontSize: 36)),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Cricket Auction',
+          style: GoogleFonts.outfit(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Build your dream team through strategic bidding',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildTextField(
+          controller: _usernameCtrl,
+          label: 'Username',
+          icon: Icons.person_outline_rounded,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          controller: _passwordCtrl,
+          label: 'Password',
+          icon: Icons.lock_outline_rounded,
+          obscure: _obscurePassword,
+          toggleObscure: () => setState(() => _obscurePassword = !_obscurePassword),
+          onSubmitted: (_) => _handleLogin(),
         ),
         const SizedBox(height: 8),
-        Text(
-          'Build your dream team with real-time bidding strategies.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey[400]),
-        ),
+        if (_error != null) _buildMessage(_error!, isError: true),
+        if (_success != null) _buildMessage(_success!, isError: false),
+        const SizedBox(height: 20),
+        _buildSubmitButton('Sign In', _handleLogin),
       ],
     );
   }
 
-  Widget _buildLoginTab() {
+  Widget _buildRegisterForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _loginUsernameController,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputDecoration('Username', Icons.person),
+        _buildTextField(
+          controller: _usernameCtrl,
+          label: 'Choose a username',
+          icon: Icons.person_outline_rounded,
+          textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _loginPasswordController,
-          obscureText: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputDecoration('Password', Icons.lock),
+        _buildTextField(
+          controller: _passwordCtrl,
+          label: 'Password',
+          icon: Icons.lock_outline_rounded,
+          obscure: _obscurePassword,
+          toggleObscure: () => setState(() => _obscurePassword = !_obscurePassword),
+          textInputAction: TextInputAction.next,
         ),
-        const Spacer(),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _handleLogin,
-          style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
-            padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 16)),
-          ),
-          child: _isLoading ? const CircularProgressIndicator(color: Colors.black) : const Text('🚀 Log In'),
+        const SizedBox(height: 16),
+        _buildTextField(
+          controller: _confirmPasswordCtrl,
+          label: 'Confirm password',
+          icon: Icons.lock_outline_rounded,
+          obscure: _obscureConfirm,
+          toggleObscure: () => setState(() => _obscureConfirm = !_obscureConfirm),
+          onSubmitted: (_) => _handleRegister(),
         ),
+        const SizedBox(height: 8),
+        if (_error != null) _buildMessage(_error!, isError: true),
+        if (_success != null) _buildMessage(_success!, isError: false),
+        const SizedBox(height: 20),
+        _buildSubmitButton('Create Account', _handleRegister),
       ],
     );
   }
 
-  Widget _buildRegisterTab() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _regUsernameController,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputDecoration('Choose Username', Icons.person_add),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _regPasswordController,
-          obscureText: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputDecoration('Create Password', Icons.lock),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _regPasswordConfirmController,
-          obscureText: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputDecoration('Confirm Password', Icons.lock_outline),
-        ),
-        const Spacer(),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _handleRegister,
-          style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
-            padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 16)),
-          ),
-          child: _isLoading ? const CircularProgressIndicator(color: Colors.black) : const Text('✨ Create Account'),
-        ),
-      ],
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscure = false,
+    VoidCallback? toggleObscure,
+    TextInputAction? textInputAction,
+    void Function(String)? onSubmitted,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
+      style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 15),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppTheme.textMuted, size: 20),
+        suffixIcon: toggleObscure != null
+            ? IconButton(
+                icon: Icon(
+                  obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: AppTheme.textMuted,
+                  size: 20,
+                ),
+                onPressed: toggleObscure,
+              )
+            : null,
+      ),
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.grey),
-      prefixIcon: Icon(icon, color: Colors.grey),
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+  Widget _buildMessage(String msg, {required bool isError}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: (isError ? AppTheme.red : AppTheme.green).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(
+          color: (isError ? AppTheme.red : AppTheme.green).withValues(alpha: 0.2),
+        ),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+      child: Row(
+        children: [
+          Icon(
+            isError ? Icons.error_outline : Icons.check_circle_outline,
+            color: isError ? AppTheme.red : AppTheme.green,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              msg,
+              style: GoogleFonts.outfit(
+                color: isError ? AppTheme.redLight : AppTheme.greenLight,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppTheme.gold),
+    );
+  }
+
+  Widget _buildSubmitButton(String label, VoidCallback onPressed) {
+    return SizedBox(
+      height: 48,
+      child: ElevatedButton(
+        onPressed: _loading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.accent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          elevation: 0,
+        ),
+        child: _loading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                label,
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  letterSpacing: 0.3,
+                ),
+              ),
       ),
     );
   }

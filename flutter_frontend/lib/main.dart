@@ -137,17 +137,33 @@ class SplashPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.bolt_rounded, size: 80, color: AppTheme.gold),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.goldGradient,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.gold.withValues(alpha: 0.25),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text('🏏', style: TextStyle(fontSize: 36)),
+                ),
+              ),
               const SizedBox(height: 24),
-              const CircularProgressIndicator(color: AppTheme.gold),
+              const CircularProgressIndicator(color: AppTheme.accent),
               const SizedBox(height: 16),
               Text(
-                'Initializing Arena...',
+                'Loading...',
                 style: GoogleFonts.outfit(
-                  color: Colors.white70,
-                  fontSize: 18,
+                  color: AppTheme.textMuted,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  letterSpacing: 1.2,
                 ),
               ),
             ],

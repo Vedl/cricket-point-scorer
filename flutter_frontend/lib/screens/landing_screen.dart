@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -15,442 +14,400 @@ class LandingScreen extends StatefulWidget {
   State<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen>
-    with TickerProviderStateMixin {
+class _LandingScreenState extends State<LandingScreen> {
   List<Map<String, dynamic>> _tournaments = [];
+  List<Map<String, dynamic>> _userRooms = [];
   bool _loading = true;
-  late AnimationController _pulseController;
+  bool _roomsLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _loadTournaments();
+    _load();
   }
 
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadTournaments() async {
+  Future<void> _load() async {
     final auth = context.read<AuthProvider>();
     if (!auth.isAuthenticated) return;
 
+    final api = context.read<ApiService>();
+
+    // Load tournaments and rooms in parallel
     try {
-      final api = context.read<ApiService>();
       final tournaments = await api.getTournaments();
       if (mounted) setState(() { _tournaments = tournaments; _loading = false; });
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() { _loading = false; });
+    }
+
+    try {
+      final rooms = await api.getUserRooms(auth.username!);
+      final roomList = (rooms['rooms'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (mounted) setState(() { _userRooms = roomList; _roomsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _roomsLoading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isWide = screenWidth > 800;
+    final auth = context.watch<AuthProvider>();
 
     return Scaffold(
+      backgroundColor: AppTheme.bgDark,
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.bgGradient),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isWide ? 80 : 24,
-              vertical: 40,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(isWide),
-                const SizedBox(height: 48),
-                if (_loading) _buildLoadingSkeleton(),
-                if (!_loading) ...[
-                  _buildSection('🔴 LIVE', _getByStatus('active'), isWide),
-                  const SizedBox(height: 40),
-                  _buildSection('📋 ARCHIVED', _getByStatus('archived'), isWide),
-                  const SizedBox(height: 40),
-                  _buildSection('🔜 UPCOMING', _getByStatus('upcoming'), isWide),
-                ],
-              ],
-            ),
+          child: CustomScrollView(
+            slivers: [
+              // ── Header ──
+              SliverToBoxAdapter(child: _buildHeader(auth)),
+
+              // ── My Rooms Section ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                  child: _buildSectionHeader('My Rooms', Icons.meeting_room_outlined),
+                ),
+              ),
+              _roomsLoading
+                  ? const SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(color: AppTheme.accent),
+                        ),
+                      ),
+                    )
+                  : _userRooms.isEmpty
+                      ? SliverToBoxAdapter(child: _buildEmptyRooms())
+                      : SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (ctx, i) => _buildRoomCard(_userRooms[i]),
+                              childCount: _userRooms.length,
+                            ),
+                          ),
+                        ),
+
+              // ── Tournaments Section ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 12),
+                  child: _buildSectionHeader('Tournaments', Icons.emoji_events_rounded),
+                ),
+              ),
+              _loading
+                  ? const SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(color: AppTheme.gold),
+                        ),
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => _buildTournamentCard(_tournaments[i]),
+                          childCount: _tournaments.length,
+                        ),
+                      ),
+                    ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isWide) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Live badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppTheme.gold.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppTheme.gold.withValues(alpha: 0.25)),
+  Widget _buildHeader(AuthProvider auth) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: AppTheme.goldGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(child: Text('🏏', style: TextStyle(fontSize: 22))),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedBuilder(
-                animation: _pulseController,
-                builder: (_, __) => Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.gold.withValues(
-                      alpha: 0.5 + _pulseController.value * 0.5,
-                    ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12),
+                ),
+                Text(
+                  auth.username ?? 'Player',
+                  style: GoogleFonts.outfit(
+                    color: AppTheme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppTheme.textMuted, size: 20),
+            tooltip: 'Logout',
+            onPressed: () => auth.logout(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: AppTheme.gold, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyRooms() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: AppTheme.glassmorphism(borderRadius: 16),
+      child: Column(
+        children: [
+          Icon(Icons.inbox_rounded, color: AppTheme.textMuted, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            'No rooms yet',
+            style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Create a room from a tournament below, or join one with a room code.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoomCard(Map<String, dynamic> room) {
+    final code = room['room_code'] ?? '';
+    final phase = room['game_phase'] ?? 'Unknown';
+    final type = room['tournament_type'] ?? '';
+    final isAdmin = room['is_admin'] == true;
+    final pName = room['participant_name'] ?? '';
+    final count = room['participant_count'] ?? 0;
+
+    Color phaseColor = AppTheme.textMuted;
+    if (phase == 'Bidding') phaseColor = AppTheme.green;
+    if (phase == 'NotStarted') phaseColor = AppTheme.orange;
+
+    return GestureDetector(
+      onTap: () => context.go('/auction/$code?name=$pName&admin=$isAdmin'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(16),
+        decoration: AppTheme.premiumCard(borderRadius: 14),
+        child: Row(
+          children: [
+            // Room code chip
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.accent.withValues(alpha: 0.2)),
+              ),
+              child: Center(
+                child: Text(
+                  code.length > 3 ? code.substring(0, 3) : code,
+                  style: GoogleFonts.outfit(
+                    color: AppTheme.accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Fantasy Auction Platform',
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        code,
+                        style: GoogleFonts.outfit(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (isAdmin) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.gold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'ADMIN',
+                            style: GoogleFonts.outfit(
+                              color: AppTheme.gold,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _buildMiniChip(type.toUpperCase(), AppTheme.textMuted),
+                      const SizedBox(width: 6),
+                      _buildMiniChip('$count players', AppTheme.textMuted),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Phase badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: phaseColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                phase,
                 style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.gold,
+                  color: phaseColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniChip(String text, Color color) {
+    return Text(
+      text,
+      style: GoogleFonts.outfit(color: color, fontSize: 11),
+    );
+  }
+
+  Widget _buildTournamentCard(Map<String, dynamic> t) {
+    final id = t['id'] ?? '';
+    final name = t['name'] ?? '';
+    final desc = t['description'] ?? '';
+    final status = t['status'] ?? 'upcoming';
+    final icon = t['icon'] ?? '🏅';
+    final isActive = status == 'active' || status == 'archived';
+
+    Color statusColor = AppTheme.textMuted;
+    String statusLabel = status.toString().toUpperCase();
+    if (status == 'active') statusColor = AppTheme.green;
+    if (status == 'archived') statusColor = AppTheme.orange;
+    if (status == 'upcoming') statusColor = AppTheme.purple;
+
+    return GestureDetector(
+      onTap: isActive ? () => context.go('/room/$id') : null,
+      child: Opacity(
+        opacity: isActive ? 1.0 : 0.5,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(18),
+          decoration: isActive
+              ? AppTheme.glowCard(
+                  glowColor: status == 'active' ? AppTheme.gold : AppTheme.accent,
+                  borderRadius: 14,
+                )
+              : AppTheme.glassmorphism(borderRadius: 14),
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(child: Text(icon, style: const TextStyle(fontSize: 26))),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: GoogleFonts.outfit(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      desc,
+                      style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: GoogleFonts.outfit(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        Text(
-          'Choose Your\nBattleground',
-          style: GoogleFonts.outfit(
-            fontSize: isWide ? 56 : 38,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Select a tournament to start or join a fantasy auction room.',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            color: AppTheme.textSecondary,
-            height: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Map<String, dynamic>> _getByStatus(String status) =>
-      _tournaments.where((t) => t['status'] == status).toList();
-
-  Widget _buildSection(
-    String title,
-    List<Map<String, dynamic>> items,
-    bool isWide,
-  ) {
-    if (items.isEmpty) return const SizedBox();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textMuted,
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 20,
-          runSpacing: 20,
-          children: items
-              .map((t) => SizedBox(
-                    width: isWide ? 340 : double.infinity,
-                    child: _TournamentCard(
-                      tournament: t,
-                      pulseAnimation: _pulseController,
-                    ),
-                  ))
-              .toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoadingSkeleton() {
-    return Shimmer.fromColors(
-      baseColor: AppTheme.bgCard,
-      highlightColor: AppTheme.surface,
-      child: Wrap(
-        spacing: 20,
-        runSpacing: 20,
-        children: List.generate(
-          4,
-          (_) => Container(
-            width: 340,
-            height: 200,
-            decoration: BoxDecoration(
-              color: AppTheme.bgCard,
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        ),
       ),
     );
-  }
-}
-
-// ─── Tournament Card Widget ─────────────────────────────────
-class _TournamentCard extends StatefulWidget {
-  final Map<String, dynamic> tournament;
-  final AnimationController pulseAnimation;
-
-  const _TournamentCard({
-    required this.tournament,
-    required this.pulseAnimation,
-  });
-
-  @override
-  State<_TournamentCard> createState() => _TournamentCardState();
-}
-
-class _TournamentCardState extends State<_TournamentCard> {
-  bool _hovered = false;
-
-  Map<String, dynamic> get t => widget.tournament;
-  String get status => t['status'] ?? 'upcoming';
-  bool get isClickable => status == 'active' || status == 'archived';
-
-  Color get _glowColor {
-    switch (status) {
-      case 'active':
-        return AppTheme.gold;
-      case 'archived':
-        return AppTheme.accent;
-      default:
-        return Colors.white.withValues(alpha: 0.05);
-    }
-  }
-
-  String get _badge {
-    switch (status) {
-      case 'active':
-        return 'LIVE';
-      case 'archived':
-        return 'ARCHIVED';
-      default:
-        return 'COMING SOON';
-    }
-  }
-
-  Color get _badgeColor {
-    switch (status) {
-      case 'active':
-        return AppTheme.green;
-      case 'archived':
-        return AppTheme.accent;
-      default:
-        return AppTheme.textMuted;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor:
-          isClickable ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: isClickable ? () => _onTap(context) : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-          transform: Matrix4.identity()
-            ..scale(_hovered && isClickable ? 1.03 : 1.0),
-          child: AnimatedBuilder(
-            animation: widget.pulseAnimation,
-            builder: (_, child) {
-              final glowAlpha = status == 'active'
-                  ? 0.1 + widget.pulseAnimation.value * 0.1
-                  : (status == 'archived' ? 0.08 : 0.02);
-              return Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: _hovered && isClickable
-                      ? AppTheme.bgCardHover
-                      : AppTheme.bgCard,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _glowColor.withValues(alpha: _hovered ? 0.5 : 0.2),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _glowColor.withValues(alpha: glowAlpha),
-                      blurRadius: _hovered ? 32 : 16,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: child,
-              );
-            },
-            child: _buildContent(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    final sportIcon = t['icon'] ?? '🏏';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Top row: icon + badge
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(sportIcon, style: const TextStyle(fontSize: 32)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _badgeColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _badgeColor.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                _badge,
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _badgeColor,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Tournament name
-        Text(
-          t['name'] ?? 'Tournament',
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: status == 'upcoming'
-                ? AppTheme.textMuted
-                : AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // Description
-        Text(
-          t['description'] ?? '',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: AppTheme.textSecondary,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Date range
-        Row(
-          children: [
-            Icon(Icons.calendar_today_rounded,
-                size: 14, color: AppTheme.textMuted),
-            const SizedBox(width: 6),
-            Text(
-              '${t['start_date'] ?? ''} → ${t['end_date'] ?? ''}',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: AppTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // CTA
-        if (isClickable)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: status == 'active'
-                  ? AppTheme.goldGradient
-                  : AppTheme.accentGradient,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  status == 'active'
-                      ? Icons.play_arrow_rounded
-                      : Icons.visibility_rounded,
-                  size: 18,
-                  color: status == 'active' ? AppTheme.bgDark : Colors.white,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  status == 'active' ? 'Start Auction' : 'View / Run Again',
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color:
-                        status == 'active' ? AppTheme.bgDark : Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        if (!isClickable)
-          Opacity(
-            opacity: 0.5,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.lock_rounded,
-                      size: 16, color: AppTheme.textMuted),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Coming Soon',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  void _onTap(BuildContext context) {
-    final id = t['id'] ?? '';
-    context.go('/room/$id');
   }
 }
