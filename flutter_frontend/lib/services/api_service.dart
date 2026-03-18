@@ -242,13 +242,30 @@ class ApiService {
     required String roomCode,
     required String adminName,
     required String csvText,
+    bool dryRun = false,
   }) async {
     final body = {
       'room_code': roomCode,
       'admin_name': adminName,
       'csv_text': csvText,
     };
-    final resp = await _post('/auction/import-csv', body);
+    final url = '/auction/import-csv${dryRun ? "?dry_run=true" : ""}';
+    final resp = await _post(url, body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
+  Future<Map<String, dynamic>> importSquads({
+    required String roomCode,
+    required String adminName,
+    required Map<String, dynamic> squads,
+  }) async {
+    final body = {
+      'room_code': roomCode,
+      'admin_name': adminName,
+      'squads': squads,
+    };
+    final resp = await _post('/auction/import-squads', body);
     _checkResponse(resp);
     return jsonDecode(resp.body);
   }
@@ -290,20 +307,6 @@ class ApiService {
     return jsonDecode(resp.body);
   }
 
-  Future<Map<String, dynamic>> importSquads({
-    required String roomCode,
-    required String adminName,
-    required Map<String, dynamic> squads,
-  }) async {
-    final body = {
-      'room_code': roomCode,
-      'admin_name': adminName,
-      'squads': squads,
-    };
-    final resp = await _post('/auction/import-squads', body);
-    _checkResponse(resp);
-    return jsonDecode(resp.body);
-  }
 
   // ── Release Player ───────────────────────────────────────
   Future<Map<String, dynamic>> releasePlayer({

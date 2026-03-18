@@ -12,7 +12,8 @@ import 'screens/team_claim_screen.dart';
 import 'screens/auction_dashboard.dart';
 import 'screens/auth_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   final apiService = ApiService();
   
   runApp(

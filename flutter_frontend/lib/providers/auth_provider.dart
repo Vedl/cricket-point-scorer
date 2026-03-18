@@ -18,10 +18,15 @@ class AuthProvider extends ChangeNotifier {
   String? get lastError => _lastError;
 
   Future<void> _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    _username = prefs.getString('auth_username');
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _username = prefs.getString('auth_username');
+    } catch (e) {
+      debugPrint('Error reading auth state: \$e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> login(String username, String password) async {

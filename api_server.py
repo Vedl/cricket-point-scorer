@@ -822,6 +822,7 @@ async def auction_state(room_code: str = Query(..., description="Room code, e.g.
             "budget": p.get("budget", 0),
             "squad_size": len(p.get("squad", [])),
             "eliminated": p.get("eliminated", False),
+            "claim_code": room.get("claim_codes", {}).get(p.get("name")),
             "squad": [
                 {
                     "name": pl.get("name"),
@@ -2091,11 +2092,11 @@ async def import_squads(req: ImportSquadsRequest):
 # 22b. POST /auction/import-csv
 # ----------------------------------------------------------
 @app.post("/auction/import-csv")
-async def import_csv(req: ImportCsvRequest):
+async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, description="Parse only, do not save")):
     """
-    Admin uploads CSV text. Parses into squads and re-uses import-squads logic.
-    Supports either the Gameweek 'Participant,Player,Role,Team,Price' format,
-    or the visual grid 'NameA,,NameB,,... \n \n Player1,Price1,Player2,Price2...' format.
+    Admin uploads CSV text. Parses into squads.
+    If dry_run=True, returns the parsed squads without saving.
+    Otherwise, applies them to the database.
     """
     f = io.StringIO(req.csv_text.strip())
     reader = csv.reader(f)
@@ -2149,6 +2150,9 @@ async def import_csv(req: ImportCsvRequest):
                     except ValueError:
                         pass
                         
+    if dry_run:
+        return {"message": "Dry run successful", "squads": squads}
+
     # Now re-use import squads logic
     import_req = ImportSquadsRequest(room_code=req.room_code, admin_name=req.admin_name, squads=squads)
     return await import_squads(import_req)

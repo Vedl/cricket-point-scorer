@@ -6,7 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'dart:async';
-import 'dart:convert' show utf8;
+import 'dart:convert';
 
 class AuctionDashboard extends StatefulWidget {
   final String roomCode;
@@ -41,6 +41,9 @@ class _AuctionDashboardState extends State<AuctionDashboard>
   Map<String, dynamic>? _iplSquads;
   // Schedule cache
   Map<String, dynamic>? _schedule;
+  
+  // Available players cache
+  List<String>? _availablePlayers;
 
   @override
   void initState() {
@@ -63,7 +66,18 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     try {
       final api = context.read<ApiService>();
       final data = await api.getAuctionState(widget.roomCode);
-      if (mounted) setState(() { _state = data; _loading = false; _error = null; });
+      List<String>? avail;
+      try {
+        final availRes = await api.getAvailablePlayers(widget.roomCode);
+        avail = (availRes['available_players'] as List?)?.map((e) => e['name'] as String).toList();
+      } catch (_) {}
+      
+      if (mounted) setState(() { 
+        _state = data; 
+        _availablePlayers = avail;
+        _loading = false; 
+        _error = null; 
+      });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
@@ -240,6 +254,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
           const SizedBox(height: 14),
           Wrap(spacing: 8, runSpacing: 8, children: [
             _adminBtn('Start Auction', Icons.play_arrow_rounded, AppTheme.green, _startAuction),
+            _adminBtn('Set Deadline', Icons.timer, AppTheme.red, _setDeadline),
             _adminBtn('Lock Squads', Icons.lock_rounded, AppTheme.orange, _lockSquads),
             _adminBtn('Advance GW', Icons.skip_next_rounded, AppTheme.accent, _advanceGW),
             _adminBtn('100M Boost', Icons.bolt_rounded, AppTheme.gold, _grantBoost),
@@ -278,6 +293,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     final budget = (p['budget'] ?? 0).toDouble();
     final squadSize = p['squad_size'] ?? 0;
     final eliminated = p['eliminated'] == true;
+    final claimCode = p['claim_code'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -311,8 +327,15 @@ class _AuctionDashboardState extends State<AuctionDashboard>
               ],
             ]),
             const SizedBox(height: 2),
-            Text('$squadSize players', style: GoogleFonts.outfit(
-              color: AppTheme.textMuted, fontSize: 12)),
+            Row(children: [
+              Text('$squadSize players', style: GoogleFonts.outfit(
+                color: AppTheme.textMuted, fontSize: 12)),
+              if (widget.isAdmin && claimCode != null) ...[
+                const SizedBox(width: 8),
+                Text('PIN: $claimCode', style: GoogleFonts.outfit(
+                  color: AppTheme.orange, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ]),
           ],
         )),
         Text('${budget.toStringAsFixed(0)}M', style: GoogleFonts.outfit(
@@ -409,13 +432,28 @@ class _AuctionDashboardState extends State<AuctionDashboard>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _bidPlayerCtrl,
-            style: GoogleFonts.outfit(color: AppTheme.textPrimary),
-            decoration: const InputDecoration(
-              labelText: 'Player name',
-              prefixIcon: Icon(Icons.person_search, color: AppTheme.textMuted, size: 20),
-            ),
+          Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty || _availablePlayers == null) {
+                return const Iterable<String>.empty();
+              }
+              return _availablePlayers!.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            },
+            onSelected: (String selection) {
+              _bidPlayerCtrl.text = selection;
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                style: GoogleFonts.outfit(color: AppTheme.textPrimary),
+                onChanged: (val) => _bidPlayerCtrl.text = val,
+                decoration: const InputDecoration(
+                  labelText: 'Player name',
+                  prefixIcon: Icon(Icons.person_search, color: AppTheme.textMuted, size: 20),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           TextField(
@@ -964,6 +1002,56 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     } catch (e) { _showSnack(e.toString(), isError: true); }
   }
 
+  Future<void> _setDeadline() async {
+    final date = await showDatePicker(
+      context: context, 
+      initialDate: DateTime.now(), 
+      firstDate: DateTime.now(), 
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppTheme.accent,
+              onPrimary: Colors.white,
+              surface: AppTheme.bgCard,
+              onSurface: AppTheme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context, 
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppTheme.accent,
+              onPrimary: Colors.white,
+              surface: AppTheme.bgCard,
+              onSurface: AppTheme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (time == null || !mounted) return;
+    final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    try {
+      final api = context.read<ApiService>();
+      await api.setDeadline(roomCode: widget.roomCode, adminName: widget.participantName, deadlineIso: dt.toUtc().toIso8601String());
+      _showSnack('Deadline set to \${dt.toLocal()}');
+      _fetchState();
+    } catch (e) {
+      _showSnack(e.toString(), isError: true);
+    }
+  }
+
   Future<void> _lockSquads() async {
     try {
       final api = context.read<ApiService>();
@@ -1010,9 +1098,23 @@ class _AuctionDashboardState extends State<AuctionDashboard>
         roomCode: widget.roomCode,
         adminName: widget.participantName,
         csvText: csvText,
+        dryRun: true,
       );
-      _showSnack(response['message'] ?? 'CSV imported!');
-      _fetchState();
+      
+      final squads = response['squads'] as Map<String, dynamic>;
+      if (!mounted) return;
+      
+      final confirm = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _CsvReviewDialog(squads: squads),
+      );
+      
+      if (confirm == true) {
+         await api.importSquads(roomCode: widget.roomCode, adminName: widget.participantName, squads: squads);
+         if (mounted) _showSnack('CSV Imported Successfully!');
+         _fetchState();
+      }
     } catch (e) { _showSnack(e.toString(), isError: true); }
   }
 
@@ -1088,5 +1190,95 @@ class _AuctionDashboardState extends State<AuctionDashboard>
         _showSnack('No trades yet');
       }
     } catch (e) { _showSnack(e.toString(), isError: true); }
+  }
+}
+
+class _CsvReviewDialog extends StatefulWidget {
+  final Map<String, dynamic> squads;
+  const _CsvReviewDialog({required this.squads});
+  @override
+  State<_CsvReviewDialog> createState() => _CsvReviewDialogState();
+}
+
+class _CsvReviewDialogState extends State<_CsvReviewDialog> {
+  late Map<String, dynamic> _editableSquads;
+
+  @override
+  void initState() {
+    super.initState();
+    // Deep copy for editing
+    _editableSquads = jsonDecode(jsonEncode(widget.squads));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppTheme.bgCard,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 600,
+        height: 600,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Review CSV Import', style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text('Edit any incorrectly matched player names below.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: _editableSquads.entries.map((e) {
+                  final List players = e.value as List;
+                  return ExpansionTile(
+                    title: Text('${e.key} (${players.length} players)', style: const TextStyle(color: AppTheme.accent)),
+                    children: players.map((p) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: TextFormField(
+                          initialValue: p['name'],
+                          style: const TextStyle(color: AppTheme.textPrimary),
+                          decoration: InputDecoration(
+                            labelText: '${p["role"]} - ${p["buy_price"]}M',
+                            labelStyle: const TextStyle(color: AppTheme.textMuted),
+                            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
+                            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.accent)),
+                          ),
+                          onChanged: (val) => p['name'] = val,
+                        ),
+                      );
+                    }).toList(),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false), 
+                  child: Text('Cancel', style: GoogleFonts.outfit(color: AppTheme.red, fontWeight: FontWeight.bold))
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    // Update original map
+                    widget.squads.clear();
+                    widget.squads.addAll(_editableSquads);
+                    Navigator.pop(context, true);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text('Confirm Import', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
   }
 }
