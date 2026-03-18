@@ -13,6 +13,7 @@ import os
 import json
 import random
 import string
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Literal, Any
@@ -127,6 +128,16 @@ class ImportCsvRequest(BaseModel):
     room_code: str
     admin_name: str
     csv_text: str
+
+
+class AuthLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthRegisterRequest(BaseModel):
+    username: str
+    password: str
 
 
 class AuctionStartRequest(BaseModel):
@@ -455,6 +466,53 @@ def _auto_link_uid(data: dict, room_code: str, participant_name: str,
     profile["display_name"] = participant_name
     user_rooms = profile.setdefault("rooms", {})
     user_rooms[room_code] = participant_name  # value = participant name for lookup
+
+
+# ----------------------------------------------------------
+# Custom Auth API (Streamlit compatibility)
+# ----------------------------------------------------------
+@app.post("/auth/login", tags=["Auth"])
+async def auth_login(req: AuthLoginRequest):
+    data = _firebase_get()
+    users = data.get("users", {})
+    
+    if req.username not in users:
+        raise HTTPException(status_code=404, detail="Username not found.")
+        
+    stored_hash = users[req.username].get("password_hash", "")
+    provided_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    
+    if not stored_hash or stored_hash != provided_hash:
+        raise HTTPException(status_code=401, detail="Incorrect password.")
+        
+    return {
+        "success": True, 
+        "uid": req.username,  # In this system, username is the unique identifier
+        "username": req.username
+    }
+
+
+@app.post("/auth/register", tags=["Auth"])
+async def auth_register(req: AuthRegisterRequest):
+    if len(req.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters.")
+        
+    data = _firebase_get()
+    users = data.get("users", {})
+    
+    if req.username in users:
+        raise HTTPException(status_code=400, detail="Username already exists. Please choose another.")
+        
+    pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    
+    # Save back directly. We use _firebase_patch to update just this user safely.
+    _firebase_patch({"password_hash": pwd_hash}, path=f"/users/{req.username}")
+    
+    return {
+        "success": True, 
+        "uid": req.username,
+        "username": req.username
+    }
 
 
 # ----------------------------------------------------------

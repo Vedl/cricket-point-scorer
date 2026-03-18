@@ -5,24 +5,60 @@ import 'package:provider/provider.dart';
 
 import 'theme/app_theme.dart';
 import 'services/api_service.dart';
+import 'providers/auth_provider.dart';
 import 'screens/landing_screen.dart';
 import 'screens/room_entry_screen.dart';
 import 'screens/team_claim_screen.dart';
 import 'screens/auction_dashboard.dart';
+import 'screens/auth_screen.dart';
 
 void main() {
+  final apiService = ApiService();
+  
   runApp(
-    Provider<ApiService>(
-      create: (_) => ApiService(),
+    MultiProvider(
+      providers: [
+        Provider<ApiService>.value(value: apiService),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(apiService),
+        ),
+      ],
       child: const CricketAuctionApp(),
     ),
   );
 }
 
-final GoRouter _router = GoRouter(
-  routes: [
-    GoRoute(
-      path: '/',
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
+GoRouter _buildRouter(AuthProvider authProvider) {
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    refreshListenable: authProvider,
+    initialLocation: '/',
+    redirect: (context, state) {
+      final isLoggedIn = authProvider.isAuthenticated;
+      final isLoggingIn = state.matchedLocation == '/auth';
+      
+      // Still loading from SharedPreferences
+      if (authProvider.isLoading) return null;
+
+      if (!isLoggedIn && !isLoggingIn) {
+        return '/auth';
+      }
+      
+      if (isLoggedIn && isLoggingIn) {
+        return '/';
+      }
+      
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/auth',
+        builder: (context, state) => const AuthScreen(),
+      ),
+      GoRoute(
+        path: '/',
       builder: (context, state) => const LandingScreen(),
     ),
     GoRoute(
@@ -48,13 +84,17 @@ final GoRouter _router = GoRouter(
       ),
     ),
   ],
-);
+  );
+}
 
 class CricketAuctionApp extends StatelessWidget {
   const CricketAuctionApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final router = _buildRouter(authProvider);
+    
     return MaterialApp.router(
       title: 'Cricket Auction Platform',
       debugShowCheckedModeBanner: false,
@@ -63,7 +103,7 @@ class CricketAuctionApp extends StatelessWidget {
           AppTheme.darkTheme.textTheme,
         ),
       ),
-      routerConfig: _router,
+      routerConfig: router,
     );
   }
 }

@@ -21,6 +21,21 @@ class ApiService {
     ).timeout(_timeout);
   }
 
+  // ── Authentication ──────────────────────────────────────────
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    final body = {'username': username, 'password': password};
+    final resp = await _post('/auth/login', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
+  Future<Map<String, dynamic>> register(String username, String password) async {
+    final body = {'username': username, 'password': password};
+    final resp = await _post('/auth/register', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
   // ── Tournaments ──────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getTournaments() async {
     final resp = await _get('/tournaments');
