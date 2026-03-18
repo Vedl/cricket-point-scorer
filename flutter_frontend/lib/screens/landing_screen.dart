@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../theme/app_theme.dart';
@@ -37,6 +38,9 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   Future<void> _loadTournaments() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) return;
+
     try {
       final api = context.read<ApiService>();
       final tournaments = await api.getTournaments();

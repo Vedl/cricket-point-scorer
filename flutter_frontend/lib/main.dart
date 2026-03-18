@@ -87,13 +87,29 @@ GoRouter _buildRouter(AuthProvider authProvider) {
   );
 }
 
-class CricketAuctionApp extends StatelessWidget {
+class CricketAuctionApp extends StatefulWidget {
   const CricketAuctionApp({super.key});
+
+  @override
+  State<CricketAuctionApp> createState() => _CricketAuctionAppState();
+}
+
+class _CricketAuctionAppState extends State<CricketAuctionApp> {
+  GoRouter? _router;
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final router = _buildRouter(authProvider);
+    
+    if (authProvider.isLoading) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: SplashPage(),
+      );
+    }
+
+    // Initialize router once after loading
+    _router ??= _buildRouter(authProvider);
     
     return MaterialApp.router(
       title: 'Cricket Auction Platform',
@@ -103,7 +119,41 @@ class CricketAuctionApp extends StatelessWidget {
           AppTheme.darkTheme.textTheme,
         ),
       ),
-      routerConfig: router,
+      routerConfig: _router!,
+    );
+  }
+}
+
+class SplashPage extends StatelessWidget {
+  const SplashPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.bgDark,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.bgGradient),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.bolt_rounded, size: 80, color: AppTheme.gold),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(color: AppTheme.gold),
+              const SizedBox(height: 16),
+              Text(
+                'Initializing Arena...',
+                style: GoogleFonts.outfit(
+                  color: Colors.white70,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
