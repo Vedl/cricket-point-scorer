@@ -1283,6 +1283,15 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
     _editableBudgets = jsonDecode(jsonEncode(widget.budgets));
   }
 
+  bool get _isValid {
+    for (var squad in _editableSquads.values) {
+      for (var p in (squad as List)) {
+        if (p['role'] == 'Unknown' || p['name'] == 'Unknown') return false;
+      }
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -1295,9 +1304,20 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Review CSV Import', style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Review CSV Import', style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                if (!_isValid)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: AppTheme.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text('MATCHING REQUIRED', style: GoogleFonts.outfit(color: AppTheme.red, fontSize: 10, fontWeight: FontWeight.w900)),
+                  ),
+              ],
+            ),
             const SizedBox(height: 10),
-            Text('Verify player roles and team budgets below.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
+            Text('Verify player roles and team budgets below. All players must be matched to JSON data.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
@@ -1326,18 +1346,19 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                             labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 11),
                             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
                           ),
-                          onChanged: (val) => _editableBudgets[teamName] = int.tryParse(val) ?? budgetValue,
+                          onChanged: (val) => setState(() => _editableBudgets[teamName] = int.tryParse(val) ?? budgetValue),
                         ),
                       ),
                       ...players.map((p) {
                         final List? suggestions = p['suggestions'] as List?;
+                        final isUnknown = p['role'] == 'Unknown';
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.03),
+                            color: isUnknown ? AppTheme.red.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.03),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                            border: Border.all(color: isUnknown ? AppTheme.red.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1348,14 +1369,14 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                     flex: 3,
                                     child: TextFormField(
                                       initialValue: p['name'],
-                                      style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+                                      style: GoogleFonts.outfit(color: isUnknown ? AppTheme.red : AppTheme.textPrimary, fontSize: 13),
                                       decoration: const InputDecoration(
                                         labelText: 'Player Name',
                                         labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 10),
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(vertical: 8),
                                       ),
-                                      onChanged: (val) => p['name'] = val,
+                                      onChanged: (val) => setState(() => p['name'] = val),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -1363,7 +1384,7 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                     flex: 2,
                                     child: TextFormField(
                                       initialValue: p['role'],
-                                      style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+                                      style: GoogleFonts.outfit(color: isUnknown ? AppTheme.red : AppTheme.textPrimary, fontSize: 13),
                                       decoration: InputDecoration(
                                         labelText: 'Role',
                                         labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
@@ -1372,7 +1393,7 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                         suffixText: '${p["buy_price"]}M',
                                         suffixStyle: const TextStyle(color: AppTheme.gold, fontSize: 10),
                                       ),
-                                      onChanged: (val) => p['role'] = val,
+                                      onChanged: (val) => setState(() => p['role'] = val),
                                     ),
                                   ),
                                 ],
@@ -1403,7 +1424,7 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                           setState(() {
                                             p['name'] = val['name'];
                                             p['role'] = val['role'];
-                                            p['team'] = val['team'];
+                                            p['ipl_team'] = val['team'];
                                           });
                                         }
                                       },
@@ -1430,15 +1451,16 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: _isValid ? () {
                     widget.squads.clear();
                     widget.squads.addAll(_editableSquads);
                     widget.budgets.clear();
                     widget.budgets.addAll(_editableBudgets);
                     Navigator.pop(context, true);
-                  },
+                  } : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.green,
+                    disabledBackgroundColor: AppTheme.textMuted.withValues(alpha: 0.2),
                     foregroundColor: Colors.white,
                   ),
                   child: Text('Confirm Import', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),

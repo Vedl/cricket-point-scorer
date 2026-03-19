@@ -2164,8 +2164,9 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
             # Is this the "budget" row? Row 27 (0-indexed 26) 
             if row_idx == 26: 
                 for col_idx, p_name in participants.items():
-                    if col_idx < len(row):
-                        b_str = row[col_idx].strip()
+                    # Budget is in the price column (col_idx + 1)
+                    if col_idx + 1 < len(row):
+                        b_str = row[col_idx + 1].strip()
                         if b_str:
                             try:
                                 custom_budgets[p_name] = int(b_str.replace(',', '').replace('$', ''))
@@ -2179,8 +2180,15 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
                     if player and price_str:
                         try:
                             price = int(price_str.replace(',', '').replace('$', ''))
-                            m_name, m_role = match_player(player)
-                            squads[p_name].append({"name": m_name, "price": price, "buy_price": price, "role": m_role})
+                            m_name, m_role, m_team, suggestions = match_player(player)
+                            squads[p_name].append({
+                                "name": m_name, 
+                                "price": price, 
+                                "buy_price": price, 
+                                "role": m_role,
+                                "ipl_team": m_team,
+                                "suggestions": suggestions
+                            })
                         except ValueError:
                             pass
     else:
