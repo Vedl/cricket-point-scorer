@@ -1173,7 +1173,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
       final confirm = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => _CsvReviewDialog(squads: squads, budgets: budgets),
+        builder: (ctx) => _CsvReviewDialog(squads: squads, budgets: budgets, roomCode: widget.roomCode),
       );
       
       if (confirm == true) {
@@ -1267,7 +1267,8 @@ class _AuctionDashboardState extends State<AuctionDashboard>
 class _CsvReviewDialog extends StatefulWidget {
   final Map<String, dynamic> squads;
   final Map<String, dynamic> budgets;
-  const _CsvReviewDialog({required this.squads, required this.budgets});
+  final String roomCode;
+  const _CsvReviewDialog({required this.squads, required this.budgets, required this.roomCode});
   @override
   State<_CsvReviewDialog> createState() => _CsvReviewDialogState();
 }
@@ -1290,6 +1291,80 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
       }
     }
     return true;
+  }
+
+  Future<void> _openPlayerSearch(Map<String, dynamic> p) async {
+    try {
+      final api = context.read<ApiService>();
+      final res = await api.getAvailablePlayers(widget.roomCode);
+      final List available = res['available_players'] ?? [];
+      
+      if (!mounted) return;
+
+      final selected = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) {
+          String searchQuery = "";
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              final filtered = available.where((pl) => 
+                pl['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()) ||
+                pl['role'].toString().toLowerCase().contains(searchQuery.toLowerCase())
+              ).toList();
+
+              return AlertDialog(
+                backgroundColor: AppTheme.bgCard,
+                title: Text('Search Master List', style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 16)),
+                content: SizedBox(
+                  width: 400,
+                  height: 400,
+                  child: Column(
+                    children: [
+                      TextField(
+                        autofocus: true,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          hintText: 'Search name or role...',
+                          hintStyle: TextStyle(color: AppTheme.textMuted),
+                          prefixIcon: Icon(Icons.search, color: AppTheme.textMuted),
+                        ),
+                        onChanged: (val) => setDialogState(() => searchQuery = val),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final pl = filtered[index];
+                            return ListTile(
+                              title: Text(pl['name'], style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
+                              subtitle: Text('${pl['role']} - ${pl['team']}', style: const TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+                              onTap: () => Navigator.pop(context, pl),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          );
+        },
+      );
+
+      if (selected != null) {
+        setState(() {
+          p['name'] = selected['name'];
+          p['role'] = selected['role'];
+          p['ipl_team'] = selected['team'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error fetching players: $e')));
+      }
+    }
   }
 
   @override
@@ -1317,7 +1392,7 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
               ],
             ),
             const SizedBox(height: 10),
-            Text('Verify player roles and team budgets below. All players must be matched to JSON data.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
+            Text('Verify players and team budgets. Roles are locked to master data.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
@@ -1368,13 +1443,20 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                   Expanded(
                                     flex: 3,
                                     child: TextFormField(
+                                      key: ValueKey('name_${p['name']}'),
                                       initialValue: p['name'],
                                       style: GoogleFonts.outfit(color: isUnknown ? AppTheme.red : AppTheme.textPrimary, fontSize: 13),
-                                      decoration: const InputDecoration(
+                                      decoration: InputDecoration(
                                         labelText: 'Player Name',
-                                        labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 10),
+                                        labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
                                         isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                        suffixIcon: IconButton(
+                                          icon: const Icon(Icons.person_search, size: 16, color: AppTheme.accent),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () => _openPlayerSearch(p),
+                                        ),
                                       ),
                                       onChanged: (val) => setState(() => p['name'] = val),
                                     ),
@@ -1383,17 +1465,18 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                   Expanded(
                                     flex: 2,
                                     child: TextFormField(
+                                      key: ValueKey('role_${p['role']}'),
                                       initialValue: p['role'],
+                                      readOnly: true,
                                       style: GoogleFonts.outfit(color: isUnknown ? AppTheme.red : AppTheme.textPrimary, fontSize: 13),
                                       decoration: InputDecoration(
-                                        labelText: 'Role',
+                                        labelText: 'Role (Master)',
                                         labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
                                         isDense: true,
                                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
                                         suffixText: '${p["buy_price"]}M',
                                         suffixStyle: const TextStyle(color: AppTheme.gold, fontSize: 10),
                                       ),
-                                      onChanged: (val) => setState(() => p['role'] = val),
                                     ),
                                   ),
                                 ],
