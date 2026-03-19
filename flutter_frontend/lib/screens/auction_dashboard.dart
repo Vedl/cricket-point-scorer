@@ -1467,7 +1467,7 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                     child: TextFormField(
                                       key: ValueKey('role_${p['role']}'),
                                       initialValue: p['role'],
-                                      readOnly: true,
+                                      enabled: false,
                                       style: GoogleFonts.outfit(color: isUnknown ? AppTheme.red : AppTheme.textPrimary, fontSize: 13),
                                       decoration: InputDecoration(
                                         labelText: 'Role (Master)',
