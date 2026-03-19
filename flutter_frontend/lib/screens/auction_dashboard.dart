@@ -34,6 +34,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
 
   // Calculator state
   final _calcUrlController = TextEditingController();
+  final _multiUrlController = TextEditingController();
   List<dynamic>? _calcResults;
   bool _calcLoading = false;
 
@@ -59,6 +60,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     _refreshTimer?.cancel();
     _tabController.dispose();
     _calcUrlController.dispose();
+    _multiUrlController.dispose();
     super.dispose();
   }
 
@@ -634,11 +636,46 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     );
   }
 
+  Future<void> _setInjuryReserve(String playerName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: Text('Set Injury Reserve', style: GoogleFonts.outfit(color: AppTheme.textPrimary)),
+        content: Text('Set $playerName as your Injury Reserve?\n\nThis player will NOT be counted in your Best XI.',
+          style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 13)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: AppTheme.textMuted))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.orange),
+            child: Text('Set IR', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final api = context.read<ApiService>();
+      await api.setInjuryReserve(
+        roomCode: widget.roomCode,
+        participantName: widget.participantName,
+        playerName: playerName,
+      );
+      _showSnack('🏥 $playerName set as Injury Reserve');
+      _fetchState();
+    } catch (e) {
+      _showSnack(e.toString(), isError: true);
+    }
+  }
+
   Widget _buildSquadExpansionCard(dynamic p) {
     final name = p['name'] ?? '';
     final budget = (p['budget'] ?? 0).toDouble();
     final squad = (p['squad'] as List?) ?? [];
     final isMe = name == widget.participantName;
+    final irPlayer = p['injury_reserve'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -660,7 +697,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
         ),
         title: Text(name, style: GoogleFonts.outfit(
           color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-        subtitle: Text('${squad.length} players · ${budget.toStringAsFixed(0)}M',
+        subtitle: Text('${squad.length} players · ${budget.toStringAsFixed(0)}M${irPlayer != null ? ' · IR: $irPlayer' : ''}',
           style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12)),
         children: squad.isEmpty
             ? [Text('No players yet', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13))]
@@ -669,24 +706,36 @@ class _AuctionDashboardState extends State<AuctionDashboard>
                 final role = pl['role'] ?? 'Unknown';
                 final price = pl['price'] ?? 0;
                 final roleColor = AppTheme.getRoleColor(role);
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: roleColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
+                final isIR = playerName == irPlayer;
+                return InkWell(
+                  onTap: isMe ? () => _setInjuryReserve(playerName) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: roleColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(AppTheme.getRoleShort(role), style: GoogleFonts.outfit(
+                          color: roleColor, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
-                      child: Text(AppTheme.getRoleShort(role), style: GoogleFonts.outfit(
-                        color: roleColor, fontSize: 10, fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(playerName, style: GoogleFonts.outfit(
-                      color: AppTheme.textPrimary, fontSize: 13))),
-                    Text('${price}M', style: GoogleFonts.outfit(
-                      color: AppTheme.textMuted, fontSize: 12)),
-                  ]),
+                      const SizedBox(width: 8),
+                      if (isIR) ...[
+                        const Icon(Icons.local_hospital, size: 14, color: AppTheme.orange),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(child: Text(playerName, style: GoogleFonts.outfit(
+                        color: isIR ? AppTheme.orange : AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontStyle: isIR ? FontStyle.italic : FontStyle.normal))),
+                      if (isIR)
+                        Text('IR ', style: GoogleFonts.outfit(color: AppTheme.orange, fontSize: 10, fontWeight: FontWeight.w700)),
+                      Text('${price}M', style: GoogleFonts.outfit(
+                        color: AppTheme.textMuted, fontSize: 12)),
+                    ]),
+                  ),
                 );
               }).toList(),
       ),
@@ -977,6 +1026,41 @@ class _AuctionDashboardState extends State<AuctionDashboard>
                   ),
                 ],
               ]),
+              if (widget.isAdmin) ...[
+                const SizedBox(height: 16),
+                const Divider(color: AppTheme.surface),
+                const SizedBox(height: 8),
+                Text('Multi-Match GW Scoring', style: GoogleFonts.outfit(
+                  color: AppTheme.gold, fontSize: 13, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('Paste multiple Cricbuzz URLs (one per line) to score all matches in a GW.',
+                  style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 11)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _multiUrlController,
+                  maxLines: 5,
+                  style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: 'https://www.cricbuzz.com/...\nhttps://www.cricbuzz.com/...',
+                    hintStyle: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                    border: OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.surface)),
+                    contentPadding: EdgeInsets.all(10),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(height: 42,
+                  child: ElevatedButton.icon(
+                    onPressed: _calcLoading ? null : _computeMultiForGW,
+                    icon: const Icon(Icons.sports_cricket, size: 18),
+                    label: Text('Score All Matches for GW', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.gold,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1049,8 +1133,8 @@ class _AuctionDashboardState extends State<AuctionDashboard>
 
   String _formatDeadline(String iso) {
     try {
-      final dt = DateTime.parse(iso);
-      return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      final dt = DateTime.parse(iso).toUtc().add(const Duration(hours: 5, minutes: 30));
+      return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} IST';
     } catch (_) {
       return iso;
     }
@@ -1106,10 +1190,12 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     );
     if (time == null || !mounted) return;
     final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    // Convert IST input to UTC for storage (IST = UTC+5:30)
+    final utcDt = dt.subtract(const Duration(hours: 5, minutes: 30));
     try {
       final api = context.read<ApiService>();
-      await api.setDeadline(roomCode: widget.roomCode, adminName: widget.participantName, deadlineIso: dt.toUtc().toIso8601String());
-      _showSnack('Deadline set to \${dt.toLocal()}');
+      await api.setDeadline(roomCode: widget.roomCode, adminName: widget.participantName, deadlineIso: utcDt.toIso8601String() + 'Z');
+      _showSnack('Deadline set to ${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} IST');
       _fetchState();
     } catch (e) {
       _showSnack(e.toString(), isError: true);
@@ -1223,6 +1309,31 @@ class _AuctionDashboardState extends State<AuctionDashboard>
       if (mounted) setState(() => _calcLoading = false);
       _showSnack(e.toString(), isError: true);
     }
+  }
+
+  Future<void> _computeMultiForGW() async {
+    final text = _multiUrlController.text.trim();
+    if (text.isEmpty) { _showSnack('Paste at least one Cricbuzz URL', isError: true); return; }
+    final urls = text.split('\n').map((u) => u.trim()).where((u) => u.isNotEmpty).toList();
+    if (urls.isEmpty) { _showSnack('No valid URLs found', isError: true); return; }
+    setState(() => _calcLoading = true);
+    int ok = 0, fail = 0;
+    final api = context.read<ApiService>();
+    for (final url in urls) {
+      try {
+        await api.calculateScores(
+          roomCode: widget.roomCode,
+          adminName: widget.participantName,
+          cricbuzzUrl: url,
+        );
+        ok++;
+      } catch (_) {
+        fail++;
+      }
+    }
+    if (mounted) setState(() => _calcLoading = false);
+    _showSnack('Scored $ok/${urls.length} matches${fail > 0 ? ' ($fail failed)' : ''}');
+    _fetchState();
   }
 
   Future<void> _loadTradeLog() async {
@@ -1445,6 +1556,7 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                     child: TextFormField(
                                       key: ValueKey('name_${p['name']}'),
                                       initialValue: p['name'],
+                                      readOnly: true,
                                       style: GoogleFonts.outfit(color: isUnknown ? AppTheme.red : AppTheme.textPrimary, fontSize: 13),
                                       decoration: InputDecoration(
                                         labelText: 'Player Name',
@@ -1458,7 +1570,6 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                                           onPressed: () => _openPlayerSearch(p),
                                         ),
                                       ),
-                                      onChanged: (val) => setState(() => p['name'] = val),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
