@@ -422,6 +422,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
         ),
       ]),
     );
+  }
   Widget _buildBidExpiry(dynamic bid) {
     final expiresStr = bid['expires'] as String?;
     if (expiresStr == null) return const SizedBox();
