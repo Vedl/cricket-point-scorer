@@ -407,6 +407,8 @@ class _AuctionDashboardState extends State<AuctionDashboard>
             const SizedBox(height: 2),
             Text('by $bidder', style: GoogleFonts.outfit(
               color: AppTheme.textMuted, fontSize: 12)),
+            const SizedBox(height: 4),
+            _buildBidExpiry(bid),
           ],
         )),
         Container(
@@ -420,6 +422,37 @@ class _AuctionDashboardState extends State<AuctionDashboard>
         ),
       ]),
     );
+  Widget _buildBidExpiry(dynamic bid) {
+    final expiresStr = bid['expires'] as String?;
+    if (expiresStr == null) return const SizedBox();
+
+    try {
+      final expires = DateTime.parse(expiresStr);
+      final now = DateTime.now();
+      
+      // Also consider global deadline
+      final deadlineStr = _state?['bidding_deadline'] as String?;
+      DateTime? deadlineCandidate;
+      if (deadlineStr != null) {
+        deadlineCandidate = DateTime.parse(deadlineStr);
+      }
+
+      final actualExpiry = (deadlineCandidate != null && deadlineCandidate.isBefore(expires))
+          ? deadlineCandidate
+          : expires;
+
+      final diff = actualExpiry.difference(now);
+      if (diff.isNegative) {
+        return Text('Closing...', style: GoogleFonts.outfit(color: AppTheme.green, fontSize: 11, fontWeight: FontWeight.bold));
+      }
+
+      final h = diff.inHours;
+      final m = diff.inMinutes % 60;
+      return Text('Wins in: ${h}h ${m}m', style: GoogleFonts.outfit(
+        color: AppTheme.accent, fontSize: 11, fontWeight: FontWeight.w600));
+    } catch (_) {
+      return const SizedBox();
+    }
   }
 
   final _bidPlayerCtrl = TextEditingController();
@@ -451,6 +484,32 @@ class _AuctionDashboardState extends State<AuctionDashboard>
                 decoration: const InputDecoration(
                   labelText: 'Player name',
                   prefixIcon: Icon(Icons.person_search, color: AppTheme.textMuted, size: 20),
+                ),
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.bgCard,
+                  child: Container(
+                    width: 300, // Explicit width
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final String option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(option, style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13)),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               );
             },
@@ -1106,16 +1165,23 @@ class _AuctionDashboardState extends State<AuctionDashboard>
       );
       
       final squads = response['squads'] as Map<String, dynamic>;
+      final budgets = (response['budgets'] as Map<String, dynamic>?) ?? {};
+
       if (!mounted) return;
       
       final confirm = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => _CsvReviewDialog(squads: squads),
+        builder: (ctx) => _CsvReviewDialog(squads: squads, budgets: budgets),
       );
       
       if (confirm == true) {
-         await api.importSquads(roomCode: widget.roomCode, adminName: widget.participantName, squads: squads);
+         await api.importSquads(
+           roomCode: widget.roomCode, 
+           adminName: widget.participantName, 
+           squads: squads,
+           budgets: budgets,
+         );
          if (mounted) _showSnack('CSV Imported Successfully!');
          _fetchState();
       }
@@ -1199,19 +1265,21 @@ class _AuctionDashboardState extends State<AuctionDashboard>
 
 class _CsvReviewDialog extends StatefulWidget {
   final Map<String, dynamic> squads;
-  const _CsvReviewDialog({required this.squads});
+  final Map<String, dynamic> budgets;
+  const _CsvReviewDialog({required this.squads, required this.budgets});
   @override
   State<_CsvReviewDialog> createState() => _CsvReviewDialogState();
 }
 
 class _CsvReviewDialogState extends State<_CsvReviewDialog> {
   late Map<String, dynamic> _editableSquads;
+  late Map<String, dynamic> _editableBudgets;
 
   @override
   void initState() {
     super.initState();
-    // Deep copy for editing
     _editableSquads = jsonDecode(jsonEncode(widget.squads));
+    _editableBudgets = jsonDecode(jsonEncode(widget.budgets));
   }
 
   @override
@@ -1228,30 +1296,75 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
           children: [
             Text('Review CSV Import', style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            Text('Edit any incorrectly matched player names below.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
+            Text('Verify player roles and team budgets below.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13)),
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
                 children: _editableSquads.entries.map((e) {
                   final List players = e.value as List;
+                  final teamName = e.key;
+                  final budgetValue = _editableBudgets[teamName] ?? 0;
+
                   return ExpansionTile(
-                    title: Text('${e.key} (${players.length} players)', style: const TextStyle(color: AppTheme.accent)),
-                    children: players.map((p) {
-                      return Padding(
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('$teamName (${players.length} players)', style: const TextStyle(color: AppTheme.accent)),
+                        Text('Budget: ${budgetValue}M', style: const TextStyle(color: AppTheme.gold, fontSize: 12)),
+                      ],
+                    ),
+                    children: [
+                      Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: TextFormField(
-                          initialValue: p['name'],
-                          style: const TextStyle(color: AppTheme.textPrimary),
-                          decoration: InputDecoration(
-                            labelText: '${p["role"]} - ${p["buy_price"]}M',
-                            labelStyle: const TextStyle(color: AppTheme.textMuted),
-                            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
-                            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.accent)),
+                          initialValue: budgetValue.toString(),
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: AppTheme.gold, fontSize: 13),
+                          decoration: const InputDecoration(
+                            labelText: 'Custom Remaining Budget (Optional)',
+                            labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
                           ),
-                          onChanged: (val) => p['name'] = val,
+                          onChanged: (val) => _editableBudgets[teamName] = int.tryParse(val) ?? budgetValue,
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      ...players.map((p) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: TextFormField(
+                                  initialValue: p['name'],
+                                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Player Name',
+                                    labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
+                                  ),
+                                  onChanged: (val) => p['name'] = val,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  initialValue: p['role'],
+                                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                                  decoration: InputDecoration(
+                                    labelText: 'Role (${p["buy_price"]}M)',
+                                    labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                                    enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
+                                  ),
+                                  onChanged: (val) => p['role'] = val,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
                   );
                 }).toList(),
               ),
@@ -1267,9 +1380,10 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () {
-                    // Update original map
                     widget.squads.clear();
                     widget.squads.addAll(_editableSquads);
+                    widget.budgets.clear();
+                    widget.budgets.addAll(_editableBudgets);
                     Navigator.pop(context, true);
                   },
                   style: ElevatedButton.styleFrom(

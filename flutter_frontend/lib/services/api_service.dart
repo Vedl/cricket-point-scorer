@@ -259,11 +259,13 @@ class ApiService {
     required String roomCode,
     required String adminName,
     required Map<String, dynamic> squads,
+    Map<String, dynamic>? budgets,
   }) async {
     final body = {
       'room_code': roomCode,
       'admin_name': adminName,
       'squads': squads,
+      if (budgets != null) 'budgets': budgets,
     };
     final resp = await _post('/auction/import-squads', body);
     _checkResponse(resp);

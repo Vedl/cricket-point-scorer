@@ -289,6 +289,7 @@ class ImportSquadsRequest(BaseModel):
     room_code: str
     admin_name: str
     squads: dict  # {participant_name: [{name, role, team, buy_price}]}
+    budgets: Optional[dict] = None  # {participant_name: remaining_budget}
 
 
 class GenerateClaimTokenRequest(BaseModel):
@@ -2064,9 +2065,12 @@ async def import_squads(req: ImportSquadsRequest):
         participant = next(p for p in participants if p["name"] == p_name)
         participant["squad"] = squad_list
 
-        # Calculate spent budget
-        total_spent = sum(pl.get("buy_price", 0) for pl in squad_list)
-        participant["budget"] = budget - total_spent
+        # Calculate spent budget or use custom provided budget
+        if req.budgets and p_name in req.budgets:
+            participant["budget"] = req.budgets[p_name]
+        else:
+            total_spent = sum(pl.get("buy_price", 0) for pl in squad_list)
+            participant["budget"] = budget - total_spent
 
         # Generate unique 4-char claim code
         if p_name not in claim_codes:
@@ -2104,7 +2108,32 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
     if not rows:
         raise HTTPException(status_code=400, detail="Empty CSV")
 
+    # Load ipl squads for matching
+    import difflib
+    squads_path = Path(__file__).parent / "ipl_2026_squads.json"
+    player_lookup = {}
+    if squads_path.exists():
+        with open(squads_path) as sp:
+            ipl_data = json.load(sp)
+            for team_data in ipl_data.get("teams", {}).values():
+                for pl in team_data.get("squad", []):
+                    player_lookup[pl["name"].lower()] = pl
+    
+    valid_names = list(player_lookup.keys())
+
+    def match_player(raw_name):
+        n = raw_name.lower().strip()
+        if not n: return raw_name, "Unknown"
+        if n in player_lookup:
+            return player_lookup[n]["name"], player_lookup[n]["role"]
+        matches = difflib.get_close_matches(n, valid_names, n=1, cutoff=0.6)
+        if matches:
+            matched_data = player_lookup[matches[0]]
+            return matched_data["name"], matched_data["role"]
+        return raw_name, "Unknown"
+
     squads = {}
+    custom_budgets = {}
     
     # Format A (Visual grid) 
     if len(rows) > 0 and (len(rows) < 2 or rows[1].count('') >= len(rows[1])-1 or "Participant" not in rows[0]):
@@ -2115,7 +2144,20 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
                 participants[i] = name.strip()
                 squads[name.strip()] = []
         
-        for row in rows[2:]:
+        # Parse players
+        for i, row in enumerate(rows[2:]):
+            row_idx = i + 2
+            # Is this the "budget" row? Row 27 (0-indexed 26) 
+            if row_idx == 26: 
+                for col_idx, p_name in participants.items():
+                    if col_idx < len(row):
+                        b_str = row[col_idx].strip()
+                        if b_str:
+                            try:
+                                custom_budgets[p_name] = int(b_str.replace(',', '').replace('$', ''))
+                            except ValueError: pass
+                continue
+
             for col_idx, p_name in participants.items():
                 if col_idx < len(row) and col_idx + 1 < len(row):
                     player = row[col_idx].strip()
@@ -2123,7 +2165,8 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
                     if player and price_str:
                         try:
                             price = int(price_str.replace(',', '').replace('$', ''))
-                            squads[p_name].append({"name": player, "price": price, "buy_price": price})
+                            m_name, m_role = match_player(player)
+                            squads[p_name].append({"name": m_name, "price": price, "buy_price": price, "role": m_role})
                         except ValueError:
                             pass
     else:
@@ -2145,16 +2188,17 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
                     if p_name not in squads:
                         squads[p_name] = []
                     try:
-                        price = int(price_str)
-                        squads[p_name].append({"name": player, "price": price, "buy_price": price})
+                        price = int(price_str.replace(',', '').replace('$', ''))
+                        m_name, m_role = match_player(player)
+                        squads[p_name].append({"name": m_name, "price": price, "buy_price": price, "role": m_role})
                     except ValueError:
                         pass
-                        
+
     if dry_run:
-        return {"message": "Dry run successful", "squads": squads}
+        return {"message": "Dry run successful", "squads": squads, "budgets": custom_budgets}
 
     # Now re-use import squads logic
-    import_req = ImportSquadsRequest(room_code=req.room_code, admin_name=req.admin_name, squads=squads)
+    import_req = ImportSquadsRequest(room_code=req.room_code, admin_name=req.admin_name, squads=squads, budgets=custom_budgets)
     return await import_squads(import_req)
 
 
