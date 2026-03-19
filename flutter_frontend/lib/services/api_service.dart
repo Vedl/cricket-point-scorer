@@ -430,6 +430,22 @@ class ApiService {
     return jsonDecode(resp.body);
   }
 
+  // ── Leave Room ──────────────────────────────────────────
+  Future<Map<String, dynamic>> leaveRoom({
+    required String roomCode,
+    required String participantName,
+    String? uid,
+  }) async {
+    final body = {
+      'room_code': roomCode,
+      'participant_name': participantName,
+      if (uid != null) 'uid': uid,
+    };
+    final resp = await _post('/auction/leave-room', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
   // ── Helpers ──────────────────────────────────────────────
   void _checkResponse(http.Response resp) {
     if (resp.statusCode >= 400) {

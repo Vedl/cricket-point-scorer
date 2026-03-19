@@ -296,26 +296,95 @@ class _LandingScreenState extends State<LandingScreen> {
                 ],
               ),
             ),
-            // Phase badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: phaseColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                phase,
-                style: GoogleFonts.outfit(
-                  color: phaseColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+            // Phase badge & Options
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: phaseColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    phase,
+                    style: GoogleFonts.outfit(
+                      color: phaseColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+                Theme(
+                  data: Theme.of(context).copyWith(cardColor: AppTheme.bgCard),
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: AppTheme.textMuted, size: 20),
+                    onSelected: (val) {
+                      if (val == 'leave') _leaveRoom(room);
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: 'leave',
+                        child: Text(isAdmin ? '🗑️ Delete Room' : '🚪 Leave Room',
+                            style: GoogleFonts.outfit(color: AppTheme.red, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _leaveRoom(Map<String, dynamic> room) async {
+    final code = room['room_code'] ?? '';
+    final pName = room['participant_name'] ?? '';
+    final isAdmin = room['is_admin'] == true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: Text(isAdmin ? 'Delete Room?' : 'Leave Room?', style: GoogleFonts.outfit(color: AppTheme.textPrimary)),
+        content: Text(isAdmin 
+          ? 'Are you sure you want to delete this room? This action cannot be undone and all data will be lost.' 
+          : 'Are you sure you want to leave this room? Your squad and budget will be removed.',
+          style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 13)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: AppTheme.textMuted))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+            child: Text(isAdmin ? 'Delete' : 'Leave', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final api = context.read<ApiService>();
+      final auth = context.read<AuthProvider>();
+      await api.leaveRoom(
+        roomCode: code,
+        participantName: pName,
+        uid: auth.username,
+      );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isAdmin ? 'Room deleted successfully' : 'Left room successfully'), backgroundColor: AppTheme.green),
+      );
+      _load(); // Refresh rooms list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.red),
+      );
+    }
   }
 
   Widget _buildMiniChip(String text, Color color) {

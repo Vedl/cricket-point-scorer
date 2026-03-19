@@ -1994,6 +1994,14 @@ async def calculate_scores(req: CalculateScoresRequest):
     gw = req.gameweek or room.get("current_gameweek", 1)
     gw_key = str(gw)
 
+    # Validate that squads were locked for this GW
+    gw_squads = room.get("gameweek_squads", {})
+    if gw_key not in gw_squads:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Squads were never locked for GW{gw}. Lock squads first before calculating scores."
+        )
+
     try:
         players_data = scraper.fetch_match_data(req.cricbuzz_url)
         if not players_data:
@@ -2631,10 +2639,55 @@ async def available_players(room_code: str = Query(...)):
 
 
 # ----------------------------------------------------------
+# 33.  POST /auction/leave-room
+# ----------------------------------------------------------
+class LeaveRoomRequest(BaseModel):
+    room_code: str
+    participant_name: str
+    uid: Optional[str] = None
+
+@app.post("/auction/leave-room")
+async def leave_room(req: LeaveRoomRequest):
+    """Participant leaves a room. If admin leaves, room is deleted."""
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    is_admin = room.get("admin") == req.participant_name
+
+    if is_admin:
+        # Admin leaves = delete the room
+        del data["rooms"][req.room_code]
+        # Remove room from all users' rooms lists
+        users = data.get("users", {})
+        for uid, user_data in users.items():
+            user_rooms = user_data.get("rooms", [])
+            user_data["rooms"] = [r for r in user_rooms if r.get("room_code") != req.room_code]
+        _firebase_put(data)
+        return {"message": f"Room {req.room_code} deleted by admin", "deleted": True}
+    else:
+        # Remove participant from room
+        participants = room.get("participants", [])
+        room["participants"] = [p for p in participants if p["name"] != req.participant_name]
+        # Remove claim code
+        claim_codes = room.get("claim_codes", {})
+        if req.participant_name in claim_codes:
+            del claim_codes[req.participant_name]
+        # Remove from user's rooms list
+        if req.uid:
+            users = data.get("users", {})
+            user_data = users.get(req.uid, {})
+            user_rooms = user_data.get("rooms", [])
+            user_data["rooms"] = [r for r in user_rooms if r.get("room_code") != req.room_code]
+        _firebase_put(data)
+        return {"message": f"{req.participant_name} left room {req.room_code}", "deleted": False}
+
+
+# ----------------------------------------------------------
 # Run with: uvicorn api_server:app --port 8000 --reload
 # ----------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("api_server:app", host="0.0.0.0", port=8000, reload=True)
-

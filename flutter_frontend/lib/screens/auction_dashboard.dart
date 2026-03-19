@@ -61,6 +61,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     _tabController.dispose();
     _calcUrlController.dispose();
     _multiUrlController.dispose();
+    _tradePriceController.dispose();
     super.dispose();
   }
 
@@ -576,6 +577,17 @@ class _AuctionDashboardState extends State<AuctionDashboard>
 
   // ─── TRADING TAB ─────────────────────────────────────────
   Widget _buildTradingTab() {
+    if (_state == null) return _buildErrorState();
+    final participants = (_state!['participants'] as List?) ?? [];
+    final pendingTrades = (_state!['pending_trades'] as List?) ?? [];
+    final myName = widget.participantName;
+    final isLocked = _state!['squads_locked'] == true;
+
+    // Categorize trades
+    final incoming = pendingTrades.where((t) => t['to'] == myName && t['status'] == 'pending').toList();
+    final outgoing = pendingTrades.where((t) => t['from'] == myName).toList();
+    final pendingAdmin = pendingTrades.where((t) => t['status'] == 'pending_admin').toList();
+
     return RefreshIndicator(
       color: AppTheme.accent,
       onRefresh: _fetchState,
@@ -584,8 +596,59 @@ class _AuctionDashboardState extends State<AuctionDashboard>
         children: [
           Text('Trading', style: GoogleFonts.outfit(
             color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          _buildEmptyCard('Trading System', 'Propose trades, respond to offers, and manage your squad transactions from this tab.'),
+          const SizedBox(height: 4),
+          if (isLocked)
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppTheme.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: Text('⚠️ Market is locked. Trading disabled.', style: GoogleFonts.outfit(color: AppTheme.red, fontSize: 12)),
+            ),
+
+          if (!isLocked) ...[
+            const SizedBox(height: 12),
+            // Propose Trade
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: AppTheme.premiumCard(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Propose Trade', style: GoogleFonts.outfit(
+                    color: AppTheme.gold, fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  _buildTradeForm(participants),
+                ],
+              ),
+            ),
+          ],
+
+          // Incoming trades
+          if (incoming.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('📥 Incoming Offers (${incoming.length})', style: GoogleFonts.outfit(
+              color: AppTheme.green, fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ...incoming.map((t) => _buildTradeCard(t, showActions: true)),
+          ],
+
+          // Outgoing trades
+          if (outgoing.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('📤 My Proposals (${outgoing.length})', style: GoogleFonts.outfit(
+              color: AppTheme.accent, fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ...outgoing.map((t) => _buildTradeCard(t)),
+          ],
+
+          // Admin pending
+          if (widget.isAdmin && pendingAdmin.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('⚖️ Pending Admin Approval (${pendingAdmin.length})', style: GoogleFonts.outfit(
+              color: AppTheme.orange, fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ...pendingAdmin.map((t) => _buildTradeCard(t, isAdminView: true)),
+          ],
+
           const SizedBox(height: 16),
           SizedBox(
             height: 44,
@@ -600,10 +663,262 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     );
   }
 
+  // Trade form state
+  String _tradeType = 'Transfer (Sell)';
+  String? _tradeCounterparty;
+  String? _tradePlayer;
+  String? _tradeGivePlayer;
+  String? _tradeGetPlayer;
+  final _tradePriceController = TextEditingController();
+
+  Widget _buildTradeForm(List<dynamic> participants) {
+    final otherParticipants = participants
+        .where((p) => p['name'] != widget.participantName && !(p['eliminated'] == true))
+        .toList();
+    final mySquad = participants
+        .firstWhere((p) => p['name'] == widget.participantName, orElse: () => {'squad': []})['squad'] as List? ?? [];
+    final counterpartySquad = _tradeCounterparty != null
+        ? (participants.firstWhere((p) => p['name'] == _tradeCounterparty, orElse: () => {'squad': []})['squad'] as List? ?? [])
+        : <dynamic>[];
+
+    return Column(
+      children: [
+        DropdownButtonFormField<String>(
+          value: _tradeType,
+          decoration: const InputDecoration(labelText: 'Trade Type', isDense: true),
+          dropdownColor: AppTheme.bgCard,
+          style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+          items: ['Transfer (Sell)', 'Transfer (Buy)', 'Exchange', 'Loan Out', 'Loan In']
+              .map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+          onChanged: (v) => setState(() { _tradeType = v!; _tradePlayer = null; _tradeGivePlayer = null; _tradeGetPlayer = null; }),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _tradeCounterparty,
+          decoration: const InputDecoration(labelText: 'Counterparty', isDense: true),
+          dropdownColor: AppTheme.bgCard,
+          style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+          items: otherParticipants.map((p) =>
+            DropdownMenuItem<String>(value: p['name'] as String, child: Text(p['name']))).toList(),
+          onChanged: (v) => setState(() { _tradeCounterparty = v; _tradePlayer = null; _tradeGetPlayer = null; }),
+        ),
+        const SizedBox(height: 8),
+        if (_tradeType == 'Exchange') ...[
+          DropdownButtonFormField<String>(
+            value: _tradeGivePlayer,
+            decoration: const InputDecoration(labelText: 'You Give', isDense: true),
+            dropdownColor: AppTheme.bgCard,
+            style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+            items: mySquad.map((p) =>
+              DropdownMenuItem<String>(value: p['name'] as String, child: Text('${p['name']} (${p['role']})'))).toList(),
+            onChanged: (v) => setState(() => _tradeGivePlayer = v),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _tradeGetPlayer,
+            decoration: const InputDecoration(labelText: 'You Get', isDense: true),
+            dropdownColor: AppTheme.bgCard,
+            style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+            items: counterpartySquad.map((p) =>
+              DropdownMenuItem<String>(value: p['name'] as String, child: Text('${p['name']} (${p['role']})'))).toList(),
+            onChanged: (v) => setState(() => _tradeGetPlayer = v),
+          ),
+        ] else ...[
+          DropdownButtonFormField<String>(
+            value: _tradePlayer,
+            decoration: InputDecoration(
+              labelText: _tradeType.contains('Buy') || _tradeType == 'Loan In' ? 'Player (from counterparty)' : 'Player (from you)',
+              isDense: true,
+            ),
+            dropdownColor: AppTheme.bgCard,
+            style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+            items: (_tradeType.contains('Buy') || _tradeType == 'Loan In' ? counterpartySquad : mySquad).map((p) =>
+              DropdownMenuItem<String>(value: p['name'] as String, child: Text('${p['name']} (${p['role']})'))).toList(),
+            onChanged: (v) => setState(() => _tradePlayer = v),
+          ),
+        ],
+        const SizedBox(height: 8),
+        TextField(
+          controller: _tradePriceController,
+          keyboardType: TextInputType.number,
+          style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+          decoration: const InputDecoration(labelText: 'Price (M)', isDense: true, suffixText: 'M'),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(height: 42, width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _submitTrade,
+            icon: const Icon(Icons.send, size: 16),
+            label: Text('Send Proposal', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, foregroundColor: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTradeCard(dynamic trade, {bool showActions = false, bool isAdminView = false}) {
+    final type = trade['type'] ?? '';
+    final from = trade['from'] ?? '';
+    final to = trade['to'] ?? '';
+    final status = trade['status'] ?? 'pending';
+    final price = trade['price'] ?? 0;
+    final player = trade['player'] ?? '';
+    final givePl = trade['give_player'] ?? '';
+    final getPl = trade['get_player'] ?? '';
+
+    Color statusColor = AppTheme.textMuted;
+    if (status == 'pending') statusColor = AppTheme.orange;
+    if (status == 'pending_admin') statusColor = AppTheme.accent;
+
+    String detail = type == 'Exchange'
+        ? '$from gives $givePl ↔ $to gives $getPl'
+        : '$player · ${price}M';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: AppTheme.glassmorphism(borderRadius: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: AppTheme.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
+              child: Text(type, style: GoogleFonts.outfit(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
+            const Spacer(),
+            Text(status.toUpperCase(), style: GoogleFonts.outfit(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 6),
+          Text('$from → $to', style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(detail, style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12)),
+          if (showActions) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: SizedBox(height: 34,
+                child: ElevatedButton(
+                  onPressed: () => _respondTrade(trade['id'], 'accept'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.green, foregroundColor: Colors.white),
+                  child: Text('Accept', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: SizedBox(height: 34,
+                child: OutlinedButton(
+                  onPressed: () => _respondTrade(trade['id'], 'reject'),
+                  child: Text('Reject', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.red)),
+                ),
+              )),
+            ]),
+          ],
+          if (isAdminView) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: SizedBox(height: 34,
+                child: ElevatedButton(
+                  onPressed: () => _adminTradeAction(trade['id'], 'approve'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.green, foregroundColor: Colors.white),
+                  child: Text('Approve', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: SizedBox(height: 34,
+                child: OutlinedButton(
+                  onPressed: () => _adminTradeAction(trade['id'], 'reject'),
+                  child: Text('Reject', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.red)),
+                ),
+              )),
+            ]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitTrade() async {
+    final price = double.tryParse(_tradePriceController.text.trim()) ?? 0;
+    if (_tradeCounterparty == null) { _showSnack('Select a counterparty', isError: true); return; }
+    if (_tradeType == 'Exchange') {
+      if (_tradeGivePlayer == null || _tradeGetPlayer == null) { _showSnack('Select both players', isError: true); return; }
+    } else {
+      if (_tradePlayer == null) { _showSnack('Select a player', isError: true); return; }
+    }
+    try {
+      final api = context.read<ApiService>();
+      await api.proposeTrade(
+        roomCode: widget.roomCode,
+        fromParticipant: widget.participantName,
+        toParticipant: _tradeCounterparty!,
+        tradeType: _tradeType,
+        player: _tradeType == 'Exchange' ? null : _tradePlayer,
+        givePlayer: _tradeType == 'Exchange' ? _tradeGivePlayer : null,
+        getPlayer: _tradeType == 'Exchange' ? _tradeGetPlayer : null,
+        price: price,
+      );
+      _showSnack('Trade proposal sent!');
+      _tradePriceController.clear();
+      setState(() { _tradePlayer = null; _tradeGivePlayer = null; _tradeGetPlayer = null; });
+      _fetchState();
+    } catch (e) {
+      _showSnack(e.toString(), isError: true);
+    }
+  }
+
+  Future<void> _respondTrade(String tradeId, String action) async {
+    try {
+      final api = context.read<ApiService>();
+      await api.respondTrade(
+        roomCode: widget.roomCode,
+        tradeId: tradeId,
+        participantName: widget.participantName,
+        action: action,
+      );
+      _showSnack(action == 'accept' ? 'Trade accepted, pending admin approval' : 'Trade rejected');
+      _fetchState();
+    } catch (e) { _showSnack(e.toString(), isError: true); }
+  }
+
+  Future<void> _adminTradeAction(String tradeId, String action) async {
+    try {
+      final api = context.read<ApiService>();
+      await api.adminTradeAction(
+        roomCode: widget.roomCode,
+        tradeId: tradeId,
+        adminName: widget.participantName,
+        action: action,
+      );
+      _showSnack(action == 'approve' ? 'Trade approved & executed!' : 'Trade rejected by admin');
+      _fetchState();
+    } catch (e) { _showSnack(e.toString(), isError: true); }
+  }
+
   // ─── SQUADS TAB ──────────────────────────────────────────
+  int? _squadsGw; // null = live squads
+
   Widget _buildSquadsTab() {
     if (_state == null) return _buildErrorState();
-    final participants = (_state!['participants'] as List?) ?? [];
+    
+    final gwSquads = _state!['gameweek_squads'] as Map<String, dynamic>? ?? {};
+    final gwKeys = gwSquads.keys.toList()..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+
+    // Choose which participants data to show
+    List<dynamic> participantsToShow;
+    if (_squadsGw == null) {
+      participantsToShow = (_state!['participants'] as List?) ?? [];
+    } else {
+      final lockedData = gwSquads[_squadsGw.toString()] as Map<String, dynamic>? ?? {};
+      participantsToShow = [];
+      lockedData.forEach((name, data) {
+        participantsToShow.add({
+          'name': name,
+          'squad': data['squad'],
+          'budget': data['budget'],
+          'injury_reserve': data['injury_reserve'],
+        });
+      });
+    }
 
     return RefreshIndicator(
       color: AppTheme.accent,
@@ -614,7 +929,24 @@ class _AuctionDashboardState extends State<AuctionDashboard>
           Text('All Squads', style: GoogleFonts.outfit(
             color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
-          ...participants.map((p) => _buildSquadExpansionCard(p)),
+
+          if (gwKeys.isNotEmpty) ...[
+            SizedBox(height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _gwChip('Live Squads', _squadsGw == null, () => setState(() => _squadsGw = null)),
+                  ...gwKeys.map((k) => _gwChip('GW $k Locked', _squadsGw == int.parse(k), () => setState(() => _squadsGw = int.parse(k)))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          if (participantsToShow.isEmpty)
+            _buildEmptyCard('No Squads', 'No participants or squads available.')
+          else
+            ...participantsToShow.map((p) => _buildSquadExpansionCard(p, isLocked: _squadsGw != null)),
 
           const SizedBox(height: 24),
 
@@ -670,7 +1002,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
     }
   }
 
-  Widget _buildSquadExpansionCard(dynamic p) {
+  Widget _buildSquadExpansionCard(dynamic p, {bool isLocked = false}) {
     final name = p['name'] ?? '';
     final budget = (p['budget'] ?? 0).toDouble();
     final squad = (p['squad'] as List?) ?? [];
@@ -708,7 +1040,7 @@ class _AuctionDashboardState extends State<AuctionDashboard>
                 final roleColor = AppTheme.getRoleColor(role);
                 final isIR = playerName == irPlayer;
                 return InkWell(
-                  onTap: isMe ? () => _setInjuryReserve(playerName) : null,
+                  onTap: (isMe && !isLocked) ? () => _setInjuryReserve(playerName) : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Row(children: [
@@ -905,71 +1237,116 @@ class _AuctionDashboardState extends State<AuctionDashboard>
   }
 
   // ─── STANDINGS TAB ───────────────────────────────────────
+  Map<String, dynamic>? _standingsData;
+  int? _standingsGw; // null = cumulative
+  bool _standingsLoading = false;
+
   Widget _buildStandingsTab() {
+    final gw = _state?['current_gameweek'] ?? 1;
+    final gwSquads = _state?['gameweek_squads'] as Map<String, dynamic>? ?? {};
+    final gwKeys = gwSquads.keys.toList()..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+    final standings = (_standingsData?['standings'] as List?) ?? [];
+
     return RefreshIndicator(
       color: AppTheme.accent,
-      onRefresh: _fetchState,
-      child: FutureBuilder(
-        future: context.read<ApiService>().getStandings(widget.roomCode),
-        builder: (ctx, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
-          }
-          if (snap.hasError) {
-            return _buildEmptyCard('No standings', snap.error.toString());
-          }
-          final data = snap.data;
-          final standings = (data?['standings'] as List?) ?? [];
-          if (standings.isEmpty) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [_buildEmptyCard('No standings yet', 'Scores will appear after the first gameweek')],
-            );
-          }
+      onRefresh: () => _loadStandings(_standingsGw),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Standings', style: GoogleFonts.outfit(
+            color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text('Current GW: $gw', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12)),
+          const SizedBox(height: 10),
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text('Standings', style: GoogleFonts.outfit(
-                color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 10),
-              ...standings.asMap().entries.map((e) {
-                final idx = e.key;
-                final s = e.value;
-                final rank = s['rank'] ?? (idx + 1);
-                final name = s['participant'] ?? '';
-                final pts = (s['points'] ?? 0).toDouble();
+          // GW selector chips
+          SizedBox(height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _gwChip('Cumulative', _standingsGw == null, () => _loadStandings(null)),
+                ...gwKeys.map((k) => _gwChip('GW $k', _standingsGw == int.parse(k), () => _loadStandings(int.parse(k)))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
 
-                Color rankColor = AppTheme.textMuted;
-                if (rank == 1) rankColor = AppTheme.gold;
-                if (rank == 2) rankColor = AppTheme.accentLight;
-                if (rank == 3) rankColor = AppTheme.orange;
+          if (_standingsLoading)
+            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: AppTheme.accent)))
+          else if (_standingsData == null)
+            _buildEmptyCard('Tap a GW or Cumulative', 'Select a view to load standings')
+          else if (standings.isEmpty)
+            _buildEmptyCard('No standings', 'No scores recorded yet')
+          else
+            ...standings.asMap().entries.map((e) {
+              final idx = e.key;
+              final s = e.value;
+              final rank = s['rank'] ?? (idx + 1);
+              final name = s['participant'] ?? '';
+              final pts = (s['points'] ?? 0).toDouble();
+              final best11 = (s['best_11'] as List?)?.cast<String>() ?? [];
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(14),
-                  decoration: rank <= 3
-                      ? AppTheme.glowCard(glowColor: rankColor, borderRadius: 12)
-                      : AppTheme.glassmorphism(borderRadius: 12),
-                  child: Row(children: [
-                    SizedBox(
-                      width: 30,
-                      child: Text('#$rank', style: GoogleFonts.outfit(
-                        color: rankColor, fontWeight: FontWeight.w800, fontSize: 16)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(name, style: GoogleFonts.outfit(
-                      color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14))),
-                    Text('${pts.toStringAsFixed(0)} pts', style: GoogleFonts.outfit(
-                      color: rankColor, fontWeight: FontWeight.w800, fontSize: 14)),
-                  ]),
-                );
-              }),
-            ],
-          );
-        },
+              Color rankColor = AppTheme.textMuted;
+              if (rank == 1) rankColor = AppTheme.gold;
+              if (rank == 2) rankColor = AppTheme.accentLight;
+              if (rank == 3) rankColor = AppTheme.orange;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: rank <= 3
+                    ? AppTheme.glowCard(glowColor: rankColor, borderRadius: 12)
+                    : AppTheme.glassmorphism(borderRadius: 12),
+                child: ExpansionTile(
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                  leading: Text('#$rank', style: GoogleFonts.outfit(
+                    color: rankColor, fontWeight: FontWeight.w800, fontSize: 16)),
+                  title: Text(name, style: GoogleFonts.outfit(
+                    color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+                  trailing: Text('${pts.toStringAsFixed(0)} pts', style: GoogleFonts.outfit(
+                    color: rankColor, fontWeight: FontWeight.w800, fontSize: 14)),
+                  children: best11.isEmpty
+                    ? [Text('Best XI not available for cumulative view', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12))]
+                    : [
+                        Text('Best XI', style: GoogleFonts.outfit(color: AppTheme.gold, fontSize: 11, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        ...best11.asMap().entries.map((pe) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 1),
+                          child: Text('${pe.key + 1}. ${pe.value}', style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12)),
+                        )),
+                      ],
+                ),
+              );
+            }),
+        ],
       ),
     );
+  }
+
+  Widget _gwChip(String label, bool selected, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label, style: GoogleFonts.outfit(
+          color: selected ? Colors.white : AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+        selected: selected,
+        selectedColor: AppTheme.accent,
+        backgroundColor: AppTheme.surface,
+        onSelected: (_) => onTap(),
+      ),
+    );
+  }
+
+  Future<void> _loadStandings(int? gw) async {
+    setState(() { _standingsLoading = true; _standingsGw = gw; });
+    try {
+      final api = context.read<ApiService>();
+      final data = await api.getStandings(widget.roomCode, gameweek: gw);
+      if (mounted) setState(() { _standingsData = data; _standingsLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _standingsLoading = false; });
+      _showSnack(e.toString(), isError: true);
+    }
   }
 
   // ─── CALCULATOR TAB ──────────────────────────────────────
