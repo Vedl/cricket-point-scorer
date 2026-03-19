@@ -383,7 +383,7 @@ scraper = CricbuzzScraper()
 calculator = CricketScoreCalculator()
 
 # Default starting budget per tournament type
-_DEFAULT_BUDGET = {"t20_wc": 200, "ipl": 300}
+_DEFAULT_BUDGET = {"t20_wc": 200, "ipl": 1000}
 
 # IPL 2026 franchise teams
 IPL_TEAMS = {
@@ -2123,14 +2123,28 @@ async def import_csv(req: ImportCsvRequest, dry_run: bool = Query(False, descrip
 
     def match_player(raw_name):
         n = raw_name.lower().strip()
-        if not n: return raw_name, "Unknown"
+        if not n: return raw_name, "Unknown", "Unknown", []
+        
+        # Suggestions (Top 5)
+        matches = difflib.get_close_matches(n, valid_names, n=5, cutoff=0.5)
+        suggestions = []
+        for m in matches:
+            suggestions.append({
+                "name": player_lookup[m]["name"],
+                "role": player_lookup[m]["role"],
+                "team": player_lookup[m].get("ipl_team", "Unknown")
+            })
+
         if n in player_lookup:
-            return player_lookup[n]["name"], player_lookup[n]["role"]
-        matches = difflib.get_close_matches(n, valid_names, n=1, cutoff=0.6)
+            p = player_lookup[n]
+            return p["name"], p["role"], p.get("ipl_team", "Unknown"), suggestions
+            
         if matches:
-            matched_data = player_lookup[matches[0]]
-            return matched_data["name"], matched_data["role"]
-        return raw_name, "Unknown"
+            p = player_lookup[matches[0]]
+            # If match is very close (e.g. > 0.9), return it as primary
+            return p["name"], p["role"], p.get("ipl_team", "Unknown"), suggestions
+
+        return raw_name, "Unknown", "Unknown", suggestions
 
     squads = {}
     custom_budgets = {}
@@ -2605,7 +2619,7 @@ async def available_players(room_code: str = Query(...)):
                     })
 
     available.sort(key=lambda x: x["name"])
-    return {"available": available, "total": len(available)}
+    return {"available_players": available, "total": len(available)}
 
 
 # ----------------------------------------------------------

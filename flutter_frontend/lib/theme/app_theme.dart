@@ -169,17 +169,17 @@ class AppTheme {
   // ── Role Colors ──
   static Color getRoleColor(String role) {
     final r = role.toLowerCase();
+    if (r.contains('all')) return purple;
     if (r.contains('wk') || r.contains('keeper')) return cyan;
     if (r.contains('bat')) return accent;
-    if (r.contains('all')) return purple;
     if (r.contains('bowl')) return green;
     return textSecondary;
   }
 
   static String getRoleShort(String role) {
     final r = role.toLowerCase();
-    if (r.contains('wk') || r.contains('keeper')) return 'WK';
     if (r.contains('all')) return 'AR';
+    if (r.contains('wk') || r.contains('keeper')) return 'WK';
     if (r.contains('bat')) return 'BAT';
     if (r.contains('bowl')) return 'BWL';
     return role;

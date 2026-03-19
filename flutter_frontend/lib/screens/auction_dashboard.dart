@@ -1329,37 +1329,87 @@ class _CsvReviewDialogState extends State<_CsvReviewDialog> {
                         ),
                       ),
                       ...players.map((p) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
+                        final List? suggestions = p['suggestions'] as List?;
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                flex: 3,
-                                child: TextFormField(
-                                  initialValue: p['name'],
-                                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Player Name',
-                                    labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 11),
-                                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextFormField(
+                                      initialValue: p['name'],
+                                      style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Player Name',
+                                        labelStyle: TextStyle(color: AppTheme.textMuted, fontSize: 10),
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                      ),
+                                      onChanged: (val) => p['name'] = val,
+                                    ),
                                   ),
-                                  onChanged: (val) => p['name'] = val,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 2,
-                                child: TextFormField(
-                                  initialValue: p['role'],
-                                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                                  decoration: InputDecoration(
-                                    labelText: 'Role (${p["buy_price"]}M)',
-                                    labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
-                                    enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.textMuted)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextFormField(
+                                      initialValue: p['role'],
+                                      style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        labelText: 'Role',
+                                        labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                        suffixText: '${p["buy_price"]}M',
+                                        suffixStyle: const TextStyle(color: AppTheme.gold, fontSize: 10),
+                                      ),
+                                      onChanged: (val) => p['role'] = val,
+                                    ),
                                   ),
-                                  onChanged: (val) => p['role'] = val,
-                                ),
+                                ],
                               ),
+                              if (suggestions != null && suggestions.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accent.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<Map<String, dynamic>>(
+                                      isExpanded: true,
+                                      hint: Text('Suggested matches...', style: GoogleFonts.outfit(color: AppTheme.accent, fontSize: 11)),
+                                      icon: const Icon(Icons.auto_awesome, size: 14, color: AppTheme.accent),
+                                      items: suggestions.map((s) {
+                                        final sm = s as Map<String, dynamic>;
+                                        return DropdownMenuItem<Map<String, dynamic>>(
+                                          value: sm,
+                                          child: Text('${sm['name']} (${sm['role']} - ${sm['team']})', 
+                                            style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 11)),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() {
+                                            p['name'] = val['name'];
+                                            p['role'] = val['role'];
+                                            p['team'] = val['team'];
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         );
