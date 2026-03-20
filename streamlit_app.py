@@ -49,6 +49,7 @@ AUCTION_DATA_FILE = os.path.join(DATA_DIR, "auction_data.json")
 PLAYERS_DB_FILE = os.path.join(DATA_DIR, "players_database.json")
 IPL_SQUADS_FILE = os.path.join(DATA_DIR, "ipl_2026_squads.json")
 SCHEDULE_FILE = os.path.join(DATA_DIR, "t20_wc_schedule.json")
+IPL_SCHEDULE_FILE = os.path.join(DATA_DIR, "ipl_2026_schedule.json")
 
 def get_ist_time():
     """Returns the current time in Indian Standard Time (IST)"""
@@ -115,11 +116,12 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 @st.cache_data(ttl=300)
-def load_schedule():
-    """Load T20 WC schedule."""
-    if os.path.exists(SCHEDULE_FILE):
+def load_schedule(tournament_type="T20 World Cup"):
+    """Load tournament schedule."""
+    file_path = IPL_SCHEDULE_FILE if tournament_type == "IPL 2026" else SCHEDULE_FILE
+    if os.path.exists(file_path):
         try:
-            with open(SCHEDULE_FILE, 'r') as f:
+            with open(file_path, 'r') as f:
                 return json.load(f)
         except:
             pass
@@ -363,7 +365,7 @@ def render_live_auction_fragment(room_code, user):
     st.subheader("🔴 Live Auction")
     
     # Feature: View Real World Squads
-    with st.expander("🌏 View World Cup Squads (Reference)"):
+    with st.expander("🌏 View Squads (Reference)"):
         all_teams_list = sorted(list(teams_with_players.keys()))
         view_team = st.selectbox("Select Team", all_teams_list, key="view_real_squad_select")
         if view_team:
@@ -2306,7 +2308,7 @@ def show_main_app():
         st.title("📅 Schedule & Admin")
         
         # Load schedule
-        schedule = load_schedule()
+        schedule = load_schedule(active_tournament_type)
         
         st.markdown("View match schedule and gameweek data.")
         if not is_admin:
@@ -2326,9 +2328,8 @@ def show_main_app():
                     # === AUTO-FIX & VALIDATION LOGIC ===
                     sanitization_log = []
                     
-                    # Dynamically set squad limits based on Tournament Type
-                    is_ipl = room.get('tournament_type') == "IPL 2026"
-                    max_squad_size = 25 if is_ipl else 19
+                    # User requested exactly same rules as T20 WC
+                    max_squad_size = 19
                     
                     for p in room.get('participants', []):
                         # Skip eliminated participants entirely
@@ -2690,8 +2691,6 @@ def show_main_app():
                                 st.success(f"PIN removed for {sec_part_name}!")
                 else:
                     st.warning("No participants found in this room.")
-                st.success(f"Deadline updated to: {final_dt.strftime('%b %d, %H:%M')}")
-                st.rerun()
             
             st.divider()
             st.subheader("📥 Bulk Squad Import (CSV with Staging)")
