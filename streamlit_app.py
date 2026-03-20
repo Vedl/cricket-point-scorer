@@ -47,6 +47,7 @@ st.set_page_config(page_title="Fantasy Cricket Auction Platform", page_icon="�
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 AUCTION_DATA_FILE = os.path.join(DATA_DIR, "auction_data.json")
 PLAYERS_DB_FILE = os.path.join(DATA_DIR, "players_database.json")
+IPL_SQUADS_FILE = os.path.join(DATA_DIR, "ipl_2026_squads.json")
 SCHEDULE_FILE = os.path.join(DATA_DIR, "t20_wc_schedule.json")
 
 def get_ist_time():
@@ -58,8 +59,6 @@ storage_mgr = StorageManager(AUCTION_DATA_FILE)
 
 
 # --- Load/Save Functions for Persistence ---
-# Removed st.cache_data to ensure we always get fresh data from disk
-# The local file read is fast enough (ms) and this prevents stale state bugs.
 def get_cached_auction_data(_mgr_dummy_arg):
     return storage_mgr.load_data()
 
@@ -70,12 +69,10 @@ def load_auction_data():
 def save_auction_data(data):
     """Save auction data to Storage Manager (Remote + Local)."""
     storage_mgr.save_data(data)
-    # Cache clearing no longer needed as we don't cache
-    # get_cached_auction_data.clear()
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes - static data that rarely changes
+@st.cache_data(ttl=300)
 def load_players_database():
-    """Load master player database."""
+    """Load T20 WC master player database."""
     if os.path.exists(PLAYERS_DB_FILE):
         try:
             with open(PLAYERS_DB_FILE, 'r') as f:
@@ -85,6 +82,30 @@ def load_players_database():
             pass
     return []
 
+@st.cache_data(ttl=300)
+def load_ipl_database():
+    """Load IPL 2026 player database."""
+    if os.path.exists(IPL_SQUADS_FILE):
+        try:
+            with open(IPL_SQUADS_FILE, 'r') as f:
+                data = json.load(f)
+                teams = data.get("teams", {})
+                players = []
+                for team_code, team_data in teams.items():
+                    for p in team_data.get("squad", []):
+                        p_copy = dict(p)
+                        p_copy['country'] = team_data.get('name', team_code)
+                        players.append(p_copy)
+                return players
+        except:
+            pass
+    return []
+
+def get_tournament_players(tournament_type):
+    if tournament_type == "IPL 2026":
+        return load_ipl_database()
+    return load_players_database()
+
 def generate_room_code():
     """Generate a unique 6-character room code."""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -93,7 +114,7 @@ def hash_password(password):
     """Hash password using SHA256."""
     return hashlib.sha256(password.encode()).hexdigest()
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes - static data that rarely changes
+@st.cache_data(ttl=300)
 def load_schedule():
     """Load T20 WC schedule."""
     if os.path.exists(SCHEDULE_FILE):
@@ -104,12 +125,24 @@ def load_schedule():
             pass
     return {"gameweeks": {}}
 
+# --- Session State Initialization ---
+if 'logged_in_user' not in st.session_state:
+    st.session_state.logged_in_user = None
+if 'current_room' not in st.session_state:
+    st.session_state.current_room = None
+
 # --- Initialize Data ---
 auction_data = load_auction_data()
-players_db = load_players_database()
+
+# Determine active tournament type based on current room context
+active_tournament_type = "T20 World Cup"
+if st.session_state.current_room and st.session_state.current_room in auction_data.get('rooms', {}):
+    active_tournament_type = auction_data['rooms'][st.session_state.current_room].get('tournament_type', 'T20 World Cup')
+
+players_db = get_tournament_players(active_tournament_type)
 
 # Create lookup dict for quick role finding
-player_role_lookup = {p['name']: p['role'] for p in players_db}
+player_role_lookup = {p['name']: p.get('role', 'Unknown') for p in players_db}
 player_team_lookup = {p['name']: p.get('country', 'Unknown') for p in players_db}
 player_info_map = {p['name']: p for p in players_db}
 player_names = [p['name'] for p in players_db]
@@ -119,17 +152,9 @@ def format_player_name(name):
     info = player_info_map.get(name, {})
     return f"{name} ({info.get('role', 'N/A')} - {info.get('country', 'N/A')})"
 
-# --- CUSTOM CSS FOR PREMIUM BROADCASTER LOOK ---
-# --- CUSTOM CSS FOR ELECTRIC BLUE TERMINAL LOOK ---
-# --- CUSTOM CSS FOR ELECTRIC BLUE TERMINAL LOOK ---
 def inject_custom_css():
-    pass # Reverted to standard Streamlit theme per user request
+    pass
 
-# --- Session State Initialization ---
-if 'logged_in_user' not in st.session_state:
-    st.session_state.logged_in_user = None
-if 'current_room' not in st.session_state:
-    st.session_state.current_room = None
 
 # =====================================
 # LOGIN / REGISTER PAGE
@@ -218,6 +243,7 @@ def show_room_selection():
     with col1:
         st.subheader("➕ Create New Room")
         room_name = st.text_input("Room Name", placeholder="e.g., Friends T20 League")
+        tournament_type = st.radio("Tournament Type", ["T20 World Cup", "IPL 2026"], horizontal=True)
         if st.button("Create Room", type="primary"):
             if room_name:
                 room_code = generate_room_code()
@@ -227,11 +253,10 @@ def show_room_selection():
                 
                 auction_data['rooms'][room_code] = {
                     "name": room_name,
+                    "tournament_type": tournament_type,
                     "admin": user,
                     "members": [user],
-                    "members": [user],
                     "participants": [], # Init empty, Admin must import/create/claim
-                    "gameweek_scores": {},
                     "gameweek_scores": {},
                     "created_at": get_ist_time().isoformat(),
                     # Auction System Fields
@@ -250,7 +275,7 @@ def show_room_selection():
                 st.session_state.current_room = room_code
                 st.query_params['user'] = user
                 st.query_params['room'] = room_code
-                st.success(f"Room created! Code: **{room_code}**")
+                st.success(f"Room created! Code: **{room_code}** ({tournament_type})")
                 st.rerun()
             else:
                 st.warning("Please enter a room name.")
@@ -888,13 +913,18 @@ def render_live_auction_fragment(room_code, user):
 def show_main_app():
     inject_custom_css() # Apply Aesthetics
     
+    room_code = st.session_state.current_room
+    room = auction_data['rooms'].get(room_code) if room_code else None
+    
+    t_type_display = room.get('tournament_type', 'T20 World Cup').upper() if room else active_tournament_type.upper()
+    
     # === GLOBAL BROADCASTER HEADER ===
-    st.markdown("""
+    st.markdown(f"""
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 15px;">
             <div style="font-size: 2.5rem; filter: drop-shadow(0 0 10px rgba(0,255,153,0.5));">🏆</div>
             <div>
-                <h3 style="margin: 0; font-family: 'Orbitron', sans-serif; color: #fff; line-height: 1.2; font-size: 1.4rem;">T20 WORLD CUP <span style="color: #00FF99;">2026</span></h3>
+                <h3 style="margin: 0; font-family: 'Orbitron', sans-serif; color: #fff; line-height: 1.2; font-size: 1.4rem;">{t_type_display}</h3>
                 <div style="color: #8b949e; font-size: 0.75rem; letter-spacing: 3px; font-weight: 600;">OFFICIAL AUCTION TERMINAL</div>
             </div>
         </div>
@@ -904,8 +934,6 @@ def show_main_app():
     </div>
     """, unsafe_allow_html=True)
     user = st.session_state.logged_in_user
-    room_code = st.session_state.current_room
-    room = auction_data['rooms'].get(room_code)
     
     if not room:
         st.error("Room not found!")
@@ -939,13 +967,23 @@ def show_main_app():
         if unclaimed:
             st.container().warning(f"👋 Welcome, **{user}**! You are not linked to a team yet.")
             st.markdown("### 🛡️ Claim Your Squad")
-            st.info("You must join one of the generated teams to continue.")
+            st.info("You must join one of the generated teams to continue. If the Admin set a PIN, you must enter it below.")
             
             selected_team = st.selectbox("Select which team belongs to you:", unclaimed, key="force_claim_sel")
+            p_claim = next((p for p in room.get('participants', []) if p['name'] == selected_team), None)
+            
+            pin_input = ""
+            if p_claim and p_claim.get('pin_hash'):
+                pin_input = st.text_input("Squad PIN (Ask Admin if required)", type="password", key="force_claim_pin")
             
             if st.button("🚀 Join Team & Enter Room", type="primary"):
-                p_claim = next((p for p in room.get('participants', []) if p['name'] == selected_team), None)
                 if p_claim:
+                    # Validate PIN
+                    if p_claim.get('pin_hash'):
+                        if not pin_input or hash_password(pin_input) != p_claim['pin_hash']:
+                            st.error("❌ Incorrect PIN. Please ask the Admin for your Squad PIN.")
+                            return
+
                     p_claim['user'] = user
                     save_auction_data(auction_data)
                     st.success(f"Successfully joined as **{selected_team}**!")
@@ -2288,18 +2326,22 @@ def show_main_app():
                     # === AUTO-FIX & VALIDATION LOGIC ===
                     sanitization_log = []
                     
+                    # Dynamically set squad limits based on Tournament Type
+                    is_ipl = room.get('tournament_type') == "IPL 2026"
+                    max_squad_size = 25 if is_ipl else 19
+                    
                     for p in room.get('participants', []):
                         # Skip eliminated participants entirely
                         if p.get('eliminated', False):
                             continue
                         changes = []
                         
-                        # 1. TRIM SQUAD (>19 Players)
-                        if len(p['squad']) > 19:
+                        # 1. TRIM SQUAD
+                        if len(p['squad']) > max_squad_size:
                             # Sort by Price ASC (Cheapest First)
                             p['squad'].sort(key=lambda x: x.get('buy_price', 0))
                             
-                            excess = len(p['squad']) - 19
+                            excess = len(p['squad']) - max_squad_size
                             to_remove = p['squad'][:excess]
                             p['squad'] = p['squad'][excess:] # Keep the rest
                             
@@ -2307,9 +2349,9 @@ def show_main_app():
                             room.setdefault('unsold_players', []).extend([pl['name'] for pl in to_remove])
                             changes.append(f"Released {excess} cheapest players")
                         
-                        # 2. MANDATORY IR CHECK (>=19 Players)
-                        # Rule: If squad is full (19), MUST have IR.
-                        if len(p['squad']) >= 19:
+                        # 2. MANDATORY IR CHECK
+                        # Rule: If squad is full, MUST have IR.
+                        if len(p['squad']) >= max_squad_size:
                             if not p.get('injury_reserve'):
                                 # Auto-Assign Most Expensive as IR
                                 # Sort by Price DESC
@@ -2320,11 +2362,11 @@ def show_main_app():
                                 p['injury_reserve'] = ir_cand
                                 changes.append(f"Auto-assigned IR: {ir_cand} (Most Expensive)")
                         
-                        # Fix: Clear IR if squad dropped below 19
-                        elif len(p['squad']) < 19:
+                        # Fix: Clear IR if squad dropped below max
+                        elif len(p['squad']) < max_squad_size:
                             if p.get('injury_reserve'):
                                 p['injury_reserve'] = None
-                                changes.append("Cleared IR (Squad < 19)")
+                                changes.append(f"Cleared IR (Squad < {max_squad_size})")
                         
                         # 3. IR FEE DEDUCTION
                         if p.get('injury_reserve'):
@@ -2610,6 +2652,44 @@ def show_main_app():
                 final_dt = datetime.combine(new_date, new_time)
                 room['bidding_deadline'] = final_dt.isoformat()
                 save_auction_data(auction_data)
+                st.success(f"Deadline updated to: {final_dt.strftime('%b %d, %H:%M')}")
+                st.rerun()
+                
+            st.divider()
+            
+            # === ADMIN PARTICIPANT SECURITY ===
+            with st.expander("🔐 Participant Security (Set PINs)"):
+                st.info("Set a PIN for participants to securely claim their squads. Users will be required to enter this PIN when joining.")
+                
+                parts_with_pins = [p['name'] for p in room.get('participants', [])]
+                if parts_with_pins:
+                    sec_part_name = st.selectbox("Select Participant", parts_with_pins, key="sec_part_sel")
+                    
+                    sec_p = next((p for p in room.get('participants', []) if p['name'] == sec_part_name), None)
+                    if sec_p:
+                        if sec_p.get('pin_hash'):
+                            st.success("🔒 This squad is currently secured with a PIN.")
+                        else:
+                            st.warning("🔓 This squad is currently unprotected (No PIN).")
+                            
+                        new_pin = st.text_input("New PIN", type="password", help="Leave blank to remove PIN", key="sec_new_pin")
+                        
+                        col_pin1, col_pin2 = st.columns(2)
+                        with col_pin1:
+                            if st.button("Update PIN", type="primary"):
+                                if new_pin:
+                                    sec_p['pin_hash'] = hash_password(new_pin)
+                                    save_auction_data(auction_data)
+                                    st.success(f"PIN updated for {sec_part_name}!")
+                                else:
+                                    st.warning("Please enter a PIN to update.")
+                        with col_pin2:
+                            if st.button("Remove PIN", type="secondary"):
+                                sec_p.pop('pin_hash', None)
+                                save_auction_data(auction_data)
+                                st.success(f"PIN removed for {sec_part_name}!")
+                else:
+                    st.warning("No participants found in this room.")
                 st.success(f"Deadline updated to: {final_dt.strftime('%b %d, %H:%M')}")
                 st.rerun()
             
