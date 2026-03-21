@@ -268,6 +268,7 @@ def show_room_selection():
                     "name": room_name,
                     "tournament_type": tournament_type,
                     "admin": user,
+                    "admin_participating": admin_participating,
                     "members": [user],
                     "participants": participants, # Empty if admin not participating
                     "gameweek_scores": {},
@@ -955,12 +956,16 @@ def show_main_app():
         return
     
     is_admin = room['admin'] == user
+    admin_participating = room.get('admin_participating', True) # Default to True for old rooms
     
     # === TEAM ASSIGNMENT LOGIC (Auto-Match or Claim) ===
     # 1. Check if user is already managing a team
     my_p = next((p for p in room.get('participants', []) if p.get('user') == user), None)
     
-    if not my_p:
+    # If Admin explicitly opted out, never auto-match and never force claim
+    skip_claim = is_admin and not admin_participating
+    
+    if not my_p and not skip_claim:
         # 2. Try Auto-Match (Username == Participant Name)
         # Look for UNCLAIMED participant with exact name match
         auto_match = next((p for p in room.get('participants', []) if p['name'] == user and p.get('user') is None), None)
