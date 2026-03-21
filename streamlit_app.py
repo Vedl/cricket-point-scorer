@@ -246,6 +246,8 @@ def show_room_selection():
         st.subheader("➕ Create New Room")
         room_name = st.text_input("Room Name", placeholder="e.g., Friends T20 League")
         tournament_type = st.radio("Tournament Type", ["T20 World Cup", "IPL 2026"], horizontal=True)
+        admin_participating = st.checkbox("Admin will participate as a team manager", value=True)
+        
         if st.button("Create Room", type="primary"):
             if room_name:
                 room_code = generate_room_code()
@@ -253,12 +255,21 @@ def show_room_selection():
                 while room_code in auction_data['rooms']:
                     room_code = generate_room_code()
                 
+                participants = []
+                if admin_participating:
+                    participants.append({
+                        "name": user,
+                        "budget": 100,
+                        "squad": [],
+                        "user": user
+                    })
+
                 auction_data['rooms'][room_code] = {
                     "name": room_name,
                     "tournament_type": tournament_type,
                     "admin": user,
                     "members": [user],
-                    "participants": [], # Init empty, Admin must import/create/claim
+                    "participants": participants, # Empty if admin not participating
                     "gameweek_scores": {},
                     "created_at": get_ist_time().isoformat(),
                     # Auction System Fields
@@ -2664,26 +2675,43 @@ def show_main_app():
                 
                 parts_with_pins = [p['name'] for p in room.get('participants', [])]
                 if parts_with_pins:
+                    if st.button("🎲 Auto-Generate PINs for ALL Unsecured Participants"):
+                        generated_pins = []
+                        for p in room.get('participants', []):
+                            if not p.get('pin_hash') and not p.get('user'):
+                                pin = f"{random.randint(0, 9999):04d}"
+                                p['pin_hash'] = hash_password(pin)
+                                generated_pins.append({"Participant": p['name'], "PIN": pin})
+                        
+                        if generated_pins:
+                            save_auction_data(auction_data)
+                            st.success(f"✅ Random 4-digit PINs assigned to {len(generated_pins)} participants!")
+                            st.warning("⚠️ Write these down or share them! Once you close this window, the plain text PINs will be lost forever!")
+                            st.table(pd.DataFrame(generated_pins))
+                        else:
+                            st.info("All participants already have a PIN or are securely claimed.")
+
+                    st.divider()
+                    
                     sec_part_name = st.selectbox("Select Participant", parts_with_pins, key="sec_part_sel")
                     
                     sec_p = next((p for p in room.get('participants', []) if p['name'] == sec_part_name), None)
                     if sec_p:
-                        if sec_p.get('pin_hash'):
+                        if sec_p.get('user'):
+                            st.success(f"✅ This squad has already been securely claimed by **{sec_p['user']}**.")
+                        elif sec_p.get('pin_hash'):
                             st.success("🔒 This squad is currently secured with a PIN.")
                         else:
                             st.warning("🔓 This squad is currently unprotected (No PIN).")
                             
-                        new_pin = st.text_input("New PIN", type="password", help="Leave blank to remove PIN", key="sec_new_pin")
-                        
                         col_pin1, col_pin2 = st.columns(2)
                         with col_pin1:
-                            if st.button("Update PIN", type="primary"):
-                                if new_pin:
-                                    sec_p['pin_hash'] = hash_password(new_pin)
-                                    save_auction_data(auction_data)
-                                    st.success(f"PIN updated for {sec_part_name}!")
-                                else:
-                                    st.warning("Please enter a PIN to update.")
+                            if st.button("🎲 Generate Random PIN", type="primary"):
+                                pin = f"{random.randint(0, 9999):04d}"
+                                sec_p['pin_hash'] = hash_password(pin)
+                                save_auction_data(auction_data)
+                                st.success(f"PIN generated for {sec_part_name}!")
+                                st.warning(f"⚠️ Share this PIN with the user: **{pin}**. It will be lost upon refresh.")
                         with col_pin2:
                             if st.button("Remove PIN", type="secondary"):
                                 sec_p.pop('pin_hash', None)
