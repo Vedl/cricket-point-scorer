@@ -2471,13 +2471,19 @@ def show_main_app():
         
         # Knocked-out Teams Admin (for Super 8s and beyond)
         if is_admin:
-            with st.expander("🚫 Manage Knocked-Out Teams (Super 8s+)"):
+            trn_type = room.get('tournament_type', 'T20 World Cup')
+            expander_title = "🚫 Manage Knocked-Out Teams (Playoffs)" if trn_type == 'IPL 2026' else "🚫 Manage Knocked-Out Teams (Super 8s+)"
+            
+            with st.expander(expander_title):
                 st.caption("Players from knocked-out teams can be released for 50% without counting as your paid release.")
                 
-                all_teams = ["India", "Sri Lanka", "Australia", "England", "South Africa", "New Zealand", 
-                            "Pakistan", "West Indies", "Afghanistan", "USA", "Ireland", 
-                            "Scotland", "Netherlands", "Zimbabwe", "Namibia", "Nepal", 
-                            "Oman", "UAE", "Canada", "Italy"]
+                if trn_type == 'IPL 2026':
+                    all_teams = ["CSK", "DC", "GT", "KKR", "LSG", "MI", "PBKS", "RCB", "RR", "SRH"]
+                else:
+                    all_teams = ["India", "Sri Lanka", "Australia", "England", "South Africa", "New Zealand", 
+                                "Pakistan", "West Indies", "Afghanistan", "USA", "Ireland", 
+                                "Scotland", "Netherlands", "Zimbabwe", "Namibia", "Nepal", 
+                                "Oman", "UAE", "Canada", "Italy"]
                 
                 knocked_out = set(room.get('knocked_out_teams', []))
                 active_teams = [t for t in all_teams if t not in knocked_out]
@@ -3435,13 +3441,24 @@ def show_main_app():
             st.subheader("🏆 Tournament Knockout (Admin)")
             
             # Tournament phase tracking
-            phase = room.get('tournament_phase', 'super8')
-            phase_names = {
-                'super8': '🏏 Super 8 Group Stage',
-                'semifinals': '🔥 Semi-finals', 
-                'finals': '🏆 Finals',
-                'completed': '✅ Tournament Completed'
-            }
+            trn_type = room.get('tournament_type', 'T20 World Cup')
+            if trn_type == 'IPL 2026':
+                phase = room.get('tournament_phase', 'league_stage')
+                phase_names = {
+                    'league_stage': '🏏 League Stage',
+                    'q1_eliminator': '🔥 Qualifier 1 & Eliminator',
+                    'qualifier_2': '⚔️ Qualifier 2',
+                    'finals': '🏆 Finals',
+                    'completed': '✅ Tournament Completed'
+                }
+            else:
+                phase = room.get('tournament_phase', 'super8')
+                phase_names = {
+                    'super8': '🏏 Super 8 Group Stage',
+                    'semifinals': '🔥 Semi-finals', 
+                    'finals': '🏆 Finals',
+                    'completed': '✅ Tournament Completed'
+                }
             
             st.info(f"**Current Phase:** {phase_names.get(phase, phase)}")
             
@@ -3493,6 +3510,15 @@ def show_main_app():
                         cutoff = 4
                         next_phase = 'semifinals'
                     elif phase == 'semifinals':
+                        cutoff = 2
+                        next_phase = 'finals'
+                    elif phase == 'league_stage':
+                        cutoff = 4
+                        next_phase = 'q1_eliminator'
+                    elif phase == 'q1_eliminator':
+                        cutoff = 3
+                        next_phase = 'qualifier_2'
+                    elif phase == 'qualifier_2':
                         cutoff = 2
                         next_phase = 'finals'
                     else:
@@ -3552,6 +3578,15 @@ def show_main_app():
                         cutoff = 4
                         next_phase = 'semifinals'
                     elif phase == 'semifinals':
+                        cutoff = 2
+                        next_phase = 'finals'
+                    elif phase == 'league_stage':
+                        cutoff = 4
+                        next_phase = 'q1_eliminator'
+                    elif phase == 'q1_eliminator':
+                        cutoff = 3
+                        next_phase = 'qualifier_2'
+                    elif phase == 'qualifier_2':
                         cutoff = 2
                         next_phase = 'finals'
                     else:
