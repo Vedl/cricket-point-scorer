@@ -3775,9 +3775,8 @@ def show_main_app():
                     st.caption(f"Squad source: {squad_source} | GW key: '{gw_key}' | Available snapshots: {list(room.get('gameweek_squads', {}).keys())}")
                     
                     for participant in room.get('participants', []):
-                        if participant.get('eliminated', False):
-                            continue
                         p_name = participant['name']
+                        display_name = f"💀 {p_name}" if participant.get('eliminated') else p_name
                         
                         # Resolve Squad
                         squad_data = locked_squads.get(p_name)
@@ -3796,7 +3795,7 @@ def show_main_app():
                         total_points = sum(p['score'] for p in best_11)
                         
                         standings.append({
-                            "Participant": p_name,
+                            "Participant": display_name,
                             "Points": total_points,
                             "Best 11": ", ".join([f"{p['name']} ({p['score']:.0f})" for p in best_11[:3]]) + "...",
                             "Warnings": " ".join(warnings) if warnings else "OK"
@@ -3807,15 +3806,14 @@ def show_main_app():
                 # Logic: Sum of (Score for GW_i using Squad_Locked_at_GW_i)
                 # Correctly accounts for transfers/loans over time.
                 
-                active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
-                p_totals = {p['name']: 0 for p in active_participants}
-                p_details = {p['name']: [] for p in active_participants} # Store top players per GW
+                all_participants = room.get('participants', [])
+                p_totals = {p['name']: 0 for p in all_participants}
                 
                 # Iterate ALL processed gameweeks
                 for gw, scores in room.get('gameweek_scores', {}).items():
                      locked_squads = room.get('gameweek_squads', {}).get(str(gw), {})
                      
-                     for participant in active_participants:
+                     for participant in all_participants:
                         p_name = participant['name']
                         
                         # Resolve Squad for THIS specific GW
@@ -3844,9 +3842,13 @@ def show_main_app():
                         p_totals[p_name] += gw_points
                         
                 # Build Table
-                for p_name, total in p_totals.items():
+                for participant in all_participants:
+                    p_name = participant['name']
+                    display_name = f"💀 {p_name}" if participant.get('eliminated') else p_name
+                    total = p_totals[p_name]
+                    
                     standings.append({
-                        "Participant": p_name,
+                        "Participant": display_name,
                         "Points": total,
                         "Best 11": "Cumulative Score", 
                         "Warnings": "OK"
