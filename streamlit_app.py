@@ -246,7 +246,7 @@ def show_room_selection():
         st.subheader("➕ Create New Room")
         room_name = st.text_input("Room Name", placeholder="e.g., Friends T20 League")
         tournament_type = st.radio("Tournament Type", ["T20 World Cup", "IPL 2026"], horizontal=True)
-        admin_participating = st.checkbox("Admin will participate as a team manager", value=True)
+        admin_participating = st.checkbox("Admin will participate as a team manager", value=False)
         
         if st.button("Create Room", type="primary"):
             if room_name:
@@ -973,11 +973,11 @@ def show_main_app():
             st.rerun()
             return
 
-        # 3. If still no team, FORCE CLAIM (Blocking UI)
+        # 3. If still no team, FORCE CLAIM (Blocking UI) unless Admin
         # Check for any unclaimed teams
         unclaimed = [p['name'] for p in room.get('participants', []) if p.get('user') is None]
         
-        if unclaimed:
+        if unclaimed and not is_admin:
             st.container().warning(f"👋 Welcome, **{user}**! You are not linked to a team yet.")
             st.markdown("### 🛡️ Claim Your Squad")
             st.info("You must join one of the generated teams to continue. If the Admin set a PIN, you must enter it below.")
@@ -1004,9 +1004,10 @@ def show_main_app():
             
             st.image("https://media.giphy.com/media/l0HlHFRbmaX9ivvWw/giphy.gif", width=300) # Optional fun element
             return # BLOCK ACCESS until claimed
-        else:
-            # OPTIONAL: If no unclaimed teams left, maybe let them be a generic viewer or create a new team?
-            # For now, we assume they must be one of the imported teams.
+        elif unclaimed and is_admin:
+            # OPTIONAL: Instead of blocking the whole UI for Admin, just show a banner
+            st.info("ℹ️ There are unclaimed teams in this room. Since you are the Admin, you can still manage the room without claiming one.")
+        elif not unclaimed:
             if is_admin:
                 st.warning("⚠️ You are Admin but not linked to a team. You can manage the room below.")
             else:
