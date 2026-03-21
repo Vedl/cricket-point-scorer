@@ -3126,7 +3126,8 @@ def show_main_app():
                              st.error(f"Error reading backup file: {e}")
             
             st.divider()
-            with st.expander("⚠️ Danger Zone (Reset)"):
+            with st.expander("⚠️ Danger Zone (Reset & Delete Room)"):
+                 st.write("### 🔄 Reset Room Data")
                  st.write("This will clear all participants and their squads. Use with caution.")
                  if st.button("🔄 Reset Room Data", type="primary"):
                     room['participants'] = []
@@ -3136,6 +3137,34 @@ def show_main_app():
                     save_auction_data(auction_data)
                     st.success("Room data reset! All participants and squads cleared.")
                     st.rerun()
+
+                 st.divider()
+                 st.write("### 🧨 Delete Entire Room")
+                 st.write("This will permanently delete this room for EVERYONE. It will disappear from all users' homepages.")
+                 delete_confirm = st.text_input(f"Type '{room_code}' to confirm deletion", key="admin_global_delete_confirm")
+                 if st.button("🚨 DELETE ROOM FOREVER", type="primary"):
+                     if delete_confirm == room_code:
+                         # 1. Remove from all users' joined/created lists
+                         for u_data in auction_data['users'].values():
+                             if room_code in u_data.get('rooms_created', []):
+                                 u_data['rooms_created'].remove(room_code)
+                             if room_code in u_data.get('rooms_joined', []):
+                                 u_data['rooms_joined'].remove(room_code)
+                         
+                         # 2. Delete room object
+                         if room_code in auction_data['rooms']:
+                             del auction_data['rooms'][room_code]
+                             
+                         save_auction_data(auction_data)
+                         
+                         # 3. Clear session and redirect Home
+                         st.session_state.current_room = None
+                         st.query_params.clear()
+                         st.success(f"Room {room_code} deleted globally successfully.")
+                         time.sleep(2)
+                         st.rerun()
+                     else:
+                         st.error("Room code does not match. Deletion aborted.")
         st.divider()
         
         # Two tabs: Schedule-based and Manual
