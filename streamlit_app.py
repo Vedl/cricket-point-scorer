@@ -2800,7 +2800,7 @@ def show_main_app():
                                     
                                     matches.append({
                                         "Row": r_idx + 1,
-                                        "Participant (Matched)": p_name if any(p['name'] == p_name for p in room.get('participants', [])) else "UNKNOWN",
+                                        "Participant (Matched)": p_name, # Directly map to p_name, resolving the UNKNOWN bug
                                         "Participant (Raw)": p_name,
                                         "Player (Raw)": pl_raw,
                                         "Player (DB)": pl_match, # To be filled by fuzzy
@@ -2824,7 +2824,7 @@ def show_main_app():
                                             'squad': [],
                                             'user': None
                                         }
-                                        room.get('participants', []).append(new_p)
+                                        room.setdefault('participants', []).append(new_p)
                                         new_parts_created.append(p_raw)
                                 if new_parts_created:
                                     save_auction_data(auction_data)
@@ -2832,11 +2832,6 @@ def show_main_app():
                                     
                                     # REFRESH valid_parts to include new ones
                                     valid_parts = [p['name'] for p in room.get('participants', [])]
-                                    
-                                    # UPDATE Matches to reflect new teams (Replace UNKNOWN)
-                                    for m in matches:
-                                        if m['Participant (Matched)'] == "UNKNOWN" and m['Participant (Raw)'] in valid_parts:
-                                            m['Participant (Matched)'] = m['Participant (Raw)']
 
                                 # Fuzzy Match Logic (Run ONCE during parse)
                                 for m in matches:
@@ -2888,7 +2883,7 @@ def show_main_app():
                     column_config={
                         "Participant (Matched)": st.column_config.SelectboxColumn(
                             "Participant",
-                            options=valid_parts + ["UNKNOWN"],
+                            options=valid_parts, # Removed UNKNOWN
                             required=True
                         ),
                         "Player (DB)": st.column_config.SelectboxColumn(
@@ -2916,7 +2911,7 @@ def show_main_app():
                         p_curr = row['Participant (Matched)']
                         pl_name = row['Player (DB)']
                         
-                        if p_curr == "UNKNOWN" or not pl_name or pd.isna(pl_name): continue
+                        if not p_curr or not pl_name or pd.isna(pl_name) or p_curr == "UNKNOWN": continue
                         pl_name = str(pl_name).strip()
                         
                         part_obj = next((p for p in room.get('participants', []) if p['name'] == p_curr), None)
