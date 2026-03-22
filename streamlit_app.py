@@ -1954,6 +1954,19 @@ def show_main_app():
                                     agreed_tm = datetime.fromisoformat(trade['agreed_at']).strftime('%d-%b %H:%M')
                                 except: pass
                             st.info(f"**{trade['type']}**: {trade['from']} ↔ {trade['to']} | {player_info} | Agreed At: {agreed_tm}")
+                            
+                            if st.button(f"❌ Cancel This Trade", key=f"cancel_pending_{trade['id']}"):
+                                room['pending_trades'] = [t for t in room['pending_trades'] if t['id'] != trade['id']]
+                                
+                                # Log the cancellation
+                                timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                log_msg = f"🚫 Trade Cancelled by **{my_p_name}**: {trade['from']} ↔ {trade['to']} | {player_info}"
+                                room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+                                
+                                save_auction_data(auction_data)
+                                st.success("Trade cancelled successfully!")
+                                time.sleep(1)
+                                st.rerun()
                 else:
                     st.caption("No trades waiting for admin.")
                 
