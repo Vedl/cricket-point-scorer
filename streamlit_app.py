@@ -1558,6 +1558,54 @@ def show_main_app():
                 current_participant = release_participant
                 st.caption(f"Managing Squad for: **{current_participant['name']}**")
                 
+                # === RENAME TEAM ===
+                with st.expander("✏️ Rename Your Team"):
+                    new_team_name = st.text_input("New Team Name", value=current_participant['name'], key="rename_team_input")
+                    if st.button("✅ Confirm Rename", key="rename_team_btn"):
+                        old_name = current_participant['name']
+                        new_name = new_team_name.strip()
+                        
+                        if not new_name:
+                            st.error("Team name cannot be empty.")
+                        elif new_name == old_name:
+                            st.info("Name is the same, no change needed.")
+                        elif any(p['name'] == new_name for p in room.get('participants', []) if p['name'] != old_name):
+                            st.error(f"Team name '{new_name}' is already taken by another participant.")
+                        else:
+                            # 1. Update participant name
+                            current_participant['name'] = new_name
+                            
+                            # 2. Propagate across gameweek_squads snapshots
+                            for gw_key, snapshot in room.get('gameweek_squads', {}).items():
+                                if old_name in snapshot:
+                                    snapshot[new_name] = snapshot.pop(old_name)
+                            
+                            # 3. Propagate across gameweek_scores
+                            # (scores are keyed by player name, not participant, so no change needed there)
+                            
+                            # 4. Propagate across hattrick_bonuses
+                            # (also keyed by player name, no change needed)
+                            
+                            # 5. Update trade/auction logs (best-effort string replace)
+                            for log_entry in room.get('trade_log', []):
+                                if old_name in log_entry.get('msg', ''):
+                                    log_entry['msg'] = log_entry['msg'].replace(old_name, new_name)
+                            for log_entry in room.get('auction_log', []):
+                                if old_name in log_entry.get('msg', ''):
+                                    log_entry['msg'] = log_entry['msg'].replace(old_name, new_name)
+                            
+                            # 6. Update pending trades references
+                            for trade in room.get('pending_trades', []):
+                                if trade.get('from') == old_name:
+                                    trade['from'] = new_name
+                                if trade.get('to') == old_name:
+                                    trade['to'] = new_name
+                            
+                            save_auction_data(auction_data)
+                            st.success(f"Renamed **{old_name}** → **{new_name}** successfully!")
+                            time.sleep(1)
+                            st.rerun()
+
                 if current_participant['squad']:
                     # Calculate current gameweek (based on locked gameweeks)
                     locked_gws = list(room.get('gameweek_squads', {}).keys())
