@@ -2218,7 +2218,7 @@ def show_main_app():
                 
                     if my_part and their_part:
                         if t_type == "Transfer (Sell)":
-                            pl = st.selectbox("Player to Sell", [p['name'] for p in my_part['squad']], key="sell_pl")
+                            pl = st.selectbox("Player to Sell", [p['name'] for p in my_part['squad'] if not p.get('loan_origin')], key="sell_pl")
                             pr = st.number_input("Selling Price", 1, 500, 10, key="sell_pr")
                             if st.button("Send Offer"):
                                 # Check Duplicate
@@ -2240,7 +2240,7 @@ def show_main_app():
                                 st.rerun()
 
                         elif t_type == "Transfer (Buy)":
-                            pl = st.selectbox("Player to Buy", [p['name'] for p in their_part['squad']], key="buy_pl")
+                            pl = st.selectbox("Player to Buy", [p['name'] for p in their_part['squad'] if not p.get('loan_origin')], key="buy_pl")
                             pr = st.number_input("Offer Price", 1, 500, 10, key="buy_pr")
                             if st.button("Send Offer"):
                                 # Check Duplicate
@@ -2264,9 +2264,9 @@ def show_main_app():
                         elif t_type == "Exchange":
                             c1, c2 = st.columns(2)
                             with c1:
-                                give_pl = st.selectbox("You Give", [p['name'] for p in my_part['squad']], key="exch_give")
+                                give_pl = st.selectbox("You Give", [p['name'] for p in my_part['squad'] if not p.get('loan_origin')], key="exch_give")
                             with c2:
-                                get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad']], key="exch_get")
+                                get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad'] if not p.get('loan_origin')], key="exch_get")
                         
                             cash_dir = st.radio("Cash Adjustment", ["No Cash Involved", "I Pay Them (Extra Cash)", "They Pay Me (Extra Cash)"], horizontal=True)
                         
@@ -2303,7 +2303,7 @@ def show_main_app():
                         elif t_type == "Loan":
                             loan_dir = st.radio("Direction", ["Loan Out (You Give)", "Loan In (You Get)"], horizontal=True)
                             if loan_dir == "Loan Out (You Give)":
-                                pl = st.selectbox("Player to Loan Out", [p['name'] for p in my_part['squad']], key="loan_out_pl")
+                                pl = st.selectbox("Player to Loan Out", [p['name'] for p in my_part['squad'] if not p.get('loan_origin')], key="loan_out_pl")
                                 fee = st.number_input("Loan Fee (They pay you)", 0, 100, 0, key="loan_fee_out")
                                 if st.button("Offer Loan"):
                                     # Check Duplicate
@@ -2323,7 +2323,7 @@ def show_main_app():
                                     st.success("Loan Offer Sent!")
                                     st.rerun()
                             else:
-                                pl = st.selectbox("Player to Loan In", [p['name'] for p in their_part['squad']], key="loan_in_pl")
+                                pl = st.selectbox("Player to Loan In", [p['name'] for p in their_part['squad'] if not p.get('loan_origin')], key="loan_in_pl")
                                 fee = st.number_input("Loan Fee (You pay them)", 0, 100, 0, key="loan_fee_in")
                                 if st.button("Request Loan"):
                                     # Check Duplicate
