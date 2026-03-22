@@ -2568,6 +2568,7 @@ def show_main_app():
                 f_part_name = st.selectbox("Select Target Participant", [p['name'] for p in room.get('participants', [])], key="force_part_sel")
                 f_player_name = st.selectbox("Select Player to Add", sorted(player_names), key="force_player_sel")
                 f_price = st.number_input("Force Price (M)", value=0, step=1, key="force_price_val")
+                skip_budget = st.checkbox("Skip budget deduction (record price only, don't subtract from budget)", value=False, key="force_skip_budget")
                 
                 if st.button("🚨 Force Add Player"):
                     # 1. Find Target Participant
@@ -2593,8 +2594,9 @@ def show_main_app():
                             'team': info.get('country', 'Unknown')
                         })
                         
-                        # 4. Deduct Budget
-                        target_p['budget'] -= int(f_price)
+                        # 4. Deduct Budget (unless skipped)
+                        if not skip_budget:
+                            target_p['budget'] -= int(f_price)
                         
                         # 5. Remove from Unsold/active bids if present
                         if f_player_name in room.get('unsold_players', []):
@@ -2604,12 +2606,11 @@ def show_main_app():
 
                         save_auction_data(auction_data)
                         
-                        msg = f"Force Added {f_player_name} to {f_part_name} for {f_price}M!"
+                        budget_note = " (Budget NOT deducted)" if skip_budget else ""
+                        msg = f"Force Added {f_player_name} to {f_part_name} for {f_price}M!{budget_note}"
                         if prev_owner:
                             msg += f" (Stolen from {prev_owner})"
                         
-                        st.success(msg)
-                        time.sleep(1)
                         st.success(msg)
                         time.sleep(1)
                         st.rerun()
