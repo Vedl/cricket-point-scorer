@@ -1600,7 +1600,11 @@ def show_main_app():
                                 # 1. Before Deadline (or GW0) -> Unlimited 50% Refund
                                 # FIX: Only allow unlimited if NO gameweeks have been locked yet (Pre-Season)
                                 has_season_started = len(room.get('gameweek_squads', {})) > 0
-                                is_pre_deadline = (not has_season_started) and (global_deadline and now < global_deadline)
+                                
+                                if global_deadline:
+                                    is_pre_deadline = (not has_season_started) and (now < global_deadline)
+                                else:
+                                    is_pre_deadline = not has_season_started
                             
                                 if is_pre_deadline:
                                     release_type = "unlimited"
