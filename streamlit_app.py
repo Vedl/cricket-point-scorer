@@ -1683,7 +1683,14 @@ def show_main_app():
                                         if current_participant.get('ir_player') == player_to_remove:
                                             current_participant['ir_player'] = None
                                     
-                                        room.setdefault('unsold_players', []).append(player_to_remove)
+                                    
+                                        # Only add to unsold if no other participant owns this player
+                                        player_owned_elsewhere = any(
+                                            any(pl['name'] == player_to_remove for pl in p['squad'])
+                                            for p in room.get('participants', []) if p['name'] != current_participant['name']
+                                        )
+                                        if not player_owned_elsewhere:
+                                            room.setdefault('unsold_players', []).append(player_to_remove)
                                     
                                         if release_type == "paid":
                                             current_participant.setdefault('paid_releases', {})[str(current_gw)] = True
@@ -2699,9 +2706,14 @@ def show_main_app():
                             target_p_rel['squad'] = [p for p in target_p_rel['squad'] if p['name'] != f_rel_player]
                             target_p_rel['budget'] += refund_val
                             
-                            # Add back to unsold
-                            if f_rel_player not in room.get('unsold_players', []):
-                                room.setdefault('unsold_players', []).append(f_rel_player)
+                            # Add back to unsold ONLY if no other participant owns this player
+                            player_owned_elsewhere = any(
+                                any(pl['name'] == f_rel_player for pl in p['squad'])
+                                for p in room.get('participants', []) if p['name'] != f_rel_part_name
+                            )
+                            if not player_owned_elsewhere:
+                                if f_rel_player not in room.get('unsold_players', []):
+                                    room.setdefault('unsold_players', []).append(f_rel_player)
                             
                             # Clean up IR if needed
                             if target_p_rel.get('ir_player') == f_rel_player:
