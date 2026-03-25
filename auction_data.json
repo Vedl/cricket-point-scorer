@@ -152,6 +152,14 @@
       "password_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
       "rooms_created": [],
       "rooms_joined": []
+    },
+    "admin": {
+      "created_at": "2026-03-25T16:37:25.493406",
+      "password_hash": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+      "rooms_created": [
+        "YGDD8F"
+      ],
+      "rooms_joined": []
     }
   },
   "rooms": {
@@ -17625,85 +17633,105 @@
       "trade_log": [
         {
           "time": "05-Feb 11:14",
-          "msg": "⏳ Loan: **Ladda CC** loaned **Ibrahim Zadran** to **Arrow** for **0M**"
+          "msg": "\u23f3 Loan: **Ladda CC** loaned **Ibrahim Zadran** to **Arrow** for **0M**"
         },
         {
           "time": "05-Feb 11:14",
-          "msg": "⏳ Loan: **Arrow** loaned **Kusal Mendis** to **Ladda CC** for **0M**"
+          "msg": "\u23f3 Loan: **Arrow** loaned **Kusal Mendis** to **Ladda CC** for **0M**"
         },
         {
           "time": "05-Feb 22:21",
-          "msg": "⏳ Loan: **Smudge49** loaned **Ali Khan** to **Johnthedon69** for **2M**"
+          "msg": "\u23f3 Loan: **Smudge49** loaned **Ali Khan** to **Johnthedon69** for **2M**"
         },
         {
           "time": "06-Feb 00:00",
-          "msg": "⏳ Loan: **Arrow** loaned **Wanindu Hasaranga** to **Suvaan** for **0M**"
+          "msg": "\u23f3 Loan: **Arrow** loaned **Wanindu Hasaranga** to **Suvaan** for **0M**"
         },
         {
           "time": "06-Feb 00:00",
-          "msg": "⏳ Loan: **Suvaan** loaned **Pathum Nissanka** to **Arrow** for **0M**"
+          "msg": "\u23f3 Loan: **Suvaan** loaned **Pathum Nissanka** to **Arrow** for **0M**"
         },
         {
           "time": "06-Feb 08:35",
-          "msg": "🔨 Won Bid: **Gerhard Erasmus** won by **Ladda CC** for **5M**"
+          "msg": "\ud83d\udd28 Won Bid: **Gerhard Erasmus** won by **Ladda CC** for **5M**"
         },
         {
           "time": "06-Feb 14:05",
-          "msg": "🔨 Won Bid: **Salman Mirza** won by **Falcon** for **5M**"
+          "msg": "\ud83d\udd28 Won Bid: **Salman Mirza** won by **Falcon** for **5M**"
         },
         {
           "time": "06-Feb 16:23",
-          "msg": "⏳ Loan: **Smudge49** loaned **Sandeep Lamichhane** to **Falcon** for **2M**"
+          "msg": "\u23f3 Loan: **Smudge49** loaned **Sandeep Lamichhane** to **Falcon** for **2M**"
         },
         {
           "time": "06-Feb 17:29",
-          "msg": "🗑️ Released: **Dunith Wellalage** by **Arrow** (Refund: 3M)"
+          "msg": "\ud83d\uddd1\ufe0f Released: **Dunith Wellalage** by **Arrow** (Refund: 3M)"
         },
         {
           "time": "06-Feb 21:19",
-          "msg": "🔄 Transfer: **Smudge49** sold **Cooper Connolly** to **Johnthedon69** for **3M**"
+          "msg": "\ud83d\udd04 Transfer: **Smudge49** sold **Cooper Connolly** to **Johnthedon69** for **3M**"
         },
         {
           "time": "06-Feb 21:43",
-          "msg": "👮 Admin Force Released: **Josh Hazlewood** from **Mithuphetamine** (Refund: 20.0M)"
+          "msg": "\ud83d\udc6e Admin Force Released: **Josh Hazlewood** from **Mithuphetamine** (Refund: 20.0M)"
         },
         {
           "time": "06-Feb 21:44",
-          "msg": "👮 Admin Force Released: **Harshit Rana** from **Ladda CC** (Refund: 7.0M)"
+          "msg": "\ud83d\udc6e Admin Force Released: **Harshit Rana** from **Ladda CC** (Refund: 7.0M)"
         },
         {
           "time": "06-Feb 22:22",
-          "msg": "🗑️ Released: **Muhammad Waseem** by **Ladda CC** (Refund: 9M)"
+          "msg": "\ud83d\uddd1\ufe0f Released: **Muhammad Waseem** by **Ladda CC** (Refund: 9M)"
         },
         {
           "time": "07-Feb 00:04",
-          "msg": "🗑️ Released: **Yuvraj Samra** by **Arrow** (Refund: 6M)"
+          "msg": "\ud83d\uddd1\ufe0f Released: **Yuvraj Samra** by **Arrow** (Refund: 6M)"
         },
         {
           "time": "07-Feb 08:33",
-          "msg": "🗑️ Released: **Bas de Leede** by **Mithuphetamine** (Refund: 3M)"
+          "msg": "\ud83d\uddd1\ufe0f Released: **Bas de Leede** by **Mithuphetamine** (Refund: 3M)"
         },
         {
           "time": "07-Feb 10:00",
-          "msg": "🔨 Won Bid: **Washington Sundar** won by **Falcon** for **5M**"
+          "msg": "\ud83d\udd28 Won Bid: **Washington Sundar** won by **Falcon** for **5M**"
         },
         {
           "time": "07-Feb 10:00",
-          "msg": "🔨 Won Bid: **JJ Smuts** won by **Smudge49** for **16M**"
+          "msg": "\ud83d\udd28 Won Bid: **JJ Smuts** won by **Smudge49** for **16M**"
         },
         {
           "time": "07-Feb 10:00",
-          "msg": "🔨 Won Bid: **Chris Greaves** won by **Smudge49** for **12M**"
+          "msg": "\ud83d\udd28 Won Bid: **Chris Greaves** won by **Smudge49** for **12M**"
         },
         {
           "time": "07-Feb 10:26",
-          "msg": "🗑️ Released: **Roston Chase** by **Smudge49** (Refund: 3M)"
+          "msg": "\ud83d\uddd1\ufe0f Released: **Roston Chase** by **Smudge49** (Refund: 3M)"
         }
       ],
       "squads_locked": false,
       "gw2_boost_given": true,
       "current_gameweek": 2,
       "game_phase": "Bidding"
+    },
+    "YGDD8F": {
+      "name": "Test Room",
+      "tournament_type": "T20 World Cup",
+      "admin": "admin",
+      "admin_participating": false,
+      "members": [
+        "admin"
+      ],
+      "participants": [],
+      "gameweek_scores": {},
+      "created_at": "2026-03-25T16:40:55.462920",
+      "big_auction_complete": false,
+      "bidding_open": false,
+      "trading_open": false,
+      "unsold_players": [],
+      "active_bids": [],
+      "pending_trades": [],
+      "gameweek_squads": {},
+      "auction_log": []
     }
   }
 }

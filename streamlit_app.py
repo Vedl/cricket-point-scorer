@@ -39,6 +39,7 @@ except (KeyError, ImportError):
     StorageManager = backend.storage.StorageManager
 
 import textwrap
+from ui_theme import inject_premium_theme, hero_header, section_header, status_badge, metric_row, broadcast_header, sidebar_room_info, auction_player_card, timer_bar
 
 # --- Page Config ---
 st.set_page_config(page_title="Fantasy Cricket Auction Platform", page_icon="🏏", layout="wide")
@@ -155,18 +156,19 @@ def format_player_name(name):
     return f"{name} ({info.get('role', 'N/A')} - {info.get('country', 'N/A')})"
 
 def inject_custom_css():
-    pass
+    inject_premium_theme()
 
 
 # =====================================
 # LOGIN / REGISTER PAGE
 # =====================================
 def show_login_page():
+    inject_custom_css()  # Apply theme on login too
     # Centered Layout
     _, col, _ = st.columns([1, 1.5, 1])
     
     with col:
-        st.markdown("<div class='login-header'><h1>🏏 Fantasy Cricket Auction</h1><p style='color:#8b949e'>Build your dream team with real-time bidding strategies.</p></div>", unsafe_allow_html=True)
+        hero_header("🏏 Fantasy Cricket Auction", "Build your dream team with real-time bidding strategies")
         
         tab_login, tab_register = st.tabs(["🔐 Login", "📝 Register"])
         
@@ -225,20 +227,18 @@ def show_login_page():
 # ROOM SELECTION / CREATION PAGE
 # =====================================
 def show_room_selection():
+    inject_custom_css()  # Apply theme on room selection too
     user = st.session_state.logged_in_user
     user_data = auction_data['users'].get(user, {})
     
-    st.title(f"🏏 Welcome, {user}!")
+    hero_header(f"🏏 Welcome, {user}!", "Select or create an auction room to get started")
     
-    # Sidebar logout
     # Sidebar logout
     if st.sidebar.button("🚪 Logout"):
         st.session_state.logged_in_user = None
         st.session_state.current_room = None
         st.query_params.clear()
         st.rerun()
-    
-    st.markdown("### Select or create an auction room to get started.")
     
     col1, col2 = st.columns(2)
     
@@ -623,25 +623,18 @@ def render_live_auction_fragment(room_code, user):
             elif "WK" in current_role: role_icon = "🧤"
             
             # Explicitly left-aligned string to avoid Markdown code-block interpretation
-            # === 2. FEATURED PLAYER (SIMPLE RELIABLE VIEW) ===
-            st.divider()
+            # === 2. FEATURED PLAYER (PREMIUM CARD) ===
+            auction_player_card(
+                player_name=current_player,
+                role=current_role,
+                team=current_team,
+                bid=current_bid,
+                bidder=current_bidder or ''
+            )
             
-            # Simple, fail-safe display using standard Streamlit components
-            col_info, col_timer = st.columns([2, 1])
-            
-            with col_info:
-                st.subheader("🏏 Auctioning Now")
-                st.title(f"{current_player}")
-                st.markdown(f"#### **Role:** {current_role}")
-                st.markdown(f"**Team:** {current_team}")
-                
-            with col_timer:
-                if time_remaining > 0:
-                    st.error("🔴 LIVE")
-                else:
-                    st.success("✅ SOLD")
-            
-            st.divider()
+            # Timer bar visual
+            timer_bar(time_remaining, timer_duration)
+            st.write("")  # Spacer
             
             # === 3. METRICS & TIMER ===
             c1, c2, c3 = st.columns([1, 1, 1])
@@ -933,20 +926,7 @@ def show_main_app():
     t_type_display = room.get('tournament_type', 'T20 World Cup').upper() if room else active_tournament_type.upper()
     
     # === GLOBAL BROADCASTER HEADER ===
-    st.markdown(f"""
-    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="font-size: 2.5rem; filter: drop-shadow(0 0 10px rgba(0,255,153,0.5));">🏆</div>
-            <div>
-                <h3 style="margin: 0; font-family: 'Orbitron', sans-serif; color: #fff; line-height: 1.2; font-size: 1.4rem;">{t_type_display}</h3>
-                <div style="color: #8b949e; font-size: 0.75rem; letter-spacing: 3px; font-weight: 600;">OFFICIAL AUCTION TERMINAL</div>
-            </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div class="live-badge" style="background: rgba(255,0,0,0.8); backdrop-filter: blur(5px);">LIVE SIGNAL 📡</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    broadcast_header(t_type_display)
     user = st.session_state.logged_in_user
     
     if not room:
@@ -1026,17 +1006,15 @@ def show_main_app():
         pass
     
     # --- Sidebar ---
-    st.sidebar.title(f"🏏 {room['name']}")
+    sidebar_room_info(room['name'], room_code)
     
     # Room Info
-    # Room Info
-    st.sidebar.markdown(f"**Room Code:** `{room_code}`")
     if is_admin:
         st.sidebar.success("👑 You are the Admin")
     else:
         st.sidebar.info(f"👑 Admin: {room['admin']}")
     
-    st.sidebar.markdown(f"**Members:** {len(room['members'])}")
+    st.sidebar.caption(f"**Members:** {len(room['members'])}")
 
     # === CLAIM TEAM LOGIC ===
     my_p = next((p for p in room.get('participants', []) if p.get('user') == user), None)
