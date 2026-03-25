@@ -121,19 +121,15 @@ def get_premium_css():
         color: var(--text-primary) !important;
     }
 
-    /* Exclude Material Icons and icon fonts from font override */
-    span:not(.material-symbols-rounded):not(.material-icons):not([class*="icon"]):not([data-testid="collapsedControl"]) {
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Preserve Material Icons font */
+    /* Preserve all icon fonts — never override spans globally */
     .material-symbols-rounded,
     .material-icons,
-    [data-testid="collapsedControl"] span,
-    button[kind="header"] span,
-    [data-testid="stSidebarCollapseButton"] span,
-    [data-testid="baseButton-header"] span {
-        font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
+    [data-testid="collapsedControl"] *,
+    [data-testid="stSidebarCollapseButton"] *,
+    [data-testid="baseButton-header"] *,
+    [data-testid="stExpanderToggleIcon"] *,
+    button[kind="header"] * {
+        font-family: 'Material Symbols Rounded', 'Material Icons' !important;
         -webkit-text-fill-color: initial !important;
     }
 
