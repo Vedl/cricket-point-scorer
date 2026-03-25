@@ -116,9 +116,25 @@ def get_premium_css():
         letter-spacing: 0.3px !important;
     }
 
-    p, li, span, label, .stMarkdown {
+    p, li, label, .stMarkdown {
         font-family: 'Inter', sans-serif !important;
         color: var(--text-primary) !important;
+    }
+
+    /* Exclude Material Icons and icon fonts from font override */
+    span:not(.material-symbols-rounded):not(.material-icons):not([class*="icon"]):not([data-testid="collapsedControl"]) {
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Preserve Material Icons font */
+    .material-symbols-rounded,
+    .material-icons,
+    [data-testid="collapsedControl"] span,
+    button[kind="header"] span,
+    [data-testid="stSidebarCollapseButton"] span,
+    [data-testid="baseButton-header"] span {
+        font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
+        -webkit-text-fill-color: initial !important;
     }
 
     /* ══════════ SIDEBAR ══════════ */
