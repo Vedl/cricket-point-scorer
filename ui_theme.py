@@ -121,16 +121,25 @@ def get_premium_css():
         color: var(--text-primary) !important;
     }
 
-    /* Preserve all icon fonts — never override spans globally */
+    /* Preserve all icon fonts — never override spans globally.
+       Streamlit uses material-symbols-rounded for ALL internal icons
+       (sidebar collapse, expander chevrons, drag handles, etc.).
+       We MUST override any inherited font on these spans. */
     .material-symbols-rounded,
     .material-icons,
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpanderToggleIcon"],
+    [data-testid="stExpanderToggleIcon"] *,
     [data-testid="collapsedControl"] *,
     [data-testid="stSidebarCollapseButton"] *,
+    [data-testid="stSidebarContent"] details summary span,
     [data-testid="baseButton-header"] *,
-    [data-testid="stExpanderToggleIcon"] *,
-    button[kind="header"] * {
+    [data-testid="stIconMaterial"],
+    button[kind="header"] *,
+    summary span.material-symbols-rounded {
         font-family: 'Material Symbols Rounded', 'Material Icons' !important;
         -webkit-text-fill-color: initial !important;
+        font-style: normal !important;
     }
 
     /* ══════════ SIDEBAR ══════════ */
