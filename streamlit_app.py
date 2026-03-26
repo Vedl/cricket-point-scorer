@@ -2466,6 +2466,83 @@ def show_main_app():
                                 p['injury_reserve'] = None
                                 changes.append(f"Cleared IR (Squad < {max_squad_size})")
                         
+                        # 2b. NEGATIVE BUDGET GUARD
+                        # If participant has IR (19 players) but can't afford the 2M fee,
+                        # auto-release their last acquired player before deducting.
+                        if p.get('injury_reserve') and p.get('budget', 0) < 2:
+                            # Determine the "last player" to release:
+                            # 1. Check auction_log for most recent purchase by this participant
+                            # 2. Fallback: last player in squad list (bottom of CSV import)
+                            last_bought_player = None
+                            
+                            # Search auction log in reverse for most recent buy
+                            for log_entry in reversed(room.get('auction_log', [])):
+                                if log_entry.get('buyer') == p['name']:
+                                    candidate = log_entry.get('player')
+                                    # Make sure they still own this player and it's not on loan
+                                    owned = next((pl for pl in p['squad'] if pl['name'] == candidate and not pl.get('loan_origin')), None)
+                                    if owned:
+                                        last_bought_player = owned
+                                        break
+                            
+                            # Fallback: last player in squad list (bottom of CSV)
+                            if not last_bought_player:
+                                non_loan_squad = [pl for pl in p['squad'] if not pl.get('loan_origin')]
+                                if non_loan_squad:
+                                    last_bought_player = non_loan_squad[-1]
+                            
+                            if last_bought_player:
+                                # Determine refund: half price or free
+                                paid_releases = p.get('paid_releases', {})
+                                if isinstance(paid_releases, list):
+                                    used_release = paid_releases[curr_gw] if curr_gw < len(paid_releases) and paid_releases[curr_gw] else False
+                                else:
+                                    used_release = paid_releases.get(str(curr_gw), False) if curr_gw > 0 else False
+                                
+                                # GW1: always half price (pre-season unlimited releases apply)
+                                # GW2+: half price if release not used, free if already used
+                                if curr_gw <= 1 or not used_release:
+                                    refund = int(math.ceil(last_bought_player.get('buy_price', 0) / 2))
+                                    release_label = "Half-Price"
+                                else:
+                                    refund = 0
+                                    release_label = "Free"
+                                
+                                released_name = last_bought_player['name']
+                                
+                                # Remove from squad
+                                p['squad'] = [pl for pl in p['squad'] if pl['name'] != released_name]
+                                p['budget'] = p.get('budget', 0) + refund
+                                
+                                # If released player was IR, clear IR
+                                if p.get('injury_reserve') == released_name:
+                                    p['injury_reserve'] = None
+                                
+                                # Clear IR since squad is now < 19
+                                if len(p['squad']) < max_squad_size:
+                                    p['injury_reserve'] = None
+                                
+                                # Add back to unsold pool
+                                player_owned_elsewhere = any(
+                                    any(pl['name'] == released_name for pl in other_p['squad'])
+                                    for other_p in room.get('participants', []) if other_p['name'] != p['name']
+                                )
+                                if not player_owned_elsewhere:
+                                    room.setdefault('unsold_players', []).append(released_name)
+                                
+                                # Mark release as used (for GW2+)
+                                if curr_gw > 1 and not used_release:
+                                    p.setdefault('paid_releases', {})[str(curr_gw)] = True
+                                
+                                changes.append(f"⚠️ Auto-released **{released_name}** ({release_label}, +{refund}M) — budget too low for IR fee")
+                                
+                                # Log the auto-release
+                                timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                room.setdefault('trade_log', []).append({
+                                    "time": timestamp,
+                                    "msg": f"🤖 Auto-Released: **{released_name}** from **{p['name']}** ({release_label} refund: {refund}M) — budget insufficient for IR fee at squad lock"
+                                })
+                        
                         # 3. IR FEE DEDUCTION
                         if p.get('injury_reserve'):
                             p['budget'] -= 2
