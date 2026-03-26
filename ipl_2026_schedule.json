@@ -3,7 +3,8 @@
     "season": 19,
     "start_date": "2026-03-28",
     "end_date": "2026-05-31",
-    "total_matches": 84,
+    "total_matches": 74,
+    "total_league_matches": 70,
     "teams": [
         {"code": "RCB", "name": "Royal Challengers Bengaluru", "home_venue": "M. Chinnaswamy Stadium, Bengaluru"},
         {"code": "SRH", "name": "Sunrisers Hyderabad", "home_venue": "Rajiv Gandhi International Stadium, Hyderabad"},
@@ -11,9 +12,9 @@
         {"code": "KKR", "name": "Kolkata Knight Riders", "home_venue": "Eden Gardens, Kolkata"},
         {"code": "RR", "name": "Rajasthan Royals", "home_venue": "Sawai Mansingh Stadium, Jaipur"},
         {"code": "CSK", "name": "Chennai Super Kings", "home_venue": "MA Chidambaram Stadium, Chennai"},
-        {"code": "PBKS", "name": "Punjab Kings", "home_venue": "PCA MYS International Stadium, New Chandigarh"},
+        {"code": "PBKS", "name": "Punjab Kings", "home_venue": "Maharaja Yadavindra Singh Stadium, Mullanpur"},
         {"code": "GT", "name": "Gujarat Titans", "home_venue": "Narendra Modi Stadium, Ahmedabad"},
-        {"code": "LSG", "name": "Lucknow Super Giants", "home_venue": "BRSABV Ekana Cricket Stadium, Lucknow"},
+        {"code": "LSG", "name": "Lucknow Super Giants", "home_venue": "Ekana Cricket Stadium, Lucknow"},
         {"code": "DC", "name": "Delhi Capitals", "home_venue": "Arun Jaitley Stadium, Delhi"}
     ],
     "gameweeks": {
@@ -24,147 +25,137 @@
             "matches": [
                 {"match_id": 1, "teams": ["RCB", "SRH"], "date": "2026-03-28", "time": "19:30", "venue": "M. Chinnaswamy Stadium, Bengaluru"},
                 {"match_id": 2, "teams": ["MI", "KKR"], "date": "2026-03-29", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"},
-                {"match_id": 3, "teams": ["RR", "CSK"], "date": "2026-03-30", "time": "19:30", "venue": "ACA Stadium, Guwahati"},
-                {"match_id": 4, "teams": ["PBKS", "GT"], "date": "2026-03-31", "time": "19:30", "venue": "PCA Stadium, New Chandigarh"},
-                {"match_id": 5, "teams": ["LSG", "DC"], "date": "2026-04-01", "time": "19:30", "venue": "BRSABV Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 3, "teams": ["RR", "CSK"], "date": "2026-03-30", "time": "19:30", "venue": "Barsapara Cricket Stadium, Guwahati"},
+                {"match_id": 4, "teams": ["PBKS", "GT"], "date": "2026-03-31", "time": "19:30", "venue": "Maharaja Yadavindra Singh Stadium, Mullanpur"},
+                {"match_id": 5, "teams": ["LSG", "DC"], "date": "2026-04-01", "time": "19:30", "venue": "Ekana Cricket Stadium, Lucknow"},
                 {"match_id": 6, "teams": ["KKR", "SRH"], "date": "2026-04-02", "time": "19:30", "venue": "Eden Gardens, Kolkata"},
-                {"match_id": 7, "teams": ["CSK", "PBKS"], "date": "2026-04-03", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"},
-                {"match_id": 8, "teams": ["DC", "MI"], "date": "2026-04-04", "time": "15:30", "venue": "Arun Jaitley Stadium, Delhi"}
+                {"match_id": 7, "teams": ["CSK", "PBKS"], "date": "2026-04-03", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"}
             ]
         },
         "2": {
             "name": "League Stage - Week 2",
             "phase": "League",
-            "dates": "Apr 04 - Apr 09, 2026",
+            "dates": "Apr 04 - Apr 08, 2026",
             "matches": [
+                {"match_id": 8, "teams": ["DC", "MI"], "date": "2026-04-04", "time": "15:30", "venue": "Arun Jaitley Stadium, Delhi"},
                 {"match_id": 9, "teams": ["GT", "RR"], "date": "2026-04-04", "time": "19:30", "venue": "Narendra Modi Stadium, Ahmedabad"},
                 {"match_id": 10, "teams": ["SRH", "LSG"], "date": "2026-04-05", "time": "15:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"},
                 {"match_id": 11, "teams": ["RCB", "CSK"], "date": "2026-04-05", "time": "19:30", "venue": "M. Chinnaswamy Stadium, Bengaluru"},
                 {"match_id": 12, "teams": ["KKR", "PBKS"], "date": "2026-04-06", "time": "19:30", "venue": "Eden Gardens, Kolkata"},
-                {"match_id": 13, "teams": ["RR", "MI"], "date": "2026-04-07", "time": "19:30", "venue": "ACA Stadium, Guwahati"},
-                {"match_id": 14, "teams": ["DC", "GT"], "date": "2026-04-08", "time": "19:30", "venue": "Arun Jaitley Stadium, Delhi"},
-                {"match_id": 15, "teams": ["KKR", "LSG"], "date": "2026-04-09", "time": "19:30", "venue": "Eden Gardens, Kolkata"},
-                {"match_id": 16, "teams": ["MI", "CSK"], "date": "2026-04-10", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"}
+                {"match_id": 13, "teams": ["RR", "MI"], "date": "2026-04-07", "time": "19:30", "venue": "Barsapara Cricket Stadium, Guwahati"},
+                {"match_id": 14, "teams": ["DC", "GT"], "date": "2026-04-08", "time": "19:30", "venue": "Arun Jaitley Stadium, Delhi"}
             ]
         },
         "3": {
             "name": "League Stage - Week 3",
             "phase": "League",
-            "dates": "Apr 10 - Apr 16, 2026",
+            "dates": "Apr 09 - Apr 13, 2026",
             "matches": [
-                {"match_id": 17, "teams": ["PBKS", "RCB"], "date": "2026-04-11", "time": "15:30", "venue": "PCA Stadium, New Chandigarh"},
-                {"match_id": 18, "teams": ["SRH", "RR"], "date": "2026-04-11", "time": "19:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"},
-                {"match_id": 19, "teams": ["GT", "DC"], "date": "2026-04-12", "time": "15:30", "venue": "Narendra Modi Stadium, Ahmedabad"},
-                {"match_id": 20, "teams": ["LSG", "MI"], "date": "2026-04-12", "time": "19:30", "venue": "BRSABV Ekana Cricket Stadium, Lucknow"},
-                {"match_id": 21, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 22, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 23, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 24, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 15, "teams": ["KKR", "LSG"], "date": "2026-04-09", "time": "19:30", "venue": "Eden Gardens, Kolkata"},
+                {"match_id": 16, "teams": ["RR", "RCB"], "date": "2026-04-10", "time": "19:30", "venue": "Barsapara Cricket Stadium, Guwahati"},
+                {"match_id": 17, "teams": ["PBKS", "SRH"], "date": "2026-04-11", "time": "15:30", "venue": "Maharaja Yadavindra Singh Stadium, Mullanpur"},
+                {"match_id": 18, "teams": ["CSK", "DC"], "date": "2026-04-11", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"},
+                {"match_id": 19, "teams": ["LSG", "GT"], "date": "2026-04-12", "time": "15:30", "venue": "Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 20, "teams": ["MI", "RCB"], "date": "2026-04-12", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"},
+                {"match_id": 21, "teams": ["SRH", "RR"], "date": "2026-04-13", "time": "19:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"}
             ]
         },
         "4": {
             "name": "League Stage - Week 4",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "Apr 14 - Apr 19, 2026",
             "matches": [
-                {"match_id": 25, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 26, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 27, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 28, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 29, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 30, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 31, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 32, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 22, "teams": ["CSK", "KKR"], "date": "2026-04-14", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"},
+                {"match_id": 23, "teams": ["RCB", "LSG"], "date": "2026-04-15", "time": "19:30", "venue": "M. Chinnaswamy Stadium, Bengaluru"},
+                {"match_id": 24, "teams": ["MI", "PBKS"], "date": "2026-04-16", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"},
+                {"match_id": 25, "teams": ["GT", "KKR"], "date": "2026-04-17", "time": "19:30", "venue": "Narendra Modi Stadium, Ahmedabad"},
+                {"match_id": 26, "teams": ["RCB", "DC"], "date": "2026-04-18", "time": "15:30", "venue": "M. Chinnaswamy Stadium, Bengaluru"},
+                {"match_id": 27, "teams": ["SRH", "CSK"], "date": "2026-04-18", "time": "19:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"},
+                {"match_id": 28, "teams": ["KKR", "RR"], "date": "2026-04-19", "time": "15:30", "venue": "Eden Gardens, Kolkata"}
             ]
         },
         "5": {
             "name": "League Stage - Week 5",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "Apr 19 - Apr 25, 2026",
             "matches": [
-                {"match_id": 33, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 34, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 35, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 36, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 37, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 38, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 39, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 40, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 29, "teams": ["PBKS", "LSG"], "date": "2026-04-19", "time": "19:30", "venue": "Maharaja Yadavindra Singh Stadium, Mullanpur"},
+                {"match_id": 30, "teams": ["GT", "MI"], "date": "2026-04-20", "time": "19:30", "venue": "Narendra Modi Stadium, Ahmedabad"},
+                {"match_id": 31, "teams": ["SRH", "DC"], "date": "2026-04-21", "time": "19:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"},
+                {"match_id": 32, "teams": ["LSG", "RR"], "date": "2026-04-22", "time": "19:30", "venue": "Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 33, "teams": ["MI", "CSK"], "date": "2026-04-23", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"},
+                {"match_id": 34, "teams": ["RCB", "GT"], "date": "2026-04-24", "time": "19:30", "venue": "M. Chinnaswamy Stadium, Bengaluru"},
+                {"match_id": 35, "teams": ["DC", "PBKS"], "date": "2026-04-25", "time": "15:30", "venue": "Arun Jaitley Stadium, Delhi"}
             ]
         },
         "6": {
             "name": "League Stage - Week 6",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "Apr 25 - Apr 30, 2026",
             "matches": [
-                {"match_id": 41, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 42, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 43, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 44, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 45, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 46, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 47, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 48, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 36, "teams": ["RR", "SRH"], "date": "2026-04-25", "time": "19:30", "venue": "Sawai Mansingh Stadium, Jaipur"},
+                {"match_id": 37, "teams": ["GT", "CSK"], "date": "2026-04-26", "time": "15:30", "venue": "Narendra Modi Stadium, Ahmedabad"},
+                {"match_id": 38, "teams": ["LSG", "KKR"], "date": "2026-04-26", "time": "19:30", "venue": "Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 39, "teams": ["DC", "RCB"], "date": "2026-04-27", "time": "19:30", "venue": "Arun Jaitley Stadium, Delhi"},
+                {"match_id": 40, "teams": ["PBKS", "RR"], "date": "2026-04-28", "time": "19:30", "venue": "Maharaja Yadavindra Singh Stadium, Mullanpur"},
+                {"match_id": 41, "teams": ["MI", "SRH"], "date": "2026-04-29", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"},
+                {"match_id": 42, "teams": ["GT", "RCB"], "date": "2026-04-30", "time": "19:30", "venue": "Narendra Modi Stadium, Ahmedabad"}
             ]
         },
         "7": {
             "name": "League Stage - Week 7",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "May 01 - May 06, 2026",
             "matches": [
-                {"match_id": 49, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 50, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 51, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 52, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 53, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 54, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 55, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 56, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 43, "teams": ["RR", "DC"], "date": "2026-05-01", "time": "19:30", "venue": "Sawai Mansingh Stadium, Jaipur"},
+                {"match_id": 44, "teams": ["CSK", "MI"], "date": "2026-05-02", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"},
+                {"match_id": 45, "teams": ["SRH", "KKR"], "date": "2026-05-03", "time": "15:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"},
+                {"match_id": 46, "teams": ["GT", "PBKS"], "date": "2026-05-03", "time": "19:30", "venue": "Narendra Modi Stadium, Ahmedabad"},
+                {"match_id": 47, "teams": ["MI", "LSG"], "date": "2026-05-04", "time": "19:30", "venue": "Wankhede Stadium, Mumbai"},
+                {"match_id": 48, "teams": ["DC", "CSK"], "date": "2026-05-05", "time": "19:30", "venue": "Arun Jaitley Stadium, Delhi"},
+                {"match_id": 49, "teams": ["SRH", "PBKS"], "date": "2026-05-06", "time": "19:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"}
             ]
         },
         "8": {
             "name": "League Stage - Week 8",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "May 07 - May 12, 2026",
             "matches": [
-                {"match_id": 57, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 58, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 59, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 60, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 61, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 62, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 63, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 64, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 50, "teams": ["LSG", "RCB"], "date": "2026-05-07", "time": "19:30", "venue": "Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 51, "teams": ["DC", "KKR"], "date": "2026-05-08", "time": "19:30", "venue": "Arun Jaitley Stadium, Delhi"},
+                {"match_id": 52, "teams": ["RR", "GT"], "date": "2026-05-09", "time": "19:30", "venue": "Sawai Mansingh Stadium, Jaipur"},
+                {"match_id": 53, "teams": ["CSK", "LSG"], "date": "2026-05-10", "time": "15:30", "venue": "MA Chidambaram Stadium, Chennai"},
+                {"match_id": 54, "teams": ["RCB", "MI"], "date": "2026-05-10", "time": "19:30", "venue": "Shaheed Veer Narayan Singh Stadium, Raipur"},
+                {"match_id": 55, "teams": ["PBKS", "DC"], "date": "2026-05-11", "time": "19:30", "venue": "HPCA Stadium, Dharamsala"},
+                {"match_id": 56, "teams": ["GT", "SRH"], "date": "2026-05-12", "time": "19:30", "venue": "Narendra Modi Stadium, Ahmedabad"}
             ]
         },
         "9": {
             "name": "League Stage - Week 9",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "May 13 - May 18, 2026",
             "matches": [
-                {"match_id": 65, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 66, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 67, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 68, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 69, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 70, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 71, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 72, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 57, "teams": ["RCB", "KKR"], "date": "2026-05-13", "time": "19:30", "venue": "Shaheed Veer Narayan Singh Stadium, Raipur"},
+                {"match_id": 58, "teams": ["PBKS", "MI"], "date": "2026-05-14", "time": "19:30", "venue": "HPCA Stadium, Dharamsala"},
+                {"match_id": 59, "teams": ["LSG", "CSK"], "date": "2026-05-15", "time": "19:30", "venue": "Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 60, "teams": ["KKR", "GT"], "date": "2026-05-16", "time": "19:30", "venue": "Eden Gardens, Kolkata"},
+                {"match_id": 61, "teams": ["PBKS", "RCB"], "date": "2026-05-17", "time": "15:30", "venue": "HPCA Stadium, Dharamsala"},
+                {"match_id": 62, "teams": ["DC", "RR"], "date": "2026-05-17", "time": "19:30", "venue": "Arun Jaitley Stadium, Delhi"},
+                {"match_id": 63, "teams": ["CSK", "SRH"], "date": "2026-05-18", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"}
             ]
         },
         "10": {
             "name": "League Stage - Week 10",
             "phase": "League",
-            "dates": "TBD",
+            "dates": "May 19 - May 24, 2026",
             "matches": [
-                {"match_id": 73, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 74, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 75, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 76, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 77, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 78, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 79, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"},
-                {"match_id": 80, "teams": ["TBD", "TBD"], "date": "TBD", "time": "TBD", "venue": "TBD"}
+                {"match_id": 64, "teams": ["RR", "LSG"], "date": "2026-05-19", "time": "19:30", "venue": "Sawai Mansingh Stadium, Jaipur"},
+                {"match_id": 65, "teams": ["KKR", "MI"], "date": "2026-05-20", "time": "19:30", "venue": "Eden Gardens, Kolkata"},
+                {"match_id": 66, "teams": ["CSK", "GT"], "date": "2026-05-21", "time": "19:30", "venue": "MA Chidambaram Stadium, Chennai"},
+                {"match_id": 67, "teams": ["SRH", "RCB"], "date": "2026-05-22", "time": "19:30", "venue": "Rajiv Gandhi International Stadium, Hyderabad"},
+                {"match_id": 68, "teams": ["LSG", "PBKS"], "date": "2026-05-23", "time": "19:30", "venue": "Ekana Cricket Stadium, Lucknow"},
+                {"match_id": 69, "teams": ["MI", "RR"], "date": "2026-05-24", "time": "15:30", "venue": "Wankhede Stadium, Mumbai"},
+                {"match_id": 70, "teams": ["KKR", "DC"], "date": "2026-05-24", "time": "19:30", "venue": "Eden Gardens, Kolkata"}
             ]
         },
         "11": {
@@ -172,8 +163,8 @@
             "phase": "Playoff",
             "dates": "TBD",
             "matches": [
-                {"match_id": 81, "teams": ["TBD (Q1)", "TBD (Q1)"], "date": "TBD", "time": "19:30", "venue": "TBD", "type": "Qualifier 1"},
-                {"match_id": 82, "teams": ["TBD (EL)", "TBD (EL)"], "date": "TBD", "time": "19:30", "venue": "TBD", "type": "Eliminator"}
+                {"match_id": 71, "teams": ["TBD (Q1)", "TBD (Q1)"], "date": "TBD", "time": "19:30", "venue": "TBD", "type": "Qualifier 1"},
+                {"match_id": 72, "teams": ["TBD (EL)", "TBD (EL)"], "date": "TBD", "time": "19:30", "venue": "TBD", "type": "Eliminator"}
             ]
         },
         "12": {
@@ -181,7 +172,7 @@
             "phase": "Playoff",
             "dates": "TBD",
             "matches": [
-                {"match_id": 83, "teams": ["TBD (Q2)", "TBD (Q2)"], "date": "TBD", "time": "19:30", "venue": "TBD", "type": "Qualifier 2"}
+                {"match_id": 73, "teams": ["TBD (Q2)", "TBD (Q2)"], "date": "TBD", "time": "19:30", "venue": "TBD", "type": "Qualifier 2"}
             ]
         },
         "13": {
@@ -189,7 +180,7 @@
             "phase": "Final",
             "dates": "May 31, 2026",
             "matches": [
-                {"match_id": 84, "teams": ["TBD (Final)", "TBD (Final)"], "date": "2026-05-31", "time": "19:30", "venue": "M. Chinnaswamy Stadium, Bengaluru", "type": "Final"}
+                {"match_id": 74, "teams": ["TBD (Final)", "TBD (Final)"], "date": "2026-05-31", "time": "19:30", "venue": "M. Chinnaswamy Stadium, Bengaluru", "type": "Final"}
             ]
         }
     }
