@@ -3194,6 +3194,70 @@ def show_main_app():
                              st.error(f"Error reading backup file: {e}")
             
             st.divider()
+            with st.expander("👥 User Management (Forgot Password / Lookup)"):
+                st.write("### 🔑 Password Reset")
+                st.write("Help a participant who has forgotten their username or password.")
+                
+                # Show all users who are members of this room
+                room_members = []
+                room_code = st.session_state.get('current_room_code', '')
+                for uname, udata in auction_data.get('users', {}).items():
+                    joined = udata.get('rooms_joined', [])
+                    created = udata.get('rooms_created', [])
+                    if room_code in joined or room_code in created:
+                        # Find their participant name if any
+                        participant_name = "No team assigned"
+                        for p in room.get('participants', []):
+                            if p.get('user') == uname:
+                                participant_name = f"Team: **{p['name']}**"
+                                break
+                        room_members.append({"username": uname, "team": participant_name})
+                
+                if room_members:
+                    st.info(f"📋 **{len(room_members)} user(s)** in this room:")
+                    for m in room_members:
+                        st.write(f"- `{m['username']}` — {m['team']}")
+                    
+                    st.markdown("---")
+                    reset_user = st.selectbox(
+                        "Select user to reset password",
+                        options=[m['username'] for m in room_members],
+                        key="admin_reset_user_select"
+                    )
+                    new_password = st.text_input(
+                        "New Password (min 4 chars)",
+                        type="password",
+                        key="admin_new_password"
+                    )
+                    new_password_confirm = st.text_input(
+                        "Confirm New Password",
+                        type="password",
+                        key="admin_new_password_confirm"
+                    )
+                    
+                    if st.button("🔄 Reset Password", key="admin_reset_password_btn"):
+                        if not new_password or len(new_password) < 4:
+                            st.error("Password must be at least 4 characters.")
+                        elif new_password != new_password_confirm:
+                            st.error("Passwords do not match.")
+                        elif reset_user not in auction_data.get('users', {}):
+                            st.error("User not found.")
+                        else:
+                            auction_data['users'][reset_user]['password_hash'] = hash_password(new_password)
+                            save_auction_data(auction_data)
+                            st.success(f"✅ Password reset for **{reset_user}**! They can now log in with their new password.")
+                            # Log it
+                            room.setdefault('trade_log', []).append({
+                                "type": "Admin Password Reset",
+                                "user": reset_user,
+                                "admin": user,
+                                "timestamp": datetime.now().isoformat()
+                            })
+                            save_auction_data(auction_data)
+                else:
+                    st.warning("No users found in this room.")
+            
+            st.divider()
             with st.expander("⚠️ Danger Zone (Reset & Delete Room)"):
                  st.write("### 🔄 Reset Room Data")
                  st.write("This will clear all participants and their squads. Use with caution.")
