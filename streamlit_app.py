@@ -3200,18 +3200,15 @@ def show_main_app():
                 
                 # Show all users who are members of this room
                 room_members = []
-                room_code = st.session_state.get('current_room_code', '')
-                for uname, udata in auction_data.get('users', {}).items():
-                    joined = udata.get('rooms_joined', [])
-                    created = udata.get('rooms_created', [])
-                    if room_code in joined or room_code in created:
-                        # Find their participant name if any
+                for member_username in room.get('members', []):
+                    if member_username in auction_data.get('users', {}):
+                        # Find their participant/team name if any
                         participant_name = "No team assigned"
                         for p in room.get('participants', []):
-                            if p.get('user') == uname:
+                            if p.get('user') == member_username:
                                 participant_name = f"Team: **{p['name']}**"
                                 break
-                        room_members.append({"username": uname, "team": participant_name})
+                        room_members.append({"username": member_username, "team": participant_name})
                 
                 if room_members:
                     st.info(f"📋 **{len(room_members)} user(s)** in this room:")
