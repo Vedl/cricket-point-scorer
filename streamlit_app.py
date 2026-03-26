@@ -170,7 +170,7 @@ def show_login_page():
     with col:
         hero_header("🏏 Fantasy Cricket Auction", "Build your dream team with real-time bidding strategies")
         
-        tab_login, tab_register = st.tabs(["🔐 Login", "📝 Register"])
+        tab_login, tab_register, tab_reset = st.tabs(["🔐 Login", "📝 Register", "🔑 Reset Password"])
         
         with tab_login:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -222,6 +222,36 @@ def show_login_page():
                         st.rerun()
                 else:
                     st.warning("Please enter all fields.")
+        
+        with tab_reset:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.caption("Forgot your password? Enter your username and a room code you belong to for verification.")
+            reset_username = st.text_input("Your Username", key="reset_username", placeholder="Enter your username")
+            reset_room_code = st.text_input("Room Code (for verification)", key="reset_room_code", placeholder="Enter any room code you belong to").upper()
+            reset_new_pw = st.text_input("New Password", key="reset_new_pw", type="password", placeholder="Min 4 characters")
+            reset_new_pw_confirm = st.text_input("Confirm New Password", key="reset_new_pw_confirm", type="password", placeholder="Re-enter new password")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🔄 Reset My Password", type="primary", key="reset_pw_btn", use_container_width=True):
+                if not reset_username or not reset_room_code or not reset_new_pw:
+                    st.warning("Please fill in all fields.")
+                elif reset_username not in auction_data.get('users', {}):
+                    st.error("Username not found.")
+                elif len(reset_new_pw) < 4:
+                    st.error("Password must be at least 4 characters.")
+                elif reset_new_pw != reset_new_pw_confirm:
+                    st.error("Passwords do not match.")
+                elif reset_room_code not in auction_data.get('rooms', {}):
+                    st.error("Invalid room code.")
+                else:
+                    # Verify user is actually a member of that room
+                    room_check = auction_data['rooms'][reset_room_code]
+                    if reset_username in room_check.get('members', []):
+                        auction_data['users'][reset_username]['password_hash'] = hash_password(reset_new_pw)
+                        save_auction_data(auction_data)
+                        st.success("✅ Password reset successfully! You can now log in with your new password.")
+                    else:
+                        st.error("You are not a member of that room. Verification failed.")
 
 # =====================================
 # ROOM SELECTION / CREATION PAGE
