@@ -72,7 +72,7 @@
         {"name": "Shubman Gill", "role": "Batsman", "ipl_team": "GT"},
         {"name": "Sai Sudharsan", "role": "Batsman", "ipl_team": "GT"},
         {"name": "Shahrukh Khan", "role": "Batting Allrounder", "ipl_team": "GT"},
-        {"name": "Glenn Phillips", "role": "Batting Allrounder", "ipl_team": "GT"},
+        {"name": "Glenn Phillips", "role": "WK-Batsman", "ipl_team": "GT"},
         {"name": "Nishant Sindhu", "role": "Batting Allrounder", "ipl_team": "GT"},
         {"name": "Rahul Tewatia", "role": "Batting Allrounder", "ipl_team": "GT"},
         {"name": "Rashid Khan", "role": "Bowling Allrounder", "ipl_team": "GT"},
