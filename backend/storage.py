@@ -15,14 +15,23 @@ class StorageManager:
         # Firebase Configuration - try multiple ways to get secrets
         try:
             self.firebase_url = st.secrets.get("FIREBASE_DATABASE_URL", "")
+            self.firebase_secret = st.secrets.get("FIREBASE_SECRET_KEY", "")
         except:
             self.firebase_url = ""
+            self.firebase_secret = ""
         
         # Debug: Print Firebase config status
         if self.firebase_url:
             print(f"[StorageManager] Firebase URL configured: {self.firebase_url[:50]}...")
             self.use_remote = True
-            self.db_url = f"{self.firebase_url}/auction_data.json"
+            
+            # Use database secret if available to secure the connection
+            if self.firebase_secret:
+                self.db_url = f"{self.firebase_url}/auction_data.json?auth={self.firebase_secret}"
+                print("[StorageManager] Firebase Secret configured (Secure Mode)")
+            else:
+                self.db_url = f"{self.firebase_url}/auction_data.json"
+                print("[StorageManager] WARNING: Firebase Secret not found, using unauthenticated mode!")
         else:
             print("[StorageManager] WARNING: Firebase URL not found in secrets!")
             self.use_remote = False
