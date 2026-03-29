@@ -786,7 +786,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "team": "New Zealand",
               "buy_price": 20
             },
@@ -1152,7 +1152,7 @@
               },
               {
                 "name": "Glenn Phillips",
-                "role": "Batting Allrounder",
+                "role": "WK-Batsman",
                 "team": "New Zealand",
                 "buy_price": 20
               },
@@ -2674,7 +2674,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "team": "New Zealand",
               "buy_price": 20,
               "active": true
@@ -4098,7 +4098,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 25.0,
               "team": "New Zealand"
@@ -4602,7 +4602,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -5146,7 +5146,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 25.0,
               "team": "New Zealand"
@@ -5776,7 +5776,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -6458,7 +6458,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 25.0,
               "team": "New Zealand"
@@ -6962,7 +6962,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -7942,7 +7942,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -8941,7 +8941,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -9314,7 +9314,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 25.0,
               "team": "New Zealand"
@@ -9958,7 +9958,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -10427,7 +10427,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 25.0,
               "team": "New Zealand"
@@ -11063,7 +11063,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -11897,7 +11897,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 25.0,
               "team": "New Zealand"
@@ -12521,7 +12521,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -12779,7 +12779,7 @@
               },
               {
                 "name": "Glenn Phillips",
-                "role": "Batting Allrounder",
+                "role": "WK-Batsman",
                 "active": true,
                 "buy_price": 25.0,
                 "team": "New Zealand"
@@ -13395,7 +13395,7 @@
               },
               {
                 "name": "Glenn Phillips",
-                "role": "Batting Allrounder",
+                "role": "WK-Batsman",
                 "active": true,
                 "buy_price": 20.0,
                 "team": "New Zealand"
@@ -13658,7 +13658,7 @@
               },
               {
                 "name": "Glenn Phillips",
-                "role": "Batting Allrounder",
+                "role": "WK-Batsman",
                 "active": true,
                 "buy_price": 25.0,
                 "team": "New Zealand"
@@ -14267,7 +14267,7 @@
               },
               {
                 "name": "Glenn Phillips",
-                "role": "Batting Allrounder",
+                "role": "WK-Batsman",
                 "active": true,
                 "buy_price": 20.0,
                 "team": "New Zealand"
@@ -15235,7 +15235,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -16397,7 +16397,7 @@
             },
             {
               "name": "Glenn Phillips",
-              "role": "Batting Allrounder",
+              "role": "WK-Batsman",
               "active": true,
               "buy_price": 20.0,
               "team": "New Zealand"
@@ -17540,7 +17540,7 @@
               },
               {
                 "name": "Glenn Phillips",
-                "role": "Batting Allrounder",
+                "role": "WK-Batsman",
                 "active": true,
                 "buy_price": 20.0,
                 "team": "New Zealand"
