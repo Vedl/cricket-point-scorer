@@ -3978,9 +3978,51 @@ def show_main_app():
                 if best_team:
                     return best_team, []
                 else:
-                    # Fallback to top 11 if no valid team
+                    # Greedy fill: respect role minimums, pad unfilled mandatory slots with 0
                     range_str = ", ".join([f"{k}:{v[0]}-{v[1]}" for k, v in valid_ranges.items()])
-                    return scored_players[:11], [f"⚠️ Could not satisfy role constraints ({range_str}). Showed top scorers instead."]
+                    warnings = [f"⚠️ Could not satisfy role constraints ({range_str}). Filling minimums with available players; empty slots score 0."]
+                    
+                    # Group available players by category, sorted by score desc
+                    by_cat = {'WK': [], 'BAT': [], 'AR': [], 'BWL': []}
+                    for p in scored_players:
+                        by_cat[p['category']].append(p)
+                    for cat in by_cat:
+                        by_cat[cat].sort(key=lambda x: x['score'], reverse=True)
+                    
+                    greedy_team = []
+                    used_names = set()
+                    
+                    # Step 1: Fill each role's minimum quota
+                    for role, (min_v, _) in valid_ranges.items():
+                        available = [p for p in by_cat[role] if p['name'] not in used_names]
+                        filled = 0
+                        for p in available:
+                            if filled >= min_v:
+                                break
+                            greedy_team.append(p)
+                            used_names.add(p['name'])
+                            filled += 1
+                        # Pad with 0-point placeholders if not enough players for minimum
+                        while filled < min_v:
+                            greedy_team.append({'name': f'[Empty {role} slot]', 'role': role, 'category': role, 'score': 0})
+                            filled += 1
+                    
+                    # Step 2: Fill remaining slots (11 - filled) with best available unused players
+                    remaining_slots = 11 - len(greedy_team)
+                    if remaining_slots > 0:
+                        unused = [p for p in scored_players if p['name'] not in used_names]
+                        unused.sort(key=lambda x: x['score'], reverse=True)
+                        for p in unused[:remaining_slots]:
+                            # Check we don't exceed the max for this category
+                            cat_count = sum(1 for t in greedy_team if t['category'] == p['category'])
+                            _, max_v = valid_ranges.get(p['category'], (0, 99))
+                            if cat_count < max_v:
+                                greedy_team.append(p)
+                                used_names.add(p['name'])
+                    
+                    # Sort final team by score descending for display
+                    greedy_team.sort(key=lambda x: x['score'], reverse=True)
+                    return greedy_team[:11], warnings
             
             # Calculate standings
             standings = []
