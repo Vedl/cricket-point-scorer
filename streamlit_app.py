@@ -1745,7 +1745,11 @@ def show_main_app():
                 if my_incoming:
                     for trade in my_incoming:
                         with st.container():
-                            player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                            if trade['type'] == 'Exchange':
+                                give_list = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
+                                player_info = f"{', '.join(give_list)} ↔ {trade.get('get_player')}"
+                            else:
+                                player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
                             
                             # Format Price String
                             p_val = trade.get('price', 0)
@@ -1826,33 +1830,41 @@ def show_main_app():
                                                     success = True
                                         
                                         elif t_type == "Exchange":
-                                            give_pl_name = trade['give_player']
+                                            give_pl_names = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
                                             get_pl_name = trade['get_player']
                                             net_cash = t_price
                                             
-                                            p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
-                                            p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                            # Validate all give players
+                                            give_objs = []
+                                            valid = True
+                                            for gp_name in give_pl_names:
+                                                p_give = next((p for p in sender['squad'] if p['name'] == gp_name), None)
+                                                if not p_give:
+                                                    valid = False
+                                                    fail_reason = f"{sender['name']} no longer has {gp_name}."
+                                                    break
+                                                elif p_give.get('loan_origin'):
+                                                    valid = False
+                                                    fail_reason = f"Cannot exchange {gp_name} as they are on loan from {p_give.get('loan_origin')}."
+                                                    break
+                                                give_objs.append(p_give)
                                             
-                                            if not p_give:
-                                                success = False
-                                                fail_reason = f"{sender['name']} no longer has {give_pl_name}."
-                                            elif p_give.get('loan_origin'):
-                                                success = False
-                                                fail_reason = f"Cannot exchange {give_pl_name} as they are on loan from {p_give.get('loan_origin')}."
-                                            elif not p_get:
-                                                success = False
-                                                fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
-                                            elif p_get.get('loan_origin'):
-                                                success = False
-                                                fail_reason = f"Cannot exchange {get_pl_name} as they are on loan from {p_get.get('loan_origin')}."
-                                            elif net_cash > 0 and float(sender.get('budget',0)) < net_cash:
-                                                 success = False
-                                                 fail_reason = f"{sender['name']} cannot afford pay {net_cash}M."
-                                            elif net_cash < 0 and float(receiver.get('budget',0)) < abs(net_cash):
-                                                 success = False
-                                                 fail_reason = f"{receiver['name']} cannot afford pay {abs(net_cash)}M."
-                                            else:
-                                                 success = True
+                                            if valid:
+                                                p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                                if not p_get:
+                                                    valid = False
+                                                    fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
+                                                elif p_get.get('loan_origin'):
+                                                    valid = False
+                                                    fail_reason = f"Cannot exchange {get_pl_name} as they are on loan from {p_get.get('loan_origin')}."
+                                                elif net_cash > 0 and float(sender.get('budget',0)) < net_cash:
+                                                    valid = False
+                                                    fail_reason = f"{sender['name']} cannot afford to pay {net_cash}M."
+                                                elif net_cash < 0 and float(receiver.get('budget',0)) < abs(net_cash):
+                                                    valid = False
+                                                    fail_reason = f"{receiver['name']} cannot afford to pay {abs(net_cash)}M."
+                                            
+                                            success = valid
     
                                         elif t_type in ["Loan Out", "Loan In"]:
                                              # Loan Validation
@@ -1934,7 +1946,11 @@ def show_main_app():
                 if my_outgoing:
                     for trade in my_outgoing:
                         with st.container():
-                            player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                            if trade['type'] == 'Exchange':
+                                give_list = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
+                                player_info = f"{', '.join(give_list)} ↔ {trade.get('get_player')}"
+                            else:
+                                player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
                             
                             # Price Display Logic
                             price_str = f"Price: {trade.get('price')}M"
@@ -1962,7 +1978,11 @@ def show_main_app():
                 if my_pending_admin:
                     for trade in my_pending_admin:
                         with st.container():
-                            player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                            if trade['type'] == 'Exchange':
+                                give_list = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
+                                player_info = f"{', '.join(give_list)} ↔ {trade.get('get_player')}"
+                            else:
+                                player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
                             agreed_tm = "Unknown Time"
                             if trade.get('agreed_at'):
                                 try:
@@ -2008,7 +2028,11 @@ def show_main_app():
                         for trade in admin_pending:
                             with st.container():
                                 trade_id = trade['id']
-                                player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
+                                if trade['type'] == 'Exchange':
+                                    give_list = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
+                                    player_info = f"{', '.join(give_list)} ↔ {trade.get('get_player')}"
+                                else:
+                                    player_info = trade.get('player') or f"{trade.get('give_player')} <-> {trade.get('get_player')}"
                                 p_val = trade.get('price', 0)
                                 
                                 price_str = f"Price: {p_val}M"
@@ -2071,27 +2095,53 @@ def show_main_app():
                                                     success = True
                                                     
                                         elif t_type == "Exchange":
-                                            give_pl_name = trade['give_player']
+                                            give_pl_names = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
                                             get_pl_name = trade['get_player']
                                             net_cash = t_price
                                             
-                                            p_give = next((p for p in sender['squad'] if p['name'] == give_pl_name), None)
-                                            p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                            # Validate all give players
+                                            give_objs = []
+                                            valid = True
+                                            for gp_name in give_pl_names:
+                                                p_give = next((p for p in sender['squad'] if p['name'] == gp_name), None)
+                                                if not p_give:
+                                                    valid = False
+                                                    fail_reason = f"{sender['name']} no longer has {gp_name}."
+                                                    break
+                                                elif p_give.get('loan_origin'):
+                                                    valid = False
+                                                    fail_reason = f"{gp_name} is on loan."
+                                                    break
+                                                give_objs.append(p_give)
                                             
-                                            if not p_give: fail_reason = f"{sender['name']} no longer has {give_pl_name}."
-                                            elif p_give.get('loan_origin'): fail_reason = f"{give_pl_name} is on loan."
-                                            elif not p_get: fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
-                                            elif p_get.get('loan_origin'): fail_reason = f"{get_pl_name} is on loan."
-                                            elif net_cash > 0 and float(sender.get('budget',0)) < net_cash: fail_reason = f"{sender['name']} cannot afford pay {net_cash}M."
-                                            elif net_cash < 0 and float(receiver.get('budget',0)) < abs(net_cash): fail_reason = f"{receiver['name']} cannot afford pay {abs(net_cash)}M."
-                                            else:
-                                                 sender['squad'].remove(p_give)
-                                                 receiver['squad'].remove(p_get)
-                                                 sender['squad'].append(p_get)
-                                                 receiver['squad'].append(p_give)
-                                                 sender['budget'] = float(sender.get('budget', 0)) - net_cash
-                                                 receiver['budget'] = float(receiver.get('budget', 0)) + net_cash
-                                                 success = True
+                                            if valid:
+                                                p_get = next((p for p in receiver['squad'] if p['name'] == get_pl_name), None)
+                                                if not p_get: 
+                                                    fail_reason = f"{receiver['name']} no longer has {get_pl_name}."
+                                                    valid = False
+                                                elif p_get.get('loan_origin'): 
+                                                    fail_reason = f"{get_pl_name} is on loan."
+                                                    valid = False
+                                                elif net_cash > 0 and float(sender.get('budget',0)) < net_cash: 
+                                                    fail_reason = f"{sender['name']} cannot afford to pay {net_cash}M."
+                                                    valid = False
+                                                elif net_cash < 0 and float(receiver.get('budget',0)) < abs(net_cash): 
+                                                    fail_reason = f"{receiver['name']} cannot afford to pay {abs(net_cash)}M."
+                                                    valid = False
+                                                else:
+                                                    # Execute: move all give players to receiver, get player to sender
+                                                    # buy_price is NEVER changed during exchanges
+                                                    for g_obj in give_objs:
+                                                        sender['squad'].remove(g_obj)
+                                                        receiver['squad'].append(g_obj)
+                                                    receiver['squad'].remove(p_get)
+                                                    sender['squad'].append(p_get)
+                                                    sender['budget'] = float(sender.get('budget', 0)) - net_cash
+                                                    receiver['budget'] = float(receiver.get('budget', 0)) + net_cash
+                                                    success = True
+                                            
+                                            if not valid:
+                                                success = False
                                                  
                                         elif t_type in ["Loan Out", "Loan In"]:
                                              current_gw = 0
@@ -2137,12 +2187,13 @@ def show_main_app():
                                             if t_type == "Transfer (Sell)": log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
                                             else: log_msg = f"🔄 Transfer: **{trade['from']}** bought **{trade['player']}** from **{trade['to']}** for **{t_price}M**"
                                         elif t_type == "Exchange":
-                                             give = trade.get('give_player')
+                                             give_list = trade.get('give_players', [trade.get('give_player')] if trade.get('give_player') else [])
+                                             give_str = ", ".join(give_list)
                                              get = trade.get('get_player')
                                              if t_price > 0: cash_txt = f"(+{t_price}M)"
                                              elif t_price < 0: cash_txt = f"(-{abs(t_price)}M)"
                                              else: cash_txt = "(Flat)"
-                                             log_msg = f"💱 Exchange: **{trade['from']}** ({give}) ↔ **{trade['to']}** ({get}) {cash_txt}"
+                                             log_msg = f"💱 Exchange: **{trade['from']}** ({give_str}) ↔ **{trade['to']}** ({get}) {cash_txt}"
                                         elif "Loan" in t_type:
                                            if t_type == "Loan Out": log_msg = f"⏳ Loan: **{trade['from']}** loaned **{trade['player']}** to **{trade['to']}** for **{t_price}M**"
                                            else: log_msg = f"⏳ Loan: **{trade['to']}** loaned **{trade['player']}** to **{trade['from']}** for **{t_price}M**"
@@ -2277,11 +2328,13 @@ def show_main_app():
                                 st.rerun()
                             
                         elif t_type == "Exchange":
+                            st.caption("Exchange up to 5 of your players for 1 player from their squad. Player values stay unchanged.")
                             c1, c2 = st.columns(2)
                             with c1:
-                                give_pl = st.selectbox("You Give", [p['name'] for p in my_part['squad'] if not p.get('loan_origin')], key="exch_give")
+                                my_available = [p['name'] for p in my_part['squad'] if not p.get('loan_origin')]
+                                give_players = st.multiselect("You Give (1-5 players)", my_available, max_selections=5, key="exch_give_multi")
                             with c2:
-                                get_pl = st.selectbox("You Get", [p['name'] for p in their_part['squad'] if not p.get('loan_origin')], key="exch_get")
+                                get_pl = st.selectbox("You Get (1 player)", [p['name'] for p in their_part['squad'] if not p.get('loan_origin')], key="exch_get")
                         
                             cash_dir = st.radio("Cash Adjustment", ["No Cash Involved", "I Pay Them (Extra Cash)", "They Pay Me (Extra Cash)"], horizontal=True)
                         
@@ -2294,26 +2347,32 @@ def show_main_app():
                                 net_cash = -amt
                         
                             if st.button("Send Exchange Offer"):
-                                # Check Duplicate
-                                is_dup = any(t for t in room['pending_trades'] 
-                                             if t['from'] == my_p_name and t['to'] == to_p_name 
-                                             and t['type'] == t_type and t.get('give_player') == give_pl
-                                             and t.get('get_player') == get_pl and t.get('price') == net_cash)
-                            
-                                if is_dup:
-                                    st.error("Duplicate Exchange Offer already sent.")
+                                if not give_players:
+                                    st.error("Please select at least 1 player to give.")
+                                elif len(give_players) > 5:
+                                    st.error("Maximum 5 players can be offered in an exchange.")
                                 else:
-                                    room['pending_trades'].append({
-                                        'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
-                                        'type': t_type, 
-                                        'give_player': give_pl,
-                                        'get_player': get_pl,
-                                        'price': net_cash,
-                                        'created_at': get_ist_time().isoformat()
-                                    })
-                                    save_auction_data(auction_data)
-                                    st.success("Exchange Proposal Sent!")
-                                    st.rerun()
+                                    # Check Duplicate
+                                    is_dup = any(t for t in room['pending_trades'] 
+                                                 if t['from'] == my_p_name and t['to'] == to_p_name 
+                                                 and t['type'] == t_type 
+                                                 and set(t.get('give_players', [t.get('give_player', '')])) == set(give_players)
+                                                 and t.get('get_player') == get_pl and t.get('price') == net_cash)
+                                
+                                    if is_dup:
+                                        st.error("Duplicate Exchange Offer already sent.")
+                                    else:
+                                        room['pending_trades'].append({
+                                            'id': str(uuid_lib.uuid4()), 'from': my_p_name, 'to': to_p_name,
+                                            'type': t_type, 
+                                            'give_players': give_players,
+                                            'get_player': get_pl,
+                                            'price': net_cash,
+                                            'created_at': get_ist_time().isoformat()
+                                        })
+                                        save_auction_data(auction_data)
+                                        st.success("Exchange Proposal Sent!")
+                                        st.rerun()
 
                         elif t_type == "Loan":
                             loan_dir = st.radio("Direction", ["Loan Out (You Give)", "Loan In (You Get)"], horizontal=True)
