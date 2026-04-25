@@ -1405,59 +1405,43 @@ def show_main_app():
                     # Connector line between cards (not on the last one)
                     connector = ""
                     if i < len(milestones) - 1:
-                        connector = f'''
-                        <div style="
-                            position: absolute; right: -12px; top: 50%;
-                            width: 24px; height: 2px;
-                            background: linear-gradient(90deg, {border_color}, rgba(255,255,255,0.1));
-                            z-index: 2;
-                        "></div>'''
+                        connector = (
+                            f'<div style="position:absolute;right:-12px;top:50%;'
+                            f'width:24px;height:2px;'
+                            f'background:linear-gradient(90deg,{border_color},rgba(255,255,255,0.1));'
+                            f'z-index:2;"></div>'
+                        )
 
-                    cards_html += f'''
-                    <div style="
-                        flex: 1; position: relative;
-                        background: {status_bg};
-                        border: 1px solid {border_color};
-                        border-radius: 12px;
-                        padding: 14px 14px 12px 14px;
-                        min-width: 160px;
-                        backdrop-filter: blur(8px);
-                        {pulse}
-                    ">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <span style="font-size: 0.7rem; font-weight: 700; color: {status_color};
-                                         letter-spacing: 1px; text-transform: uppercase;">{status_label}</span>
-                            <span style="font-size: 0.65rem; color: #8b949e;">{time_display}</span>
-                        </div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #e6edf3; margin-bottom: 2px;">
-                            {title}
-                        </div>
-                        <div style="font-size: 0.7rem; color: #8b949e; margin-bottom: 8px;">
-                            {desc}
-                        </div>
-                        <div style="
-                            font-family: 'Roboto Mono', monospace;
-                            font-size: 1.3rem; font-weight: 800;
-                            color: {countdown_color};
-                            letter-spacing: 1px;
-                        ">{countdown}</div>
-                        {connector}
-                    </div>'''
+                    cards_html += (
+                        f'<div style="flex:1;position:relative;'
+                        f'background:{status_bg};'
+                        f'border:1px solid {border_color};'
+                        f'border-radius:12px;'
+                        f'padding:14px 14px 12px 14px;'
+                        f'min-width:160px;'
+                        f'backdrop-filter:blur(8px);{pulse}">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+                        f'<span style="font-size:0.7rem;font-weight:700;color:{status_color};'
+                        f'letter-spacing:1px;text-transform:uppercase;">{status_label}</span>'
+                        f'<span style="font-size:0.65rem;color:#8b949e;">{time_display}</span>'
+                        f'</div>'
+                        f'<div style="font-size:0.85rem;font-weight:700;color:#e6edf3;margin-bottom:2px;">'
+                        f'{title}</div>'
+                        f'<div style="font-size:0.7rem;color:#8b949e;margin-bottom:8px;">'
+                        f'{desc}</div>'
+                        f'<div style="font-family:Roboto Mono,monospace;'
+                        f'font-size:1.3rem;font-weight:800;'
+                        f'color:{countdown_color};letter-spacing:1px;">{countdown}</div>'
+                        f'{connector}'
+                        f'</div>'
+                    )
 
-                timeline_html = f'''
-                <style>
-                    @keyframes pulse {{
-                        0%, 100% {{ opacity: 1; }}
-                        50% {{ opacity: 0.7; }}
-                    }}
-                </style>
-                <div style="
-                    display: flex; gap: 12px;
-                    padding: 14px 0;
-                    overflow-x: auto;
-                ">
-                    {cards_html}
-                </div>'''
+                timeline_html = (
+                    '<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}</style>'
+                    '<div style="display:flex;gap:12px;padding:14px 0;overflow-x:auto;">'
+                    f'{cards_html}'
+                    '</div>'
+                )
 
                 st.markdown(timeline_html, unsafe_allow_html=True)
 
