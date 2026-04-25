@@ -1338,18 +1338,139 @@ def show_main_app():
                     else:
                         st.info("Add players to your squad to select an IR.")
             
-            # Show countdown to deadline
+            # Show countdown to deadline — 4-phase timeline
             now = get_ist_time()
             deadline_str = room.get('bidding_deadline')
             global_deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
             
             if global_deadline:
-                if now < global_deadline:
-                    time_left = global_deadline - now
-                    hours_left = time_left.total_seconds() / 3600
-                    st.warning(f"⏰ **Bidding closes in {hours_left:.1f} hours** ({global_deadline.strftime('%b %d, %H:%M')})")
-                else:
-                    st.error("⏰ **Bidding deadline has passed!** No new bids can be placed.")
+                # Calculate the 4 milestone times
+                initiation_cutoff = global_deadline - timedelta(hours=1)      # No new player bids
+                increment_cutoff  = global_deadline - timedelta(minutes=30)   # Only 5M increments
+                bidding_close     = global_deadline                           # Bidding closes
+                trading_close     = global_deadline + timedelta(minutes=30)   # Trading closes
+
+                milestones = [
+                    ("🚫 New Bids Lock",   "No new player initiations", initiation_cutoff),
+                    ("⚡ 5M Increments Only", "Only 5M bid steps allowed", increment_cutoff),
+                    ("🔒 Bidding Closes",  "All bidding stops",          bidding_close),
+                    ("🛑 Trading Closes",  "Market fully shut",          trading_close),
+                ]
+
+                def _fmt_countdown(delta):
+                    """Format a timedelta into a human-friendly countdown string."""
+                    total = int(delta.total_seconds())
+                    if total <= 0:
+                        return "PASSED"
+                    h, remainder = divmod(total, 3600)
+                    m, s = divmod(remainder, 60)
+                    if h > 0:
+                        return f"{h}h {m}m"
+                    elif m > 0:
+                        return f"{m}m {s}s"
+                    else:
+                        return f"{s}s"
+
+                # Build the HTML timeline
+                cards_html = ""
+                for i, (title, desc, milestone_time) in enumerate(milestones):
+                    delta = milestone_time - now
+                    countdown = _fmt_countdown(delta)
+                    time_display = milestone_time.strftime("%b %d, %H:%M")
+                    is_passed = delta.total_seconds() <= 0
+                    is_imminent = not is_passed and delta.total_seconds() < 1800  # < 30 min
+
+                    if is_passed:
+                        border_color = "#ff4b4b"
+                        status_color = "#ff4b4b"
+                        status_bg = "rgba(255, 75, 75, 0.08)"
+                        status_label = "PASSED"
+                        countdown_color = "#ff4b4b"
+                        pulse = ""
+                    elif is_imminent:
+                        border_color = "#ff9f43"
+                        status_color = "#ff9f43"
+                        status_bg = "rgba(255, 159, 67, 0.08)"
+                        status_label = "IMMINENT"
+                        countdown_color = "#ff9f43"
+                        pulse = "animation: pulse 1.5s ease-in-out infinite;"
+                    else:
+                        border_color = "rgba(0, 204, 255, 0.3)"
+                        status_color = "#00CCFF"
+                        status_bg = "rgba(0, 204, 255, 0.06)"
+                        status_label = "UPCOMING"
+                        countdown_color = "#ffffff"
+                        pulse = ""
+
+                    # Connector line between cards (not on the last one)
+                    connector = ""
+                    if i < len(milestones) - 1:
+                        connector = f'''
+                        <div style="
+                            position: absolute; right: -12px; top: 50%;
+                            width: 24px; height: 2px;
+                            background: linear-gradient(90deg, {border_color}, rgba(255,255,255,0.1));
+                            z-index: 2;
+                        "></div>'''
+
+                    cards_html += f'''
+                    <div style="
+                        flex: 1; position: relative;
+                        background: {status_bg};
+                        border: 1px solid {border_color};
+                        border-radius: 12px;
+                        padding: 14px 14px 12px 14px;
+                        min-width: 160px;
+                        backdrop-filter: blur(8px);
+                        {pulse}
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 0.7rem; font-weight: 700; color: {status_color};
+                                         letter-spacing: 1px; text-transform: uppercase;">{status_label}</span>
+                            <span style="font-size: 0.65rem; color: #8b949e;">{time_display}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #e6edf3; margin-bottom: 2px;">
+                            {title}
+                        </div>
+                        <div style="font-size: 0.7rem; color: #8b949e; margin-bottom: 8px;">
+                            {desc}
+                        </div>
+                        <div style="
+                            font-family: 'Roboto Mono', monospace;
+                            font-size: 1.3rem; font-weight: 800;
+                            color: {countdown_color};
+                            letter-spacing: 1px;
+                        ">{countdown}</div>
+                        {connector}
+                    </div>'''
+
+                timeline_html = f'''
+                <style>
+                    @keyframes pulse {{
+                        0%, 100% {{ opacity: 1; }}
+                        50% {{ opacity: 0.7; }}
+                    }}
+                </style>
+                <div style="
+                    display: flex; gap: 12px;
+                    padding: 14px 0;
+                    overflow-x: auto;
+                ">
+                    {cards_html}
+                </div>'''
+
+                st.markdown(timeline_html, unsafe_allow_html=True)
+
+                # Simple text fallback for the most critical status
+                if now >= trading_close:
+                    st.error("🛑 **Market closed.** Both bidding and trading windows have passed.")
+                elif now >= bidding_close:
+                    remaining_trade = trading_close - now
+                    st.warning(f"🔒 **Bidding closed.** Trading closes in **{_fmt_countdown(remaining_trade)}**.")
+                elif now >= increment_cutoff:
+                    st.warning("⚡ **5M-increment mode active.** Only increments of 5M allowed on existing bids.")
+                elif now >= initiation_cutoff:
+                    st.info("🚫 **New-bid lock active.** You can only outbid existing players, not initiate new ones.")
             
             # Hard block: determine if bidding is actually allowed
             deadline_passed = global_deadline and now >= global_deadline
