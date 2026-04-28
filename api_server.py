@@ -262,6 +262,14 @@ class SetDeadlineRequest(BaseModel):
     deadline_iso: str  # ISO datetime string e.g. '2026-03-28T18:00:00+05:30'
 
 
+class ReverseLoanRequest(BaseModel):
+    """Admin reverses an active loan, returning the player to the original owner."""
+    room_code: str
+    admin_name: str
+    player_name: str          # The loaned player to return
+    reverse_fee: bool = True  # Whether to refund the loan fee
+
+
 class SetInjuryReserveRequest(BaseModel):
     """Participant sets their injury reserve player."""
     room_code: str
@@ -2682,6 +2690,94 @@ async def leave_room(req: LeaveRoomRequest):
             user_data["rooms"] = [r for r in user_rooms if r.get("room_code") != req.room_code]
         _firebase_put(data)
         return {"message": f"{req.participant_name} left room {req.room_code}", "deleted": False}
+
+
+# ----------------------------------------------------------
+# 34.  POST /auction/reverse-loan
+# ----------------------------------------------------------
+@app.post("/auction/reverse-loan")
+async def reverse_loan(req: ReverseLoanRequest):
+    """
+    Admin reverses an active loan deal, returning the player to the
+    original owner.  Optionally reverses the loan fee.
+    Only allowed when squads are NOT locked (i.e. before the GW starts).
+    """
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("admin") != req.admin_name:
+        raise HTTPException(status_code=403, detail="Admin only")
+    if room.get("squads_locked"):
+        raise HTTPException(status_code=400, detail="Cannot reverse loans while squads are locked")
+
+    # Find the loaned player across all participants
+    borrower = None
+    player_obj = None
+    for p in room.get("participants", []):
+        for pl in p.get("squad", []):
+            if pl["name"] == req.player_name and pl.get("loan_origin"):
+                borrower = p
+                player_obj = pl
+                break
+        if player_obj:
+            break
+
+    if not player_obj:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{req.player_name} is not currently on loan in any squad"
+        )
+
+    origin_name = player_obj["loan_origin"]
+    owner = next(
+        (p for p in room.get("participants", []) if p["name"] == origin_name),
+        None,
+    )
+    if not owner:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Original owner '{origin_name}' not found in participants"
+        )
+
+    # Reverse the loan fee by finding the matching trade log entry
+    fee_reversed = 0.0
+    if req.reverse_fee:
+        for log_entry in reversed(room.get("trade_log", [])):
+            msg = log_entry.get("msg", "")
+            if "Loan" in msg and req.player_name in msg:
+                # Extract fee from log: "... for **XM**"
+                import re as _re
+                fee_match = _re.search(r'for \*\*(\d+(?:\.\d+)?)M\*\*', msg)
+                if fee_match:
+                    fee_reversed = float(fee_match.group(1))
+                break
+
+        if fee_reversed > 0:
+            borrower["budget"] = float(borrower.get("budget", 0)) + fee_reversed
+            owner["budget"] = float(owner.get("budget", 0)) - fee_reversed
+
+    # Move player back to owner
+    borrower["squad"].remove(player_obj)
+    player_obj.pop("loan_origin", None)
+    player_obj.pop("loan_expiry_gw", None)
+    owner["squad"].append(player_obj)
+
+    # Log the reversal
+    now = datetime.now(tz=IST)
+    timestamp = now.strftime("%d-%b %H:%M")
+    fee_txt = f" (fee **{fee_reversed}M** reversed)" if fee_reversed > 0 else ""
+    log_msg = (
+        f"↩️ Loan Reversed: **{req.player_name}** returned from "
+        f"**{borrower['name']}** to **{owner['name']}**{fee_txt} (Admin)"
+    )
+    room.setdefault("trade_log", []).append({"time": timestamp, "msg": log_msg})
+
+    _firebase_put(data)
+    return {
+        "message": f"Loan reversed: {req.player_name} returned to {origin_name}",
+        "fee_reversed": fee_reversed,
+    }
 
 
 # ----------------------------------------------------------

@@ -2367,6 +2367,102 @@ def show_main_app():
                     
                     st.divider()
 
+                    st.subheader("↩️ Admin Reverse Loan Deal")
+                    with st.expander("Show Loan Reversal Console"):
+                        # Find all currently loaned players across all squads
+                        loaned_players = []
+                        for p in room.get('participants', []):
+                            for pl in p.get('squad', []):
+                                if pl.get('loan_origin'):
+                                    loaned_players.append({
+                                        'player': pl['name'],
+                                        'role': pl.get('role', 'Unknown'),
+                                        'team': pl.get('team', 'Unknown'),
+                                        'borrower': p['name'],
+                                        'owner': pl['loan_origin'],
+                                        'return_gw': pl.get('loan_expiry_gw', '?')
+                                    })
+
+                        if not loaned_players:
+                            st.info("📭 No active loans to reverse.")
+                        else:
+                            st.caption(f"**{len(loaned_players)}** active loan(s) found:")
+
+                            for i, loan in enumerate(loaned_players):
+                                col_info, col_action = st.columns([3, 1])
+                                with col_info:
+                                    st.markdown(
+                                        f"**{loan['player']}** ({loan['role']}) — "
+                                        f"loaned from **{loan['owner']}** → **{loan['borrower']}** "
+                                        f"(returns GW{loan['return_gw']})"
+                                    )
+                                with col_action:
+                                    if room.get('squads_locked'):
+                                        st.button("🔒 Locked", disabled=True, key=f"rev_loan_{i}")
+                                    else:
+                                        if st.button("↩️ Reverse", key=f"rev_loan_{i}", type="primary"):
+                                            # Find the player in the borrower's squad
+                                            borrower_part = next(
+                                                (p for p in room.get('participants', []) if p['name'] == loan['borrower']),
+                                                None
+                                            )
+                                            owner_part = next(
+                                                (p for p in room.get('participants', []) if p['name'] == loan['owner']),
+                                                None
+                                            )
+                                            if borrower_part and owner_part:
+                                                p_obj = next(
+                                                    (pl for pl in borrower_part['squad'] if pl['name'] == loan['player'] and pl.get('loan_origin')),
+                                                    None
+                                                )
+                                                if p_obj:
+                                                    # Try to find the loan fee from trade log
+                                                    fee_reversed = 0.0
+                                                    for log_entry in reversed(room.get('trade_log', [])):
+                                                        msg = log_entry.get('msg', '')
+                                                        if 'Loan' in msg and loan['player'] in msg:
+                                                            import re as _re
+                                                            fee_match = _re.search(r'for \*\*(\d+(?:\.\d+)?)M\*\*', msg)
+                                                            if fee_match:
+                                                                fee_reversed = float(fee_match.group(1))
+                                                            break
+
+                                                    # Reverse the fee
+                                                    if fee_reversed > 0:
+                                                        borrower_part['budget'] = float(borrower_part.get('budget', 0)) + fee_reversed
+                                                        owner_part['budget'] = float(owner_part.get('budget', 0)) - fee_reversed
+
+                                                    # Move player back
+                                                    borrower_part['squad'].remove(p_obj)
+                                                    p_obj.pop('loan_origin', None)
+                                                    p_obj.pop('loan_expiry_gw', None)
+                                                    owner_part['squad'].append(p_obj)
+
+                                                    # Log the reversal
+                                                    timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                                                    fee_txt = f" (fee **{fee_reversed}M** reversed)" if fee_reversed > 0 else ""
+                                                    log_msg = (
+                                                        f"↩️ Loan Reversed: **{loan['player']}** returned from "
+                                                        f"**{loan['borrower']}** to **{loan['owner']}**{fee_txt} (Admin)"
+                                                    )
+                                                    room.setdefault('trade_log', []).append({"time": timestamp, "msg": log_msg})
+
+                                                    save_auction_data(auction_data)
+                                                    st.success(
+                                                        f"✅ Reversed! {loan['player']} returned to {loan['owner']}."
+                                                        + (f" Fee of {fee_reversed}M refunded." if fee_reversed > 0 else "")
+                                                    )
+                                                    st.rerun()
+                                                else:
+                                                    st.error("Player not found in borrower's squad.")
+                                            else:
+                                                st.error("Could not find borrower or owner participant.")
+
+                            if room.get('squads_locked'):
+                                st.warning("🔒 Squads are locked. Unlock squads to reverse loans.")
+
+                    st.divider()
+
                 st.subheader("Send Proposal")
                 to_p_name = None
                 
