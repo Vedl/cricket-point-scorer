@@ -212,11 +212,26 @@ class TradeRespondRequest(BaseModel):
 
 
 class TradeAdminRequest(BaseModel):
-    """Admin approve/reject a pending_admin trade."""
+    """Admin approve/reject a pending_admin trade. (DEPRECATED — kept for backward compat)"""
     room_code: str
     trade_id: str
     admin_name: str
     action: Literal["approve", "reject"]
+
+
+class TradeVoteRequest(BaseModel):
+    """Community member votes on a pending_vote trade."""
+    room_code: str
+    trade_id: str
+    participant_name: str
+    vote: Literal["approve", "reject"]
+
+
+class KickParticipantRequest(BaseModel):
+    """Admin kicks a participant from the room."""
+    room_code: str
+    admin_name: str
+    participant_name: str  # Who to kick
 
 
 class TradeForceRequest(BaseModel):
@@ -1589,11 +1604,19 @@ async def trade_respond(req: TradeRespondRequest):
         _firebase_put(data)
         return {"message": "Trade rejected", "trade_id": req.trade_id}
     else:
-        # Accept → move to pending_admin for admin approval
-        trade["status"] = "pending_admin"
+        # Accept → move to community vote
+        participants = room.get("participants", [])
+        trading_parties = {trade["from"], trade["to"]}
+        eligible = [
+            p["name"] for p in participants
+            if p["name"] not in trading_parties and not p.get("eliminated", False)
+        ]
+        trade["status"] = "pending_vote"
         trade["agreed_at"] = _get_ist_now().isoformat()
+        trade["votes"] = {}           # {participant_name: "approve"|"reject"}
+        trade["eligible_voters"] = eligible
         _firebase_put(data)
-        return {"message": "Trade accepted, waiting for admin approval", "trade_id": req.trade_id}
+        return {"message": "Trade accepted, open for community vote", "trade_id": req.trade_id}
 
 
 # ----------------------------------------------------------
@@ -1878,6 +1901,248 @@ async def lock_squads(req: LockSquadsRequest):
 
 
 # ----------------------------------------------------------
+# HELPER: Execute a trade (shared by vote auto-exec & admin force)
+# ----------------------------------------------------------
+def _execute_trade(room, trade):
+    """
+    Execute a validated pending trade. Returns (success: bool, log_msg: str, fail_reason: str).
+    Handles Transfer (Sell/Buy), Exchange, Loan Out/In.
+    """
+    import math
+    participants = room.get("participants", [])
+    sender = next((p for p in participants if p["name"] == trade["from"]), None)
+    receiver = next((p for p in participants if p["name"] == trade["to"]), None)
+    if not sender or not receiver:
+        return False, "", "Sender or receiver no longer exists"
+
+    t_type = trade["type"]
+    t_price = float(trade.get("price", 0))
+    success = False
+    fail_reason = "Unknown error"
+    log_msg = ""
+
+    if t_type == "Transfer (Sell)":
+        p_obj = next((p for p in sender["squad"] if p["name"] == trade["player"]), None)
+        if not p_obj:
+            fail_reason = f"Seller no longer owns {trade['player']}"
+        elif float(receiver.get("budget", 0)) < t_price:
+            fail_reason = "Buyer insufficient funds"
+        else:
+            sender["squad"].remove(p_obj)
+            p_obj["buy_price"] = t_price
+            receiver["squad"].append(p_obj)
+            sender["budget"] = float(sender.get("budget", 0)) + t_price
+            receiver["budget"] = float(receiver.get("budget", 0)) - t_price
+            success = True
+            log_msg = f"🔄 Transfer: **{trade['to']}** bought **{trade['player']}** from **{trade['from']}** for **{t_price}M**"
+
+    elif t_type == "Transfer (Buy)":
+        p_obj = next((p for p in receiver["squad"] if p["name"] == trade["player"]), None)
+        if not p_obj:
+            fail_reason = f"Seller no longer owns {trade['player']}"
+        elif float(sender.get("budget", 0)) < t_price:
+            fail_reason = "Buyer insufficient funds"
+        else:
+            receiver["squad"].remove(p_obj)
+            p_obj["buy_price"] = t_price
+            sender["squad"].append(p_obj)
+            receiver["budget"] = float(receiver.get("budget", 0)) + t_price
+            sender["budget"] = float(sender.get("budget", 0)) - t_price
+            success = True
+            log_msg = f"🔄 Transfer: **{trade['from']}** bought **{trade['player']}** from **{trade['to']}** for **{t_price}M**"
+
+    elif t_type == "Exchange":
+        give_players = trade.get("give_players", [trade.get("give_player")] if trade.get("give_player") else [])
+        get_pl = trade.get("get_player")
+        # Validate all give players exist
+        give_objs = []
+        for gp_name in give_players:
+            g_obj = next((p for p in sender["squad"] if p["name"] == gp_name), None)
+            if not g_obj:
+                return False, "", f"{sender['name']} no longer has {gp_name}"
+            give_objs.append(g_obj)
+        p_get = next((p for p in receiver["squad"] if p["name"] == get_pl), None)
+        if not p_get:
+            fail_reason = f"{receiver['name']} no longer has {get_pl}"
+        elif t_price > 0 and float(sender.get("budget", 0)) < t_price:
+            fail_reason = f"{sender['name']} can't afford {t_price}M"
+        elif t_price < 0 and float(receiver.get("budget", 0)) < abs(t_price):
+            fail_reason = f"{receiver['name']} can't afford {abs(t_price)}M"
+        else:
+            for g_obj in give_objs:
+                sender["squad"].remove(g_obj)
+                receiver["squad"].append(g_obj)
+            receiver["squad"].remove(p_get)
+            sender["squad"].append(p_get)
+            sender["budget"] = float(sender.get("budget", 0)) - t_price
+            receiver["budget"] = float(receiver.get("budget", 0)) + t_price
+            success = True
+            give_str = ", ".join(give_players)
+            cash_txt = f"(+{t_price}M)" if t_price > 0 else f"(-{abs(t_price)}M)" if t_price < 0 else "(Flat)"
+            log_msg = f"💱 Exchange: **{trade['from']}** ({give_str}) ↔ **{trade['to']}** ({get_pl}) {cash_txt}"
+
+    elif t_type in ("Loan Out", "Loan In"):
+        curr_gw = room.get("current_gameweek", 1)
+        return_gw = curr_gw + 1
+        if t_type == "Loan Out":
+            pl_name = trade["player"]
+            p_obj = next((p for p in sender["squad"] if p["name"] == pl_name), None)
+            if not p_obj:
+                fail_reason = f"{sender['name']} doesn't have {pl_name}"
+            elif float(receiver.get("budget", 0)) < t_price:
+                fail_reason = "Insufficient funds"
+            else:
+                sender["squad"].remove(p_obj)
+                p_obj["loan_origin"] = sender["name"]
+                p_obj["loan_expiry_gw"] = return_gw
+                receiver["squad"].append(p_obj)
+                sender["budget"] = float(sender.get("budget", 0)) + t_price
+                receiver["budget"] = float(receiver.get("budget", 0)) - t_price
+                success = True
+                log_msg = f"⏳ Loan: **{trade['from']}** loaned **{pl_name}** to **{trade['to']}** for **{t_price}M**"
+        else:  # Loan In
+            pl_name = trade["player"]
+            p_obj = next((p for p in receiver["squad"] if p["name"] == pl_name), None)
+            if not p_obj:
+                fail_reason = f"{receiver['name']} doesn't have {pl_name}"
+            elif float(sender.get("budget", 0)) < t_price:
+                fail_reason = "Insufficient funds"
+            else:
+                receiver["squad"].remove(p_obj)
+                p_obj["loan_origin"] = receiver["name"]
+                p_obj["loan_expiry_gw"] = return_gw
+                sender["squad"].append(p_obj)
+                receiver["budget"] = float(receiver.get("budget", 0)) + t_price
+                sender["budget"] = float(sender.get("budget", 0)) - t_price
+                success = True
+                log_msg = f"⏳ Loan: **{trade['to']}** loaned **{pl_name}** to **{trade['from']}** for **{t_price}M**"
+
+    return success, log_msg, fail_reason
+
+
+def _check_vote_result(trade):
+    """
+    Check whether a pending_vote trade has passed, failed, or is still open.
+    Returns: ('passed', reason) | ('failed', reason) | ('open', reason)
+    """
+    import math
+    votes = trade.get("votes", {})
+    eligible = trade.get("eligible_voters", [])
+    total_eligible = len(eligible)
+    total_voted = len(votes)
+    yes_votes = sum(1 for v in votes.values() if v == "approve")
+    no_votes = total_voted - yes_votes
+
+    # Edge: no eligible voters (only 2 participants in room)
+    if total_eligible == 0:
+        return "passed", "No other participants to vote — auto-approved"
+
+    min_turnout = math.ceil(total_eligible * 0.25)
+
+    # Unanimity for small rooms (≤2 eligible voters)
+    if total_eligible <= 2:
+        if total_voted == total_eligible and yes_votes == total_eligible:
+            return "passed", "Unanimity reached"
+        elif no_votes > 0:
+            return "failed", "Unanimity not reached"
+        else:
+            return "open", "Waiting for all votes (unanimity required)"
+
+    # Standard: >75% of votes cast, with ≥25% turnout
+    # Check if mathematically impossible to pass
+    remaining = total_eligible - total_voted
+    max_possible_yes = yes_votes + remaining
+    if total_voted > 0 and max_possible_yes > 0:
+        max_possible_pct = max_possible_yes / (total_voted + remaining)
+        if max_possible_pct <= 0.75:
+            return "failed", "Mathematically impossible to reach >75%"
+
+    # Check if already guaranteed to pass (even if all remaining vote no)
+    if total_voted >= min_turnout and total_voted > 0:
+        current_pct = yes_votes / total_voted
+        # If all remaining voters vote no, would it still pass?
+        worst_case_pct = yes_votes / (total_voted + remaining) if (total_voted + remaining) > 0 else 0
+        if worst_case_pct > 0.75:
+            return "passed", f"Guaranteed to pass ({yes_votes}/{total_voted + remaining} worst case)"
+
+    # Check if all votes are in
+    if total_voted == total_eligible:
+        if total_voted < min_turnout:
+            return "failed", f"Insufficient turnout ({total_voted}/{min_turnout} needed)"
+        pct = yes_votes / total_voted if total_voted > 0 else 0
+        if pct > 0.75:
+            return "passed", f"Approved {yes_votes}/{total_voted} ({pct*100:.1f}%)"
+        else:
+            return "failed", f"Rejected {yes_votes}/{total_voted} ({pct*100:.1f}% ≤ 75%)"
+
+    return "open", f"{total_voted}/{total_eligible} voted so far"
+
+
+def _resolve_pending_votes(room):
+    """
+    Force-resolve all pending_vote trades using current tally.
+    Used at deadline or GW advance. Returns list of resolution log messages.
+    """
+    import math
+    resolved_msgs = []
+    timestamp = _get_ist_now().strftime("%d-%b %H:%M")
+    pending = room.get("pending_trades", [])
+    remaining = []
+
+    for trade in pending:
+        if trade.get("status") != "pending_vote":
+            remaining.append(trade)
+            continue
+
+        votes = trade.get("votes", {})
+        eligible = trade.get("eligible_voters", [])
+        total_eligible = len(eligible)
+        total_voted = len(votes)
+        yes_votes = sum(1 for v in votes.values() if v == "approve")
+        min_turnout = math.ceil(total_eligible * 0.25) if total_eligible > 0 else 0
+
+        passed = False
+        reason = ""
+
+        if total_eligible == 0:
+            passed = True
+            reason = "No voters — auto-approved"
+        elif total_eligible <= 2:
+            passed = (yes_votes == total_voted == total_eligible)
+            reason = "Unanimity" if passed else "Unanimity not reached"
+        elif total_voted < min_turnout:
+            passed = False
+            reason = f"Insufficient turnout ({total_voted}/{min_turnout} needed)"
+        else:
+            pct = yes_votes / total_voted if total_voted > 0 else 0
+            passed = pct > 0.75
+            reason = f"{yes_votes}/{total_voted} ({pct*100:.1f}%)"
+
+        if passed:
+            success, log_msg, fail = _execute_trade(room, trade)
+            if success:
+                resolved_msgs.append(f"✅ {log_msg} (Vote: {reason})")
+                room.setdefault("trade_log", []).append({"time": timestamp, "msg": f"🗳️ Vote Passed → {log_msg}"})
+            else:
+                resolved_msgs.append(f"❌ Vote passed but execution failed: {fail}")
+                room.setdefault("trade_log", []).append({
+                    "time": timestamp,
+                    "msg": f"❌ Vote passed for **{trade['type']}** ({trade['from']} ↔ {trade['to']}) but failed: {fail}"
+                })
+        else:
+            trade_desc = trade.get('player') or f"{trade.get('give_player')} ↔ {trade.get('get_player')}"
+            resolved_msgs.append(f"❌ {trade['type']} ({trade_desc}) rejected by vote: {reason}")
+            room.setdefault("trade_log", []).append({
+                "time": timestamp,
+                "msg": f"🗳️ Vote Failed: **{trade['type']}** ({trade['from']} ↔ {trade['to']}) — {reason}"
+            })
+        # Either way, remove from pending
+
+    room["pending_trades"] = remaining
+    return resolved_msgs
+
+
+# ----------------------------------------------------------
 # 19.  POST /auction/advance-gameweek
 # ----------------------------------------------------------
 @app.post("/auction/advance-gameweek")
@@ -1894,6 +2159,9 @@ async def advance_gameweek(req: AdvanceGameweekRequest):
 
     curr_gw = room.get("current_gameweek", 1)
     new_gw = curr_gw + 1
+
+    # Auto-resolve any pending_vote trades before advancing
+    vote_resolutions = _resolve_pending_votes(room)
 
     # Return loaned players
     loan_returns = []
@@ -1917,7 +2185,12 @@ async def advance_gameweek(req: AdvanceGameweekRequest):
     room["squads_locked"] = False
     room["bidding_deadline"] = None  # Reset deadline for new GW
     _firebase_put(data)
-    return {"message": f"Advanced to GW{new_gw}", "gameweek": new_gw, "loan_returns": loan_returns}
+    return {
+        "message": f"Advanced to GW{new_gw}",
+        "gameweek": new_gw,
+        "loan_returns": loan_returns,
+        "vote_resolutions": vote_resolutions,
+    }
 
 
 # ----------------------------------------------------------
@@ -2777,6 +3050,156 @@ async def reverse_loan(req: ReverseLoanRequest):
     return {
         "message": f"Loan reversed: {req.player_name} returned to {origin_name}",
         "fee_reversed": fee_reversed,
+    }
+
+
+# ----------------------------------------------------------
+# 35.  POST /auction/trade/vote
+# ----------------------------------------------------------
+@app.post("/auction/trade/vote")
+async def trade_vote(req: TradeVoteRequest):
+    """
+    Community member casts or changes their vote on a pending_vote trade.
+    If the vote result is now deterministic (guaranteed pass/fail), auto-resolve.
+    """
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    pending = room.get("pending_trades", [])
+    trade = next((t for t in pending if t["id"] == req.trade_id and t.get("status") == "pending_vote"), None)
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found or not in voting phase")
+
+    # Validate voter is eligible
+    eligible = trade.get("eligible_voters", [])
+    if req.participant_name not in eligible:
+        trading_parties = {trade["from"], trade["to"]}
+        if req.participant_name in trading_parties:
+            raise HTTPException(status_code=403, detail="Trading parties cannot vote on their own trade")
+        raise HTTPException(status_code=403, detail="You are not eligible to vote on this trade")
+
+    # Cast / change vote
+    trade.setdefault("votes", {})[req.participant_name] = req.vote
+
+    # Check if result is now deterministic
+    result, reason = _check_vote_result(trade)
+    timestamp = _get_ist_now().strftime("%d-%b %H:%M")
+
+    if result == "passed":
+        success, log_msg, fail = _execute_trade(room, trade)
+        room["pending_trades"] = [t for t in pending if t["id"] != req.trade_id]
+        if success:
+            room.setdefault("trade_log", []).append({"time": timestamp, "msg": f"🗳️ Vote Passed → {log_msg}"})
+            _firebase_put(data)
+            return {"message": f"Vote recorded. Trade PASSED and executed! ({reason})", "result": "passed"}
+        else:
+            room.setdefault("trade_log", []).append({
+                "time": timestamp,
+                "msg": f"❌ Vote passed but execution failed: {fail}"
+            })
+            _firebase_put(data)
+            return {"message": f"Vote recorded. Trade passed vote but execution failed: {fail}", "result": "failed"}
+
+    elif result == "failed":
+        room["pending_trades"] = [t for t in pending if t["id"] != req.trade_id]
+        trade_desc = trade.get('player') or f"{trade.get('give_player')} ↔ {trade.get('get_player')}"
+        room.setdefault("trade_log", []).append({
+            "time": timestamp,
+            "msg": f"🗳️ Vote Failed: **{trade['type']}** ({trade['from']} ↔ {trade['to']}) — {reason}"
+        })
+        _firebase_put(data)
+        return {"message": f"Vote recorded. Trade REJECTED by vote ({reason})", "result": "failed"}
+
+    else:
+        # Still open
+        _firebase_put(data)
+        votes = trade.get("votes", {})
+        total_voted = len(votes)
+        yes = sum(1 for v in votes.values() if v == "approve")
+        return {
+            "message": f"Vote recorded ({req.vote}). {reason}",
+            "result": "open",
+            "votes_for": yes,
+            "votes_against": total_voted - yes,
+            "total_eligible": len(eligible),
+        }
+
+
+# ----------------------------------------------------------
+# 36.  POST /auction/kick-participant
+# ----------------------------------------------------------
+@app.post("/auction/kick-participant")
+async def kick_participant(req: KickParticipantRequest):
+    """
+    Admin kicks a participant from the room.
+    Releases all their players to unsold, removes pending trades,
+    unlinks their Firebase UID, and logs the action.
+    """
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("admin") != req.admin_name:
+        raise HTTPException(status_code=403, detail="Admin only")
+    if req.participant_name == req.admin_name:
+        raise HTTPException(status_code=400, detail="Admin cannot kick themselves")
+
+    participants = room.get("participants", [])
+    target = next((p for p in participants if p["name"] == req.participant_name), None)
+    if not target:
+        raise HTTPException(status_code=404, detail=f"Participant '{req.participant_name}' not found")
+
+    # Release all their players to unsold
+    released_players = [pl["name"] for pl in target.get("squad", [])]
+    room.setdefault("unsold_players", []).extend(released_players)
+
+    # Remove all pending trades involving them
+    before = len(room.get("pending_trades", []))
+    room["pending_trades"] = [
+        t for t in room.get("pending_trades", [])
+        if t["from"] != req.participant_name and t["to"] != req.participant_name
+    ]
+    trades_removed = before - len(room["pending_trades"])
+
+    # Also remove them from eligible_voters in any pending_vote trades
+    for t in room.get("pending_trades", []):
+        if t.get("status") == "pending_vote":
+            ev = t.get("eligible_voters", [])
+            t["eligible_voters"] = [v for v in ev if v != req.participant_name]
+            # Remove their vote if they already voted
+            t.get("votes", {}).pop(req.participant_name, None)
+
+    # Remove participant from room
+    room["participants"] = [p for p in participants if p["name"] != req.participant_name]
+
+    # Remove claim code
+    claim_codes = room.get("claim_codes", {})
+    if req.participant_name in claim_codes:
+        del claim_codes[req.participant_name]
+
+    # Unlink Firebase UID
+    users = data.get("users", {})
+    for uid, user_data in users.items():
+        user_rooms = user_data.get("rooms", [])
+        linked = [r for r in user_rooms if r.get("room_code") == req.room_code and r.get("participant_name") == req.participant_name]
+        if linked:
+            user_data["rooms"] = [r for r in user_rooms if r not in linked]
+
+    # Log the kick
+    timestamp = _get_ist_now().strftime("%d-%b %H:%M")
+    log_msg = (
+        f"🚫 Kicked: **{req.participant_name}** removed by admin. "
+        f"{len(released_players)} players released, {trades_removed} trades cancelled."
+    )
+    room.setdefault("trade_log", []).append({"time": timestamp, "msg": log_msg})
+
+    _firebase_put(data)
+    return {
+        "message": f"{req.participant_name} kicked from room",
+        "players_released": released_players,
+        "trades_removed": trades_removed,
     }
 
 
