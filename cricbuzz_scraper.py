@@ -11,13 +11,29 @@ class CricbuzzScraper:
         }
         # Load player roles from local database for fast lookup
         self.player_roles = {}
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'players_database.json')
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Source 1: players_database.json (T20 WC / international squads)
+        db_path = os.path.join(base_dir, 'players_database.json')
         if os.path.exists(db_path):
             try:
                 with open(db_path, 'r') as f:
                     data = json.load(f)
                     for p in data.get('players', []):
                         self.player_roles[p['name']] = p['role']
+            except:
+                pass
+
+        # Source 2: ipl_2026_squads.json (IPL squads — overrides Source 1)
+        ipl_path = os.path.join(base_dir, 'ipl_2026_squads.json')
+        if os.path.exists(ipl_path):
+            try:
+                with open(ipl_path, 'r') as f:
+                    ipl_data = json.load(f)
+                    for team_key, team_info in ipl_data.get('teams', {}).items():
+                        for p in team_info.get('squad', []):
+                            # IPL squad roles override — they are more current
+                            self.player_roles[p['name']] = p['role']
             except:
                 pass
 

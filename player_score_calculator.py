@@ -26,6 +26,7 @@ class CricketScoreCalculator:
         'bat': 'batsman',
         'keeper': 'keeper',
         'wk': 'keeper',
+        'wk-batsman': 'keeper',
         'wicketkeeper': 'keeper',
         'wicket-keeper': 'keeper',
         'wicket keeper': 'keeper',
