@@ -2099,7 +2099,6 @@ def show_main_app():
                         ])
                 
                 # Auto-resolve at trading deadline
-                import math
                 trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
                 vote_trades = [t for t in room.get('pending_trades', []) if t.get('status') == 'pending_vote']
                 
