@@ -2115,7 +2115,8 @@ def show_main_app():
                         total_eligible = len(eligible)
                         total_voted = len(votes)
                         yes_votes = sum(1 for v in votes.values() if v == 'approve')
-                        min_turnout = math.ceil(total_eligible * 0.25) if total_eligible > 0 else 0
+                        all_non_eliminated = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
+                        min_turnout = math.ceil(len(all_non_eliminated) * 0.50) if all_non_eliminated else 0
                         
                         passed = False
                         if total_eligible == 0:
@@ -2176,11 +2177,13 @@ def show_main_app():
                             yes_votes = sum(1 for v in votes.values() if v == 'approve')
                             no_votes = total_voted - yes_votes
                             pct = (yes_votes / total_voted * 100) if total_voted > 0 else 0
-                            min_turnout = math.ceil(total_eligible * 0.25) if total_eligible > 0 else 0
+                            all_non_eliminated = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
+                            min_turnout = math.ceil(len(all_non_eliminated) * 0.50) if all_non_eliminated else 0
                             
                             # Progress bar
                             if total_eligible > 0:
-                                st.progress(total_voted / total_eligible, text=f"Votes: {total_voted}/{total_eligible} | ✅ {yes_votes} ({pct:.0f}%) | ❌ {no_votes} | Need >75%")
+                                turnout_met = "✅" if total_voted >= min_turnout else "⏳"
+                                st.progress(total_voted / total_eligible, text=f"Votes: {total_voted}/{total_eligible} | ✅ {yes_votes} ({pct:.0f}%) | ❌ {no_votes} | Need >75% of votes cast | Turnout {turnout_met} {total_voted}/{min_turnout}")
                             
                             if total_eligible <= 2:
                                 st.caption("⚠️ Small room — unanimity required")

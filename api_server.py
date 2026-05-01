@@ -2020,9 +2020,10 @@ def _execute_trade(room, trade):
     return success, log_msg, fail_reason
 
 
-def _check_vote_result(trade):
+def _check_vote_result(trade, room):
     """
     Check whether a pending_vote trade has passed, failed, or is still open.
+    Approval: >75% of votes CAST.  Turnout: ≥50% of all non-eliminated participants.
     Returns: ('passed', reason) | ('failed', reason) | ('open', reason)
     """
     import math
@@ -2037,7 +2038,9 @@ def _check_vote_result(trade):
     if total_eligible == 0:
         return "passed", "No other participants to vote — auto-approved"
 
-    min_turnout = math.ceil(total_eligible * 0.25)
+    # Turnout: ≥50% of all non-eliminated participants in the room
+    all_non_eliminated = [p for p in room.get("participants", []) if not p.get("eliminated", False)]
+    min_turnout = math.ceil(len(all_non_eliminated) * 0.50)
 
     # Unanimity for small rooms (≤2 eligible voters)
     if total_eligible <= 2:
@@ -2048,8 +2051,7 @@ def _check_vote_result(trade):
         else:
             return "open", "Waiting for all votes (unanimity required)"
 
-    # Standard: >75% of votes cast, with ≥25% turnout
-    # Check if mathematically impossible to pass
+    # Check if mathematically impossible to reach >75% of votes cast
     remaining = total_eligible - total_voted
     max_possible_yes = yes_votes + remaining
     if total_voted > 0 and max_possible_yes > 0:
@@ -2059,11 +2061,10 @@ def _check_vote_result(trade):
 
     # Check if already guaranteed to pass (even if all remaining vote no)
     if total_voted >= min_turnout and total_voted > 0:
-        current_pct = yes_votes / total_voted
-        # If all remaining voters vote no, would it still pass?
-        worst_case_pct = yes_votes / (total_voted + remaining) if (total_voted + remaining) > 0 else 0
+        # Approval is >75% of votes cast, so check worst-case with current yes count
+        worst_case_pct = yes_votes / total_voted  # current pct (remaining haven't voted)
         if worst_case_pct > 0.75:
-            return "passed", f"Guaranteed to pass ({yes_votes}/{total_voted + remaining} worst case)"
+            return "passed", f"Approved {yes_votes}/{total_voted} ({worst_case_pct*100:.1f}%) — turnout met"
 
     # Check if all votes are in
     if total_voted == total_eligible:
@@ -2099,7 +2100,9 @@ def _resolve_pending_votes(room):
         total_eligible = len(eligible)
         total_voted = len(votes)
         yes_votes = sum(1 for v in votes.values() if v == "approve")
-        min_turnout = math.ceil(total_eligible * 0.25) if total_eligible > 0 else 0
+        # Turnout: ≥50% of all non-eliminated participants in the room
+        all_non_eliminated = [p for p in room.get("participants", []) if not p.get("eliminated", False)]
+        min_turnout = math.ceil(len(all_non_eliminated) * 0.50) if all_non_eliminated else 0
 
         passed = False
         reason = ""
@@ -3084,7 +3087,7 @@ async def trade_vote(req: TradeVoteRequest):
     trade.setdefault("votes", {})[req.participant_name] = req.vote
 
     # Check if result is now deterministic
-    result, reason = _check_vote_result(trade)
+    result, reason = _check_vote_result(trade, room)
     timestamp = _get_ist_now().strftime("%d-%b %H:%M")
 
     if result == "passed":
