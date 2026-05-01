@@ -1846,7 +1846,7 @@ def show_main_app():
                 # INBOX
                 st.markdown("### 📬 Incoming Proposals")
                 # Exclude trades already accepted and waiting for admin
-                my_incoming = [t for t in room['pending_trades'] if t['to'] == my_p_name and t.get('status') != 'pending_admin']
+                my_incoming = [t for t in room['pending_trades'] if t['to'] == my_p_name and t.get('status') not in ('pending_admin', 'pending_vote')]
                 if my_incoming:
                     for trade in my_incoming:
                         with st.container():
@@ -2088,6 +2088,7 @@ def show_main_app():
                 st.markdown("### 🗳️ Community Vote")
                 
                 # Auto-migrate any legacy pending_admin trades
+                migrated_any = False
                 for t in room.get('pending_trades', []):
                     if t.get('status') == 'pending_admin':
                         trading_parties = {t['from'], t['to']}
@@ -2097,6 +2098,9 @@ def show_main_app():
                             p['name'] for p in room.get('participants', [])
                             if p['name'] not in trading_parties and not p.get('eliminated', False)
                         ])
+                        migrated_any = True
+                if migrated_any:
+                    save_auction_data(auction_data)
                 
                 # Auto-resolve at trading deadline
                 trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
@@ -2215,12 +2219,10 @@ def show_main_app():
                                 with col1:
                                     if st.button("✅ Approve", key=f"vote_yes_{trade_id}", type="primary", disabled=(my_vote == 'approve')):
                                         trade['votes'][my_p_name] = 'approve'
-                                        # Check result
+                                        # Check if trade can auto-pass: >75% of votes cast AND turnout met
                                         votes_now = trade.get('votes', {})
                                         total_v = len(votes_now)
                                         yes_v = sum(1 for v in votes_now.values() if v == 'approve')
-                                        no_v = total_v - yes_v
-                                        remaining_v = total_eligible - total_v
                                         
                                         auto_exec = False
                                         if total_eligible == 0:
@@ -2228,21 +2230,13 @@ def show_main_app():
                                         elif total_eligible <= 2:
                                             auto_exec = (yes_v == total_v == total_eligible)
                                         elif total_v >= min_turnout and total_v > 0:
-                                            worst = yes_v / (total_v + remaining_v) if (total_v + remaining_v) > 0 else 0
-                                            auto_exec = worst > 0.75
+                                            # >75% of votes CAST (not total eligible)
+                                            current_pct = yes_v / total_v
+                                            auto_exec = current_pct > 0.75
                                         
                                         if auto_exec:
-                                            # Auto-execute — use same logic as acceptance
-                                            sender = next((p for p in room.get('participants', []) if p['name'] == trade['from']), None)
-                                            receiver = next((p for p in room.get('participants', []) if p['name'] == trade['to']), None)
-                                            if sender and receiver:
-                                                t_type = trade['type']
-                                                t_price = float(trade.get('price', 0))
-                                                exec_ok = False
-                                                exec_msg = ""
-                                                # Simplified: delegate to save and let API handle
-                                                timestamp_v = get_ist_time().strftime('%d-%b %H:%M')
-                                                room.setdefault('trade_log', []).append({"time": timestamp_v, "msg": f"🗳️ Vote Passed → **{trade['type']}** {trade['from']} ↔ {trade['to']} | {player_info} — executing..."})
+                                            timestamp_v = get_ist_time().strftime('%d-%b %H:%M')
+                                            room.setdefault('trade_log', []).append({"time": timestamp_v, "msg": f"🗳️ Vote Passed → **{trade['type']}** {trade['from']} ↔ {trade['to']} | {player_info} — executing..."})
                                         
                                         save_auction_data(auction_data)
                                         st.rerun()
