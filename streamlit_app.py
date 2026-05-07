@@ -60,17 +60,77 @@ def get_ist_time():
 storage_mgr = StorageManager(AUCTION_DATA_FILE)
 
 
-# --- Load/Save Functions for Persistence ---
-def get_cached_auction_data(_mgr_dummy_arg):
-    return storage_mgr.load_data()
+# --- Load/Save Functions with Session-State Caching ---
+# This eliminates the ~2-3s Firebase GET on every single Streamlit rerun.
+# Data is fetched from Firebase only on first load or when explicitly refreshed.
+# Saves update the local cache immediately and push to Firebase in the background.
+
+import threading, time as _time, copy as _copy
+
+_CACHE_TTL_SECONDS = 15  # Re-fetch from Firebase if cache is older than this
 
 def load_auction_data():
-    """Load auction data directly."""
-    return get_cached_auction_data("global_key")
+    """Load auction data — uses session_state cache to avoid Firebase on every rerun."""
+    now = _time.time()
+    
+    # First load OR cache expired → fetch from Firebase
+    if 'auction_data_cache' not in st.session_state or \
+       (now - st.session_state.get('auction_data_ts', 0)) > _CACHE_TTL_SECONDS:
+        data = storage_mgr.load_data()
+        st.session_state.auction_data_cache = data
+        st.session_state.auction_data_ts = now
+        return data
+    
+    # Cache hit — return instantly (0ms, no network)
+    return st.session_state.auction_data_cache
+
+def force_refresh_auction_data():
+    """Explicitly re-fetch from Firebase (for Refresh buttons)."""
+    data = storage_mgr.load_data_from_remote()
+    st.session_state.auction_data_cache = data
+    st.session_state.auction_data_ts = _time.time()
+    return data
 
 def save_auction_data(data):
-    """Save auction data to Storage Manager (Remote + Local)."""
-    storage_mgr.save_data(data)
+    """Save auction data — local + session cache instantly, Firebase async."""
+    # 1. Update session cache immediately (next rerun reads this, not Firebase)
+    st.session_state.auction_data_cache = data
+    st.session_state.auction_data_ts = _time.time()
+    
+    # 2. Save locally (fast, <10ms)
+    try:
+        import json as _json
+        tmp_file = storage_mgr.local_file_path + ".tmp"
+        with open(tmp_file, 'w') as f:
+            f.write(_json.dumps(data, indent=2))
+            f.flush()
+            os.fsync(f.fileno())
+        os.rename(tmp_file, storage_mgr.local_file_path)
+    except Exception as e:
+        print(f"[Cache] Local save error: {e}")
+    
+    # 3. Push to Firebase in background thread (non-blocking)
+    if storage_mgr.use_remote:
+        def _bg_firebase_save(data_snapshot, db_url):
+            try:
+                import json as _json
+                response = requests.put(
+                    db_url,
+                    data=_json.dumps(data_snapshot),
+                    headers={'Content-Type': 'application/json'},
+                    timeout=15
+                )
+                if response.status_code == 200:
+                    print("[Cache] Firebase async save SUCCESS")
+                else:
+                    print(f"[Cache] Firebase async save FAILED: {response.status_code}")
+            except Exception as e:
+                print(f"[Cache] Firebase async save error: {e}")
+        
+        # Deep-copy to avoid mutation during async write
+        data_snapshot = _copy.deepcopy(data)
+        t = threading.Thread(target=_bg_firebase_save, args=(data_snapshot, storage_mgr.db_url), daemon=True)
+        t.start()
 
 @st.cache_data(ttl=300)
 def load_players_database():
@@ -1218,8 +1278,7 @@ def show_main_app():
             with col_bid_refresh:
                 if st.button("🔄 Refresh Bids"):
                     # Force fetch from Firebase to get latest data from other users
-                    fresh_data = storage_mgr.load_data_from_remote()
-                    # Update the global auction_data reference
+                    fresh_data = force_refresh_auction_data()
                     auction_data.update(fresh_data)
                     st.rerun()
             
