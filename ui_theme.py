@@ -974,9 +974,14 @@ def get_premium_css():
 # ═══════════════════════════════════════════════════════════
 # THEME INJECTION FUNCTION
 # ═══════════════════════════════════════════════════════════
+@st.cache_data
+def _get_cached_theme_css():
+    """Cache the theme CSS string — it never changes at runtime."""
+    return get_premium_css()
+
 def inject_premium_theme():
     """Injects the full premium CSS theme into the Streamlit app."""
-    st.markdown(get_premium_css(), unsafe_allow_html=True)
+    st.markdown(_get_cached_theme_css(), unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════

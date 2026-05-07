@@ -1397,7 +1397,7 @@ def show_main_app():
                     else:
                         st.info("Add players to your squad to select an IR.")
             
-            # Show countdown to deadline — 4-phase timeline
+            # Show countdown to deadline — 4-phase timeline (LIVE JS COUNTDOWN)
             now = get_ist_time()
             deadline_str = room.get('bidding_deadline')
             global_deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
@@ -1409,13 +1409,68 @@ def show_main_app():
                 bidding_close     = global_deadline                           # Bidding closes
                 trading_close     = global_deadline + timedelta(minutes=30)   # Trading closes
 
-                milestones = [
-                    ("🚫 New Bids Lock",   "No new player initiations", initiation_cutoff),
-                    ("⚡ 5M Increments Only", "Only 5M bid steps allowed", increment_cutoff),
-                    ("🔒 Bidding Closes",  "All bidding stops",          bidding_close),
-                    ("🛑 Trading Closes",  "Market fully shut",          trading_close),
-                ]
+                # Pass milestones as JSON for the JS countdown
+                import json as _json
+                milestones_js = _json.dumps([
+                    {"title": "\U0001f6ab New Bids Lock",      "desc": "No new player initiations", "iso": initiation_cutoff.isoformat()},
+                    {"title": "\u26a1 5M Increments Only", "desc": "Only 5M bid steps allowed", "iso": increment_cutoff.isoformat()},
+                    {"title": "\U0001f512 Bidding Closes",    "desc": "All bidding stops",          "iso": bidding_close.isoformat()},
+                    {"title": "\U0001f6d1 Trading Closes",    "desc": "Market fully shut",          "iso": trading_close.isoformat()},
+                ])
 
+                # IST offset in ms for JS to convert naive IST timestamps
+                server_ist_epoch_ms = int(now.timestamp() * 1000)
+
+                timeline_js = f'''
+<div id="tl-root" style="display:flex;gap:12px;padding:14px 0;overflow-x:auto;font-family:Inter,sans-serif;"></div>
+<style>@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:0.7}}}}</style>
+<script>
+(function(){{
+  var M={milestones_js};
+  var IST=5.5*3600*1000;
+  function p2(n){{return n<10?'0'+n:''+n;}}
+  function fmt(s){{
+    if(s<=0)return"PASSED";
+    var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);
+    if(h>0)return h+"h "+p2(m)+"m "+p2(sec)+"s";
+    if(m>0)return m+"m "+p2(sec)+"s";
+    return sec+"s";
+  }}
+  function fDate(d){{
+    var mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return mn[d.getMonth()]+' '+d.getDate()+', '+p2(d.getHours())+':'+p2(d.getMinutes());
+  }}
+  function draw(){{
+    var r=document.getElementById('tl-root');if(!r)return;
+    var now=Date.now(),h='';
+    for(var i=0;i<M.length;i++){{
+      var ms=M[i],pt=ms.iso.split(/[-T:]/);
+      var eIST=new Date(pt[0],pt[1]-1,pt[2],pt[3],pt[4],pt[5]||0).getTime();
+      var eUTC=eIST-IST,ds=(eUTC-now)/1000;
+      var passed=ds<=0,imm=!passed&&ds<1800,cd=fmt(ds);
+      var dDate=new Date(eIST);
+      var bc,sc,sb,sl,cc,pu;
+      if(passed){{bc='#ff4b4b';sc='#ff4b4b';sb='rgba(255,75,75,0.08)';sl='PASSED';cc='#ff4b4b';pu='';}}
+      else if(imm){{bc='#ff9f43';sc='#ff9f43';sb='rgba(255,159,67,0.08)';sl='IMMINENT';cc='#ff9f43';pu='animation:pulse 1.5s ease-in-out infinite;';}}
+      else{{bc='rgba(0,204,255,0.3)';sc='#00CCFF';sb='rgba(0,204,255,0.06)';sl='UPCOMING';cc='#fff';pu='';}}
+      var cn=i<M.length-1?'<div style="position:absolute;right:-12px;top:50%;width:24px;height:2px;background:linear-gradient(90deg,'+bc+',rgba(255,255,255,0.1));z-index:2;"></div>':'';
+      h+='<div style="flex:1;position:relative;background:'+sb+';border:1px solid '+bc+';border-radius:12px;padding:14px;min-width:160px;backdrop-filter:blur(8px);'+pu+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+        +'<span style="font-size:0.7rem;font-weight:700;color:'+sc+';letter-spacing:1px;text-transform:uppercase;">'+sl+'</span>'
+        +'<span style="font-size:0.65rem;color:#8b949e;">'+fDate(dDate)+'</span></div>'
+        +'<div style="font-size:0.85rem;font-weight:700;color:#e6edf3;margin-bottom:2px;">'+ms.title+'</div>'
+        +'<div style="font-size:0.7rem;color:#8b949e;margin-bottom:8px;">'+ms.desc+'</div>'
+        +'<div style="font-family:Roboto Mono,monospace;font-size:1.3rem;font-weight:800;color:'+cc+';letter-spacing:1px;">'+cd+'</div>'
+        +cn+'</div>';
+    }}
+    r.innerHTML=h;
+  }}
+  draw();setInterval(draw,1000);
+}})();
+</script>'''
+                st.components.v1.html(timeline_js, height=175, scrolling=False)
+
+                # Keep _fmt_countdown for use elsewhere in the file
                 def _fmt_countdown(delta):
                     """Format a timedelta into a human-friendly countdown string."""
                     total = int(delta.total_seconds())
@@ -1429,80 +1484,6 @@ def show_main_app():
                         return f"{m}m {s}s"
                     else:
                         return f"{s}s"
-
-                # Build the HTML timeline
-                cards_html = ""
-                for i, (title, desc, milestone_time) in enumerate(milestones):
-                    delta = milestone_time - now
-                    countdown = _fmt_countdown(delta)
-                    time_display = milestone_time.strftime("%b %d, %H:%M")
-                    is_passed = delta.total_seconds() <= 0
-                    is_imminent = not is_passed and delta.total_seconds() < 1800  # < 30 min
-
-                    if is_passed:
-                        border_color = "#ff4b4b"
-                        status_color = "#ff4b4b"
-                        status_bg = "rgba(255, 75, 75, 0.08)"
-                        status_label = "PASSED"
-                        countdown_color = "#ff4b4b"
-                        pulse = ""
-                    elif is_imminent:
-                        border_color = "#ff9f43"
-                        status_color = "#ff9f43"
-                        status_bg = "rgba(255, 159, 67, 0.08)"
-                        status_label = "IMMINENT"
-                        countdown_color = "#ff9f43"
-                        pulse = "animation: pulse 1.5s ease-in-out infinite;"
-                    else:
-                        border_color = "rgba(0, 204, 255, 0.3)"
-                        status_color = "#00CCFF"
-                        status_bg = "rgba(0, 204, 255, 0.06)"
-                        status_label = "UPCOMING"
-                        countdown_color = "#ffffff"
-                        pulse = ""
-
-                    # Connector line between cards (not on the last one)
-                    connector = ""
-                    if i < len(milestones) - 1:
-                        connector = (
-                            f'<div style="position:absolute;right:-12px;top:50%;'
-                            f'width:24px;height:2px;'
-                            f'background:linear-gradient(90deg,{border_color},rgba(255,255,255,0.1));'
-                            f'z-index:2;"></div>'
-                        )
-
-                    cards_html += (
-                        f'<div style="flex:1;position:relative;'
-                        f'background:{status_bg};'
-                        f'border:1px solid {border_color};'
-                        f'border-radius:12px;'
-                        f'padding:14px 14px 12px 14px;'
-                        f'min-width:160px;'
-                        f'backdrop-filter:blur(8px);{pulse}">'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
-                        f'<span style="font-size:0.7rem;font-weight:700;color:{status_color};'
-                        f'letter-spacing:1px;text-transform:uppercase;">{status_label}</span>'
-                        f'<span style="font-size:0.65rem;color:#8b949e;">{time_display}</span>'
-                        f'</div>'
-                        f'<div style="font-size:0.85rem;font-weight:700;color:#e6edf3;margin-bottom:2px;">'
-                        f'{title}</div>'
-                        f'<div style="font-size:0.7rem;color:#8b949e;margin-bottom:8px;">'
-                        f'{desc}</div>'
-                        f'<div style="font-family:Roboto Mono,monospace;'
-                        f'font-size:1.3rem;font-weight:800;'
-                        f'color:{countdown_color};letter-spacing:1px;">{countdown}</div>'
-                        f'{connector}'
-                        f'</div>'
-                    )
-
-                timeline_html = (
-                    '<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}</style>'
-                    '<div style="display:flex;gap:12px;padding:14px 0;overflow-x:auto;">'
-                    f'{cards_html}'
-                    '</div>'
-                )
-
-                st.markdown(timeline_html, unsafe_allow_html=True)
 
                 # Simple text fallback for the most critical status
                 if now >= trading_close:
