@@ -1264,7 +1264,8 @@ def show_main_app():
                                     with cols[i]:
                                         st.metric(label=f"{medals[i]} {row['Player']}", value=f"{row['Score']} pts", delta=row.get('Position', ''))
                                 
-                                st.dataframe(df, use_container_width=True, height=600)
+                                display_df = df[['Player', 'Position', 'Score']]
+                                st.dataframe(display_df, use_container_width=True, height=600)
                         except Exception as e:
                             st.error(f"An error occurred: {e}")
         else:
