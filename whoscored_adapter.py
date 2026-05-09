@@ -20,7 +20,7 @@ def get_whoscored_stats(ws_url):
     
     m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
     if not m:
-        raise ValueError("Could not extract matchCentreData from the WhoScored page. Are you sure this is a match centre URL?")
+        raise ValueError(f"Could not extract matchCentreData from the WhoScored page. Status: {r.status_code}. Response snippet: {r.text[:200]}")
         
     data = json.loads(m.group(1))
     

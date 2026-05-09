@@ -554,11 +554,8 @@ def calc_all_players_whoscored(ws_url):
     """Calculate fantasy scores for all players in a match using WhoScored data."""
     import whoscored_adapter
     
-    try:
-        df_players = whoscored_adapter.get_whoscored_stats(ws_url)
-    except Exception as e:
-        print(f"[FootballScorer] Error fetching WhoScored data: {e}")
-        return pd.DataFrame()
+    # Removed try-catch to allow exception to bubble up
+    df_players = whoscored_adapter.get_whoscored_stats(ws_url)
         
     if df_players.empty:
         return pd.DataFrame(columns=["name", "score", "pos"])
