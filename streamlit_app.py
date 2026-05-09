@@ -3822,7 +3822,7 @@ def show_main_app():
                                     for i, url in enumerate(urls):
                                         status.text(f"Processing match {i+1}/{len(urls)} via FBref...")
                                         try:
-                                            result_df = football_score_calculator.calc_all_players_fbref(url)
+                                            result_df = football_score_calculator.calc_all_players_whoscored(url)
                                             if not result_df.empty:
                                                 for _, row in result_df.iterrows():
                                                     name = row['name']
@@ -3939,7 +3939,7 @@ def show_main_app():
                             for i, url in enumerate(urls):
                                 status.text(f"Processing match {i+1}/{len(urls)} via FBref...")
                                 try:
-                                    result_df = football_score_calculator.calc_all_players_fbref(url)
+                                    result_df = football_score_calculator.calc_all_players_whoscored(url)
                                     if not result_df.empty:
                                         for _, row in result_df.iterrows():
                                             name = row['name']

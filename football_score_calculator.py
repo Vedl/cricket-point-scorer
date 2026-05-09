@@ -544,3 +544,67 @@ def calc_all_players_fbref(fbref_url):
     stacked_df['score'] = stacked_df['score'].astype(int)
     
     return stacked_df
+
+
+# ============================================================
+# ENTRY POINT — WHOSCORED-BASED SCORING
+# ============================================================
+
+def calc_all_players_whoscored(ws_url):
+    """Calculate fantasy scores for all players in a match using WhoScored data."""
+    import whoscored_adapter
+    
+    try:
+        df_players = whoscored_adapter.get_whoscored_stats(ws_url)
+    except Exception as e:
+        print(f"[FootballScorer] Error fetching WhoScored data: {e}")
+        return pd.DataFrame()
+        
+    if df_players.empty:
+        return pd.DataFrame(columns=["name", "score", "pos"])
+        
+    scores = []
+    
+    for index, row in df_players.iterrows():
+        name = row['Unnamed: 0_level_0_Player']
+        pos = row['Pos']
+        
+        # We wrap in DF because score_calc_wrapper expects it
+        df_row = pd.DataFrame([row])
+        
+        minutes_played = row['minutes_played']
+        if minutes_played == 0:
+            continue
+            
+        t_score = row['goals_scored']
+        t_conc = row['goals_conceded']
+        
+        try:
+            score = score_calc_wrapper(pos, df_row, t_score, t_conc)
+        except Exception as e:
+            print(f"[FootballScorer] Error calculating score for {name} ({pos}): {e}")
+            score = 0
+            
+        scores.append([name, score, pos])
+        
+    if not scores:
+        return pd.DataFrame(columns=["name", "score", "pos"])
+
+    scores_df = pd.DataFrame(scores, columns=["name", "score", "pos"])
+    
+    stacked_df = df_players.merge(
+        scores_df, 
+        left_on='Unnamed: 0_level_0_Player', 
+        right_on='name', 
+        how='left'
+    )
+    
+    stacked_df.rename(columns={'Unnamed: 0_level_0_Player': 'Player', 'score': 'Score', 'Pos': 'Position'}, inplace=True)
+    stacked_df.drop(columns=['name', 'pos'], inplace=True, errors='ignore')
+    
+    cols = ['Player', 'Team', 'Position', 'Score', 'minutes_played']
+    remaining_cols = [c for c in stacked_df.columns if c not in cols]
+    final_df = stacked_df[cols + remaining_cols]
+    
+    return final_df
+
