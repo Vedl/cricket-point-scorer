@@ -4844,4 +4844,13 @@ if st.session_state.logged_in_user is None:
 elif st.session_state.current_room is None:
     show_room_selection()
 else:
-    show_main_app()
+    try:
+        show_main_app()
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ App Error: {e}")
+        st.code(traceback.format_exc(), language="python")
+        st.warning("The room encountered an error. Your data is safe. Click below to go back.")
+        if st.button("🔙 Back to Rooms"):
+            st.session_state.current_room = None
+            st.rerun()
