@@ -1231,55 +1231,92 @@ def show_main_app():
     # PAGE 1: Calculator
     # =====================================
     if page == "📊 Calculator":
-        st.title("🏏 Fantasy Cricket Points Calculator")
-        st.markdown("""
-        Calculate fantasy points instantly from any **Cricbuzz Scorecard URL**.
-        This app uses a custom **Role-Based Scoring System** that ensures fairness for Bowlers and All-rounders.
-        """)
-        
-        url = st.text_input("Enter Cricbuzz Scorecard URL", placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...")
-        
-        if st.button("Calculate Points", type="primary"):
-            if not url:
-                st.error("Please enter a URL first.")
-            else:
-                with st.spinner("Fetching match data..."):
-                    try:
-                        scraper = cricbuzz_scraper.CricbuzzScraper()
-                        calculator = CricketScoreCalculator()
-                        players = scraper.fetch_match_data(url)
-                        
-                        if not players:
-                            st.error("Could not fetch player data. Please check the URL.")
-                        else:
-                            results = []
-                            for p in players:
-                                score = calculator.calculate_score(p)
-                                results.append({
-                                    "Player": p['name'],
-                                    "Role": p.get('role', 'Unknown'),
-                                    "Points": score,
-                                    "Runs": p.get('runs', 0),
-                                    "Wickets": p.get('wickets', 0),
-                                    "Catches": p.get('catches', 0)
-                                })
+        if active_tournament_type == 'FIFA World Cup 2026':
+            st.title("⚽ Fantasy Football Points Calculator")
+            st.markdown("""
+            Calculate fantasy points instantly from any **WhoScored Match Report URL**.
+            This app uses the official FIFA World Cup 2026 scoring system.
+            """)
+            
+            url = st.text_input("Enter WhoScored Match Report URL", placeholder="https://www.whoscored.com/matches/...")
+            
+            if st.button("Calculate Points", type="primary"):
+                if not url:
+                    st.error("Please enter a URL first.")
+                elif "whoscored.com" not in url.lower():
+                    st.error("Please enter a valid WhoScored Match Report URL.")
+                else:
+                    with st.spinner("Fetching match data and calculating scores..."):
+                        import football_score_calculator
+                        try:
+                            result_df = football_score_calculator.calc_all_players_whoscored(url)
+                            if result_df.empty:
+                                st.error("Could not fetch player data or calculate scores. Please check the URL.")
+                            else:
+                                st.subheader("🏆 Leaderboard")
+                                df = result_df.sort_values(by="Score", ascending=False).reset_index(drop=True)
+                                
+                                top_3 = df.head(3)
+                                cols = st.columns(3)
+                                medals = ["🥇", "🥈", "🥉"]
+                                
+                                for i, (index, row) in enumerate(top_3.iterrows()):
+                                    with cols[i]:
+                                        st.metric(label=f"{medals[i]} {row['Player']}", value=f"{row['Score']} pts", delta=row.get('Position', ''))
+                                
+                                st.dataframe(df, use_container_width=True, height=600)
+                        except Exception as e:
+                            st.error(f"An error occurred: {e}")
+        else:
+            st.title("🏏 Fantasy Cricket Points Calculator")
+            st.markdown("""
+            Calculate fantasy points instantly from any **Cricbuzz Scorecard URL**.
+            This app uses a custom **Role-Based Scoring System** that ensures fairness for Bowlers and All-rounders.
+            """)
+            
+            url = st.text_input("Enter Cricbuzz Scorecard URL", placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...")
+            
+            if st.button("Calculate Points", type="primary"):
+                if not url:
+                    st.error("Please enter a URL first.")
+                else:
+                    with st.spinner("Fetching match data..."):
+                        try:
+                            scraper = cricbuzz_scraper.CricbuzzScraper()
+                            calculator = CricketScoreCalculator()
+                            players = scraper.fetch_match_data(url)
                             
-                            df = pd.DataFrame(results)
-                            df = df.sort_values(by="Points", ascending=False).reset_index(drop=True)
-                            
-                            st.subheader("🏆 Leaderboard")
-                            top_3 = df.head(3)
-                            cols = st.columns(3)
-                            medals = ["🥇", "🥈", "🥉"]
-                            
-                            for i, (index, row) in enumerate(top_3.iterrows()):
-                                with cols[i]:
-                                    st.metric(label=f"{medals[i]} {row['Player']}", value=f"{row['Points']} pts", delta=row['Role'])
-                            
-                            st.dataframe(df, use_container_width=True, height=600)
-                            
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
+                            if not players:
+                                st.error("Could not fetch player data. Please check the URL.")
+                            else:
+                                results = []
+                                for p in players:
+                                    score = calculator.calculate_score(p)
+                                    results.append({
+                                        "Player": p['name'],
+                                        "Role": p.get('role', 'Unknown'),
+                                        "Points": score,
+                                        "Runs": p.get('runs', 0),
+                                        "Wickets": p.get('wickets', 0),
+                                        "Catches": p.get('catches', 0)
+                                    })
+                                
+                                df = pd.DataFrame(results)
+                                df = df.sort_values(by="Points", ascending=False).reset_index(drop=True)
+                                
+                                st.subheader("🏆 Leaderboard")
+                                top_3 = df.head(3)
+                                cols = st.columns(3)
+                                medals = ["🥇", "🥈", "🥉"]
+                                
+                                for i, (index, row) in enumerate(top_3.iterrows()):
+                                    with cols[i]:
+                                        st.metric(label=f"{medals[i]} {row['Player']}", value=f"{row['Points']} pts", delta=row['Role'])
+                                
+                                st.dataframe(df, use_container_width=True, height=600)
+                                
+                        except Exception as e:
+                            st.error(f"An error occurred: {e}")
 
     # =====================================
     # PAGE 2: Squads & Trading (Restored Features)
