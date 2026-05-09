@@ -10,6 +10,7 @@ import uuid as uuid_lib
 from datetime import datetime, timedelta
 import sys
 import time
+import requests
 
 # --- Robust Import Helper ---
 def safe_import_module(module_name):
