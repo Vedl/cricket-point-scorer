@@ -7,3 +7,4 @@ pandas
 sqlmodel
 scikit-learn
 lxml
+curl_cffi
