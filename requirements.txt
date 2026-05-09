@@ -5,3 +5,5 @@ beautifulsoup4
 streamlit
 pandas
 sqlmodel
+scikit-learn
+lxml

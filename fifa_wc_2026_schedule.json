@@ -1,0 +1,183 @@
+{
+    "tournament": "FIFA World Cup 2026",
+    "host_countries": ["United States", "Canada", "Mexico"],
+    "start_date": "2026-06-11",
+    "end_date": "2026-07-19",
+    "format": "48 teams, 12 groups of 4. Top 2 + 8 best third-placed advance to Round of 32.",
+    "groups": {
+        "A": ["Mexico", "South Africa", "Korea Republic", "Czechia"],
+        "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
+        "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
+        "D": ["United States", "Paraguay", "Australia", "Türkiye"],
+        "E": ["Germany", "Curaçao", "Côte d'Ivoire", "Ecuador"],
+        "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
+        "G": ["Belgium", "Egypt", "Iran", "New Zealand"],
+        "H": ["Spain", "Cape Verde", "Saudi Arabia", "Uruguay"],
+        "I": ["France", "Senegal", "Iraq", "Norway"],
+        "J": ["TBD", "TBD", "TBD", "TBD"],
+        "K": ["TBD", "TBD", "TBD", "TBD"],
+        "L": ["TBD", "TBD", "TBD", "TBD"]
+    },
+    "gameweeks": {
+        "1": {
+            "name": "Group Stage — Matchday 1",
+            "phase": "Group Stage",
+            "dates": "Jun 11-16, 2026",
+            "matches": [
+                {"match_id": 1, "teams": ["Mexico", "South Africa"], "date": "2026-06-11", "venue": "Mexico City Stadium"},
+                {"match_id": 2, "teams": ["Korea Republic", "Czechia"], "date": "2026-06-11", "venue": "TBD"},
+                {"match_id": 3, "teams": ["Canada", "Bosnia and Herzegovina"], "date": "2026-06-12", "venue": "TBD"},
+                {"match_id": 4, "teams": ["Qatar", "Switzerland"], "date": "2026-06-12", "venue": "TBD"},
+                {"match_id": 5, "teams": ["Brazil", "Morocco"], "date": "2026-06-12", "venue": "TBD"},
+                {"match_id": 6, "teams": ["Haiti", "Scotland"], "date": "2026-06-12", "venue": "TBD"},
+                {"match_id": 7, "teams": ["United States", "Paraguay"], "date": "2026-06-13", "venue": "TBD"},
+                {"match_id": 8, "teams": ["Australia", "Türkiye"], "date": "2026-06-13", "venue": "TBD"},
+                {"match_id": 9, "teams": ["Germany", "Curaçao"], "date": "2026-06-13", "venue": "TBD"},
+                {"match_id": 10, "teams": ["Côte d'Ivoire", "Ecuador"], "date": "2026-06-13", "venue": "TBD"},
+                {"match_id": 11, "teams": ["Netherlands", "Japan"], "date": "2026-06-14", "venue": "TBD"},
+                {"match_id": 12, "teams": ["Sweden", "Tunisia"], "date": "2026-06-14", "venue": "TBD"},
+                {"match_id": 13, "teams": ["Belgium", "Egypt"], "date": "2026-06-14", "venue": "TBD"},
+                {"match_id": 14, "teams": ["Iran", "New Zealand"], "date": "2026-06-14", "venue": "TBD"},
+                {"match_id": 15, "teams": ["Spain", "Cape Verde"], "date": "2026-06-15", "venue": "TBD"},
+                {"match_id": 16, "teams": ["Saudi Arabia", "Uruguay"], "date": "2026-06-15", "venue": "TBD"},
+                {"match_id": 17, "teams": ["France", "Senegal"], "date": "2026-06-15", "venue": "TBD"},
+                {"match_id": 18, "teams": ["Iraq", "Norway"], "date": "2026-06-15", "venue": "TBD"},
+                {"match_id": 19, "teams": ["TBD (J1)", "TBD (J2)"], "date": "2026-06-16", "venue": "TBD"},
+                {"match_id": 20, "teams": ["TBD (J3)", "TBD (J4)"], "date": "2026-06-16", "venue": "TBD"},
+                {"match_id": 21, "teams": ["TBD (K1)", "TBD (K2)"], "date": "2026-06-16", "venue": "TBD"},
+                {"match_id": 22, "teams": ["TBD (K3)", "TBD (K4)"], "date": "2026-06-16", "venue": "TBD"},
+                {"match_id": 23, "teams": ["TBD (L1)", "TBD (L2)"], "date": "2026-06-16", "venue": "TBD"},
+                {"match_id": 24, "teams": ["TBD (L3)", "TBD (L4)"], "date": "2026-06-16", "venue": "TBD"}
+            ]
+        },
+        "2": {
+            "name": "Group Stage — Matchday 2",
+            "phase": "Group Stage",
+            "dates": "Jun 17-22, 2026",
+            "matches": [
+                {"match_id": 25, "teams": ["South Africa", "Korea Republic"], "date": "2026-06-17", "venue": "TBD"},
+                {"match_id": 26, "teams": ["Mexico", "Czechia"], "date": "2026-06-17", "venue": "TBD"},
+                {"match_id": 27, "teams": ["Bosnia and Herzegovina", "Qatar"], "date": "2026-06-17", "venue": "TBD"},
+                {"match_id": 28, "teams": ["Canada", "Switzerland"], "date": "2026-06-18", "venue": "TBD"},
+                {"match_id": 29, "teams": ["Morocco", "Haiti"], "date": "2026-06-18", "venue": "TBD"},
+                {"match_id": 30, "teams": ["Brazil", "Scotland"], "date": "2026-06-18", "venue": "TBD"},
+                {"match_id": 31, "teams": ["Paraguay", "Australia"], "date": "2026-06-19", "venue": "TBD"},
+                {"match_id": 32, "teams": ["United States", "Türkiye"], "date": "2026-06-19", "venue": "TBD"},
+                {"match_id": 33, "teams": ["Curaçao", "Côte d'Ivoire"], "date": "2026-06-19", "venue": "TBD"},
+                {"match_id": 34, "teams": ["Germany", "Ecuador"], "date": "2026-06-20", "venue": "TBD"},
+                {"match_id": 35, "teams": ["Japan", "Sweden"], "date": "2026-06-20", "venue": "TBD"},
+                {"match_id": 36, "teams": ["Netherlands", "Tunisia"], "date": "2026-06-20", "venue": "TBD"},
+                {"match_id": 37, "teams": ["Egypt", "Iran"], "date": "2026-06-21", "venue": "TBD"},
+                {"match_id": 38, "teams": ["Belgium", "New Zealand"], "date": "2026-06-21", "venue": "TBD"},
+                {"match_id": 39, "teams": ["Cape Verde", "Saudi Arabia"], "date": "2026-06-21", "venue": "TBD"},
+                {"match_id": 40, "teams": ["Spain", "Uruguay"], "date": "2026-06-21", "venue": "TBD"},
+                {"match_id": 41, "teams": ["Senegal", "Iraq"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 42, "teams": ["France", "Norway"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 43, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 44, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 45, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 46, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 47, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-22", "venue": "TBD"},
+                {"match_id": 48, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-22", "venue": "TBD"}
+            ]
+        },
+        "3": {
+            "name": "Group Stage — Matchday 3",
+            "phase": "Group Stage",
+            "dates": "Jun 23-27, 2026",
+            "matches": [
+                {"match_id": 49, "teams": ["Korea Republic", "Mexico"], "date": "2026-06-23", "venue": "TBD"},
+                {"match_id": 50, "teams": ["Czechia", "South Africa"], "date": "2026-06-23", "venue": "TBD"},
+                {"match_id": 51, "teams": ["Qatar", "Canada"], "date": "2026-06-23", "venue": "TBD"},
+                {"match_id": 52, "teams": ["Switzerland", "Bosnia and Herzegovina"], "date": "2026-06-23", "venue": "TBD"},
+                {"match_id": 53, "teams": ["Haiti", "Brazil"], "date": "2026-06-24", "venue": "TBD"},
+                {"match_id": 54, "teams": ["Scotland", "Morocco"], "date": "2026-06-24", "venue": "TBD"},
+                {"match_id": 55, "teams": ["Australia", "United States"], "date": "2026-06-24", "venue": "TBD"},
+                {"match_id": 56, "teams": ["Türkiye", "Paraguay"], "date": "2026-06-24", "venue": "TBD"},
+                {"match_id": 57, "teams": ["Côte d'Ivoire", "Germany"], "date": "2026-06-25", "venue": "TBD"},
+                {"match_id": 58, "teams": ["Ecuador", "Curaçao"], "date": "2026-06-25", "venue": "TBD"},
+                {"match_id": 59, "teams": ["Sweden", "Netherlands"], "date": "2026-06-25", "venue": "TBD"},
+                {"match_id": 60, "teams": ["Tunisia", "Japan"], "date": "2026-06-25", "venue": "TBD"},
+                {"match_id": 61, "teams": ["Iran", "Belgium"], "date": "2026-06-26", "venue": "TBD"},
+                {"match_id": 62, "teams": ["New Zealand", "Egypt"], "date": "2026-06-26", "venue": "TBD"},
+                {"match_id": 63, "teams": ["Saudi Arabia", "Spain"], "date": "2026-06-26", "venue": "TBD"},
+                {"match_id": 64, "teams": ["Uruguay", "Cape Verde"], "date": "2026-06-26", "venue": "TBD"},
+                {"match_id": 65, "teams": ["Iraq", "France"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 66, "teams": ["Norway", "Senegal"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 67, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 68, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 69, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 70, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 71, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-27", "venue": "TBD"},
+                {"match_id": 72, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-27", "venue": "TBD"}
+            ]
+        },
+        "4": {
+            "name": "Round of 32",
+            "phase": "Knockout",
+            "dates": "Jun 28 - Jul 3, 2026",
+            "matches": [
+                {"match_id": 73, "teams": ["TBD (R32-1)", "TBD (R32-1)"], "date": "2026-06-28", "venue": "TBD"},
+                {"match_id": 74, "teams": ["TBD (R32-2)", "TBD (R32-2)"], "date": "2026-06-28", "venue": "TBD"},
+                {"match_id": 75, "teams": ["TBD (R32-3)", "TBD (R32-3)"], "date": "2026-06-29", "venue": "TBD"},
+                {"match_id": 76, "teams": ["TBD (R32-4)", "TBD (R32-4)"], "date": "2026-06-29", "venue": "TBD"},
+                {"match_id": 77, "teams": ["TBD (R32-5)", "TBD (R32-5)"], "date": "2026-06-30", "venue": "TBD"},
+                {"match_id": 78, "teams": ["TBD (R32-6)", "TBD (R32-6)"], "date": "2026-06-30", "venue": "TBD"},
+                {"match_id": 79, "teams": ["TBD (R32-7)", "TBD (R32-7)"], "date": "2026-07-01", "venue": "TBD"},
+                {"match_id": 80, "teams": ["TBD (R32-8)", "TBD (R32-8)"], "date": "2026-07-01", "venue": "TBD"},
+                {"match_id": 81, "teams": ["TBD (R32-9)", "TBD (R32-9)"], "date": "2026-07-02", "venue": "TBD"},
+                {"match_id": 82, "teams": ["TBD (R32-10)", "TBD (R32-10)"], "date": "2026-07-02", "venue": "TBD"},
+                {"match_id": 83, "teams": ["TBD (R32-11)", "TBD (R32-11)"], "date": "2026-07-02", "venue": "TBD"},
+                {"match_id": 84, "teams": ["TBD (R32-12)", "TBD (R32-12)"], "date": "2026-07-02", "venue": "TBD"},
+                {"match_id": 85, "teams": ["TBD (R32-13)", "TBD (R32-13)"], "date": "2026-07-03", "venue": "TBD"},
+                {"match_id": 86, "teams": ["TBD (R32-14)", "TBD (R32-14)"], "date": "2026-07-03", "venue": "TBD"},
+                {"match_id": 87, "teams": ["TBD (R32-15)", "TBD (R32-15)"], "date": "2026-07-03", "venue": "TBD"},
+                {"match_id": 88, "teams": ["TBD (R32-16)", "TBD (R32-16)"], "date": "2026-07-03", "venue": "TBD"}
+            ]
+        },
+        "5": {
+            "name": "Round of 16",
+            "phase": "Knockout",
+            "dates": "Jul 4-7, 2026",
+            "matches": [
+                {"match_id": 89, "teams": ["TBD (R16-1)", "TBD (R16-1)"], "date": "2026-07-04", "venue": "TBD"},
+                {"match_id": 90, "teams": ["TBD (R16-2)", "TBD (R16-2)"], "date": "2026-07-04", "venue": "TBD"},
+                {"match_id": 91, "teams": ["TBD (R16-3)", "TBD (R16-3)"], "date": "2026-07-05", "venue": "TBD"},
+                {"match_id": 92, "teams": ["TBD (R16-4)", "TBD (R16-4)"], "date": "2026-07-05", "venue": "TBD"},
+                {"match_id": 93, "teams": ["TBD (R16-5)", "TBD (R16-5)"], "date": "2026-07-06", "venue": "TBD"},
+                {"match_id": 94, "teams": ["TBD (R16-6)", "TBD (R16-6)"], "date": "2026-07-06", "venue": "TBD"},
+                {"match_id": 95, "teams": ["TBD (R16-7)", "TBD (R16-7)"], "date": "2026-07-07", "venue": "TBD"},
+                {"match_id": 96, "teams": ["TBD (R16-8)", "TBD (R16-8)"], "date": "2026-07-07", "venue": "TBD"}
+            ]
+        },
+        "6": {
+            "name": "Quarter-finals",
+            "phase": "Knockout",
+            "dates": "Jul 9-11, 2026",
+            "matches": [
+                {"match_id": 97, "teams": ["TBD (QF1)", "TBD (QF1)"], "date": "2026-07-09", "venue": "TBD"},
+                {"match_id": 98, "teams": ["TBD (QF2)", "TBD (QF2)"], "date": "2026-07-09", "venue": "TBD"},
+                {"match_id": 99, "teams": ["TBD (QF3)", "TBD (QF3)"], "date": "2026-07-10", "venue": "TBD"},
+                {"match_id": 100, "teams": ["TBD (QF4)", "TBD (QF4)"], "date": "2026-07-11", "venue": "TBD"}
+            ]
+        },
+        "7": {
+            "name": "Semi-finals",
+            "phase": "Knockout",
+            "dates": "Jul 14-15, 2026",
+            "matches": [
+                {"match_id": 101, "teams": ["TBD (SF1)", "TBD (SF1)"], "date": "2026-07-14", "venue": "TBD"},
+                {"match_id": 102, "teams": ["TBD (SF2)", "TBD (SF2)"], "date": "2026-07-15", "venue": "TBD"}
+            ]
+        },
+        "8": {
+            "name": "Third Place & Final",
+            "phase": "Final",
+            "dates": "Jul 18-19, 2026",
+            "matches": [
+                {"match_id": 103, "teams": ["TBD (3rd Place)", "TBD (3rd Place)"], "date": "2026-07-18", "venue": "TBD"},
+                {"match_id": 104, "teams": ["TBD (Final)", "TBD (Final)"], "date": "2026-07-19", "venue": "MetLife Stadium, New York/New Jersey"}
+            ]
+        }
+    }
+}

@@ -51,6 +51,8 @@ PLAYERS_DB_FILE = os.path.join(DATA_DIR, "players_database.json")
 IPL_SQUADS_FILE = os.path.join(DATA_DIR, "ipl_2026_squads.json")
 SCHEDULE_FILE = os.path.join(DATA_DIR, "t20_wc_schedule.json")
 IPL_SCHEDULE_FILE = os.path.join(DATA_DIR, "ipl_2026_schedule.json")
+FIFA_WC_SCHEDULE_FILE = os.path.join(DATA_DIR, "fifa_wc_2026_schedule.json")
+FIFA_WC_PLAYERS_FILE = os.path.join(DATA_DIR, "fifa_wc_2026_players.json")
 
 def get_ist_time():
     """Returns the current time in Indian Standard Time (IST)"""
@@ -163,9 +165,21 @@ def load_ipl_database():
             pass
     return []
 
+def load_fifa_database():
+    """Load FIFA World Cup 2026 player database."""
+    if os.path.exists(FIFA_WC_PLAYERS_FILE):
+        try:
+            with open(FIFA_WC_PLAYERS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
 def get_tournament_players(tournament_type):
     if tournament_type == "IPL 2026":
         return load_ipl_database()
+    elif tournament_type == "FIFA World Cup 2026":
+        return load_fifa_database()
     return load_players_database()
 
 def generate_room_code():
@@ -179,7 +193,12 @@ def hash_password(password):
 @st.cache_data(ttl=300)
 def load_schedule(tournament_type="T20 World Cup"):
     """Load tournament schedule."""
-    file_path = IPL_SCHEDULE_FILE if tournament_type == "IPL 2026" else SCHEDULE_FILE
+    if tournament_type == "IPL 2026":
+        file_path = IPL_SCHEDULE_FILE
+    elif tournament_type == "FIFA World Cup 2026":
+        file_path = FIFA_WC_SCHEDULE_FILE
+    else:
+        file_path = SCHEDULE_FILE
     if os.path.exists(file_path):
         try:
             with open(file_path, 'r') as f:
@@ -335,7 +354,7 @@ def show_room_selection():
     with col1:
         st.subheader("➕ Create New Room")
         room_name = st.text_input("Room Name", placeholder="e.g., Friends T20 League")
-        tournament_type = st.radio("Tournament Type", ["T20 World Cup", "IPL 2026"], horizontal=True)
+        tournament_type = st.radio("Tournament Type", ["T20 World Cup", "IPL 2026", "FIFA World Cup 2026"], horizontal=True)
         admin_participating = st.checkbox("Admin will participate as a team manager", value=False)
         
         if st.button("Create Room", type="primary"):
@@ -2936,6 +2955,16 @@ def show_main_app():
                 
                 if trn_type == 'IPL 2026':
                     all_teams = ["CSK", "DC", "GT", "KKR", "LSG", "MI", "PBKS", "RCB", "RR", "SRH"]
+                elif trn_type == 'FIFA World Cup 2026':
+                    all_teams = ["Mexico", "South Africa", "Korea Republic", "Czechia",
+                                "Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland",
+                                "Brazil", "Morocco", "Haiti", "Scotland",
+                                "United States", "Paraguay", "Australia", "Türkiye",
+                                "Germany", "Curaçao", "Côte d'Ivoire", "Ecuador",
+                                "Netherlands", "Japan", "Sweden", "Tunisia",
+                                "Belgium", "Egypt", "Iran", "New Zealand",
+                                "Spain", "Cape Verde", "Saudi Arabia", "Uruguay",
+                                "France", "Senegal", "Iraq", "Norway"]
                 else:
                     all_teams = ["India", "Sri Lanka", "Australia", "England", "South Africa", "New Zealand", 
                                 "Pakistan", "West Indies", "Afghanistan", "USA", "Ireland", 
@@ -3704,10 +3733,12 @@ def show_main_app():
         st.divider()
         
         # Two tabs: Schedule-based and Manual
-        tab1, tab2 = st.tabs(["📅 T20 WC Schedule", "🔗 Manual URLs"])
+        schedule_tab_name = "⚽ FIFA WC Schedule" if active_tournament_type == "FIFA World Cup 2026" else "📅 T20 WC Schedule"
+        tab1, tab2 = st.tabs([schedule_tab_name, "🔗 Manual URLs"])
         
         with tab1:
-            st.subheader("Select Gameweek from T20 WC 2026 Schedule")
+            schedule_header = "Select Gameweek from FIFA WC 2026 Schedule" if active_tournament_type == "FIFA World Cup 2026" else "Select Gameweek from T20 WC 2026 Schedule"
+            st.subheader(schedule_header)
             
             gameweeks = schedule.get('gameweeks', {})
             if gameweeks:
@@ -3758,12 +3789,18 @@ def show_main_app():
                     # Manual URL input for this gameweek (Admin Only)
                     if is_admin:
                         st.divider()
-                        st.markdown("**Enter Cricbuzz Scorecard URLs for the above matches:**")
-                        st.caption("After each match completes, paste the scorecard URL here.")
+                        if active_tournament_type == 'FIFA World Cup 2026':
+                            st.markdown("**Enter FBref Match Report URLs for the above matches:**")
+                            st.caption("After each match completes, paste the FBref match report URL here.")
+                            url_placeholder = "https://fbref.com/en/matches/abc123/...\nhttps://fbref.com/en/matches/def456/..."
+                        else:
+                            st.markdown("**Enter Cricbuzz Scorecard URLs for the above matches:**")
+                            st.caption("After each match completes, paste the scorecard URL here.")
+                            url_placeholder = "https://www.cricbuzz.com/live-cricket-scorecard/...\nhttps://www.cricbuzz.com/live-cricket-scorecard/..."
                         urls_input = st.text_area(
                             "Match URLs (one per line)", 
                             height=150, 
-                            placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...\nhttps://www.cricbuzz.com/live-cricket-scorecard/...",
+                            placeholder=url_placeholder,
                             key="gw_urls"
                         )
                         
@@ -3773,30 +3810,55 @@ def show_main_app():
                             if not urls:
                                 st.error("Please enter at least one match URL.")
                             else:
-                                scraper = cricbuzz_scraper.CricbuzzScraper()
-                                calculator = CricketScoreCalculator()
                                 all_scores = {}
                                 
-                                progress = st.progress(0)
-                                status = st.empty()
-                                
-                                for i, url in enumerate(urls):
-                                    status.text(f"Processing match {i+1}/{len(urls)}...")
-                                    try:
-                                        players = scraper.fetch_match_data(url)
-                                        for p in players:
-                                            score = calculator.calculate_score(p)
-                                            name = p['name']
-                                            if name in all_scores:
-                                                all_scores[name] += score
-                                            else:
-                                                all_scores[name] = score
-                                    except Exception as e:
-                                        st.warning(f"Error processing {url}: {e}")
+                                if active_tournament_type == 'FIFA World Cup 2026':
+                                    # Football scoring pipeline (FBref)
+                                    import football_score_calculator
+                                    progress = st.progress(0)
+                                    status = st.empty()
                                     
-                                    progress.progress((i + 1) / len(urls))
+                                    for i, url in enumerate(urls):
+                                        status.text(f"Processing match {i+1}/{len(urls)} via FBref...")
+                                        try:
+                                            result_df = football_score_calculator.calc_all_players_fbref(url)
+                                            if not result_df.empty:
+                                                for _, row in result_df.iterrows():
+                                                    name = row['name']
+                                                    score = int(row['score'])
+                                                    if name in all_scores:
+                                                        all_scores[name] += score
+                                                    else:
+                                                        all_scores[name] = score
+                                        except Exception as e:
+                                            st.warning(f"Error processing {url}: {e}")
+                                        
+                                        progress.progress((i + 1) / len(urls))
+                                else:
+                                    # Cricket scoring pipeline (Cricbuzz)
+                                    scraper = cricbuzz_scraper.CricbuzzScraper()
+                                    calculator = CricketScoreCalculator()
+                                    
+                                    progress = st.progress(0)
+                                    status = st.empty()
                                 
-                                # Store in room data
+                                    for i, url in enumerate(urls):
+                                        status.text(f"Processing match {i+1}/{len(urls)}...")
+                                        try:
+                                            players = scraper.fetch_match_data(url)
+                                            for p in players:
+                                                score = calculator.calculate_score(p)
+                                                name = p['name']
+                                                if name in all_scores:
+                                                    all_scores[name] += score
+                                                else:
+                                                    all_scores[name] = score
+                                        except Exception as e:
+                                            st.warning(f"Error processing {url}: {e}")
+                                        
+                                        progress.progress((i + 1) / len(urls))
+                                
+                                # Store in room data (shared for both football and cricket)
                                 room.setdefault('gameweek_scores', {})[selected_gw] = all_scores
                                 
                                 # Check if squad snapshot exists for this GW
@@ -3847,7 +3909,7 @@ def show_main_app():
                                 scores_df = scores_df.sort_values(by="Points", ascending=False)
                                 st.dataframe(scores_df.head(20), use_container_width=True, hide_index=True)
             else:
-                st.warning("T20 WC Schedule not loaded.")
+                st.warning("Tournament schedule not loaded.")
         
         with tab2:
             st.subheader("Manual URL Processing")
@@ -3855,7 +3917,11 @@ def show_main_app():
                 st.info("Manual score processing is restricted to the room admin.")
             else:
                 manual_gw = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
-                manual_urls = st.text_area("Match URLs (one per line)", height=200, placeholder="https://www.cricbuzz.com/live-cricket-scorecard/...", key="manual_urls")
+                if active_tournament_type == 'FIFA World Cup 2026':
+                    manual_url_placeholder = "https://fbref.com/en/matches/abc123/..."
+                else:
+                    manual_url_placeholder = "https://www.cricbuzz.com/live-cricket-scorecard/..."
+                manual_urls = st.text_area("Match URLs (one per line)", height=200, placeholder=manual_url_placeholder, key="manual_urls")
                 
                 if st.button("🚀 Process", type="primary", key="manual_process_btn"):
                     urls = [u.strip() for u in manual_urls.split('\n') if u.strip()]
@@ -3863,28 +3929,44 @@ def show_main_app():
                     if not urls:
                         st.error("Please enter at least one URL.")
                     else:
-                        scraper = cricbuzz_scraper.CricbuzzScraper()
-                        calculator = CricketScoreCalculator()
                         all_scores = {}
-                        
                         progress = st.progress(0)
                         status = st.empty()
                         
-                        for i, url in enumerate(urls):
-                            status.text(f"Processing match {i+1}/{len(urls)}...")
-                            try:
-                                players = scraper.fetch_match_data(url)
-                                for p in players:
-                                    score = calculator.calculate_score(p)
-                                    name = p['name']
-                                    if name in all_scores:
-                                        all_scores[name] += score
-                                    else:
-                                        all_scores[name] = score
-                            except Exception as e:
-                                st.warning(f"Error processing {url}: {e}")
-                            
-                            progress.progress((i + 1) / len(urls))
+                        if active_tournament_type == 'FIFA World Cup 2026':
+                            import football_score_calculator
+                            for i, url in enumerate(urls):
+                                status.text(f"Processing match {i+1}/{len(urls)} via FBref...")
+                                try:
+                                    result_df = football_score_calculator.calc_all_players_fbref(url)
+                                    if not result_df.empty:
+                                        for _, row in result_df.iterrows():
+                                            name = row['name']
+                                            score = int(row['score'])
+                                            if name in all_scores:
+                                                all_scores[name] += score
+                                            else:
+                                                all_scores[name] = score
+                                except Exception as e:
+                                    st.warning(f"Error processing {url}: {e}")
+                                progress.progress((i + 1) / len(urls))
+                        else:
+                            scraper = cricbuzz_scraper.CricbuzzScraper()
+                            calculator = CricketScoreCalculator()
+                            for i, url in enumerate(urls):
+                                status.text(f"Processing match {i+1}/{len(urls)}...")
+                                try:
+                                    players = scraper.fetch_match_data(url)
+                                    for p in players:
+                                        score = calculator.calculate_score(p)
+                                        name = p['name']
+                                        if name in all_scores:
+                                            all_scores[name] += score
+                                        else:
+                                            all_scores[name] = score
+                                except Exception as e:
+                                    st.warning(f"Error processing {url}: {e}")
+                                progress.progress((i + 1) / len(urls))
                         
                         room.setdefault('gameweek_scores', {})[str(manual_gw)] = all_scores
                         save_auction_data(auction_data)
@@ -3972,6 +4054,17 @@ def show_main_app():
                     'league_stage': '🏏 League Stage',
                     'q1_eliminator': '🔥 Qualifier 1 & Eliminator',
                     'qualifier_2': '⚔️ Qualifier 2',
+                    'finals': '🏆 Finals',
+                    'completed': '✅ Tournament Completed'
+                }
+            elif trn_type == 'FIFA World Cup 2026':
+                phase = room.get('tournament_phase', 'group_stage')
+                phase_names = {
+                    'group_stage': '⚽ Group Stage',
+                    'round_of_32': '🔥 Round of 32',
+                    'round_of_16': '⚔️ Round of 16',
+                    'quarterfinals': '🏆 Quarter-finals',
+                    'semifinals': '🔥 Semi-finals',
                     'finals': '🏆 Finals',
                     'completed': '✅ Tournament Completed'
                 }
@@ -4220,6 +4313,9 @@ def show_main_app():
                 
                 # Active pool (excluding IR player if applicable)
                 active_squad = [p for p in squad if p['name'] != ir_player]
+                # Detect if this is a football room
+                is_football = active_tournament_type == 'FIFA World Cup 2026'
+                
                 scored_players = []
                 for p in active_squad: 
                     score = player_scores.get(p['name'], 0)
@@ -4231,11 +4327,20 @@ def show_main_app():
                     
                     role_str = role_str.lower()
                     
-                    if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
-                    elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
-                    elif 'bat' in role_str: cat = 'BAT'
-                    elif 'bowl' in role_str: cat = 'BWL'
-                    else: cat = 'BAT'
+                    if is_football:
+                        # Football position mapping
+                        if 'gk' in role_str or 'goalkeeper' in role_str: cat = 'GK'
+                        elif 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: cat = 'DEF'
+                        elif 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: cat = 'MID'
+                        elif 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: cat = 'FWD'
+                        else: cat = 'MID'  # Default to midfielder for football
+                    else:
+                        # Cricket position mapping
+                        if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
+                        elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
+                        elif 'bat' in role_str: cat = 'BAT'
+                        elif 'bowl' in role_str: cat = 'BWL'
+                        else: cat = 'BAT'
                     
                     scored_players.append({'name': p['name'], 'role': p.get('role', ''), 'category': cat, 'score': score})
                 
@@ -4245,12 +4350,20 @@ def show_main_app():
                 # Brute force 11 from N
                 scored_players.sort(key=lambda x: x['score'], reverse=True)
                 
-                valid_ranges = {
-                    'WK': (1, 3),
-                    'BAT': (1, 4),
-                    'AR': (3, 6),
-                    'BWL': (2, 4)
-                }
+                if is_football:
+                    valid_ranges = {
+                        'GK': (1, 1),
+                        'DEF': (3, 5),
+                        'MID': (3, 5),
+                        'FWD': (1, 3)
+                    }
+                else:
+                    valid_ranges = {
+                        'WK': (1, 3),
+                        'BAT': (1, 4),
+                        'AR': (3, 6),
+                        'BWL': (2, 4)
+                    }
                 
                 best_team = []
                 best_score = -1
@@ -4258,7 +4371,7 @@ def show_main_app():
                 # Optimization: Try to find a valid team starting from highest scorers
                 # Given max squad 19, active 18, C(18,11) = 31824.
                 for team in itertools.combinations(scored_players, 11):
-                    counts = {'WK': 0, 'BAT': 0, 'AR': 0, 'BWL': 0}
+                    counts = {k: 0 for k in valid_ranges}
                     current_score = 0
                     for p in team:
                         counts[p['category']] += 1
@@ -4283,9 +4396,10 @@ def show_main_app():
                     warnings = [f"⚠️ Could not satisfy role constraints ({range_str}). Filling minimums with available players; empty slots score 0."]
                     
                     # Group available players by category, sorted by score desc
-                    by_cat = {'WK': [], 'BAT': [], 'AR': [], 'BWL': []}
+                    by_cat = {k: [] for k in valid_ranges}
                     for p in scored_players:
-                        by_cat[p['category']].append(p)
+                        if p['category'] in by_cat:
+                            by_cat[p['category']].append(p)
                     for cat in by_cat:
                         by_cat[cat].sort(key=lambda x: x['score'], reverse=True)
                     
@@ -4656,7 +4770,38 @@ def show_main_app():
     with st.sidebar:
         st.divider()
         st.header("ℹ️ Scoring Rules")
-        st.markdown("""
+        if active_tournament_type == 'FIFA World Cup 2026':
+            st.markdown("""
+        **⚽ Football Scoring (Per Position)**
+        
+        **All Outfield**
+        - Goal: +10
+        - Assist: +8
+        - Minutes Played: +Min/30
+        - PK Won (not taken): +6.4
+        
+        **Defenders** (bonus)
+        - Clean Sheet: +10
+        - Tackles/Int: +2.7 each
+        - Aerial Won: +1.9
+        
+        **Midfielders** (bonus)
+        - Clean Sheet: +4
+        - Team Goals: +2 each
+        
+        **Forwards** (bonus)
+        - Team Goals: +3 each
+        - Shots on Target: +3.0
+        
+        **Discipline**
+        - Red Card: -5
+        - PK Conceded: -5
+        - PK Missed: -5
+        
+        **GK**: AI Model (GBM)
+            """)
+        else:
+            st.markdown("""
         **Batting**
         - Run: +0.5
         - Boundary: +0.5
@@ -4673,7 +4818,7 @@ def show_main_app():
         
         **Role-Based**
         - Bowlers exempt from Duck & SR penalties
-        """)
+            """)
         
         st.divider()
         st.caption(f"📊 Database: {len(players_db)} players")
