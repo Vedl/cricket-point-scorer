@@ -172,15 +172,14 @@ def get_whoscored_stats(ws_url):
             
             if is_starter:
                 start = 0
-                end = min(expanded_to_real.get(sub_out_exp, sub_out_exp), 90) if sub_out_exp else 90
+                end = expanded_to_real.get(sub_out_exp, sub_out_exp) if sub_out_exp else 200 # 200 represents final whistle
             elif sub_in_exp:
-                start = min(expanded_to_real.get(sub_in_exp, sub_in_exp), 90)
-                end = min(expanded_to_real.get(sub_out_exp, sub_out_exp), 90) if sub_out_exp else 90
+                start = expanded_to_real.get(sub_in_exp, sub_in_exp)
+                end = expanded_to_real.get(sub_out_exp, sub_out_exp) if sub_out_exp else 200
             else: 
                 continue
                 
-            minutes = max(0, end - start)
-            if minutes <= 0: continue
+            minutes = max(0, min(end, 90) - min(start, 90))
             
             gs, gc = 0, 0
             for g in goal_events:
