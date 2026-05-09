@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from curl_cffi import requests
 import cloudscraper
+import tls_client
 from bs4 import BeautifulSoup
 import time
 import streamlit as st
@@ -33,17 +34,32 @@ def get_whoscored_stats(ws_url):
         m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
     
     if not m:
-        r = requests.get(ws_url, impersonate='chrome120', timeout=15)
-        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        try:
+            r = requests.get(ws_url, impersonate='chrome120', timeout=15)
+            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        except:
+            pass
+            
+    if not m:
+        print("[WhoScoredAdapter] curl_cffi failed. Trying tls_client fallback...")
+        try:
+            session = tls_client.Session(client_identifier="chrome_120", random_tls_extension_order=True)
+            r = session.get(ws_url, timeout_seconds=15)
+            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        except:
+            pass
         
     if not m:
-        print(f"[WhoScoredAdapter] curl_cffi failed (Status: {r.status_code}). Falling back to cloudscraper...")
-        scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
-        r = scraper.get(ws_url, timeout=15)
-        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        print("[WhoScoredAdapter] tls_client failed. Falling back to cloudscraper...")
+        try:
+            scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
+            r = scraper.get(ws_url, timeout=15)
+            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        except:
+            pass
         
     if not m:
-        raise ValueError(f"Could not extract matchCentreData from the WhoScored page. Status: {r.status_code}. Response snippet: {r.text[:200]}")
+        raise ValueError(f"Could not extract matchCentreData from the WhoScored page. All bypass methods failed.")
         
     data = json.loads(m.group(1))
     

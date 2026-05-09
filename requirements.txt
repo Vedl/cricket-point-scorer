@@ -9,3 +9,4 @@ scikit-learn
 lxml
 curl_cffi
 cloudscraper
+tls-client
