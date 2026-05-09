@@ -5,6 +5,7 @@ from curl_cffi import requests
 import cloudscraper
 from bs4 import BeautifulSoup
 import time
+import streamlit as st
 
 POS_MAP = {'GK':'GK','DR':'DEF','DC':'DEF','DL':'DEF','DMR':'DEF','DML':'DEF',
            'MC':'MID','DMC':'MID','AMC':'MID','MR':'MID','ML':'MID',
@@ -17,16 +18,32 @@ def sum_stat(sd):
 def get_whoscored_stats(ws_url):
     print(f"[WhoScoredAdapter] Fetching data from: {ws_url}")
     
-    r = requests.get(ws_url, impersonate='chrome120', timeout=15)
+    # Check for ScraperAPI key in Streamlit secrets to bypass Cloudflare on Streamlit Cloud
+    scraper_api_key = None
+    try:
+        scraper_api_key = st.secrets.get("SCRAPER_API_KEY")
+    except:
+        pass
+        
+    m = None
+    if scraper_api_key:
+        print("[WhoScoredAdapter] Using ScraperAPI to bypass Cloudflare...")
+        proxy_url = f"http://api.scraperapi.com?api_key={scraper_api_key}&url={ws_url}"
+        r = requests.get(proxy_url, timeout=30)
+        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
     
-    m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+    if not m:
+        r = requests.get(ws_url, impersonate='chrome120', timeout=15)
+        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        
     if not m:
         print(f"[WhoScoredAdapter] curl_cffi failed (Status: {r.status_code}). Falling back to cloudscraper...")
         scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
         r = scraper.get(ws_url, timeout=15)
         m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
-        if not m:
-            raise ValueError(f"Could not extract matchCentreData from the WhoScored page. Status: {r.status_code}. Response snippet: {r.text[:200]}")
+        
+    if not m:
+        raise ValueError(f"Could not extract matchCentreData from the WhoScored page. Status: {r.status_code}. Response snippet: {r.text[:200]}")
         
     data = json.loads(m.group(1))
     
