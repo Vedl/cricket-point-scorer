@@ -2,6 +2,7 @@ import re
 import json
 import pandas as pd
 from curl_cffi import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import time
 
@@ -20,7 +21,12 @@ def get_whoscored_stats(ws_url):
     
     m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
     if not m:
-        raise ValueError(f"Could not extract matchCentreData from the WhoScored page. Status: {r.status_code}. Response snippet: {r.text[:200]}")
+        print(f"[WhoScoredAdapter] curl_cffi failed (Status: {r.status_code}). Falling back to cloudscraper...")
+        scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
+        r = scraper.get(ws_url, timeout=15)
+        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        if not m:
+            raise ValueError(f"Could not extract matchCentreData from the WhoScored page. Status: {r.status_code}. Response snippet: {r.text[:200]}")
         
     data = json.loads(m.group(1))
     
