@@ -4,6 +4,8 @@ import pandas as pd
 from curl_cffi import requests
 import cloudscraper
 import tls_client
+import concurrent.futures
+import requests as std_requests
 from bs4 import BeautifulSoup
 import time
 import streamlit as st
@@ -15,6 +17,37 @@ POS_MAP = {'GK':'GK','DR':'DEF','DC':'DEF','DL':'DEF','DMR':'DEF','DML':'DEF',
 def sum_stat(sd):
     if not sd or not isinstance(sd, dict): return 0
     return sum(float(v) for v in sd.values())
+
+def test_proxy(proxy_url, target_url):
+    proxies = {"http": f"http://{proxy_url}", "https": f"http://{proxy_url}"}
+    try:
+        r = requests.get(target_url, impersonate='chrome120', proxies=proxies, timeout=10)
+        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+        if r.status_code == 200 and m:
+            return r.text
+    except:
+        pass
+    return None
+
+def fetch_with_free_proxies(url):
+    print("[WhoScoredAdapter] Fetching free proxies from ProxyScrape...")
+    try:
+        r = std_requests.get('https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all', timeout=10)
+        proxy_list = r.text.strip().splitlines()[:100]
+    except:
+        return None
+        
+    print(f"[WhoScoredAdapter] Testing {len(proxy_list)} proxies concurrently...")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(test_proxy, p, url): p for p in proxy_list}
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                print(f"[WhoScoredAdapter] Success with proxy {futures[future]}!")
+                # Cancel pending futures to save resources
+                executor.shutdown(wait=False, cancel_futures=True)
+                return result
+    return None
 
 def get_whoscored_stats(ws_url):
     print(f"[WhoScoredAdapter] Fetching data from: {ws_url}")
@@ -30,7 +63,7 @@ def get_whoscored_stats(ws_url):
     if scraper_api_key:
         print("[WhoScoredAdapter] Using ScraperAPI to bypass Cloudflare...")
         proxy_url = f"http://api.scraperapi.com?api_key={scraper_api_key}&url={ws_url}"
-        r = requests.get(proxy_url, timeout=30)
+        r = std_requests.get(proxy_url, timeout=30)
         m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
     
     if not m:
@@ -48,9 +81,15 @@ def get_whoscored_stats(ws_url):
             m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
         except:
             pass
+            
+    if not m:
+        print("[WhoScoredAdapter] tls_client failed. Launching Multithreaded Free Proxy Swarm...")
+        html_text = fetch_with_free_proxies(ws_url)
+        if html_text:
+            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', html_text, re.DOTALL)
         
     if not m:
-        print("[WhoScoredAdapter] tls_client failed. Falling back to cloudscraper...")
+        print("[WhoScoredAdapter] Free proxies failed. Falling back to cloudscraper...")
         try:
             scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
             r = scraper.get(ws_url, timeout=15)
