@@ -1503,10 +1503,12 @@ def show_main_app():
     var now=Date.now(),h='';
     for(var i=0;i<M.length;i++){{
       var ms=M[i],pt=ms.iso.split(/[-T:]/);
-      var eIST=new Date(pt[0],pt[1]-1,pt[2],pt[3],pt[4],pt[5]||0).getTime();
-      var eUTC=eIST-IST,ds=(eUTC-now)/1000;
+      // Construct Date object for label formatting to preserve literal values from string
+      var dDate=new Date(pt[0],pt[1]-1,pt[2],pt[3],pt[4],pt[5]||0);
+      // Determine correct epoch timestamp by treating naive ISO string as IST (+05:30)
+      var targetMs=new Date(ms.iso+"+05:30").getTime();
+      var ds=(targetMs-now)/1000;
       var passed=ds<=0,imm=!passed&&ds<1800,cd=fmt(ds);
-      var dDate=new Date(eIST);
       var bc,sc,sb,sl,cc,pu;
       if(passed){{bc='#ff4b4b';sc='#ff4b4b';sb='rgba(255,75,75,0.08)';sl='PASSED';cc='#ff4b4b';pu='';}}
       else if(imm){{bc='#ff9f43';sc='#ff9f43';sb='rgba(255,159,67,0.08)';sl='IMMINENT';cc='#ff9f43';pu='animation:pulse 1.5s ease-in-out infinite;';}}
