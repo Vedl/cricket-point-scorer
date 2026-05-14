@@ -14,13 +14,17 @@ import json
 import random
 import string
 import hashlib
+import asyncio
+import re
+from copy import deepcopy
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Literal, Any
+from typing import Optional, List, Literal, Any, Tuple
 import csv
 import io
 
 import requests as http_requests
+from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
@@ -39,6 +43,17 @@ FIREBASE_URL = os.environ.get(
 AUCTION_ENDPOINT = f"{FIREBASE_URL}/auction_data.json"
 
 IST = timezone(timedelta(hours=5, minutes=30))
+TRADE_CLOSE_GRACE = timedelta(minutes=45)
+IPL_CRICBUZZ_SERIES_ID = "9241"
+IPL_CRICBUZZ_SERIES_SLUG = "indian-premier-league-2026"
+IPL_CRICBUZZ_SERIES_URLS = [
+    f"https://www.cricbuzz.com/cricket-series/{IPL_CRICBUZZ_SERIES_ID}/{IPL_CRICBUZZ_SERIES_SLUG}",
+    f"https://www.cricbuzz.com/cricket-series/{IPL_CRICBUZZ_SERIES_ID}/{IPL_CRICBUZZ_SERIES_SLUG}/matches",
+    f"https://m.cricbuzz.com/cricket-series/{IPL_CRICBUZZ_SERIES_ID}/{IPL_CRICBUZZ_SERIES_SLUG}",
+    f"https://m.cricbuzz.com/cricket-series/{IPL_CRICBUZZ_SERIES_ID}/{IPL_CRICBUZZ_SERIES_SLUG}/matches",
+    "https://www.cricbuzz.com/live-cricket-scores",
+    "https://m.cricbuzz.com/live-cricket-scores",
+]
 
 
 def _get_ist_now() -> datetime:
@@ -292,6 +307,15 @@ class CalculateScoresRequest(BaseModel):
     gameweek: Optional[int] = None  # defaults to current_gameweek
 
 
+class MatchUrlOverrideRequest(BaseModel):
+    """Admin override for a Cricbuzz scorecard URL in the IPL schedule."""
+    room_code: str
+    admin_name: str
+    match_id: int
+    cricbuzz_url: str
+    gameweek: Optional[int] = None
+
+
 class ImportSquadsRequest(BaseModel):
     """Admin imports squads for all participants with claim codes."""
     room_code: str
@@ -458,6 +482,931 @@ _TOURNAMENTS = [
         "total_gameweeks": 0,
     },
 ]
+
+
+def _coerce_ist_datetime(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=IST)
+    return dt.astimezone(IST)
+
+
+def _as_ist(dt: Optional[datetime] = None) -> datetime:
+    if dt is None:
+        return _get_ist_now()
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=IST)
+    return dt.astimezone(IST)
+
+
+def _timestamp_label(now: Optional[datetime] = None) -> str:
+    return _as_ist(now).strftime("%d-%b %H:%M")
+
+
+def _player_name(player: Any) -> str:
+    if isinstance(player, dict):
+        return str(player.get("name", "")).strip()
+    return str(player).strip()
+
+
+def _player_price(player: Any) -> float:
+    if not isinstance(player, dict):
+        return 0.0
+    return float(player.get("buy_price", player.get("price", 0)) or 0)
+
+
+def _get_automation_state(room: dict) -> dict:
+    automation = room.setdefault("automation", {})
+    automation.setdefault("deadline_rollovers", {})
+    ipl_state = automation.setdefault("ipl_scoring", {})
+    ipl_state.setdefault("matches", {})
+    ipl_state.setdefault("gameweeks", {})
+    automation.setdefault("errors", [])
+    return automation
+
+
+def _record_automation_error(room: dict, scope: str, message: str, now: Optional[datetime] = None) -> None:
+    automation = _get_automation_state(room)
+    errors = automation.setdefault("errors", [])
+    errors.append({
+        "scope": scope,
+        "message": message,
+        "at": _as_ist(now).isoformat(),
+    })
+    del errors[:-20]
+
+
+def _compact_automation_status(room: dict) -> dict:
+    automation = room.get("automation", {})
+    ipl_state = automation.get("ipl_scoring", {})
+    match_states = ipl_state.get("matches", {})
+    unresolved = [
+        match_id for match_id, state in match_states.items()
+        if state.get("status") in {"unresolved", "ambiguous", "schedule_tbd", "error"}
+    ]
+    return {
+        "last_run_at": automation.get("last_run_at"),
+        "deadline_rollovers": automation.get("deadline_rollovers", {}),
+        "ipl_gameweeks": ipl_state.get("gameweeks", {}),
+        "unresolved_match_ids": unresolved,
+        "recent_errors": automation.get("errors", [])[-5:],
+    }
+
+
+def _add_trade_log(room: dict, message: str, now: Optional[datetime] = None) -> None:
+    room.setdefault("trade_log", []).append({
+        "time": _timestamp_label(now),
+        "msg": message,
+    })
+
+
+def _participant_by_name(room: dict, name: str) -> Optional[dict]:
+    return next((p for p in room.get("participants", []) if p.get("name") == name), None)
+
+
+def _is_player_owned(room: dict, player_name: str) -> bool:
+    for participant in room.get("participants", []):
+        for squad_player in participant.get("squad", []):
+            if _player_name(squad_player) == player_name:
+                return True
+    return False
+
+
+def _add_unsold_once(room: dict, player_name: str) -> None:
+    if not player_name:
+        return
+    unsold = room.setdefault("unsold_players", [])
+    if player_name not in unsold and not _is_player_owned(room, player_name):
+        unsold.append(player_name)
+
+
+def _load_ipl_player_lookup() -> dict:
+    lookup = {}
+    squads_path = Path(__file__).parent / "ipl_2026_squads.json"
+    if not squads_path.exists():
+        return lookup
+    with open(squads_path) as f:
+        squads_data = json.load(f)
+    for team_code, team_data in squads_data.get("teams", {}).items():
+        for player in team_data.get("squad", []):
+            lookup[player.get("name")] = {
+                "role": player.get("role", "Unknown"),
+                "team": player.get("ipl_team", player.get("team", team_code)),
+            }
+    return lookup
+
+
+def _load_ipl_schedule() -> dict:
+    schedule_path = Path(__file__).parent / "ipl_2026_schedule.json"
+    if not schedule_path.exists():
+        return {}
+    with open(schedule_path) as f:
+        return json.load(f)
+
+
+def _iter_schedule_matches(schedule: dict):
+    for gw_key, gw_data in schedule.get("gameweeks", {}).items():
+        for match in gw_data.get("matches", []):
+            yield str(gw_key), match
+
+
+def _find_schedule_match(match_id: int, gameweek: Optional[int] = None) -> Tuple[Optional[str], Optional[dict]]:
+    schedule = _load_ipl_schedule()
+    for gw_key, match in _iter_schedule_matches(schedule):
+        if gameweek is not None and gw_key != str(gameweek):
+            continue
+        if int(match.get("match_id", -1)) == int(match_id):
+            return gw_key, match
+    return None, None
+
+
+def _trading_deadline_passed(room: dict, now: Optional[datetime] = None) -> bool:
+    deadline = _coerce_ist_datetime(room.get("bidding_deadline"))
+    if not deadline:
+        return False
+    return _as_ist(now) >= deadline + TRADE_CLOSE_GRACE
+
+
+def _ensure_trading_open(room: dict, now: Optional[datetime] = None) -> None:
+    if room.get("squads_locked"):
+        raise HTTPException(status_code=403, detail="Market is locked. Cannot trade.")
+    if _trading_deadline_passed(room, now):
+        raise HTTPException(status_code=403, detail="Trading window closed (45 min past deadline)")
+
+
+def _settle_due_active_bids(room: dict, now: Optional[datetime] = None) -> dict:
+    now = _as_ist(now)
+    deadline = _coerce_ist_datetime(room.get("bidding_deadline"))
+    player_lookup = _load_ipl_player_lookup()
+    active_bids = room.get("active_bids", [])
+    remaining_bids = []
+    awarded = []
+    removed = []
+
+    for bid in active_bids:
+        expires = _coerce_ist_datetime(bid.get("expires"))
+        effective_expiry = expires
+        if deadline and (effective_expiry is None or deadline < effective_expiry):
+            effective_expiry = deadline
+
+        if effective_expiry is None:
+            remaining_bids.append(bid)
+            continue
+
+        if effective_expiry and now < effective_expiry:
+            remaining_bids.append(bid)
+            continue
+
+        player = bid.get("player")
+        bidder_name = bid.get("bidder")
+        amount = float(bid.get("amount", 0) or 0)
+        bidder = _participant_by_name(room, bidder_name)
+        reason = None
+
+        if not bidder:
+            reason = f"bidder {bidder_name} not found"
+        elif bidder.get("eliminated"):
+            reason = f"bidder {bidder_name} is eliminated"
+        elif _is_player_owned(room, player):
+            reason = f"{player} is already owned"
+        elif amount > float(bidder.get("budget", 0) or 0):
+            reason = f"{bidder_name} has insufficient budget"
+
+        if reason:
+            removed.append({"player": player, "bidder": bidder_name, "reason": reason})
+            _add_trade_log(room, f"Auto-removed bid: {player} by {bidder_name} ({reason})", now)
+            continue
+
+        info = player_lookup.get(player, {})
+        bidder.setdefault("squad", []).append({
+            "name": player,
+            "role": info.get("role", "Unknown"),
+            "team": info.get("team", "Unknown"),
+            "buy_price": amount,
+            "price": amount,
+        })
+        bidder["budget"] = float(bidder.get("budget", 0) or 0) - amount
+        if player in room.get("unsold_players", []):
+            room["unsold_players"].remove(player)
+        awarded.append({"player": player, "bidder": bidder_name, "amount": amount})
+        _add_trade_log(room, f"Won Bid: **{player}** won by **{bidder_name}** for **{amount:g}M**", now)
+
+    room["active_bids"] = remaining_bids
+    return {"awarded": awarded, "removed": removed, "remaining": len(remaining_bids)}
+
+
+def _close_outstanding_trades_for_rollover(room: dict, now: Optional[datetime] = None) -> dict:
+    pending = room.get("pending_trades", [])
+    rejected_admin = []
+    expired = []
+    now = _as_ist(now)
+
+    for trade in pending:
+        status = trade.get("status", "pending")
+        trade_summary = {
+            "id": trade.get("id"),
+            "type": trade.get("type"),
+            "from": trade.get("from"),
+            "to": trade.get("to"),
+        }
+        if status == "pending_admin":
+            rejected_admin.append(trade_summary)
+            _add_trade_log(
+                room,
+                f"Auto Rejected: **{trade.get('type')}** between **{trade.get('from')}** and **{trade.get('to')}** (admin window expired)",
+                now,
+            )
+        else:
+            expired.append(trade_summary)
+            _add_trade_log(
+                room,
+                f"Trade Expired: **{trade.get('type')}** between **{trade.get('from')}** and **{trade.get('to')}** (deadline rollover)",
+                now,
+            )
+
+    if pending:
+        room["pending_trades"] = []
+    return {"auto_rejected": rejected_admin, "expired": expired}
+
+
+def _lock_squads_for_gameweek(room: dict, gameweek: Optional[int] = None, now: Optional[datetime] = None) -> dict:
+    curr_gw = int(gameweek or room.get("current_gameweek", 1))
+    gw_key = str(curr_gw)
+    gw_squads = room.setdefault("gameweek_squads", {})
+
+    if gw_key in gw_squads:
+        room["squads_locked"] = True
+        room["game_phase"] = "Locked"
+        return {"gameweek": curr_gw, "already_locked": True, "log": []}
+
+    lock_log = []
+    for participant in room.get("participants", []):
+        if participant.get("eliminated", False):
+            continue
+        squad = participant.get("squad", [])
+        p_name = participant.get("name", "Unknown")
+
+        while len(squad) > 19:
+            cheapest = min(squad, key=_player_price)
+            squad.remove(cheapest)
+            released_name = _player_name(cheapest)
+            _add_unsold_once(room, released_name)
+            lock_log.append(f"Auto-released {released_name} from {p_name} (over 19)")
+        participant["squad"] = squad
+
+        ir_player = participant.get("injury_reserve")
+        if len(squad) < 19:
+            participant["injury_reserve_active"] = None
+            if ir_player:
+                participant["injury_reserve"] = None
+                lock_log.append(f"Cleared IR for {p_name} (squad < 19)")
+        elif len(squad) == 19:
+            if not ir_player:
+                most_expensive = max(squad, key=_player_price)
+                ir_player = _player_name(most_expensive)
+                participant["injury_reserve"] = ir_player
+                lock_log.append(f"{p_name}: Auto-IR ({ir_player})")
+
+            # Low-budget guard: if budget < 2M, auto-release last acquired non-loan player
+            budget_val = float(participant.get("budget", 0) or 0)
+            if budget_val < 2:
+                import math
+                last_bought_player = None
+                for log_entry in reversed(room.get("auction_log", [])):
+                    if log_entry.get("buyer") == p_name:
+                        cand = log_entry.get("player")
+                        owned = next((pl for pl in squad if _player_name(pl) == cand and not pl.get("loan_origin")), None)
+                        if owned:
+                            last_bought_player = owned
+                            break
+                if not last_bought_player:
+                    non_loan = [pl for pl in squad if not pl.get("loan_origin")]
+                    if non_loan:
+                        last_bought_player = non_loan[-1]
+
+                if last_bought_player:
+                    paid_releases = participant.get("paid_releases", {})
+                    if isinstance(paid_releases, list):
+                        used_release = paid_releases[curr_gw] if curr_gw < len(paid_releases) and paid_releases[curr_gw] else False
+                    else:
+                        used_release = paid_releases.get(str(curr_gw), False) if curr_gw > 0 else False
+
+                    if curr_gw <= 1 or not used_release:
+                        refund = int(math.ceil(float(last_bought_player.get("buy_price", 0) or 0) / 2))
+                        release_label = "Half-Price"
+                    else:
+                        refund = 0
+                        release_label = "Free"
+
+                    released_name = _player_name(last_bought_player)
+                    squad.remove(last_bought_player)
+                    participant["squad"] = squad
+                    participant["budget"] = budget_val + refund
+                    budget_val = participant["budget"]
+
+                    if participant.get("injury_reserve") == released_name:
+                        participant["injury_reserve"] = None
+                    participant["injury_reserve"] = None
+                    participant["injury_reserve_active"] = None
+
+                    player_owned_elsewhere = any(
+                        any(_player_name(pl) == released_name for pl in other_p.get("squad", []))
+                        for other_p in room.get("participants", []) if other_p.get("name") != p_name
+                    )
+                    if not player_owned_elsewhere:
+                        _add_unsold_once(room, released_name)
+
+                    if curr_gw > 1 and not used_release:
+                        if isinstance(participant.get("paid_releases"), dict):
+                            participant["paid_releases"][str(curr_gw)] = True
+
+                    lock_log.append(f"Auto-released {released_name} from {p_name} ({release_label}, +{refund}M) due to low budget for IR fee")
+                    now_ist = _as_ist(now) if now else _get_ist_now()
+                    _add_trade_log(
+                        room,
+                        f"🤖 Auto-Released: **{released_name}** from **{p_name}** ({release_label} refund: {refund}M) — budget insufficient for IR fee at squad lock",
+                        now_ist,
+                    )
+
+            # Re-check len(squad) after potential auto-release
+            if len(squad) == 19:
+                ir_player = participant.get("injury_reserve")
+                lock_log.append(f"{p_name}: IR ({ir_player}), -2M")
+                participant["budget"] = budget_val - 2
+                participant["injury_reserve_active"] = ir_player
+            else:
+                participant["injury_reserve_active"] = None
+
+        if len(squad) < 12:
+            lock_log.append(f"WARNING: {p_name} has only {len(squad)} players (min 12 recommended)")
+
+    snapshot = {}
+    for participant in room.get("participants", []):
+        snapshot[participant["name"]] = {
+            "squad": deepcopy(participant.get("squad", [])),
+            "injury_reserve": participant.get("injury_reserve_active", participant.get("injury_reserve")),
+            "budget": participant.get("budget", 0),
+        }
+
+    gw_squads[gw_key] = snapshot
+    room["gameweek_squads"] = gw_squads
+    room["squads_locked"] = True
+    room["game_phase"] = "Locked"
+    return {"gameweek": curr_gw, "already_locked": False, "log": lock_log}
+
+
+def _advance_gameweek_for_room(room: dict, now: Optional[datetime] = None) -> dict:
+    if not room.get("squads_locked"):
+        raise ValueError("Squads must be locked before advancing to the next gameweek")
+
+    curr_gw = int(room.get("current_gameweek", 1))
+    new_gw = curr_gw + 1
+    loan_returns = []
+
+    for participant in room.get("participants", []):
+        squad = participant.get("squad", [])
+        returning = [
+            player for player in list(squad)
+            if isinstance(player, dict)
+            and player.get("loan_expiry_gw")
+            and int(player.get("loan_expiry_gw")) <= new_gw
+        ]
+        for player in returning:
+            origin_name = player.get("loan_origin")
+            origin = _participant_by_name(room, origin_name)
+            if not origin:
+                continue
+            squad.remove(player)
+            player.pop("loan_origin", None)
+            player.pop("loan_expiry_gw", None)
+            origin.setdefault("squad", []).append(player)
+            loan_returns.append(f"{player.get('name')} returned to {origin_name}")
+
+    for participant in room.get("participants", []):
+        participant.pop("injury_reserve_active", None)
+
+    room["current_gameweek"] = new_gw
+    room["squads_locked"] = False
+    room["bidding_deadline"] = None
+    room["game_phase"] = "Bidding"
+    return {"from_gameweek": curr_gw, "gameweek": new_gw, "loan_returns": loan_returns}
+
+
+def _run_deadline_rollover_for_room(room_code: str, room: dict, now: Optional[datetime] = None) -> bool:
+    now = _as_ist(now)
+    deadline = _coerce_ist_datetime(room.get("bidding_deadline"))
+    if not deadline or now < deadline + TRADE_CLOSE_GRACE:
+        return False
+
+    closing_gw = int(room.get("current_gameweek", 1))
+    gw_key = str(closing_gw)
+    automation = _get_automation_state(room)
+    rollovers = automation.setdefault("deadline_rollovers", {})
+    if rollovers.get(gw_key, {}).get("status") == "completed":
+        return False
+
+    rollovers[gw_key] = {
+        "status": "running",
+        "started_at": now.isoformat(),
+        "deadline": deadline.isoformat(),
+    }
+
+    try:
+        settlement = _settle_due_active_bids(room, now)
+        trades = _close_outstanding_trades_for_rollover(room, now)
+        lock_result = _lock_squads_for_gameweek(room, closing_gw, now)
+        advance_result = _advance_gameweek_for_room(room, now)
+        rollovers[gw_key].update({
+            "status": "completed",
+            "completed_at": now.isoformat(),
+            "settlement": settlement,
+            "trades": trades,
+            "lock": lock_result,
+            "advance": advance_result,
+        })
+        automation["last_run_at"] = now.isoformat()
+        _add_trade_log(room, f"Automation: closed GW{closing_gw}, locked squads, and started GW{advance_result['gameweek']}", now)
+        return True
+    except Exception as exc:
+        rollovers[gw_key].update({"status": "error", "error": str(exc), "failed_at": now.isoformat()})
+        _record_automation_error(room, f"deadline_rollover:{room_code}:GW{gw_key}", str(exc), now)
+        return True
+
+
+def _ordinal(value: int) -> str:
+    value = int(value)
+    if 10 <= value % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(value % 10, "th")
+    return f"{value}{suffix}"
+
+
+def _normalize_scorecard_url(url: str) -> str:
+    if url.startswith("/"):
+        url = f"https://www.cricbuzz.com{url}"
+    url = url.replace("https://m.cricbuzz.com", "https://www.cricbuzz.com")
+    url = url.replace("/live-cricket-scores/", "/live-cricket-scorecard/")
+    url = url.replace("/cricket-scores/", "/live-cricket-scorecard/")
+    return url
+
+
+def _extract_scorecard_links(html: str) -> List[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    seen = set()
+    for anchor in soup.find_all("a", href=True):
+        href = anchor.get("href", "")
+        if not re.search(r"/(live-cricket-scorecard|live-cricket-scores|cricket-scores)/", href):
+            continue
+        url = _normalize_scorecard_url(href)
+        if url in seen:
+            continue
+        seen.add(url)
+        links.append({"url": url, "text": anchor.get_text(" ", strip=True)})
+    return links
+
+
+def _team_match_score(haystack: str, team_code: str) -> int:
+    team_code = team_code.lower()
+    team_name = IPL_TEAMS.get(team_code.upper(), "").lower()
+    if team_code in haystack:
+        return 25
+    if team_name and team_name in haystack:
+        return 25
+    if team_name and all(part in haystack for part in team_name.split()[:2]):
+        return 18
+    return 0
+
+
+def _match_candidate_confidence(match: dict, candidate: dict) -> int:
+    haystack = f"{candidate.get('url', '')} {candidate.get('text', '')}".lower().replace("-", " ")
+    match_id = int(match.get("match_id", 0) or 0)
+    teams = match.get("teams", [])
+    score = 0
+
+    if match_id:
+        ordinal = _ordinal(match_id).lower()
+        if ordinal in haystack and "match" in haystack:
+            score += 35
+        elif f" {match_id} " in haystack and "match" in haystack:
+            score += 25
+
+    for team_code in teams[:2]:
+        score += _team_match_score(haystack, str(team_code))
+
+    if "ipl 2026" in haystack or "indian premier league 2026" in haystack:
+        score += 15
+    if match.get("date") and str(match.get("date"))[:4] in haystack:
+        score += 5
+    return min(score, 100)
+
+
+def _fetch_cricbuzz_scorecard_candidates() -> List[dict]:
+    candidates = []
+    for series_url in IPL_CRICBUZZ_SERIES_URLS:
+        try:
+            resp = http_requests.get(series_url, headers=scraper.headers, timeout=10)
+            if resp.status_code >= 400:
+                continue
+            candidates.extend(_extract_scorecard_links(resp.text))
+        except Exception:
+            continue
+    return candidates
+
+
+def _discover_cricbuzz_scorecard_url(match: dict, candidates: Optional[List[dict]] = None) -> Optional[dict]:
+    if candidates is None:
+        candidates = _fetch_cricbuzz_scorecard_candidates()
+    scored = []
+    for candidate in candidates:
+        confidence = _match_candidate_confidence(match, candidate)
+        if confidence:
+            scored.append({**candidate, "confidence": confidence})
+    scored.sort(key=lambda item: item["confidence"], reverse=True)
+
+    if not scored:
+        return None
+    top = scored[0]
+    second_confidence = scored[1]["confidence"] if len(scored) > 1 else 0
+    if top["confidence"] >= 75 and top["confidence"] - second_confidence >= 10:
+        return top
+    return {
+        "status": "ambiguous",
+        "confidence": top["confidence"],
+        "candidates": scored[:5],
+    }
+
+
+def _fetch_cricbuzz_match_status(url: str) -> dict:
+    scorecard_url = _normalize_scorecard_url(url)
+    resp = http_requests.get(scorecard_url, headers=scraper.headers, timeout=15)
+    resp.raise_for_status()
+    text = BeautifulSoup(resp.text, "html.parser").get_text(" ", strip=True)
+    lower = text.lower()
+
+    completed_patterns = [
+        r"\bwon by\b",
+        r"\bmatch tied\b",
+        r"\bno result\b",
+        r"\babandon",
+        r"\bmatch drawn\b",
+    ]
+    completed = any(re.search(pattern, lower) for pattern in completed_patterns)
+    no_result = "no result" in lower or "abandon" in lower
+    result_text = ""
+    result_match = re.search(r"([A-Z][A-Za-z ]+ won by [^.|\n]+|Match tied|No result|[^.|\n]*abandon[^.|\n]*)", text)
+    if result_match:
+        result_text = result_match.group(1).strip()
+
+    return {
+        "url": scorecard_url,
+        "completed": completed,
+        "no_result": no_result,
+        "result_text": result_text,
+    }
+
+
+def _match_id_from_url(url: str) -> Optional[str]:
+    match = re.search(r"/(?:live-cricket-scorecard|live-cricket-scores|cricket-scores)/(\d+)/", url)
+    return match.group(1) if match else None
+
+
+def _manual_match_score_key(url: str, match_id: Optional[Any] = None) -> str:
+    if match_id is not None:
+        return str(match_id)
+    cricbuzz_id = _match_id_from_url(url)
+    if cricbuzz_id:
+        return f"cricbuzz_{cricbuzz_id}"
+    return "manual_" + hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
+
+
+def _ensure_legacy_match_scores(room: dict, gw_key: str) -> dict:
+    all_match_scores = room.setdefault("gameweek_match_scores", {})
+    gw_match_scores = all_match_scores.setdefault(gw_key, {})
+    existing_scores = room.get("gameweek_scores", {}).get(gw_key)
+    if existing_scores and not gw_match_scores:
+        gw_match_scores["_legacy"] = {
+            "source": "legacy_gameweek_scores",
+            "status": "processed",
+            "scores": dict(existing_scores),
+        }
+    return gw_match_scores
+
+
+def _rebuild_gameweek_scores_from_matches(room: dict, gw_key: str) -> dict:
+    gw_match_scores = room.setdefault("gameweek_match_scores", {}).setdefault(gw_key, {})
+    aggregate = {}
+    for entry in gw_match_scores.values():
+        if entry.get("include_in_gameweek", True) is False:
+            continue
+        for player, score in entry.get("scores", {}).items():
+            aggregate[player] = aggregate.get(player, 0) + score
+    room.setdefault("gameweek_scores", {})[gw_key] = aggregate
+    return aggregate
+
+
+def _score_players(players_data: List[dict]) -> dict:
+    scores = {}
+    for player in players_data:
+        score = calculator.calculate_score(player)
+        name = player["name"]
+        scores[name] = scores.get(name, 0) + round(score)
+    return scores
+
+
+def _calculate_and_store_scores_from_url(
+    room: dict,
+    gameweek: int,
+    cricbuzz_url: str,
+    match_id: Optional[Any] = None,
+    allow_empty: bool = False,
+    force: bool = False,
+) -> dict:
+    gw_key = str(gameweek)
+    if gw_key not in room.get("gameweek_squads", {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Squads were never locked for GW{gameweek}. Lock squads first before calculating scores.",
+        )
+
+    match_key = _manual_match_score_key(cricbuzz_url, match_id)
+    gw_match_scores = _ensure_legacy_match_scores(room, gw_key)
+    if match_key in gw_match_scores and not force:
+        aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
+        return {
+            "match_key": match_key,
+            "already_processed": True,
+            "scores": gw_match_scores[match_key].get("scores", {}),
+            "aggregate": aggregate,
+        }
+
+    try:
+        players_data = scraper.fetch_match_data(cricbuzz_url)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {exc}")
+
+    if not players_data and not allow_empty:
+        raise HTTPException(status_code=404, detail="No player data found")
+
+    scores = _score_players(players_data)
+    gw_match_scores[match_key] = {
+        "url": _normalize_scorecard_url(cricbuzz_url),
+        "match_id": match_id,
+        "status": "processed",
+        "processed_at": _get_ist_now().isoformat(),
+        "scores": scores,
+    }
+    aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
+    return {
+        "match_key": match_key,
+        "already_processed": False,
+        "scores": scores,
+        "aggregate": aggregate,
+    }
+
+
+def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_data: dict, now: Optional[datetime] = None) -> bool:
+    now = _as_ist(now)
+    automation = _get_automation_state(room)
+    ipl_state = automation.setdefault("ipl_scoring", {})
+    match_states = ipl_state.setdefault("matches", {})
+    gameweek_states = ipl_state.setdefault("gameweeks", {})
+    gw_state = gameweek_states.setdefault(gw_key, {})
+
+    if gw_key in room.get("gameweek_scores", {}):
+        if gw_state.get("status") in {"processed", "skipped_existing_scores"}:
+            return False
+        if gw_state.get("status") != "skipped_existing_scores":
+            gw_state.update({
+                "status": "skipped_existing_scores",
+                "reason": "gameweek_scores already exists",
+                "checked_at": now.isoformat(),
+            })
+            automation["last_run_at"] = now.isoformat()
+            return True
+        return False
+
+    if gw_key not in room.get("gameweek_squads", {}):
+        return False
+
+    matches = gw_data.get("matches", [])
+    if not matches:
+        return False
+
+    changed = False
+    unresolved = []
+    incomplete = []
+    errors = []
+    ready_matches = []
+    scorecard_candidates = None
+
+    for match in matches:
+        match_id = str(match.get("match_id"))
+        match_state = match_states.setdefault(match_id, {
+            "gameweek": gw_key,
+            "teams": match.get("teams", []),
+            "status": "pending",
+        })
+        has_tbd = (
+            str(match.get("date", "")).upper() == "TBD"
+            or any("TBD" in str(team).upper() for team in match.get("teams", []))
+        )
+
+        url = match_state.get("url")
+        if not url and not has_tbd:
+            if scorecard_candidates is None:
+                scorecard_candidates = _fetch_cricbuzz_scorecard_candidates()
+            discovery = _discover_cricbuzz_scorecard_url(match, scorecard_candidates)
+            if discovery and discovery.get("url"):
+                url = discovery["url"]
+                match_state.update({
+                    "url": url,
+                    "confidence": discovery.get("confidence"),
+                    "status": "resolved",
+                    "resolved_at": now.isoformat(),
+                    "source": "auto_discovery",
+                })
+                changed = True
+            elif discovery and discovery.get("status") == "ambiguous":
+                match_state.update({
+                    "status": "ambiguous",
+                    "confidence": discovery.get("confidence"),
+                    "candidates": discovery.get("candidates", []),
+                    "checked_at": now.isoformat(),
+                })
+                unresolved.append(match_id)
+                changed = True
+                continue
+
+        if not url:
+            match_state.update({
+                "status": "schedule_tbd" if has_tbd else "unresolved",
+                "checked_at": now.isoformat(),
+            })
+            unresolved.append(match_id)
+            changed = True
+            continue
+
+        try:
+            status = _fetch_cricbuzz_match_status(url)
+        except Exception as exc:
+            match_state.update({"status": "error", "error": str(exc), "checked_at": now.isoformat()})
+            errors.append(match_id)
+            changed = True
+            continue
+
+        match_state.update({
+            "url": status["url"],
+            "result_text": status.get("result_text", ""),
+            "checked_at": now.isoformat(),
+        })
+        if not status["completed"]:
+            match_state["status"] = "incomplete"
+            incomplete.append(match_id)
+            changed = True
+            continue
+
+        match_state["status"] = "complete"
+        match_state["completed_at"] = match_state.get("completed_at") or now.isoformat()
+        match_state["no_result"] = status.get("no_result", False)
+        ready_matches.append((match, match_state))
+        changed = True
+
+    if unresolved or incomplete or errors:
+        status = "error" if errors else "unresolved" if unresolved else "incomplete"
+        gw_state.update({
+            "status": status,
+            "unresolved_match_ids": unresolved,
+            "incomplete_match_ids": incomplete,
+            "error_match_ids": errors,
+            "checked_at": now.isoformat(),
+        })
+        automation["last_run_at"] = now.isoformat()
+        return changed
+
+    try:
+        for match, match_state in ready_matches:
+            match_id = str(match.get("match_id"))
+            _calculate_and_store_scores_from_url(
+                room=room,
+                gameweek=int(gw_key),
+                cricbuzz_url=match_state["url"],
+                match_id=match_id,
+                allow_empty=bool(match_state.get("no_result")),
+            )
+            match_state["status"] = "processed"
+            match_state["processed_at"] = now.isoformat()
+        aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
+        gw_state.update({
+            "status": "processed",
+            "processed_at": now.isoformat(),
+            "matches_processed": len(ready_matches),
+            "players_scored": len(aggregate),
+        })
+        automation["last_run_at"] = now.isoformat()
+        return True
+    except Exception as exc:
+        gw_state.update({"status": "error", "error": str(exc), "checked_at": now.isoformat()})
+        _record_automation_error(room, f"ipl_scoring:{room_code}:GW{gw_key}", str(exc), now)
+        automation["last_run_at"] = now.isoformat()
+        return True
+
+
+def _run_ipl_scoring_for_room(room_code: str, room: dict, now: Optional[datetime] = None) -> bool:
+    if room.get("tournament_type", "").lower() not in ("ipl", "ipl 2026"):
+        return False
+
+    schedule = _load_ipl_schedule()
+    if not schedule:
+        return False
+
+    changed = False
+    for gw_key, gw_data in schedule.get("gameweeks", {}).items():
+        if _process_ipl_gameweek_scores(room_code, room, str(gw_key), gw_data, now):
+            changed = True
+    return changed
+
+
+def _run_admin_automation_cycle(now: Optional[datetime] = None) -> dict:
+    now = _as_ist(now)
+    data = _firebase_get()
+    rooms = data.get("rooms", {})
+    changed_rooms = []
+
+    for room_code, room in rooms.items():
+        room_changed = False
+        try:
+            if _run_deadline_rollover_for_room(room_code, room, now):
+                room_changed = True
+            if _run_ipl_scoring_for_room(room_code, room, now):
+                room_changed = True
+        except Exception as exc:
+            _record_automation_error(room, f"cycle:{room_code}", str(exc), now)
+            room_changed = True
+        if room_changed:
+            changed_rooms.append(room_code)
+
+    if changed_rooms:
+        _firebase_put(data)
+
+    return {
+        "changed": bool(changed_rooms),
+        "changed_rooms": changed_rooms,
+        "checked_at": now.isoformat(),
+    }
+
+
+_automation_task: Optional[asyncio.Task] = None
+
+
+def _automation_enabled() -> bool:
+    val = os.environ.get("ADMIN_AUTOMATION_ENABLED", "true").strip().lower()
+    return val in {"1", "true", "yes", "on"}
+
+
+def _automation_interval_seconds() -> int:
+    try:
+        return max(10, int(os.environ.get("ADMIN_AUTOMATION_INTERVAL_SECONDS", "60")))
+    except ValueError:
+        return 60
+
+
+async def _admin_automation_loop() -> None:
+    interval = _automation_interval_seconds()
+    while True:
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _run_admin_automation_cycle)
+        except Exception as exc:
+            print(f"[automation] cycle failed: {exc}")
+        await asyncio.sleep(interval)
+
+
+@app.on_event("startup")
+async def _start_admin_automation() -> None:
+    global _automation_task
+    if _automation_enabled() and (_automation_task is None or _automation_task.done()):
+        _automation_task = asyncio.create_task(_admin_automation_loop())
+
+
+@app.on_event("shutdown")
+async def _stop_admin_automation() -> None:
+    global _automation_task
+    if _automation_task and not _automation_task.done():
+        _automation_task.cancel()
+        try:
+            await _automation_task
+        except asyncio.CancelledError:
+            pass
+    _automation_task = None
 
 
 def _generate_room_code(length: int = 6) -> str:
@@ -854,6 +1803,8 @@ async def auction_state(room_code: str = Query(..., description="Room code, e.g.
         "bidding_deadline": room.get("bidding_deadline"),
         "squads_locked": room.get("squads_locked", False),
         "active_bids": room.get("active_bids", []),
+        "pending_trades": room.get("pending_trades", []),
+        "automation_status": _compact_automation_status(room),
         "participants": participants_summary,
         "claimed_teams": room.get("claimed_teams", {}),
         "ipl_teams": room.get("ipl_teams", []),
@@ -910,7 +1861,7 @@ async def auction_bid(req: BidRequest):
     - min bid 5M, increments of 5M once >= 50M
     - 1 hour before deadline: no NEW player initiations (only outbid existing)
     - 30 min before deadline: only 5M increments allowed
-    - 30 min AFTER deadline: no trading at all
+    - 45 min AFTER deadline: market is fully closed
     - Rejects bids on players already owned by ANY participant
     """
     if req.amount < 5:
@@ -925,6 +1876,8 @@ async def auction_bid(req: BidRequest):
     room = rooms.get(req.room_code)
     if not room:
         raise HTTPException(status_code=404, detail=f"Room '{req.room_code}' not found")
+    if room.get("squads_locked"):
+        raise HTTPException(status_code=403, detail="Market is locked. Cannot bid.")
 
     # --- Deadline phase enforcement ---
     deadline_str = room.get("bidding_deadline")
@@ -936,11 +1889,11 @@ async def auction_bid(req: BidRequest):
         now_naive = now.replace(tzinfo=None)
         diff = (dl_naive - now_naive).total_seconds()
 
-        # 30 min AFTER deadline → no trading at all
-        if diff < -1800:
-            raise HTTPException(status_code=400, detail="Trading window closed (30 min past deadline)")
+        # 45 min AFTER deadline → market is fully closed
+        if diff < -2700:
+            raise HTTPException(status_code=400, detail="Market closed (45 min past deadline)")
 
-        # Between deadline and 30 min after → no trading
+        # Between deadline and 45 min after → no bidding
         if diff < 0:
             raise HTTPException(status_code=400, detail="Bidding deadline has passed. No new bids allowed.")
 
@@ -1518,8 +2471,7 @@ async def trade_propose(req: TradeProposalRequest):
     if not room:
         raise HTTPException(status_code=404, detail=f"Room '{req.room_code}' not found")
 
-    if room.get("squads_locked"):
-        raise HTTPException(status_code=403, detail="Market is locked. Cannot trade.")
+    _ensure_trading_open(room)
 
     # Validate participants exist
     participants = room.get("participants", [])
@@ -1571,6 +2523,7 @@ async def trade_respond(req: TradeRespondRequest):
     room = data.get("rooms", {}).get(req.room_code)
     if not room:
         raise HTTPException(status_code=404, detail=f"Room '{req.room_code}' not found")
+    _ensure_trading_open(room)
 
     pending = room.get("pending_trades", [])
     trade = next((t for t in pending if t["id"] == req.trade_id), None)
@@ -1609,6 +2562,8 @@ async def trade_admin_action(req: TradeAdminRequest):
         raise HTTPException(status_code=404, detail=f"Room '{req.room_code}' not found")
     if room.get("admin") != req.admin_name:
         raise HTTPException(status_code=403, detail="Only admin can approve/reject trades")
+    if req.action == "approve":
+        _ensure_trading_open(room)
 
     pending = room.get("pending_trades", [])
     trade = next((t for t in pending if t["id"] == req.trade_id and t.get("status") == "pending_admin"), None)
@@ -1813,7 +2768,6 @@ async def lock_squads(req: LockSquadsRequest):
       * 19+ players + no IR → most expensive player auto-assigned as IR
     - Creates snapshot for scoring
     """
-    import math
     data = _firebase_get()
     room = data.get("rooms", {}).get(req.room_code)
     if not room:
@@ -1821,60 +2775,17 @@ async def lock_squads(req: LockSquadsRequest):
     if room.get("admin") != req.admin_name:
         raise HTTPException(status_code=403, detail="Admin only")
 
-    curr_gw = room.get("current_gameweek", 1)
-    gw_key = str(curr_gw)
-    lock_log = []
-
-    for p in room.get("participants", []):
-        if p.get("eliminated", False):
-            continue
-        squad = p.get("squad", [])
-        p_name = p["name"]
-
-        # --- Enforce max 19: auto-release cheapest ---
-        while len(squad) > 19:
-            cheapest = min(squad, key=lambda x: float(x.get("buy_price", x.get("price", 0))))
-            squad.remove(cheapest)
-            lock_log.append(f"Auto-released {cheapest.get('name')} from {p_name} (over 19)")
-        p["squad"] = squad
-
-        # --- Injury Reserve rules ---
-        ir_player = p.get("injury_reserve")
-
-        if len(squad) < 19:
-            # < 19 players: IR doesn't count (no cost, ignore it)
-            p["injury_reserve_active"] = None
-        elif len(squad) == 19:
-            if ir_player:
-                # 19 players + IR set → 2M deduction
-                p["budget"] = float(p.get("budget", 0)) - 2
-                p["injury_reserve_active"] = ir_player
-                lock_log.append(f"{p_name}: IR ({ir_player}), -2M")
-            else:
-                # 19 players + no IR set → most expensive player becomes IR
-                most_expensive = max(squad, key=lambda x: float(x.get("buy_price", x.get("price", 0))))
-                p["injury_reserve"] = most_expensive.get("name")
-                p["injury_reserve_active"] = most_expensive.get("name")
-                p["budget"] = float(p.get("budget", 0)) - 2
-                lock_log.append(f"{p_name}: Auto-IR ({most_expensive.get('name')}), -2M")
-
-        # Warn if < 12
-        if len(squad) < 12:
-            lock_log.append(f"WARNING: {p_name} has only {len(squad)} players (min 12 recommended)")
-
-    # Snapshot all squads
-    gw_squads = room.get("gameweek_squads", {})
-    snapshot = {}
-    for p in room.get("participants", []):
-        snapshot[p["name"]] = {
-            "squad": list(p["squad"]),
-            "injury_reserve": p.get("injury_reserve_active", p.get("injury_reserve")),
-        }
-    gw_squads[gw_key] = snapshot
-    room["gameweek_squads"] = gw_squads
-    room["squads_locked"] = True
+    now = _get_ist_now()
+    settlement = _settle_due_active_bids(room, now)
+    lock_result = _lock_squads_for_gameweek(room, room.get("current_gameweek", 1), now)
     _firebase_put(data)
-    return {"message": f"Squads locked for GW{curr_gw}", "gameweek": curr_gw, "log": lock_log}
+    return {
+        "message": f"Squads locked for GW{lock_result['gameweek']}",
+        "gameweek": lock_result["gameweek"],
+        "already_locked": lock_result["already_locked"],
+        "log": lock_result["log"],
+        "settlement": settlement,
+    }
 
 
 # ----------------------------------------------------------
@@ -1892,32 +2803,16 @@ async def advance_gameweek(req: AdvanceGameweekRequest):
     if not room.get("squads_locked"):
         raise HTTPException(status_code=400, detail="Squads must be locked before advancing to the next gameweek")
 
-    curr_gw = room.get("current_gameweek", 1)
-    new_gw = curr_gw + 1
-
-    # Return loaned players
-    loan_returns = []
-    for p in room.get("participants", []):
-        returning = [pl for pl in p["squad"] if pl.get("loan_expiry_gw") == curr_gw]
-        for pl in returning:
-            origin_name = pl.get("loan_origin")
-            origin = next((pp for pp in room.get("participants", []) if pp["name"] == origin_name), None)
-            if origin:
-                p["squad"].remove(pl)
-                pl.pop("loan_origin", None)
-                pl.pop("loan_expiry_gw", None)
-                origin["squad"].append(pl)
-                loan_returns.append(f"{pl['name']} returned to {origin_name}")
-
-    # Clear IR active flags for fresh GW
-    for p in room.get("participants", []):
-        p.pop("injury_reserve_active", None)
-
-    room["current_gameweek"] = new_gw
-    room["squads_locked"] = False
-    room["bidding_deadline"] = None  # Reset deadline for new GW
+    try:
+        advance_result = _advance_gameweek_for_room(room, _get_ist_now())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     _firebase_put(data)
-    return {"message": f"Advanced to GW{new_gw}", "gameweek": new_gw, "loan_returns": loan_returns}
+    return {
+        "message": f"Advanced to GW{advance_result['gameweek']}",
+        "gameweek": advance_result["gameweek"],
+        "loan_returns": advance_result["loan_returns"],
+    }
 
 
 # ----------------------------------------------------------
@@ -2000,41 +2895,23 @@ async def calculate_scores(req: CalculateScoresRequest):
         raise HTTPException(status_code=403, detail="Admin only")
 
     gw = req.gameweek or room.get("current_gameweek", 1)
-    gw_key = str(gw)
-
-    # Validate that squads were locked for this GW
-    gw_squads = room.get("gameweek_squads", {})
-    if gw_key not in gw_squads:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Squads were never locked for GW{gw}. Lock squads first before calculating scores."
-        )
-
-    try:
-        players_data = scraper.fetch_match_data(req.cricbuzz_url)
-        if not players_data:
-            raise HTTPException(status_code=404, detail="No player data found")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scraping failed: {e}")
-
-    # Calculate scores
-    gw_scores = room.get("gameweek_scores", {})
-    existing = gw_scores.get(gw_key, {})
-
-    for p in players_data:
-        score = calculator.calculate_score(p)
-        name = p["name"]
-        existing[name] = existing.get(name, 0) + round(score)
-
-    gw_scores[gw_key] = existing
-    room["gameweek_scores"] = gw_scores
+    result = _calculate_and_store_scores_from_url(
+        room=room,
+        gameweek=int(gw),
+        cricbuzz_url=req.cricbuzz_url,
+    )
     _firebase_put(data)
 
     # Return the scores
-    results = [{"name": k, "points": v} for k, v in sorted(existing.items(), key=lambda x: -x[1])]
-    return {"message": f"Scores calculated for GW{gw}", "gameweek": gw, "scores": results[:20]}
+    aggregate = result["aggregate"]
+    results = [{"name": k, "points": v} for k, v in sorted(aggregate.items(), key=lambda x: -x[1])]
+    return {
+        "message": f"Scores calculated for GW{gw}",
+        "gameweek": gw,
+        "match_key": result["match_key"],
+        "already_processed": result["already_processed"],
+        "scores": results[:20],
+    }
 
 
 # ----------------------------------------------------------
@@ -2297,6 +3174,68 @@ async def get_schedule(room_code: str = Query(...)):
         return schedule
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ----------------------------------------------------------
+# 24b. GET /auction/automation-status
+# ----------------------------------------------------------
+@app.get("/auction/automation-status")
+async def automation_status(room_code: str = Query(...)):
+    """Returns full automation audit state for a room."""
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return {
+        "room_code": room_code,
+        "automation": room.get("automation", {}),
+        "summary": _compact_automation_status(room),
+    }
+
+
+# ----------------------------------------------------------
+# 24c. POST /auction/match-url
+# ----------------------------------------------------------
+@app.post("/auction/match-url")
+async def set_match_url(req: MatchUrlOverrideRequest):
+    """Admin override for a Cricbuzz scorecard URL in the IPL schedule."""
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("admin") != req.admin_name:
+        raise HTTPException(status_code=403, detail="Admin only")
+    if room.get("tournament_type") != "ipl":
+        raise HTTPException(status_code=400, detail="Match URL automation is only available for IPL rooms")
+    if "cricbuzz.com" not in req.cricbuzz_url.lower():
+        raise HTTPException(status_code=400, detail="cricbuzz_url must be a Cricbuzz URL")
+
+    gw_key, schedule_match = _find_schedule_match(req.match_id, req.gameweek)
+    if not schedule_match or not gw_key:
+        raise HTTPException(status_code=404, detail="Match not found in IPL 2026 schedule")
+
+    now = _get_ist_now()
+    automation = _get_automation_state(room)
+    ipl_state = automation.setdefault("ipl_scoring", {})
+    match_states = ipl_state.setdefault("matches", {})
+    match_id = str(req.match_id)
+    match_states[match_id] = {
+        "gameweek": gw_key,
+        "teams": schedule_match.get("teams", []),
+        "url": _normalize_scorecard_url(req.cricbuzz_url),
+        "confidence": 100,
+        "source": "admin_override",
+        "status": "resolved",
+        "resolved_at": now.isoformat(),
+    }
+    automation["last_run_at"] = now.isoformat()
+    _firebase_put(data)
+    return {
+        "message": f"Match {req.match_id} URL saved",
+        "match_id": req.match_id,
+        "gameweek": gw_key,
+        "url": match_states[match_id]["url"],
+    }
 
 
 # ----------------------------------------------------------

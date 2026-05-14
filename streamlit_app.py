@@ -1048,6 +1048,24 @@ def show_main_app():
     is_admin = room['admin'] == user
     admin_participating = room.get('admin_participating', True) # Default to True for old rooms
     
+    # === SERVERLESS HYBRID AUTOMATION HOOK ===
+    # Guarantees background operations execute reliably even if hosted purely on Streamlit Cloud
+    if is_admin:
+        try:
+            import api_server
+            room_changed = False
+            if api_server._run_deadline_rollover_for_room(room_code, room):
+                room_changed = True
+            if api_server._run_ipl_scoring_for_room(room_code, room):
+                room_changed = True
+            
+            if room_changed:
+                save_auction_data(auction_data)
+                st.rerun()
+                return
+        except Exception:
+            pass
+    
     # === TEAM ASSIGNMENT LOGIC (Auto-Match or Claim) ===
     # 1. Check if user is already managing a team
     my_p = next((p for p in room.get('participants', []) if p.get('user') == user), None)
@@ -1465,7 +1483,7 @@ def show_main_app():
                 initiation_cutoff = global_deadline - timedelta(hours=1)      # No new player bids
                 increment_cutoff  = global_deadline - timedelta(minutes=30)   # Only 5M increments
                 bidding_close     = global_deadline                           # Bidding closes
-                trading_close     = global_deadline + timedelta(minutes=30)   # Trading closes
+                trading_close     = global_deadline + timedelta(minutes=45)   # Trading closes
 
                 # Pass milestones as JSON for the JS countdown
                 import json as _json
@@ -1508,7 +1526,7 @@ def show_main_app():
       // Determine correct epoch timestamp by treating naive ISO string as IST (+05:30)
       var targetMs=new Date(ms.iso+"+05:30").getTime();
       var ds=(targetMs-now)/1000;
-      var passed=ds<=0,imm=!passed&&ds<1800,cd=fmt(ds);
+      var passed=ds<=0,imm=!passed&&ds<2700,cd=fmt(ds);
       var bc,sc,sb,sl,cc,pu;
       if(passed){{bc='#ff4b4b';sc='#ff4b4b';sb='rgba(255,75,75,0.08)';sl='PASSED';cc='#ff4b4b';pu='';}}
       else if(imm){{bc='#ff9f43';sc='#ff9f43';sb='rgba(255,159,67,0.08)';sl='IMMINENT';cc='#ff9f43';pu='animation:pulse 1.5s ease-in-out infinite;';}}
@@ -2212,14 +2230,14 @@ def show_main_app():
                 
                 st.divider()
                 # Check Trading Deadline
-                trading_deadline = global_deadline + timedelta(minutes=30) if global_deadline else None
+                trading_deadline = global_deadline + timedelta(minutes=45) if global_deadline else None
                 is_trading_locked = False
                 
                 if room.get('squads_locked'):
                     st.error("🔒 Trading is CLOSED (Market Locked by Admin).")
                     is_trading_locked = True
                 elif trading_deadline and now > trading_deadline:
-                    st.error(f"🔒 Trading is CLOSED for this Gameweek (Deadline + 30m passed: {trading_deadline.strftime('%H:%M')})")
+                    st.error(f"🔒 Trading is CLOSED for this Gameweek (Deadline + 45m passed: {trading_deadline.strftime('%H:%M')})")
                     is_trading_locked = True
                 
                 st.divider()
@@ -2775,6 +2793,24 @@ def show_main_app():
         if is_admin:
             st.divider()
             st.subheader("⚔️ Gameweek Control Center")
+            
+            # --- Automation Metrics Banner ---
+            automation_info = room.get('automation', {})
+            last_run = automation_info.get('last_run_at', 'Never')
+            if last_run != 'Never':
+                try:
+                    from datetime import datetime
+                    dt_obj = datetime.fromisoformat(last_run)
+                    last_run = dt_obj.strftime('%d-%b %H:%M:%S')
+                except Exception:
+                    pass
+            
+            st.caption(f"🤖 **Automation Engine**: Active | **Last Checked**: `{last_run}`")
+            if automation_info.get('errors'):
+                with st.expander("⚠️ View Recent Automation Logs"):
+                    for err in automation_info['errors'][-5:]:
+                        st.text(f"[{err.get('at', '')[:19]}] {err.get('scope')}: {err.get('message')}")
+            
             curr_gw = room.get('current_gameweek', 1)
             st.metric("Current Gameweek", f"GW {curr_gw}")
             

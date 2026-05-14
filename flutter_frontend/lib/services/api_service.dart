@@ -341,6 +341,31 @@ class ApiService {
     return jsonDecode(resp.body);
   }
 
+  Future<Map<String, dynamic>> getAutomationStatus(String roomCode) async {
+    final resp = await _get('/auction/automation-status?room_code=$roomCode');
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
+  Future<Map<String, dynamic>> setMatchUrl({
+    required String roomCode,
+    required String adminName,
+    required int matchId,
+    required String cricbuzzUrl,
+    int? gameweek,
+  }) async {
+    final body = {
+      'room_code': roomCode,
+      'admin_name': adminName,
+      'match_id': matchId,
+      'cricbuzz_url': cricbuzzUrl,
+      if (gameweek != null) 'gameweek': gameweek,
+    };
+    final resp = await _post('/auction/match-url', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
   Future<Map<String, dynamic>> getIplSquads() async {
     final resp = await _get('/auction/ipl-squads');
     _checkResponse(resp);
