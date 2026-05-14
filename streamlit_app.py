@@ -2800,7 +2800,6 @@ def show_main_app():
             last_run = automation_info.get('last_run_at', 'Never')
             if last_run != 'Never':
                 try:
-                    from datetime import datetime
                     dt_obj = datetime.fromisoformat(last_run)
                     last_run = dt_obj.strftime('%d-%b %H:%M:%S')
                 except Exception:
