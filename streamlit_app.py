@@ -1049,20 +1049,21 @@ def show_main_app():
     admin_participating = room.get('admin_participating', True) # Default to True for old rooms
     
     # === SERVERLESS HYBRID AUTOMATION HOOK ===
-    # Guarantees background operations execute reliably even if hosted purely on Streamlit Cloud
-    if is_admin:
+    # Runs once per session load (debounced) to handle pending deadline rollovers
+    # and IPL scoring without triggering infinite reruns.
+    _auto_key = f"_automation_ran_{room_code}"
+    _auto_ts = st.session_state.get(_auto_key, 0)
+    if is_admin and (_time.time() - _auto_ts) > 120:  # At most once every 2 minutes
+        st.session_state[_auto_key] = _time.time()
         try:
-            import api_server
-            room_changed = False
-            if api_server._run_deadline_rollover_for_room(room_code, room):
-                room_changed = True
-            if api_server._run_ipl_scoring_for_room(room_code, room):
-                room_changed = True
-            
-            if room_changed:
+            import api_server as _api
+            _room_changed = False
+            if _api._run_deadline_rollover_for_room(room_code, room):
+                _room_changed = True
+            if _api._run_ipl_scoring_for_room(room_code, room):
+                _room_changed = True
+            if _room_changed:
                 save_auction_data(auction_data)
-                st.rerun()
-                return
         except Exception:
             pass
     
