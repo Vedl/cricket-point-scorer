@@ -1519,6 +1519,16 @@
       "name": "Dian Forrester",
       "role": "Batting Allrounder",
       "country": "South Africa"
+    },
+    {
+      "name": "Kuldip Yadav",
+      "role": "Bowler",
+      "country": "India"
+    },
+    {
+      "name": "Richard Gleeson",
+      "role": "Bowler",
+      "country": "England"
     }
   ]
 }

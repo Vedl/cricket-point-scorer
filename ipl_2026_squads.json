@@ -136,6 +136,11 @@
           "name": "Dian Forrester",
           "role": "Batting Allrounder",
           "ipl_team": "CSK"
+        },
+        {
+          "name": "Kuldip Yadav",
+          "role": "Bowler",
+          "ipl_team": "CSK"
         }
       ]
     },
@@ -525,6 +530,11 @@
         },
         {
           "name": "Vicky Ostwal",
+          "role": "Bowler",
+          "ipl_team": "RCB"
+        },
+        {
+          "name": "Richard Gleeson",
           "role": "Bowler",
           "ipl_team": "RCB"
         }
