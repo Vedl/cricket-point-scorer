@@ -1050,10 +1050,11 @@ def show_main_app():
     
     # === SERVERLESS HYBRID AUTOMATION HOOK ===
     # Runs once per session load (debounced) to handle pending deadline rollovers
-    # and IPL scoring without triggering infinite reruns.
+    # and IPL scoring. Triggers for ANY user (not just admin) so the system
+    # doesn't depend on the admin visiting the page.
     _auto_key = f"_automation_ran_{room_code}"
     _auto_ts = st.session_state.get(_auto_key, 0)
-    if is_admin and (_time.time() - _auto_ts) > 120:  # At most once every 2 minutes
+    if (_time.time() - _auto_ts) > 120:  # At most once every 2 minutes
         st.session_state[_auto_key] = _time.time()
         try:
             import api_server as _api
@@ -1064,8 +1065,23 @@ def show_main_app():
                 _room_changed = True
             if _room_changed:
                 save_auction_data(auction_data)
-        except Exception:
-            pass
+        except Exception as _auto_exc:
+            # Record the error so it's visible in the admin automation panel
+            import traceback as _tb
+            _err_msg = f"{type(_auto_exc).__name__}: {_auto_exc}"
+            room.setdefault('automation', {}).setdefault('errors', []).append({
+                'scope': f'streamlit_hook:{room_code}',
+                'message': _err_msg,
+                'at': get_ist_time().isoformat(),
+            })
+            # Keep only last 20 errors
+            room['automation']['errors'] = room['automation']['errors'][-20:]
+            try:
+                save_auction_data(auction_data)
+            except Exception:
+                pass
+            if is_admin:
+                st.toast(f"⚠️ Automation error: {_err_msg}", icon="⚠️")
     
     # === TEAM ASSIGNMENT LOGIC (Auto-Match or Claim) ===
     # 1. Check if user is already managing a team

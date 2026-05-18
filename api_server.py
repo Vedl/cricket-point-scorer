@@ -1181,18 +1181,20 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
     gameweek_states = ipl_state.setdefault("gameweeks", {})
     gw_state = gameweek_states.setdefault(gw_key, {})
 
-    if gw_key in room.get("gameweek_scores", {}):
-        if gw_state.get("status") in {"processed", "skipped_existing_scores"}:
-            return False
-        if gw_state.get("status") != "skipped_existing_scores":
-            gw_state.update({
-                "status": "skipped_existing_scores",
-                "reason": "gameweek_scores already exists",
-                "checked_at": now.isoformat(),
-            })
-            automation["last_run_at"] = now.isoformat()
-            return True
+    # Skip if this GW has already been FULLY processed by automation
+    if gw_state.get("status") in {"processed", "skipped_existing_scores"}:
         return False
+
+    # If gameweek_scores exist but weren't put there by automation (e.g. manual admin entry),
+    # mark as skipped so we don't overwrite manual work.
+    if gw_key in room.get("gameweek_scores", {}) and not gw_state.get("status"):
+        gw_state.update({
+            "status": "skipped_existing_scores",
+            "reason": "gameweek_scores already exists (manual or legacy)",
+            "checked_at": now.isoformat(),
+        })
+        automation["last_run_at"] = now.isoformat()
+        return True
 
     if gw_key not in room.get("gameweek_squads", {}):
         return False
@@ -1280,6 +1282,28 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
         ready_matches.append((match, match_state))
         changed = True
 
+    # Score whatever matches ARE ready, even if others are still pending.
+    # This ensures partial progress is saved and not blocked by a single match.
+    if ready_matches:
+        try:
+            for match, match_state in ready_matches:
+                match_id = str(match.get("match_id"))
+                if match_state.get("status") == "processed":
+                    continue  # Already scored in a prior cycle
+                _calculate_and_store_scores_from_url(
+                    room=room,
+                    gameweek=int(gw_key),
+                    cricbuzz_url=match_state["url"],
+                    match_id=match_id,
+                    allow_empty=bool(match_state.get("no_result")),
+                )
+                match_state["status"] = "processed"
+                match_state["processed_at"] = now.isoformat()
+                changed = True
+        except Exception as exc:
+            _record_automation_error(room, f"ipl_scoring:{room_code}:GW{gw_key}:partial", str(exc), now)
+            changed = True
+
     if unresolved or incomplete or errors:
         status = "error" if errors else "unresolved" if unresolved else "incomplete"
         gw_state.update({
@@ -1292,36 +1316,20 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
         automation["last_run_at"] = now.isoformat()
         return changed
 
-    try:
-        for match, match_state in ready_matches:
-            match_id = str(match.get("match_id"))
-            _calculate_and_store_scores_from_url(
-                room=room,
-                gameweek=int(gw_key),
-                cricbuzz_url=match_state["url"],
-                match_id=match_id,
-                allow_empty=bool(match_state.get("no_result")),
-            )
-            match_state["status"] = "processed"
-            match_state["processed_at"] = now.isoformat()
-        aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
-        gw_state.update({
-            "status": "processed",
-            "processed_at": now.isoformat(),
-            "matches_processed": len(ready_matches),
-            "players_scored": len(aggregate),
-        })
-        automation["last_run_at"] = now.isoformat()
-        return True
-    except Exception as exc:
-        gw_state.update({"status": "error", "error": str(exc), "checked_at": now.isoformat()})
-        _record_automation_error(room, f"ipl_scoring:{room_code}:GW{gw_key}", str(exc), now)
-        automation["last_run_at"] = now.isoformat()
-        return True
+    # All matches are complete — rebuild aggregate and mark GW as fully processed
+    aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
+    gw_state.update({
+        "status": "processed",
+        "processed_at": now.isoformat(),
+        "matches_processed": len(ready_matches),
+        "players_scored": len(aggregate),
+    })
+    automation["last_run_at"] = now.isoformat()
+    return True
 
 
 def _run_ipl_scoring_for_room(room_code: str, room: dict, now: Optional[datetime] = None) -> bool:
-    if room.get("tournament_type", "").lower() not in ("ipl", "ipl 2026"):
+    if "ipl" not in room.get("tournament_type", "").lower():
         return False
 
     schedule = _load_ipl_schedule()
