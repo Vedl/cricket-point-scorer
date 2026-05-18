@@ -1053,35 +1053,157 @@ def show_main_app():
     # and IPL scoring. Triggers for ANY user (not just admin) so the system
     # doesn't depend on the admin visiting the page.
     _auto_key = f"_automation_ran_{room_code}"
+    _auto_result_key = f"_automation_result_{room_code}"
     _auto_ts = st.session_state.get(_auto_key, 0)
     if (_time.time() - _auto_ts) > 120:  # At most once every 2 minutes
         st.session_state[_auto_key] = _time.time()
+        _auto_result = {
+            'ran_at': get_ist_time().strftime('%d-%b %H:%M:%S'),
+            'steps': [],
+            'changed': False,
+            'error': None,
+        }
         try:
             import api_server as _api
+            _auto_result['steps'].append(f"✅ api_server imported successfully")
+            _auto_result['steps'].append(f"ℹ️ Room tournament_type: {repr(room.get('tournament_type'))}")
+            _auto_result['steps'].append(f"ℹ️ Room current_gameweek: {room.get('current_gameweek')}")
+            _auto_result['steps'].append(f"ℹ️ Room bidding_deadline: {room.get('bidding_deadline')}")
+            _auto_result['steps'].append(f"ℹ️ Room squads_locked: {room.get('squads_locked')}")
+            _auto_result['steps'].append(f"ℹ️ Locked GW keys: {sorted(room.get('gameweek_squads', {}).keys())}")
+            _auto_result['steps'].append(f"ℹ️ Scored GW keys: {sorted(room.get('gameweek_scores', {}).keys())}")
+            
             _room_changed = False
-            if _api._run_deadline_rollover_for_room(room_code, room):
-                _room_changed = True
-            if _api._run_ipl_scoring_for_room(room_code, room):
-                _room_changed = True
+            
+            # Step 1: Deadline rollover
+            _auto_result['steps'].append("🔄 Running deadline rollover check...")
+            try:
+                if _api._run_deadline_rollover_for_room(room_code, room):
+                    _room_changed = True
+                    _auto_result['steps'].append("✅ Deadline rollover TRIGGERED (room changed)")
+                else:
+                    _auto_result['steps'].append("⏭️ Deadline rollover: no action needed")
+            except Exception as _e1:
+                _auto_result['steps'].append(f"❌ Deadline rollover ERROR: {type(_e1).__name__}: {_e1}")
+            
+            # Step 2: IPL scoring
+            _auto_result['steps'].append("🔄 Running IPL scoring check...")
+            try:
+                if _api._run_ipl_scoring_for_room(room_code, room):
+                    _room_changed = True
+                    _auto_result['steps'].append("✅ IPL scoring TRIGGERED (room changed)")
+                else:
+                    _auto_result['steps'].append("⏭️ IPL scoring: no action needed")
+            except Exception as _e2:
+                _auto_result['steps'].append(f"❌ IPL scoring ERROR: {type(_e2).__name__}: {_e2}")
+            
+            # Step 3: Save
             if _room_changed:
+                _auto_result['steps'].append("💾 Saving changes to Firebase...")
                 save_auction_data(auction_data)
+                _auto_result['steps'].append("✅ Saved successfully")
+                _auto_result['changed'] = True
+            else:
+                _auto_result['steps'].append("ℹ️ No changes to save")
+                
         except Exception as _auto_exc:
-            # Record the error so it's visible in the admin automation panel
             import traceback as _tb
             _err_msg = f"{type(_auto_exc).__name__}: {_auto_exc}"
+            _auto_result['error'] = _err_msg
+            _auto_result['steps'].append(f"💥 FATAL: {_err_msg}")
             room.setdefault('automation', {}).setdefault('errors', []).append({
                 'scope': f'streamlit_hook:{room_code}',
                 'message': _err_msg,
                 'at': get_ist_time().isoformat(),
             })
-            # Keep only last 20 errors
             room['automation']['errors'] = room['automation']['errors'][-20:]
             try:
                 save_auction_data(auction_data)
             except Exception:
                 pass
-            if is_admin:
-                st.toast(f"⚠️ Automation error: {_err_msg}", icon="⚠️")
+        
+        st.session_state[_auto_result_key] = _auto_result
+    
+    # === AUTOMATION STATUS PANEL (Admin Only) ===
+    if is_admin:
+        _auto_result = st.session_state.get(_auto_result_key)
+        _automation_data = room.get('automation', {})
+        _ipl_scoring = _automation_data.get('ipl_scoring', {})
+        _match_states = _ipl_scoring.get('matches', {})
+        _gw_states = _ipl_scoring.get('gameweeks', {})
+        _recent_errors = _automation_data.get('errors', [])[-5:]
+        
+        with st.expander("🤖 Automation Status Dashboard", expanded=bool(_recent_errors)):
+            col_a1, col_a2, col_a3 = st.columns(3)
+            with col_a1:
+                _last_run = _automation_data.get('last_run_at', 'Never')
+                if _last_run != 'Never':
+                    try:
+                        _last_run = datetime.fromisoformat(_last_run).strftime('%d-%b %H:%M')
+                    except Exception:
+                        pass
+                st.metric("Last Engine Run", _last_run)
+            with col_a2:
+                st.metric("Tournament Type", room.get('tournament_type', 'Not Set'))
+            with col_a3:
+                _total_processed = sum(1 for gs in _gw_states.values() if gs.get('status') == 'processed')
+                _total_pending = sum(1 for gs in _gw_states.values() if gs.get('status') not in {'processed', 'skipped_existing_scores', None})
+                st.metric("GWs Processed / Pending", f"{_total_processed} / {_total_pending}")
+            
+            # Show last automation hook result
+            if _auto_result:
+                st.markdown(f"**Last hook run:** `{_auto_result.get('ran_at', '?')}`")
+                if _auto_result.get('error'):
+                    st.error(f"**Fatal Error:** {_auto_result['error']}")
+                elif _auto_result.get('changed'):
+                    st.success("✅ Automation made changes this cycle")
+                else:
+                    st.info("ℹ️ No changes needed this cycle")
+                
+                with st.expander("📋 Step-by-step log"):
+                    for step in _auto_result.get('steps', []):
+                        st.text(step)
+            
+            # Per-GW match status
+            if _gw_states:
+                st.markdown("**Per-Gameweek Status:**")
+                _gw_rows = []
+                for gw_k in sorted(_gw_states.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+                    gs = _gw_states[gw_k]
+                    _status = gs.get('status', 'unknown')
+                    _emoji = {'processed': '✅', 'incomplete': '⏳', 'unresolved': '🔍', 'error': '❌', 'skipped_existing_scores': '⏭️'}.get(_status, '❓')
+                    _gw_rows.append({
+                        'GW': f"GW{gw_k}",
+                        'Status': f"{_emoji} {_status}",
+                        'Unresolved': str(gs.get('unresolved_match_ids', '-')),
+                        'Incomplete': str(gs.get('incomplete_match_ids', '-')),
+                        'Errors': str(gs.get('error_match_ids', gs.get('error', '-'))),
+                    })
+                st.dataframe(pd.DataFrame(_gw_rows), use_container_width=True, hide_index=True)
+            
+            # Match-level detail for current or recent GW
+            _curr_gw = str(room.get('current_gameweek', 1))
+            _relevant_matches = {mid: ms for mid, ms in _match_states.items() if ms.get('gameweek') == _curr_gw or ms.get('gameweek') == str(int(_curr_gw) - 1 if _curr_gw.isdigit() else 0)}
+            if _relevant_matches:
+                st.markdown(f"**Match-level detail (GW{_curr_gw} & prior):**")
+                _m_rows = []
+                for mid in sorted(_relevant_matches.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+                    ms = _relevant_matches[mid]
+                    _m_rows.append({
+                        'Match': mid,
+                        'GW': ms.get('gameweek', '?'),
+                        'Teams': ' vs '.join(ms.get('teams', [])),
+                        'Status': ms.get('status', 'unknown'),
+                        'URL': (ms.get('url', 'None') or 'None')[:50],
+                        'Error': str(ms.get('error', '-'))[:40],
+                    })
+                st.dataframe(pd.DataFrame(_m_rows), use_container_width=True, hide_index=True)
+            
+            # Recent errors
+            if _recent_errors:
+                st.markdown("**⚠️ Recent Errors:**")
+                for err in reversed(_recent_errors):
+                    st.text(f"[{err.get('at', '')[:19]}] {err.get('scope', '')}: {err.get('message', '')[:120]}")
     
     # === TEAM ASSIGNMENT LOGIC (Auto-Match or Claim) ===
     # 1. Check if user is already managing a team
