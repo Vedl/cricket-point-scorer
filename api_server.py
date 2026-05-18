@@ -55,6 +55,16 @@ IPL_CRICBUZZ_SERIES_URLS = [
     "https://m.cricbuzz.com/live-cricket-scores",
 ]
 
+# Direct Cricbuzz URL construction for IPL 2026.
+# Cricbuzz assigns sequential IDs: base_id + (match_number - 1) * stride
+# Verified: Match 61=152174, Match 62=152185, Match 63=152196  →  base=151514, stride=11
+IPL_CRICBUZZ_BASE_ID = 151514
+IPL_CRICBUZZ_MATCH_STRIDE = 11
+IPL_TEAM_SLUGS = {
+    "CSK": "csk", "MI": "mi", "RCB": "rcb", "KKR": "kkr", "SRH": "srh",
+    "DC": "dc", "PBKS": "pbks", "RR": "rr", "GT": "gt", "LSG": "lsg",
+}
+
 
 def _get_ist_now() -> datetime:
     return datetime.now(IST)
@@ -1020,7 +1030,37 @@ def _fetch_cricbuzz_scorecard_candidates() -> List[dict]:
     return candidates
 
 
+def _construct_cricbuzz_scorecard_url(match: dict) -> Optional[str]:
+    """Directly construct the Cricbuzz scorecard URL from the match number and teams.
+    
+    This is far more reliable than scraping the series page, which only shows
+    ~20 recent matches. The Cricbuzz ID pattern: base_id + (match_num - 1) * stride.
+    """
+    match_id = int(match.get("match_id", 0) or 0)
+    teams = match.get("teams", [])
+    if not match_id or len(teams) < 2:
+        return None
+    
+    cricbuzz_id = IPL_CRICBUZZ_BASE_ID + (match_id - 1) * IPL_CRICBUZZ_MATCH_STRIDE
+    t1 = IPL_TEAM_SLUGS.get(str(teams[0]).upper(), str(teams[0]).lower())
+    t2 = IPL_TEAM_SLUGS.get(str(teams[1]).upper(), str(teams[1]).lower())
+    ordinal = _ordinal(match_id).lower()
+    
+    return f"https://www.cricbuzz.com/live-cricket-scorecard/{cricbuzz_id}/{t1}-vs-{t2}-{ordinal}-match-{IPL_CRICBUZZ_SERIES_SLUG}"
+
+
 def _discover_cricbuzz_scorecard_url(match: dict, candidates: Optional[List[dict]] = None) -> Optional[dict]:
+    # 1. Try direct URL construction first (reliable, no scraping needed)
+    direct_url = _construct_cricbuzz_scorecard_url(match)
+    if direct_url:
+        try:
+            resp = http_requests.head(direct_url, headers=scraper.headers, timeout=8, allow_redirects=True)
+            if resp.status_code < 400:
+                return {"url": direct_url, "confidence": 100, "source": "direct_construction"}
+        except Exception:
+            pass  # Fall through to scraping-based discovery
+    
+    # 2. Fallback: scraping-based discovery from series page
     if candidates is None:
         candidates = _fetch_cricbuzz_scorecard_candidates()
     scored = []
@@ -1031,11 +1071,17 @@ def _discover_cricbuzz_scorecard_url(match: dict, candidates: Optional[List[dict
     scored.sort(key=lambda item: item["confidence"], reverse=True)
 
     if not scored:
+        # 3. Last resort: return direct URL even without HEAD validation
+        if direct_url:
+            return {"url": direct_url, "confidence": 80, "source": "direct_construction_unverified"}
         return None
     top = scored[0]
     second_confidence = scored[1]["confidence"] if len(scored) > 1 else 0
     if top["confidence"] >= 75 and top["confidence"] - second_confidence >= 10:
         return top
+    # 4. If scraping is ambiguous but direct URL exists, prefer direct URL
+    if direct_url:
+        return {"url": direct_url, "confidence": 85, "source": "direct_construction_over_ambiguous"}
     return {
         "status": "ambiguous",
         "confidence": top["confidence"],
@@ -1223,6 +1269,9 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
         )
 
         url = match_state.get("url")
+        # Reset ambiguous/unresolved/error states to retry discovery with improved logic
+        if not url and match_state.get("status") in {"ambiguous", "unresolved", "error"}:
+            match_state["status"] = "pending"  # Allow re-discovery
         if not url and not has_tbd:
             if scorecard_candidates is None:
                 scorecard_candidates = _fetch_cricbuzz_scorecard_candidates()
