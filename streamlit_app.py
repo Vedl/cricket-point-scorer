@@ -3486,34 +3486,34 @@ def show_main_app():
                     if st.button(f"🔙 Revert to GW{curr_gw_num - 1}", type="primary", key="revert_gw"):
                         try:
                             revert_to = curr_gw_num - 1
-                            curr_key = str(curr_gw_num)
+                            revert_key = str(revert_to)
                             _rev_log = []
                             
-                            # 1. Remove squad snapshot for the accidental GW
+                            # 1. Remove squad snapshot for the accidental GW lock
                             gw_squads = room.get('gameweek_squads', {})
-                            if curr_key in gw_squads:
-                                del gw_squads[curr_key]
-                                _rev_log.append(f"Removed squad lock for GW{curr_gw_num}")
+                            if revert_key in gw_squads:
+                                del gw_squads[revert_key]
+                                _rev_log.append(f"Removed squad lock for GW{revert_to}")
                             
                             # 2. Remove any scores for the accidental GW
                             gw_scores = room.get('gameweek_scores', {})
-                            if curr_key in gw_scores:
-                                del gw_scores[curr_key]
-                                _rev_log.append(f"Removed scores for GW{curr_gw_num}")
+                            if revert_key in gw_scores:
+                                del gw_scores[revert_key]
+                                _rev_log.append(f"Removed scores for GW{revert_to}")
                             
                             # 3. Clear automation rollover state
                             _auto = room.get('automation', {})
                             _rollovers = _auto.get('deadline_rollovers', {})
-                            if curr_key in _rollovers:
-                                del _rollovers[curr_key]
-                                _rev_log.append(f"Cleared rollover state for GW{curr_gw_num}")
+                            if revert_key in _rollovers:
+                                del _rollovers[revert_key]
+                                _rev_log.append(f"Cleared rollover state for GW{revert_to}")
                             
                             # 4. Clear automation IPL scoring state
                             _ipl_st = _auto.get('ipl_scoring', {})
                             _gw_st = _ipl_st.get('gameweeks', {})
-                            if curr_key in _gw_st:
-                                del _gw_st[curr_key]
-                                _rev_log.append(f"Cleared IPL scoring state for GW{curr_gw_num}")
+                            if revert_key in _gw_st:
+                                del _gw_st[revert_key]
+                                _rev_log.append(f"Cleared IPL scoring state for GW{revert_to}")
                             
                             # 5. Restore room state
                             room['current_gameweek'] = revert_to
