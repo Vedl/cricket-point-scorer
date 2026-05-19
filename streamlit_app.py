@@ -3543,6 +3543,60 @@ def show_main_app():
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ Revert failed: {e}")
+            
+            with st.expander("🗑️ Clean up Specific Gameweek Snapshot"):
+                st.info("Use this to delete a locked squad snapshot (and scores) for a specific gameweek without changing the current gameweek. Useful for cleaning up premature locks.")
+                
+                def _normalize_dict(obj_dict, key_name):
+                    val = obj_dict.get(key_name, {})
+                    if isinstance(val, list):
+                        new_val = {str(i): v for i, v in enumerate(val) if v is not None}
+                        obj_dict[key_name] = new_val
+                        return new_val
+                    return val
+                
+                _gw_squads = _normalize_dict(room, 'gameweek_squads')
+                _gw_scores = _normalize_dict(room, 'gameweek_scores')
+                
+                # Find all available snapshots
+                _available_gws = sorted(list(set(list(_gw_squads.keys()) + list(_gw_scores.keys()))), key=lambda x: int(x) if x.isdigit() else 999)
+                
+                if not _available_gws:
+                    st.write("No gameweek snapshots found.")
+                else:
+                    _del_gw = st.selectbox("Select Gameweek to Delete", _available_gws, key="del_gw_select")
+                    _del_confirm = st.checkbox(f"I confirm I want to delete the snapshot for GW{_del_gw}", key="del_gw_confirm")
+                    
+                    if _del_confirm:
+                        if st.button(f"🚨 Delete GW{_del_gw} Snapshot", type="primary", key="del_gw_btn"):
+                            _del_log = []
+                            
+                            if _del_gw in _gw_squads:
+                                del _gw_squads[_del_gw]
+                                _del_log.append("Squads")
+                                
+                            if _del_gw in _gw_scores:
+                                del _gw_scores[_del_gw]
+                                _del_log.append("Scores")
+                                
+                            _auto = room.get('automation', {})
+                            _rollovers = _normalize_dict(_auto, 'deadline_rollovers')
+                            if _del_gw in _rollovers:
+                                del _rollovers[_del_gw]
+                                _del_log.append("Rollover State")
+                                
+                            _ipl_st = _auto.get('ipl_scoring', {})
+                            _gw_st = _normalize_dict(_ipl_st, 'gameweeks')
+                            if _del_gw in _gw_st:
+                                del _gw_st[_del_gw]
+                                _del_log.append("IPL Scoring State")
+                            
+                            if _del_log:
+                                save_auction_data(auction_data)
+                                st.success(f"✅ Deleted GW{_del_gw} artifacts: {', '.join(_del_log)}")
+                                st.rerun()
+                            else:
+                                st.warning("No artifacts found to delete.")
                 
             st.divider()
             
