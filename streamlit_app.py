@@ -3489,28 +3489,37 @@ def show_main_app():
                             revert_key = str(revert_to)
                             _rev_log = []
                             
+                            # Helper to fix Firebase sparse arrays
+                            def _normalize_dict(obj_dict, key_name):
+                                val = obj_dict.get(key_name, {})
+                                if isinstance(val, list):
+                                    new_val = {str(i): v for i, v in enumerate(val) if v is not None}
+                                    obj_dict[key_name] = new_val
+                                    return new_val
+                                return val
+                            
                             # 1. Remove squad snapshot for the accidental GW lock
-                            gw_squads = room.get('gameweek_squads', {})
+                            gw_squads = _normalize_dict(room, 'gameweek_squads')
                             if revert_key in gw_squads:
                                 del gw_squads[revert_key]
                                 _rev_log.append(f"Removed squad lock for GW{revert_to}")
                             
                             # 2. Remove any scores for the accidental GW
-                            gw_scores = room.get('gameweek_scores', {})
+                            gw_scores = _normalize_dict(room, 'gameweek_scores')
                             if revert_key in gw_scores:
                                 del gw_scores[revert_key]
                                 _rev_log.append(f"Removed scores for GW{revert_to}")
                             
                             # 3. Clear automation rollover state
                             _auto = room.get('automation', {})
-                            _rollovers = _auto.get('deadline_rollovers', {})
+                            _rollovers = _normalize_dict(_auto, 'deadline_rollovers')
                             if revert_key in _rollovers:
                                 del _rollovers[revert_key]
                                 _rev_log.append(f"Cleared rollover state for GW{revert_to}")
                             
                             # 4. Clear automation IPL scoring state
                             _ipl_st = _auto.get('ipl_scoring', {})
-                            _gw_st = _ipl_st.get('gameweeks', {})
+                            _gw_st = _normalize_dict(_ipl_st, 'gameweeks')
                             if revert_key in _gw_st:
                                 del _gw_st[revert_key]
                                 _rev_log.append(f"Cleared IPL scoring state for GW{revert_to}")
