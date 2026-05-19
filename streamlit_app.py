@@ -3485,10 +3485,52 @@ def show_main_app():
                 if _revert_confirm:
                     if st.button(f"🔙 Revert to GW{curr_gw_num - 1}", type="primary", key="revert_gw"):
                         try:
-                            import api_server as _api
-                            result = _api._revert_last_gameweek(room)
+                            revert_to = curr_gw_num - 1
+                            curr_key = str(curr_gw_num)
+                            _rev_log = []
+                            
+                            # 1. Remove squad snapshot for the accidental GW
+                            gw_squads = room.get('gameweek_squads', {})
+                            if curr_key in gw_squads:
+                                del gw_squads[curr_key]
+                                _rev_log.append(f"Removed squad lock for GW{curr_gw_num}")
+                            
+                            # 2. Remove any scores for the accidental GW
+                            gw_scores = room.get('gameweek_scores', {})
+                            if curr_key in gw_scores:
+                                del gw_scores[curr_key]
+                                _rev_log.append(f"Removed scores for GW{curr_gw_num}")
+                            
+                            # 3. Clear automation rollover state
+                            _auto = room.get('automation', {})
+                            _rollovers = _auto.get('deadline_rollovers', {})
+                            if curr_key in _rollovers:
+                                del _rollovers[curr_key]
+                                _rev_log.append(f"Cleared rollover state for GW{curr_gw_num}")
+                            
+                            # 4. Clear automation IPL scoring state
+                            _ipl_st = _auto.get('ipl_scoring', {})
+                            _gw_st = _ipl_st.get('gameweeks', {})
+                            if curr_key in _gw_st:
+                                del _gw_st[curr_key]
+                                _rev_log.append(f"Cleared IPL scoring state for GW{curr_gw_num}")
+                            
+                            # 5. Restore room state
+                            room['current_gameweek'] = revert_to
+                            room['squads_locked'] = False
+                            room['bidding_deadline'] = None
+                            room['game_phase'] = 'Awaiting Deadline'
+                            _rev_log.append(f"Reverted to GW{revert_to}, phase=Awaiting Deadline")
+                            
+                            # 6. Log the revert
+                            timestamp = get_ist_time().strftime('%d-%b %H:%M')
+                            room.setdefault('trade_log', []).append({
+                                "time": timestamp,
+                                "msg": f"🔙 Admin Revert: GW{curr_gw_num} → GW{revert_to} (undid accidental advance)"
+                            })
+                            
                             save_auction_data(auction_data)
-                            st.success(f"✅ Reverted! {' | '.join(result.get('log', []))}")
+                            st.success(f"✅ Reverted! {' | '.join(_rev_log)}")
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ Revert failed: {e}")
