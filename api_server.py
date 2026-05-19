@@ -903,8 +903,69 @@ def _advance_gameweek_for_room(room: dict, now: Optional[datetime] = None) -> di
     room["current_gameweek"] = new_gw
     room["squads_locked"] = False
     room["bidding_deadline"] = None
-    room["game_phase"] = "Bidding"
+    room["game_phase"] = "Awaiting Deadline"
     return {"from_gameweek": curr_gw, "gameweek": new_gw, "loan_returns": loan_returns}
+
+
+def _revert_last_gameweek(room: dict, now: Optional[datetime] = None) -> dict:
+    """Revert the most recent gameweek advance.
+    
+    If the room is at GW N (after advancing from N-1), this:
+    - Deletes gameweek_squads[N-1] if it was the lock that triggered the advance
+    - Removes automation rollover state for GW N-1
+    - Sets current_gameweek back to N-1
+    - Restores game_phase to 'Awaiting Deadline' with no deadline
+    
+    Returns a summary dict.
+    """
+    curr_gw = int(room.get("current_gameweek", 1))
+    if curr_gw <= 1:
+        raise ValueError("Cannot revert below GW1")
+    
+    revert_to = curr_gw - 1
+    revert_key = str(revert_to)
+    curr_key = str(curr_gw)
+    
+    log = []
+    
+    # 1. Remove the squad snapshot for the GW that was erroneously locked
+    gw_squads = room.get("gameweek_squads", {})
+    if curr_key in gw_squads:
+        # This means GW curr was locked accidentally — remove it
+        del gw_squads[curr_key]
+        log.append(f"Removed squad lock for GW{curr_gw}")
+    
+    # 2. Remove any scores for the current GW (shouldn't exist but be safe)
+    gw_scores = room.get("gameweek_scores", {})
+    if curr_key in gw_scores:
+        del gw_scores[curr_key]
+        log.append(f"Removed scores for GW{curr_gw}")
+    
+    # 3. Clear automation rollover state for the reverted GW
+    automation = room.get("automation", {})
+    rollovers = automation.get("deadline_rollovers", {})
+    if curr_key in rollovers:
+        del rollovers[curr_key]
+        log.append(f"Cleared rollover state for GW{curr_gw}")
+    
+    # 4. Clear automation IPL scoring state for the current GW
+    ipl_state = automation.get("ipl_scoring", {})
+    gw_states = ipl_state.get("gameweeks", {})
+    if curr_key in gw_states:
+        del gw_states[curr_key]
+        log.append(f"Cleared IPL scoring state for GW{curr_gw}")
+    
+    # 5. Restore room state
+    room["current_gameweek"] = revert_to
+    room["squads_locked"] = False
+    room["bidding_deadline"] = None
+    room["game_phase"] = "Awaiting Deadline"
+    
+    log.append(f"Reverted to GW{revert_to}, phase=Awaiting Deadline, deadline=None")
+    
+    _add_trade_log(room, f"🔙 Admin Revert: GW{curr_gw} → GW{revert_to} (undid accidental advance)", now)
+    
+    return {"reverted_from": curr_gw, "reverted_to": revert_to, "log": log}
 
 
 def _run_deadline_rollover_for_room(room_code: str, room: dict, now: Optional[datetime] = None) -> bool:

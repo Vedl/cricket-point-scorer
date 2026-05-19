@@ -793,7 +793,7 @@ def render_live_auction_fragment(room_code, user):
                 
                 # Use a container to isolate layout
                 with st.container():
-                    if room.get('squads_locked'):
+                    if market_frozen:
                         st.error("🔒 Market Closed. Bidding Suspended (Squads Locked).")
                     else:
                         col1, col2, col3 = st.columns([1, 1, 1])
@@ -1047,6 +1047,12 @@ def show_main_app():
     
     is_admin = room['admin'] == user
     admin_participating = room.get('admin_participating', True) # Default to True for old rooms
+    
+    # Market is frozen when squads are locked OR awaiting admin deadline
+    market_frozen = (
+        room.get('squads_locked')
+        or room.get('game_phase') in ('Awaiting Deadline', 'Elimination Pending')
+    )
     
     # === SERVERLESS HYBRID AUTOMATION HOOK ===
     # Runs once per session load (debounced) to handle pending deadline rollovers
@@ -1598,7 +1604,7 @@ def show_main_app():
                         new_ir = st.selectbox("Select Injury Reserve Player", opts, index=def_idx, key="ir_select")
                         
                         if st.button("💾 Save IR Choice"):
-                            if room.get('squads_locked'):
+                            if market_frozen:
                                 st.error("🔒 Cannot change IR status. Squads are locked.")
                             else:
                                 my_participant['injury_reserve'] = new_ir if new_ir != "None" else None
@@ -1611,6 +1617,17 @@ def show_main_app():
                             st.warning(f"⚠️ Squad size: {squad_size}/19. IR will NOT apply unless you add more players.")
                     else:
                         st.info("Add players to your squad to select an IR.")
+            
+            # === FROZEN STATE BANNER (Awaiting Deadline / Elimination Pending) ===
+            _game_phase = room.get('game_phase', 'Bidding')
+            _is_frozen = _game_phase in ('Awaiting Deadline', 'Elimination Pending')
+            
+            if _is_frozen:
+                _curr_gw_display = room.get('current_gameweek', 1)
+                if _game_phase == 'Awaiting Deadline':
+                    st.warning(f"⏳ **GW{_curr_gw_display} — Awaiting Deadline** | All trading, bidding, and player actions are **frozen** until the admin sets a deadline.")
+                else:
+                    st.error(f"🚫 **GW{_curr_gw_display} — Elimination Pending** | The market is **frozen**. Wait for scores and eliminations before trading resumes.")
             
             # Show countdown to deadline — 4-phase timeline (LIVE JS COUNTDOWN)
             now = get_ist_time()
@@ -2045,7 +2062,7 @@ def show_main_app():
                                 st.caption(f"Refund: **{refund_amount}M**")
                             
                                 if st.button("🔓 Release Player", key="open_release_btn"):
-                                    if room.get('squads_locked'):
+                                    if market_frozen:
                                         st.error("🔒 Market is Closed. Squads are locked until next Gameweek starts.")
                                     else:
                                         current_participant['squad'] = [p for p in current_participant['squad'] if p['name'] != player_to_remove]
@@ -2129,7 +2146,7 @@ def show_main_app():
                             c1, c2 = st.columns(2)
                             
                             # GUARD: Squads Locked
-                            if room.get('squads_locked'):
+                            if market_frozen:
                                 c1.warning("🔒 Market Closed")
                                 c2.warning("🔒 Market Closed")
                             else:
@@ -2372,8 +2389,12 @@ def show_main_app():
                 trading_deadline = global_deadline + timedelta(minutes=45) if global_deadline else None
                 is_trading_locked = False
                 
-                if room.get('squads_locked'):
-                    st.error("🔒 Trading is CLOSED (Market Locked by Admin).")
+                if market_frozen:
+                    _phase = room.get('game_phase', 'Locked')
+                    if _phase in ('Awaiting Deadline', 'Elimination Pending'):
+                        st.error(f"🔒 Trading is CLOSED ({_phase}). Wait for admin to set a deadline.")
+                    else:
+                        st.error("🔒 Trading is CLOSED (Market Locked by Admin).")
                     is_trading_locked = True
                 elif trading_deadline and now > trading_deadline:
                     st.error(f"🔒 Trading is CLOSED for this Gameweek (Deadline + 45m passed: {trading_deadline.strftime('%H:%M')})")
@@ -2654,7 +2675,7 @@ def show_main_app():
                                         f"(returns GW{loan['return_gw']})"
                                     )
                                 with col_action:
-                                    if room.get('squads_locked'):
+                                    if market_frozen:
                                         st.button("🔒 Locked", disabled=True, key=f"rev_loan_{i}")
                                     else:
                                         if st.button("↩️ Reverse", key=f"rev_loan_{i}", type="primary"):
@@ -2715,7 +2736,7 @@ def show_main_app():
                                             else:
                                                 st.error("Could not find borrower or owner participant.")
 
-                            if room.get('squads_locked'):
+                            if market_frozen:
                                 st.warning("🔒 Squads are locked. Unlock squads to reverse loans.")
 
                     st.divider()
@@ -3136,11 +3157,13 @@ def show_main_app():
                     for p in room.get('participants', []):
                         p['paid_releases'] = {} 
                     
-                    # === UNLOCK MARKET ===
+                    # === SET AWAITING DEADLINE (admin must explicitly open trading) ===
                     room['squads_locked'] = False
+                    room['bidding_deadline'] = None
+                    room['game_phase'] = 'Awaiting Deadline'
                     
                     save_auction_data(auction_data)
-                    msg = f"Started Gameweek {new_gw}! Market is now OPEN 🔓."
+                    msg = f"Started Gameweek {new_gw}! Set a deadline below to open trading."
                     if start_gw_log: msg += f" Loan Returns: {', '.join(start_gw_log)}"
                     st.success(msg)
                     st.rerun()
@@ -3363,28 +3386,112 @@ def show_main_app():
             st.divider()
             
             # === ADMIN DEADLINE SETTER ===
+            game_phase = room.get('game_phase', 'Bidding')
+            curr_gw_num = room.get('current_gameweek', 1)
+            
+            # --- Awaiting Deadline Banner ---
+            if game_phase == 'Awaiting Deadline':
+                st.warning(f"⏳ **GW{curr_gw_num} is awaiting a deadline.** All trading, bidding, and player actions are **frozen** until you set a deadline or choose 'Elimination Pending' below.")
+            
             st.markdown("### ⏰ Set Gameweek Deadline")
-            st.info("This deadline controls Bidding Phases and Trading Locks.")
             
-            # Default to now + 24h if not set
-            current_dl_str = room.get('bidding_deadline')
-            if current_dl_str:
-                curr_dl = datetime.fromisoformat(current_dl_str)
-            else:
-                curr_dl = get_ist_time() + timedelta(days=1)
-            
-            col_d1, col_d2 = st.columns(2)
-            with col_d1:
-                new_date = st.date_input("Deadline Date", curr_dl.date())
-            with col_d2:
-                new_time = st.time_input("Deadline Time", curr_dl.time())
+            if game_phase == 'Awaiting Deadline':
+                st.info("Trading is currently **frozen**. Choose one of the options below to proceed.")
                 
-            if st.button("💾 Set Deadline", type="primary"):
-                final_dt = datetime.combine(new_date, new_time)
-                room['bidding_deadline'] = final_dt.isoformat()
-                save_auction_data(auction_data)
-                st.success(f"Deadline updated to: {final_dt.strftime('%b %d, %H:%M')}")
-                st.rerun()
+                # Option 1: Set a deadline and open trading
+                st.markdown("**Option 1: Set Deadline & Open Trading**")
+                col_d1, col_d2 = st.columns(2)
+                with col_d1:
+                    new_date = st.date_input("Deadline Date", (get_ist_time() + timedelta(days=1)).date(), key="dl_date")
+                with col_d2:
+                    new_time = st.time_input("Deadline Time", (get_ist_time() + timedelta(hours=2)).time(), key="dl_time")
+                
+                if st.button("🟢 Set Deadline & Open Trading", type="primary", key="set_dl_open"):
+                    final_dt = datetime.combine(new_date, new_time)
+                    if final_dt <= get_ist_time():
+                        st.error("❌ **Deadline must be in the future!** You cannot set a deadline in the past.")
+                    else:
+                        room['bidding_deadline'] = final_dt.isoformat()
+                        room['game_phase'] = 'Bidding'
+                        save_auction_data(auction_data)
+                        st.success(f"✅ Deadline set to **{final_dt.strftime('%b %d, %H:%M')}** — Trading is now OPEN!")
+                        st.rerun()
+                
+                st.markdown("---")
+                
+                # Option 2: No deadline — Elimination pending
+                st.markdown("**Option 2: No Deadline — Elimination Pending**")
+                st.caption("Use this when the next gameweek requires eliminations based on previous GW scores. Trading stays frozen until you manually set a deadline later.")
+                if st.button("🚫 Keep Frozen (Elimination Pending)", key="no_dl_elim"):
+                    room['game_phase'] = 'Elimination Pending'
+                    room['bidding_deadline'] = None
+                    save_auction_data(auction_data)
+                    st.info("🚫 Market is frozen — Elimination Pending. Set a deadline later when ready to open trading.")
+                    st.rerun()
+            
+            elif game_phase == 'Elimination Pending':
+                st.warning(f"🚫 **GW{curr_gw_num} is in Elimination Pending mode.** All trading/bidding is frozen. Once eliminations are done, set a deadline to open trading.")
+                
+                col_d1, col_d2 = st.columns(2)
+                with col_d1:
+                    new_date = st.date_input("Deadline Date", (get_ist_time() + timedelta(days=1)).date(), key="dl_date_ep")
+                with col_d2:
+                    new_time = st.time_input("Deadline Time", (get_ist_time() + timedelta(hours=2)).time(), key="dl_time_ep")
+                
+                if st.button("🟢 Set Deadline & Open Trading", type="primary", key="set_dl_ep"):
+                    final_dt = datetime.combine(new_date, new_time)
+                    if final_dt <= get_ist_time():
+                        st.error("❌ **Deadline must be in the future!**")
+                    else:
+                        room['bidding_deadline'] = final_dt.isoformat()
+                        room['game_phase'] = 'Bidding'
+                        save_auction_data(auction_data)
+                        st.success(f"✅ Deadline set to **{final_dt.strftime('%b %d, %H:%M')}** — Trading is now OPEN!")
+                        st.rerun()
+            
+            else:
+                # Normal bidding/locked phase — allow updating deadline
+                st.info("This deadline controls Bidding Phases and Trading Locks.")
+                current_dl_str = room.get('bidding_deadline')
+                if current_dl_str:
+                    curr_dl = datetime.fromisoformat(current_dl_str)
+                    st.caption(f"Current deadline: **{curr_dl.strftime('%b %d, %H:%M')}**")
+                else:
+                    curr_dl = get_ist_time() + timedelta(days=1)
+                
+                col_d1, col_d2 = st.columns(2)
+                with col_d1:
+                    new_date = st.date_input("Deadline Date", curr_dl.date(), key="dl_date_norm")
+                with col_d2:
+                    new_time = st.time_input("Deadline Time", curr_dl.time(), key="dl_time_norm")
+                    
+                if st.button("💾 Update Deadline", type="primary", key="update_dl"):
+                    final_dt = datetime.combine(new_date, new_time)
+                    if final_dt <= get_ist_time():
+                        st.error("❌ **Deadline must be in the future!** Setting a past deadline would trigger an immediate rollover.")
+                    else:
+                        room['bidding_deadline'] = final_dt.isoformat()
+                        save_auction_data(auction_data)
+                        st.success(f"Deadline updated to: {final_dt.strftime('%b %d, %H:%M')}")
+                        st.rerun()
+            
+            # === ADMIN REVERT BUTTON ===
+            st.markdown("---")
+            with st.expander("🔙 Emergency: Revert Last Gameweek Advance"):
+                st.warning(f"**Current: GW{curr_gw_num}**. This will revert to **GW{curr_gw_num - 1}**, removing the GW{curr_gw_num} squad lock and resetting the phase to 'Awaiting Deadline'.")
+                st.caption("⚠️ Use this ONLY if the last gameweek advance was accidental (e.g., wrong deadline caused premature rollover).")
+                
+                _revert_confirm = st.checkbox(f"I confirm I want to revert GW{curr_gw_num} → GW{curr_gw_num - 1}", key="revert_confirm")
+                if _revert_confirm:
+                    if st.button(f"🔙 Revert to GW{curr_gw_num - 1}", type="primary", key="revert_gw"):
+                        try:
+                            import api_server as _api
+                            result = _api._revert_last_gameweek(room)
+                            save_auction_data(auction_data)
+                            st.success(f"✅ Reverted! {' | '.join(result.get('log', []))}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Revert failed: {e}")
                 
             st.divider()
             
