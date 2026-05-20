@@ -1227,6 +1227,36 @@ def _score_players(players_data: List[dict]) -> dict:
     return scores
 
 
+def _store_washed_out_match(
+    room: dict,
+    gameweek: int,
+    cricbuzz_url: str,
+    match_id: Optional[Any] = None,
+    result_text: str = "No result",
+) -> dict:
+    """Store a washed-out/abandoned match with zero scores, excluded from aggregation."""
+    gw_key = str(gameweek)
+    match_key = _manual_match_score_key(cricbuzz_url, match_id)
+    gw_match_scores = _ensure_legacy_match_scores(room, gw_key)
+    
+    gw_match_scores[match_key] = {
+        "url": _normalize_scorecard_url(cricbuzz_url),
+        "match_id": match_id,
+        "status": "washed_out",
+        "result_text": result_text,
+        "processed_at": _get_ist_now().isoformat(),
+        "scores": {},
+        "include_in_gameweek": False,  # Key flag: excluded from aggregate
+    }
+    # Rebuild aggregate (will skip this match due to include_in_gameweek=False)
+    aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
+    return {
+        "match_key": match_key,
+        "washed_out": True,
+        "aggregate": aggregate,
+    }
+
+
 def _calculate_and_store_scores_from_url(
     room: dict,
     gameweek: int,
@@ -1400,15 +1430,33 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
                 match_id = str(match.get("match_id"))
                 if match_state.get("status") == "processed":
                     continue  # Already scored in a prior cycle
-                _calculate_and_store_scores_from_url(
-                    room=room,
-                    gameweek=int(gw_key),
-                    cricbuzz_url=match_state["url"],
-                    match_id=match_id,
-                    allow_empty=bool(match_state.get("no_result")),
-                )
-                match_state["status"] = "processed"
-                match_state["processed_at"] = now.isoformat()
+                if match_state.get("status") == "washed_out":
+                    continue  # Already marked as washed out
+                
+                is_washed_out = match_state.get("no_result", False)
+                
+                if is_washed_out:
+                    # Washed-out match: store empty scores with include_in_gameweek=False
+                    _store_washed_out_match(
+                        room=room,
+                        gameweek=int(gw_key),
+                        cricbuzz_url=match_state["url"],
+                        match_id=match_id,
+                        result_text=match_state.get("result_text", "No result"),
+                    )
+                    match_state["status"] = "washed_out"
+                    match_state["processed_at"] = now.isoformat()
+                    match_state["washed_out"] = True
+                else:
+                    _calculate_and_store_scores_from_url(
+                        room=room,
+                        gameweek=int(gw_key),
+                        cricbuzz_url=match_state["url"],
+                        match_id=match_id,
+                        allow_empty=False,
+                    )
+                    match_state["status"] = "processed"
+                    match_state["processed_at"] = now.isoformat()
                 changed = True
         except Exception as exc:
             _record_automation_error(room, f"ipl_scoring:{room_code}:GW{gw_key}:partial", str(exc), now)
