@@ -3831,12 +3831,12 @@ def show_main_app():
                 
                 valid_parts = [p['name'] for p in room.get('participants', [])]
                 
-                # Bind Editor to Session State? No, just initialize from it.
-                # Actually, to keep edits across reruns (if they click other buttons), we need logic.
-                # But 'st.data_editor' maintains its own state if key is constant.
-                # The issue before was 'uploaded_file' triggering a re-parse that overwrote the editor.
-                # Now, re-parse is blocked by 'import_file_id' check.
-                
+                # Gather all player names from the database and the CSV raw names (to support empty database scenario)
+                csv_players = []
+                if st.session_state.import_staging_df is not None and "Player (Raw)" in st.session_state.import_staging_df:
+                    csv_players = st.session_state.import_staging_df["Player (Raw)"].dropna().unique().tolist()
+                combined_player_options = sorted(list(set(player_names).union(csv_players)))
+
                 edited_df = st.data_editor(
                     st.session_state.import_staging_df,
                     column_config={
@@ -3848,7 +3848,7 @@ def show_main_app():
                         "Player (DB)": st.column_config.SelectboxColumn(
                             "Player Name (DB)",
                             help="Select the valid player from Database",
-                            options=sorted(player_names),
+                            options=combined_player_options,
                             required=True,
                             width="large"
                         )
@@ -3861,6 +3861,8 @@ def show_main_app():
                 
                 if st.button("✅ Confirm & Import Squads", type="primary"):
                     success = 0
+                    db_changed = False
+                    new_players_list = list(players_db)
                     
                     if 'unsold_players' not in room:
                         all_owned = [pl['name'] for p in room.get('participants', []) for pl in p['squad']]
@@ -3872,6 +3874,18 @@ def show_main_app():
                         
                         if not p_curr or not pl_name or pd.isna(pl_name) or p_curr == "UNKNOWN": continue
                         pl_name = str(pl_name).strip()
+                        
+                        # Register in player database if missing
+                        if pl_name not in player_names:
+                            new_p_entry = {
+                                "name": pl_name,
+                                "role": "Unknown",
+                                "country": "Unknown"
+                            }
+                            new_players_list.append(new_p_entry)
+                            db_changed = True
+                            player_names.append(pl_name)
+                            player_info_map[pl_name] = new_p_entry
                         
                         part_obj = next((p for p in room.get('participants', []) if p['name'] == p_curr), None)
                         if part_obj:
@@ -3901,6 +3915,14 @@ def show_main_app():
                             if part:
                                 part['budget'] = budget
                                 
+                    if db_changed and active_tournament_type == "FIFA World Cup 2026":
+                        try:
+                            with open(FIFA_WC_PLAYERS_FILE, 'w') as f:
+                                json.dump(new_players_list, f, indent=4)
+                            st.toast(f"Saved {len(new_players_list)} players to database!")
+                        except Exception as e:
+                            st.error(f"Error saving to player database: {e}")
+
                     save_auction_data(auction_data)
                     st.success(f"Finalized Import! Added {success} players. Budgets Updated.")
                     
@@ -3908,6 +3930,7 @@ def show_main_app():
                     st.session_state.import_staging_df = None # Clear staging
                     st.session_state.import_file_id = None
                     st.session_state.extracted_budgets = {} # Clear budgets too
+
                     time.sleep(2)
                     st.rerun()
             
@@ -4240,27 +4263,36 @@ def show_main_app():
                                 all_scores = {}
                                 
                                 if active_tournament_type == 'FIFA World Cup 2026':
-                                    # Football scoring pipeline (FBref)
+                                    # Football scoring pipeline (WhoScored)
                                     import football_score_calculator
                                     progress = st.progress(0)
                                     status = st.empty()
                                     
+                                    all_scores_nested = {}
                                     for i, url in enumerate(urls):
-                                        status.text(f"Processing match {i+1}/{len(urls)} via FBref...")
+                                        status.text(f"Processing match {i+1}/{len(urls)} via WhoScored...")
                                         try:
                                             result_df = football_score_calculator.calc_all_players_whoscored(url)
                                             if not result_df.empty:
                                                 for _, row in result_df.iterrows():
-                                                    name = row['name']
-                                                    score = int(row['score'])
-                                                    if name in all_scores:
-                                                        all_scores[name] += score
-                                                    else:
-                                                        all_scores[name] = score
+                                                    name = row['Player']
+                                                    pos = row['Position']
+                                                    score = int(row['Score'])
+                                                    if name not in all_scores_nested:
+                                                        all_scores_nested[name] = {}
+                                                    all_scores_nested[name][pos] = all_scores_nested[name].get(pos, 0) + score
                                         except Exception as e:
                                             st.warning(f"Error processing {url}: {e}")
                                         
                                         progress.progress((i + 1) / len(urls))
+                                    
+                                    # Process nested scores to simple number or dictionary
+                                    for name, pos_scores in all_scores_nested.items():
+                                        if len(pos_scores) == 1:
+                                            all_scores[name] = list(pos_scores.values())[0]
+                                        else:
+                                            all_scores[name] = pos_scores
+
                                 else:
                                     # Cricket scoring pipeline (Cricbuzz)
                                     scraper = cricbuzz_scraper.CricbuzzScraper()
@@ -4362,21 +4394,30 @@ def show_main_app():
                         
                         if active_tournament_type == 'FIFA World Cup 2026':
                             import football_score_calculator
+                            all_scores_nested = {}
                             for i, url in enumerate(urls):
-                                status.text(f"Processing match {i+1}/{len(urls)} via FBref...")
+                                status.text(f"Processing match {i+1}/{len(urls)} via WhoScored...")
                                 try:
                                     result_df = football_score_calculator.calc_all_players_whoscored(url)
                                     if not result_df.empty:
                                         for _, row in result_df.iterrows():
-                                            name = row['name']
-                                            score = int(row['score'])
-                                            if name in all_scores:
-                                                all_scores[name] += score
-                                            else:
-                                                all_scores[name] = score
+                                            name = row['Player']
+                                            pos = row['Position']
+                                            score = int(row['Score'])
+                                            if name not in all_scores_nested:
+                                                all_scores_nested[name] = {}
+                                            all_scores_nested[name][pos] = all_scores_nested[name].get(pos, 0) + score
                                 except Exception as e:
                                     st.warning(f"Error processing {url}: {e}")
                                 progress.progress((i + 1) / len(urls))
+                            
+                            # Process nested scores to simple number or dictionary
+                            for name, pos_scores in all_scores_nested.items():
+                                if len(pos_scores) == 1:
+                                    all_scores[name] = list(pos_scores.values())[0]
+                                else:
+                                    all_scores[name] = pos_scores
+
                         else:
                             scraper = cricbuzz_scraper.CricbuzzScraper()
                             calculator = CricketScoreCalculator()
@@ -4745,34 +4786,54 @@ def show_main_app():
                 
                 scored_players = []
                 for p in active_squad: 
-                    score = player_scores.get(p['name'], 0)
+                    score_entry = player_scores.get(p['name'], 0)
                     
-                    # Normalize Role (Lookup if missing)
-                    role_str = p.get('role', '')
-                    if not role_str:
-                         role_str = player_role_lookup.get(p['name'], 'Unknown')
-                    
-                    role_str = role_str.lower()
-                    
-                    if is_football:
-                        # Football position mapping
-                        if 'gk' in role_str or 'goalkeeper' in role_str: cat = 'GK'
-                        elif 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: cat = 'DEF'
-                        elif 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: cat = 'MID'
-                        elif 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: cat = 'FWD'
-                        else: cat = 'MID'  # Default to midfielder for football
+                    if isinstance(score_entry, dict):
+                        # Dual position player
+                        for pos_key, pos_score in score_entry.items():
+                            scored_players.append({
+                                'name': p['name'], 
+                                'role': p.get('role', ''), 
+                                'category': pos_key, 
+                                'score': pos_score
+                            })
                     else:
-                        # Cricket position mapping
-                        if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
-                        elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
-                        elif 'bat' in role_str: cat = 'BAT'
-                        elif 'bowl' in role_str: cat = 'BWL'
-                        else: cat = 'BAT'
-                    
-                    scored_players.append({'name': p['name'], 'role': p.get('role', ''), 'category': cat, 'score': score})
+                        # Single position player
+                        role_str = p.get('role', '')
+                        if not role_str:
+                             role_str = player_role_lookup.get(p['name'], 'Unknown')
+                        
+                        role_str = role_str.lower()
+                        
+                        if is_football:
+                            if 'gk' in role_str or 'goalkeeper' in role_str: cat = 'GK'
+                            elif 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: cat = 'DEF'
+                            elif 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: cat = 'MID'
+                            elif 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: cat = 'FWD'
+                            else: cat = 'MID'
+                        else:
+                            if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
+                            elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
+                            elif 'bat' in role_str: cat = 'BAT'
+                            elif 'bowl' in role_str: cat = 'BWL'
+                            else: cat = 'BAT'
+                        
+                        scored_players.append({
+                            'name': p['name'], 
+                            'role': p.get('role', ''), 
+                            'category': cat, 
+                            'score': score_entry
+                        })
                 
-                if len(scored_players) <= 11:
-                    return scored_players, [] # List of players, empty warnings
+                # If unique players in active squad is <= 11, return them collapsed to their best scoring positions
+                unique_names = set(p['name'] for p in scored_players)
+                if len(unique_names) <= 11:
+                    collapsed_players = {}
+                    for p in scored_players:
+                        name = p['name']
+                        if name not in collapsed_players or p['score'] > collapsed_players[name]['score']:
+                            collapsed_players[name] = p
+                    return list(collapsed_players.values()), []
                 
                 # Brute force 11 from N
                 scored_players.sort(key=lambda x: x['score'], reverse=True)
@@ -4795,9 +4856,13 @@ def show_main_app():
                 best_team = []
                 best_score = -1
                 
-                # Optimization: Try to find a valid team starting from highest scorers
-                # Given max squad 19, active 18, C(18,11) = 31824.
+                # Brute force check unique combinations
                 for team in itertools.combinations(scored_players, 11):
+                    # Enforce unique player names (prevent playing same player in two positions)
+                    player_names_in_team = [p['name'] for p in team]
+                    if len(set(player_names_in_team)) < 11:
+                        continue
+                        
                     counts = {k: 0 for k in valid_ranges}
                     current_score = 0
                     for p in team:
@@ -4822,11 +4887,20 @@ def show_main_app():
                     range_str = ", ".join([f"{k}:{v[0]}-{v[1]}" for k, v in valid_ranges.items()])
                     warnings = [f"⚠️ Could not satisfy role constraints ({range_str}). Filling minimums with available players; empty slots score 0."]
                     
+                    # Collapse dual positions to highest-scoring position for fallback
+                    collapsed_players = {}
+                    for p in scored_players:
+                        name = p['name']
+                        if name not in collapsed_players or p['score'] > collapsed_players[name]['score']:
+                            collapsed_players[name] = p
+                    collapsed_pool = list(collapsed_players.values())
+                    
                     # Group available players by category, sorted by score desc
                     by_cat = {k: [] for k in valid_ranges}
-                    for p in scored_players:
+                    for p in collapsed_pool:
                         if p['category'] in by_cat:
                             by_cat[p['category']].append(p)
+
                     for cat in by_cat:
                         by_cat[cat].sort(key=lambda x: x['score'], reverse=True)
                     

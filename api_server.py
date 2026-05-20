@@ -619,6 +619,104 @@ def _load_ipl_schedule() -> dict:
         return json.load(f)
 
 
+def _load_fifa_schedule() -> dict:
+    schedule_path = Path(__file__).parent / "fifa_wc_2026_schedule.json"
+    if not schedule_path.exists():
+        return {}
+    with open(schedule_path) as f:
+        return json.load(f)
+
+
+def _find_fifa_schedule_match(match_id: int, gameweek: Optional[int] = None) -> Tuple[Optional[str], Optional[dict]]:
+    schedule = _load_fifa_schedule()
+    for gw_key, match in _iter_schedule_matches(schedule):
+        if gameweek is not None and gw_key != str(gameweek):
+            continue
+        if int(match.get("match_id", -1)) == int(match_id):
+            return gw_key, match
+    return None, None
+
+
+def _parse_fifa_match_datetime(date_str: str, time_str: str) -> Optional[datetime]:
+    if not date_str or not time_str:
+        return None
+    try:
+        match = re.match(r"(\d{2}):(\d{2})\s*UTC([+-]\d+)?(?::(\d{2}))?", time_str.strip())
+        if not match:
+            return datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
+        
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+        offset_sign_val = match.group(3)
+        offset_min_val = match.group(4)
+        
+        offset_hours = 0
+        offset_minutes = 0
+        if offset_sign_val:
+            sign = 1 if offset_sign_val[0] == '+' else -1
+            offset_hours = int(offset_sign_val[1:])
+            if offset_min_val:
+                offset_minutes = int(offset_min_val)
+            tz = timezone(sign * timedelta(hours=offset_hours, minutes=offset_minutes))
+        else:
+            tz = timezone.utc
+            
+        dt = datetime.strptime(date_str.strip(), "%Y-%m-%d")
+        dt = dt.replace(hour=hour, minute=minute, tzinfo=tz)
+        return dt
+    except Exception as e:
+        print(f"Error parsing FIFA match datetime {date_str} {time_str}: {e}")
+        try:
+            return datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
+        except:
+            return None
+
+
+def _search_whoscored_match_url(team_a: str, team_b: str) -> Optional[str]:
+    import urllib.parse
+    # Try multiple search query variations to maximize probability of finding the match page
+    queries = [
+        f"site:whoscored.com/Matches/ {team_a} vs {team_b} 2026",
+        f"site:whoscored.com/Matches/ {team_a} {team_b} 2026",
+        f"site:whoscored.com/Matches/ {team_a} {team_b}"
+    ]
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
+    # We load free proxies or curl_cffi directly
+    from curl_cffi import requests as curl_req
+    
+    for query in queries:
+        encoded_query = urllib.parse.quote(query)
+        search_url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+        try:
+            r = curl_req.get(search_url, headers=headers, impersonate="chrome120", timeout=10)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, "html.parser")
+                for a in soup.find_all("a", href=True):
+                    href = a["href"]
+                    if "whoscored.com/Matches/" in href or "whoscored.com%2FMatches%2F" in href:
+                        if "uddg=" in href:
+                            actual_url = href.split("uddg=")[1].split("&")[0]
+                            actual_url = urllib.parse.unquote(actual_url)
+                        else:
+                            actual_url = href
+                        if "/Live" in actual_url or "/live" in actual_url:
+                            # Verify if team names match roughly
+                            url_lower = actual_url.lower()
+                            t_a_part = team_a.lower().split()[0]
+                            t_b_part = team_b.lower().split()[0]
+                            if t_a_part in url_lower or t_b_part in url_lower:
+                                return actual_url
+        except Exception as e:
+            print(f"Error searching DuckDuckGo with query '{query}': {e}")
+            
+    return None
+
+
+
 def _iter_schedule_matches(schedule: dict):
     for gw_key, gw_data in schedule.get("gameweeks", {}).items():
         for match in gw_data.get("matches", []):
@@ -755,6 +853,15 @@ def _lock_squads_for_gameweek(room: dict, gameweek: Optional[int] = None, now: O
         return {"gameweek": curr_gw, "already_locked": True, "log": []}
 
     lock_log = []
+    
+    # One-time +100M budget boost for FIFA World Cup 2026 Room
+    is_football = room.get("tournament_type") == "FIFA World Cup 2026"
+    if is_football and curr_gw == 1 and not room.get("gw1_boost_applied"):
+        for participant in room.get("participants", []):
+            participant["budget"] = (participant.get("budget", 0) or 0) + 100.0
+        room["gw1_boost_applied"] = True
+        lock_log.append("Applied one-time +100M budget boost for all participants on Gameweek 1 squad lock.")
+
     for participant in room.get("participants", []):
         if participant.get("eliminated", False):
             continue
@@ -1501,6 +1608,229 @@ def _run_ipl_scoring_for_room(room_code: str, room: dict, now: Optional[datetime
     return changed
 
 
+def _update_football_player_db(df_players):
+    if df_players is None or df_players.empty:
+        return
+    players_file = Path(__file__).parent / "fifa_wc_2026_players.json"
+    existing_players = []
+    if players_file.exists():
+        try:
+            with open(players_file, "r") as f:
+                existing_players = json.load(f)
+        except Exception:
+            existing_players = []
+            
+    player_map = {}
+    for p in existing_players:
+        if isinstance(p, dict) and "name" in p:
+            player_map[p["name"]] = p
+    
+    pos_to_role = {
+        "GK": "Goalkeeper",
+        "DEF": "Defender",
+        "MID": "Midfielder",
+        "FWD": "Forward"
+    }
+    
+    db_changed = False
+    for _, row in df_players.iterrows():
+        name = row.get("Player")
+        team = row.get("Team")
+        pos = row.get("Position")
+        if not name or not team or not pos:
+            continue
+            
+        role = pos_to_role.get(pos, "Midfielder")
+        
+        if name not in player_map:
+            new_player = {
+                "name": name,
+                "role": role,
+                "country": team
+            }
+            existing_players.append(new_player)
+            player_map[name] = new_player
+            db_changed = True
+            
+    if db_changed:
+        try:
+            with open(players_file, "w") as f:
+                json.dump(existing_players, f, indent=2)
+            print(f"[FootballScorer] Successfully added new players to player lookup. Total: {len(existing_players)}")
+        except Exception as e:
+            print(f"[FootballScorer] Error saving players database: {e}")
+
+
+def _process_fifa_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_data: dict, now: Optional[datetime] = None) -> bool:
+    now = _as_ist(now)
+    automation = _get_automation_state(room)
+    fifa_state = automation.setdefault("fifa_scoring", {})
+    match_states = fifa_state.setdefault("matches", {})
+    gameweek_states = fifa_state.setdefault("gameweeks", {})
+    gw_state = gameweek_states.setdefault(gw_key, {})
+
+    if gw_state.get("status") in {"processed", "skipped_existing_scores"}:
+        return False
+
+    if gw_key in room.get("gameweek_scores", {}) and not gw_state.get("status"):
+        gw_state.update({
+            "status": "skipped_existing_scores",
+            "reason": "gameweek_scores already exists (manual or legacy)",
+            "checked_at": now.isoformat(),
+        })
+        automation["last_run_at"] = now.isoformat()
+        return True
+
+    if gw_key not in room.get("gameweek_squads", {}):
+        return False
+
+    matches = gw_data.get("matches", [])
+    if not matches:
+        return False
+
+    changed = False
+    unresolved = []
+    incomplete = []
+    errors = []
+    waiting_24h = []
+    ready_matches = []
+
+    for match in matches:
+        match_id = str(match.get("match_id"))
+        match_state = match_states.setdefault(match_id, {
+            "gameweek": gw_key,
+            "teams": match.get("teams", []),
+            "status": "pending",
+        })
+
+        # 24-hour Delay Check
+        kickoff_dt = _parse_fifa_match_datetime(match.get("date"), match.get("time"))
+        if kickoff_dt:
+            kickoff_ist = _as_ist(kickoff_dt)
+            if now < kickoff_ist + timedelta(hours=24):
+                match_state["status"] = "waiting_24h"
+                match_state["kickoff_time"] = kickoff_ist.isoformat()
+                waiting_24h.append(match_id)
+                continue
+
+        url = match_state.get("url")
+        if not url and match_state.get("status") in {"ambiguous", "unresolved", "error"}:
+            match_state["status"] = "pending"
+
+        if not url:
+            discovered_url = _search_whoscored_match_url(match["teams"][0], match["teams"][1])
+            if discovered_url:
+                url = discovered_url
+                match_state.update({
+                    "url": url,
+                    "status": "resolved",
+                    "resolved_at": now.isoformat(),
+                    "source": "auto_discovery",
+                })
+                changed = True
+            else:
+                match_state.update({
+                    "status": "unresolved",
+                    "checked_at": now.isoformat(),
+                })
+                unresolved.append(match_id)
+                changed = True
+                continue
+
+        if not url:
+            unresolved.append(match_id)
+            continue
+
+        if match_state.get("status") == "processed":
+            ready_matches.append((match, match_state))
+            continue
+
+        try:
+            import football_score_calculator
+            df_players = football_score_calculator.calc_all_players_whoscored(url)
+            if df_players.empty:
+                match_state.update({"status": "incomplete", "checked_at": now.isoformat()})
+                incomplete.append(match_id)
+                changed = True
+                continue
+            
+            # Dynamic database updates
+            _update_football_player_db(df_players)
+            
+            # Extract scores (dictionary for dual positions)
+            match_scores = {}
+            for _, row in df_players.iterrows():
+                name = row["Player"]
+                pos = row["Position"]
+                score = int(row["Score"])
+                if name not in match_scores:
+                    match_scores[name] = {}
+                match_scores[name][pos] = score
+            
+            for name, pos_scores in list(match_scores.items()):
+                if len(pos_scores) == 1:
+                    match_scores[name] = list(pos_scores.values())[0]
+
+            match_key = _manual_match_score_key(url, match_id)
+            gw_match_scores = _ensure_legacy_match_scores(room, gw_key)
+            gw_match_scores[match_key] = {
+                "url": url,
+                "match_id": match_id,
+                "status": "processed",
+                "processed_at": now.isoformat(),
+                "scores": match_scores,
+            }
+            
+            match_state["status"] = "processed"
+            match_state["processed_at"] = now.isoformat()
+            ready_matches.append((match, match_state))
+            changed = True
+
+        except Exception as exc:
+            match_state.update({"status": "error", "error": str(exc), "checked_at": now.isoformat()})
+            errors.append(match_id)
+            changed = True
+            continue
+
+    if unresolved or incomplete or errors or waiting_24h:
+        status = "error" if errors else "unresolved" if unresolved else "waiting_24h" if waiting_24h else "incomplete"
+        gw_state.update({
+            "status": status,
+            "unresolved_match_ids": unresolved,
+            "incomplete_match_ids": incomplete,
+            "error_match_ids": errors,
+            "waiting_24h_match_ids": waiting_24h,
+            "checked_at": now.isoformat(),
+        })
+        automation["last_run_at"] = now.isoformat()
+        return changed
+
+    aggregate = _rebuild_gameweek_scores_from_matches(room, gw_key)
+    gw_state.update({
+        "status": "processed",
+        "processed_at": now.isoformat(),
+        "matches_processed": len(ready_matches),
+        "players_scored": len(aggregate),
+    })
+    automation["last_run_at"] = now.isoformat()
+    return True
+
+
+def _run_fifa_scoring_for_room(room_code: str, room: dict, now: Optional[datetime] = None) -> bool:
+    if "fifa" not in room.get("tournament_type", "").lower():
+        return False
+
+    schedule = _load_fifa_schedule()
+    if not schedule:
+        return False
+
+    changed = False
+    for gw_key, gw_data in schedule.get("gameweeks", {}).items():
+        if _process_fifa_gameweek_scores(room_code, room, str(gw_key), gw_data, now):
+            changed = True
+    return changed
+
+
 def _run_admin_automation_cycle(now: Optional[datetime] = None) -> dict:
     now = _as_ist(now)
     data = _firebase_get()
@@ -1513,6 +1843,8 @@ def _run_admin_automation_cycle(now: Optional[datetime] = None) -> dict:
             if _run_deadline_rollover_for_room(room_code, room, now):
                 room_changed = True
             if _run_ipl_scoring_for_room(room_code, room, now):
+                room_changed = True
+            if _run_fifa_scoring_for_room(room_code, room, now):
                 room_changed = True
         except Exception as exc:
             _record_automation_error(room, f"cycle:{room_code}", str(exc), now)
@@ -3364,31 +3696,47 @@ async def automation_status(room_code: str = Query(...)):
 # ----------------------------------------------------------
 @app.post("/auction/match-url")
 async def set_match_url(req: MatchUrlOverrideRequest):
-    """Admin override for a Cricbuzz scorecard URL in the IPL schedule."""
+    """Admin override for a match URL (Cricbuzz for IPL, WhoScored for FIFA)."""
     data = _firebase_get()
     room = data.get("rooms", {}).get(req.room_code)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.get("admin") != req.admin_name:
         raise HTTPException(status_code=403, detail="Admin only")
-    if room.get("tournament_type") != "ipl":
-        raise HTTPException(status_code=400, detail="Match URL automation is only available for IPL rooms")
-    if "cricbuzz.com" not in req.cricbuzz_url.lower():
-        raise HTTPException(status_code=400, detail="cricbuzz_url must be a Cricbuzz URL")
-
-    gw_key, schedule_match = _find_schedule_match(req.match_id, req.gameweek)
-    if not schedule_match or not gw_key:
-        raise HTTPException(status_code=404, detail="Match not found in IPL 2026 schedule")
+        
+    t_type = room.get("tournament_type", "")
+    is_football = t_type == "FIFA World Cup 2026"
+    
+    if is_football:
+        if "whoscored.com" not in req.cricbuzz_url.lower() and not req.cricbuzz_url.lower().startswith("file://"):
+            raise HTTPException(status_code=400, detail="cricbuzz_url must be a WhoScored URL or file:// URL for FIFA rooms")
+        gw_key, schedule_match = _find_fifa_schedule_match(req.match_id, req.gameweek)
+        if not schedule_match or not gw_key:
+            raise HTTPException(status_code=404, detail="Match not found in FIFA schedule")
+    else:
+        if "cricbuzz.com" not in req.cricbuzz_url.lower():
+            raise HTTPException(status_code=400, detail="cricbuzz_url must be a Cricbuzz URL")
+        gw_key, schedule_match = _find_schedule_match(req.match_id, req.gameweek)
+        if not schedule_match or not gw_key:
+            raise HTTPException(status_code=404, detail="Match not found in IPL 2026 schedule")
 
     now = _get_ist_now()
     automation = _get_automation_state(room)
-    ipl_state = automation.setdefault("ipl_scoring", {})
-    match_states = ipl_state.setdefault("matches", {})
+    
+    if is_football:
+        fifa_state = automation.setdefault("fifa_scoring", {})
+        match_states = fifa_state.setdefault("matches", {})
+        match_url = req.cricbuzz_url.strip()
+    else:
+        ipl_state = automation.setdefault("ipl_scoring", {})
+        match_states = ipl_state.setdefault("matches", {})
+        match_url = _normalize_scorecard_url(req.cricbuzz_url)
+        
     match_id = str(req.match_id)
     match_states[match_id] = {
         "gameweek": gw_key,
         "teams": schedule_match.get("teams", []),
-        "url": _normalize_scorecard_url(req.cricbuzz_url),
+        "url": match_url,
         "confidence": 100,
         "source": "admin_override",
         "status": "resolved",
@@ -3456,15 +3804,27 @@ async def get_standings(
     if not gw_scores_all:
         return {"standings": [], "message": "No scores yet"}
 
+    is_football = room.get("tournament_type") == "FIFA World Cup 2026"
+
     # Load player role lookup
-    squads_file = Path(__file__).parent / "ipl_2026_squads.json"
     player_role_lookup = {}
-    if squads_file.exists():
-        with open(squads_file) as f:
-            squads_data = json.load(f)
-        for team_data in squads_data.get("teams", {}).values():
-            for pl in team_data.get("squad", []):
-                player_role_lookup[pl["name"]] = pl.get("role", "Batsman")
+    if is_football:
+        players_file = Path(__file__).parent / "fifa_wc_2026_players.json"
+        if players_file.exists():
+            with open(players_file) as f:
+                players_data = json.load(f)
+            if isinstance(players_data, list):
+                for pl in players_data:
+                    if isinstance(pl, dict) and "name" in pl:
+                        player_role_lookup[pl["name"]] = pl.get("role", "Midfielder")
+    else:
+        squads_file = Path(__file__).parent / "ipl_2026_squads.json"
+        if squads_file.exists():
+            with open(squads_file) as f:
+                squads_data = json.load(f)
+            for team_data in squads_data.get("teams", {}).values():
+                for pl in team_data.get("squad", []):
+                    player_role_lookup[pl["name"]] = pl.get("role", "Batsman")
 
     def categorize_role(role_str):
         role_str = (role_str or "").lower()
@@ -3476,47 +3836,162 @@ async def get_standings(
             return "BWL"
         return "BAT"
 
+    def map_football_role(role_str):
+        role_str = (role_str or "").lower()
+        if 'gk' in role_str or 'goalkeeper' in role_str: return 'GK'
+        if 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: return 'DEF'
+        if 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: return 'MID'
+        if 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: return 'FWD'
+        return 'MID'
+
+    def apply_bonus(score_val, bonus):
+        if isinstance(score_val, dict):
+            return {pos: val + bonus for pos, val in score_val.items()}
+        return score_val + bonus
+
     def get_best_11(squad, player_scores, ir_player=None):
         if len(squad) < 19:
             ir_player = None
-        active = [p for p in squad if (p["name"] if isinstance(p, dict) else p) != ir_player]
-        scored = []
-        for p in active:
+            
+        active_squad = [p for p in squad if (p["name"] if isinstance(p, dict) else p) != ir_player]
+        
+        scored_players = []
+        for p in active_squad:
             name = p["name"] if isinstance(p, dict) else p
-            role_str = (p.get("role", "") if isinstance(p, dict) else "")
-            if not role_str:
-                role_str = player_role_lookup.get(name, "Batsman")
-            cat = categorize_role(role_str)
-            scored.append({"name": name, "category": cat, "score": player_scores.get(name, 0)})
-        if len(scored) <= 11:
-            return scored
-        scored.sort(key=lambda x: x["score"], reverse=True)
+            score_entry = player_scores.get(name, 0)
+            
+            if isinstance(score_entry, dict):
+                for pos_key, pos_score in score_entry.items():
+                    scored_players.append({
+                        "name": name,
+                        "category": pos_key,
+                        "score": pos_score
+                    })
+            else:
+                role_str = p.get("role", "") if isinstance(p, dict) else ""
+                if not role_str:
+                    role_str = player_role_lookup.get(name, "Midfielder" if is_football else "Batsman")
+                
+                if is_football:
+                    cat = map_football_role(role_str)
+                else:
+                    cat = categorize_role(role_str)
+                    
+                scored_players.append({
+                    "name": name,
+                    "category": cat,
+                    "score": score_entry
+                })
+                
+        unique_names = set(p["name"] for p in scored_players)
+        if len(unique_names) <= 11:
+            collapsed_players = {}
+            for p in scored_players:
+                n = p["name"]
+                if n not in collapsed_players or p["score"] > collapsed_players[n]["score"]:
+                    collapsed_players[n] = p
+            return list(collapsed_players.values())
 
-        valid_ranges = {"WK": (1, 3), "BAT": (1, 4), "AR": (3, 6), "BWL": (2, 4)}
-        best_team, best_score = [], -1
-        for team in itertools.combinations(scored, 11):
-            counts = {"WK": 0, "BAT": 0, "AR": 0, "BWL": 0}
-            total = 0
+        scored_players.sort(key=lambda x: x["score"], reverse=True)
+        
+        if is_football:
+            valid_ranges = {
+                "GK": (1, 1),
+                "DEF": (3, 5),
+                "MID": (3, 5),
+                "FWD": (1, 3)
+            }
+        else:
+            valid_ranges = {
+                "WK": (1, 3),
+                "BAT": (1, 4),
+                "AR": (3, 6),
+                "BWL": (2, 4)
+            }
+            
+        best_team = []
+        best_score = -1
+        
+        for team in itertools.combinations(scored_players, 11):
+            player_names_in_team = [p["name"] for p in team]
+            if len(set(player_names_in_team)) < 11:
+                continue
+                
+            counts = {k: 0 for k in valid_ranges}
+            current_score = 0
             for p in team:
                 counts[p["category"]] += 1
-                total += p["score"]
-            if all(lo <= counts[r] <= hi for r, (lo, hi) in valid_ranges.items()):
-                if total > best_score:
-                    best_score = total
+                current_score += p["score"]
+                
+            is_valid = True
+            for role, (min_v, max_v) in valid_ranges.items():
+                if not (min_v <= counts[role] <= max_v):
+                    is_valid = False
+                    break
+                    
+            if is_valid:
+                if current_score > best_score:
+                    best_score = current_score
                     best_team = list(team)
-        return best_team if best_team else scored[:11]
+                    
+        if best_team:
+            return best_team
+            
+        collapsed_players = {}
+        for p in scored_players:
+            n = p["name"]
+            if n not in collapsed_players or p["score"] > collapsed_players[n]["score"]:
+                collapsed_players[n] = p
+        collapsed_pool = list(collapsed_players.values())
+        
+        by_cat = {k: [] for k in valid_ranges}
+        for p in collapsed_pool:
+            if p["category"] in by_cat:
+                by_cat[p["category"]].append(p)
+                
+        for cat in by_cat:
+            by_cat[cat].sort(key=lambda x: x["score"], reverse=True)
+            
+        greedy_team = []
+        used_names = set()
+        
+        for role, (min_v, _) in valid_ranges.items():
+            available = [p for p in by_cat[role] if p["name"] not in used_names]
+            filled = 0
+            for p in available:
+                if filled >= min_v:
+                    break
+                greedy_team.append(p)
+                used_names.add(p["name"])
+                filled += 1
+            while filled < min_v:
+                greedy_team.append({"name": f"[Empty {role} slot]", "category": role, "score": 0})
+                filled += 1
+                
+        remaining_slots = 11 - len(greedy_team)
+        if remaining_slots > 0:
+            unused = [p for p in scored_players if p["name"] not in used_names]
+            unused.sort(key=lambda x: x["score"], reverse=True)
+            for p in unused[:remaining_slots]:
+                cat_count = sum(1 for t in greedy_team if t["category"] == p["category"])
+                _, max_v = valid_ranges.get(p["category"], (0, 99))
+                if cat_count < max_v:
+                    greedy_team.append(p)
+                    used_names.add(p["name"])
+                    
+        greedy_team.sort(key=lambda x: x["score"], reverse=True)
+        return greedy_team[:11]
 
     # Build standings
     standings = []
     active_participants = [p for p in room.get("participants", []) if not p.get("eliminated", False)]
 
     if gameweek is not None:
-        # Single GW view
         gw_key = str(gameweek)
         scores = dict(gw_scores_all.get(gw_key, {}))
         bonuses = room.get("hattrick_bonuses", {}).get(gw_key, {})
         for pl, b in bonuses.items():
-            scores[pl] = scores.get(pl, 0) + b
+            scores[pl] = apply_bonus(scores.get(pl, 0), b)
 
         locked = room.get("gameweek_squads", {}).get(gw_key, {})
         for p in active_participants:
@@ -3531,13 +4006,12 @@ async def get_standings(
             total = sum(x["score"] for x in best)
             standings.append({"participant": p["name"], "points": total, "best_11": [x["name"] for x in best]})
     else:
-        # Cumulative
         p_totals = {p["name"]: 0.0 for p in active_participants}
         for gw, scores in gw_scores_all.items():
             scores_with_bonus = dict(scores)
             bonuses = room.get("hattrick_bonuses", {}).get(gw, {})
             for pl, b in bonuses.items():
-                scores_with_bonus[pl] = scores_with_bonus.get(pl, 0) + b
+                scores_with_bonus[pl] = apply_bonus(scores_with_bonus.get(pl, 0), b)
             locked = room.get("gameweek_squads", {}).get(str(gw), {})
             for p in active_participants:
                 sq_data = locked.get(p["name"])

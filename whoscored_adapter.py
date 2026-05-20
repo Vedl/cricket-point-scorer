@@ -52,53 +52,67 @@ def fetch_with_free_proxies(url):
 def get_whoscored_stats(ws_url):
     print(f"[WhoScoredAdapter] Fetching data from: {ws_url}")
     
-    # Check for ScraperAPI key in Streamlit secrets to bypass Cloudflare on Streamlit Cloud
-    scraper_api_key = None
-    try:
-        scraper_api_key = st.secrets.get("SCRAPER_API_KEY")
-    except:
-        pass
-        
     m = None
-    if scraper_api_key:
-        print("[WhoScoredAdapter] Using ScraperAPI to bypass Cloudflare...")
-        proxy_url = f"http://api.scraperapi.com?api_key={scraper_api_key}&url={ws_url}"
-        r = std_requests.get(proxy_url, timeout=30)
-        m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
-    
-    if not m:
+    if ws_url.startswith("file://"):
+        file_path = ws_url.replace("file://", "")
         try:
-            r = requests.get(ws_url, impersonate='chrome120', timeout=15)
-            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
-        except:
-            pass
-            
-    if not m:
-        print("[WhoScoredAdapter] curl_cffi failed. Trying tls_client fallback...")
-        try:
-            session = tls_client.Session(client_identifier="chrome_120", random_tls_extension_order=True)
-            r = session.get(ws_url, timeout_seconds=15)
-            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
-        except:
-            pass
-            
-    if not m:
-        print("[WhoScoredAdapter] tls_client failed. Launching Multithreaded Free Proxy Swarm...")
-        html_text = fetch_with_free_proxies(ws_url)
-        if html_text:
+            with open(file_path, "r", encoding="utf-8") as f:
+                html_text = f.read()
             m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', html_text, re.DOTALL)
-        
+        except Exception as e:
+            print(f"[WhoScoredAdapter] Error reading local file {file_path}: {e}")
+    
+    # Check for ScraperAPI key in Streamlit secrets to bypass Cloudflare on Streamlit Cloud
     if not m:
-        print("[WhoScoredAdapter] Free proxies failed. Falling back to cloudscraper...")
+        scraper_api_key = None
         try:
-            scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
-            r = scraper.get(ws_url, timeout=15)
-            m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+            scraper_api_key = st.secrets.get("SCRAPER_API_KEY")
         except:
             pass
+            
+        if scraper_api_key:
+            print("[WhoScoredAdapter] Using ScraperAPI to bypass Cloudflare...")
+            proxy_url = f"http://api.scraperapi.com?api_key={scraper_api_key}&url={ws_url}"
+            try:
+                r = std_requests.get(proxy_url, timeout=30)
+                m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+            except:
+                pass
         
-    if not m:
-        raise ValueError(f"Could not extract matchCentreData from the WhoScored page. All bypass methods failed.")
+        if not m:
+            try:
+                r = requests.get(ws_url, impersonate='chrome120', timeout=15)
+                m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+            except:
+                pass
+                
+        if not m:
+            print("[WhoScoredAdapter] curl_cffi failed. Trying tls_client fallback...")
+            try:
+                session = tls_client.Session(client_identifier="chrome_120", random_tls_extension_order=True)
+                r = session.get(ws_url, timeout_seconds=15)
+                m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+            except:
+                pass
+                
+        if not m:
+            print("[WhoScoredAdapter] tls_client failed. Launching Multithreaded Free Proxy Swarm...")
+            html_text = fetch_with_free_proxies(ws_url)
+            if html_text:
+                m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', html_text, re.DOTALL)
+            
+        if not m:
+            print("[WhoScoredAdapter] Free proxies failed. Falling back to cloudscraper...")
+            try:
+                scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
+                r = scraper.get(ws_url, timeout=15)
+                m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+            except:
+                pass
+            
+        if not m:
+            raise ValueError(f"Could not extract matchCentreData from the WhoScored page. All bypass methods failed.")
+
         
     data = json.loads(m.group(1))
     

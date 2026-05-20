@@ -1,115 +1,827 @@
 {
     "tournament": "FIFA World Cup 2026",
-    "host_countries": ["United States", "Canada", "Mexico"],
+    "host_countries": [
+        "United States",
+        "Canada",
+        "Mexico"
+    ],
     "start_date": "2026-06-11",
     "end_date": "2026-07-19",
-    "format": "48 teams, 12 groups of 4. Top 2 + 8 best third-placed advance to Round of 32.",
+    "format": "48 teams, 12 groups of 4. Top 2 + 8 best third-placed advance to Round of 32. Excludes 3rd place match.",
     "groups": {
-        "A": ["Mexico", "South Africa", "Korea Republic", "Czechia"],
-        "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
-        "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
-        "D": ["United States", "Paraguay", "Australia", "Türkiye"],
-        "E": ["Germany", "Curaçao", "Côte d'Ivoire", "Ecuador"],
-        "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
-        "G": ["Belgium", "Egypt", "Iran", "New Zealand"],
-        "H": ["Spain", "Cape Verde", "Saudi Arabia", "Uruguay"],
-        "I": ["France", "Senegal", "Iraq", "Norway"],
-        "J": ["TBD", "TBD", "TBD", "TBD"],
-        "K": ["TBD", "TBD", "TBD", "TBD"],
-        "L": ["TBD", "TBD", "TBD", "TBD"]
+        "A": [
+            "Czech Republic",
+            "Korea Republic",
+            "Mexico",
+            "South Africa"
+        ],
+        "B": [
+            "Bosnia and Herzegovina",
+            "Canada",
+            "Qatar",
+            "Switzerland"
+        ],
+        "C": [
+            "Brazil",
+            "Haiti",
+            "Morocco",
+            "Scotland"
+        ],
+        "D": [
+            "Australia",
+            "Paraguay",
+            "T\u00fcrkiye",
+            "United States"
+        ],
+        "E": [
+            "Cura\u00e7ao",
+            "C\u00f4te d'Ivoire",
+            "Ecuador",
+            "Germany"
+        ],
+        "F": [
+            "Japan",
+            "Netherlands",
+            "Sweden",
+            "Tunisia"
+        ],
+        "G": [
+            "Belgium",
+            "Egypt",
+            "Iran",
+            "New Zealand"
+        ],
+        "H": [
+            "Cape Verde",
+            "Saudi Arabia",
+            "Spain",
+            "Uruguay"
+        ],
+        "I": [
+            "France",
+            "Iraq",
+            "Norway",
+            "Senegal"
+        ],
+        "J": [
+            "Algeria",
+            "Argentina",
+            "Austria",
+            "Jordan"
+        ],
+        "K": [
+            "Colombia",
+            "DR Congo",
+            "Portugal",
+            "Uzbekistan"
+        ],
+        "L": [
+            "Croatia",
+            "England",
+            "Ghana",
+            "Panama"
+        ]
     },
     "gameweeks": {
         "1": {
-            "name": "Group Stage — Matchday 1",
+            "name": "Group Stage \u2014 Matchday 1",
             "phase": "Group Stage",
             "dates": "Jun 11-16, 2026",
             "matches": [
-                {"match_id": 1, "teams": ["Mexico", "South Africa"], "date": "2026-06-11", "venue": "Mexico City Stadium"},
-                {"match_id": 2, "teams": ["Korea Republic", "Czechia"], "date": "2026-06-11", "venue": "TBD"},
-                {"match_id": 3, "teams": ["Canada", "Bosnia and Herzegovina"], "date": "2026-06-12", "venue": "TBD"},
-                {"match_id": 4, "teams": ["Qatar", "Switzerland"], "date": "2026-06-12", "venue": "TBD"},
-                {"match_id": 5, "teams": ["Brazil", "Morocco"], "date": "2026-06-12", "venue": "TBD"},
-                {"match_id": 6, "teams": ["Haiti", "Scotland"], "date": "2026-06-12", "venue": "TBD"},
-                {"match_id": 7, "teams": ["United States", "Paraguay"], "date": "2026-06-13", "venue": "TBD"},
-                {"match_id": 8, "teams": ["Australia", "Türkiye"], "date": "2026-06-13", "venue": "TBD"},
-                {"match_id": 9, "teams": ["Germany", "Curaçao"], "date": "2026-06-13", "venue": "TBD"},
-                {"match_id": 10, "teams": ["Côte d'Ivoire", "Ecuador"], "date": "2026-06-13", "venue": "TBD"},
-                {"match_id": 11, "teams": ["Netherlands", "Japan"], "date": "2026-06-14", "venue": "TBD"},
-                {"match_id": 12, "teams": ["Sweden", "Tunisia"], "date": "2026-06-14", "venue": "TBD"},
-                {"match_id": 13, "teams": ["Belgium", "Egypt"], "date": "2026-06-14", "venue": "TBD"},
-                {"match_id": 14, "teams": ["Iran", "New Zealand"], "date": "2026-06-14", "venue": "TBD"},
-                {"match_id": 15, "teams": ["Spain", "Cape Verde"], "date": "2026-06-15", "venue": "TBD"},
-                {"match_id": 16, "teams": ["Saudi Arabia", "Uruguay"], "date": "2026-06-15", "venue": "TBD"},
-                {"match_id": 17, "teams": ["France", "Senegal"], "date": "2026-06-15", "venue": "TBD"},
-                {"match_id": 18, "teams": ["Iraq", "Norway"], "date": "2026-06-15", "venue": "TBD"},
-                {"match_id": 19, "teams": ["TBD (J1)", "TBD (J2)"], "date": "2026-06-16", "venue": "TBD"},
-                {"match_id": 20, "teams": ["TBD (J3)", "TBD (J4)"], "date": "2026-06-16", "venue": "TBD"},
-                {"match_id": 21, "teams": ["TBD (K1)", "TBD (K2)"], "date": "2026-06-16", "venue": "TBD"},
-                {"match_id": 22, "teams": ["TBD (K3)", "TBD (K4)"], "date": "2026-06-16", "venue": "TBD"},
-                {"match_id": 23, "teams": ["TBD (L1)", "TBD (L2)"], "date": "2026-06-16", "venue": "TBD"},
-                {"match_id": 24, "teams": ["TBD (L3)", "TBD (L4)"], "date": "2026-06-16", "venue": "TBD"}
+                {
+                    "match_id": 1,
+                    "teams": [
+                        "Mexico",
+                        "South Africa"
+                    ],
+                    "date": "2026-06-11",
+                    "time": "13:00 UTC-6",
+                    "venue": "Estadio Azteca, Mexico City"
+                },
+                {
+                    "match_id": 2,
+                    "teams": [
+                        "Korea Republic",
+                        "Czech Republic"
+                    ],
+                    "date": "2026-06-11",
+                    "time": "20:00 UTC-6",
+                    "venue": "Estadio Akron, Guadalajara"
+                },
+                {
+                    "match_id": 7,
+                    "teams": [
+                        "Canada",
+                        "Bosnia and Herzegovina"
+                    ],
+                    "date": "2026-06-12",
+                    "time": "15:00 UTC-4",
+                    "venue": "BMO Field, Toronto"
+                },
+                {
+                    "match_id": 8,
+                    "teams": [
+                        "Qatar",
+                        "Switzerland"
+                    ],
+                    "date": "2026-06-13",
+                    "time": "12:00 UTC-7",
+                    "venue": "Levi's Stadium, Santa Clara"
+                },
+                {
+                    "match_id": 13,
+                    "teams": [
+                        "Brazil",
+                        "Morocco"
+                    ],
+                    "date": "2026-06-13",
+                    "time": "18:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 14,
+                    "teams": [
+                        "Haiti",
+                        "Scotland"
+                    ],
+                    "date": "2026-06-13",
+                    "time": "21:00 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 19,
+                    "teams": [
+                        "United States",
+                        "Paraguay"
+                    ],
+                    "date": "2026-06-12",
+                    "time": "18:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 20,
+                    "teams": [
+                        "Australia",
+                        "T\u00fcrkiye"
+                    ],
+                    "date": "2026-06-13",
+                    "time": "21:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                },
+                {
+                    "match_id": 25,
+                    "teams": [
+                        "Germany",
+                        "Cura\u00e7ao"
+                    ],
+                    "date": "2026-06-14",
+                    "time": "12:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 26,
+                    "teams": [
+                        "C\u00f4te d'Ivoire",
+                        "Ecuador"
+                    ],
+                    "date": "2026-06-14",
+                    "time": "19:00 UTC-4",
+                    "venue": "Lincoln Financial Field, Philadelphia"
+                },
+                {
+                    "match_id": 31,
+                    "teams": [
+                        "Netherlands",
+                        "Japan"
+                    ],
+                    "date": "2026-06-14",
+                    "time": "15:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 32,
+                    "teams": [
+                        "Sweden",
+                        "Tunisia"
+                    ],
+                    "date": "2026-06-14",
+                    "time": "20:00 UTC-6",
+                    "venue": "Estadio BBVA, Monterrey"
+                },
+                {
+                    "match_id": 37,
+                    "teams": [
+                        "Belgium",
+                        "Egypt"
+                    ],
+                    "date": "2026-06-15",
+                    "time": "12:00 UTC-7",
+                    "venue": "Lumen Field, Seattle"
+                },
+                {
+                    "match_id": 38,
+                    "teams": [
+                        "Iran",
+                        "New Zealand"
+                    ],
+                    "date": "2026-06-15",
+                    "time": "18:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 43,
+                    "teams": [
+                        "Spain",
+                        "Cape Verde"
+                    ],
+                    "date": "2026-06-15",
+                    "time": "12:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 44,
+                    "teams": [
+                        "Saudi Arabia",
+                        "Uruguay"
+                    ],
+                    "date": "2026-06-15",
+                    "time": "18:00 UTC-4",
+                    "venue": "Hard Rock Stadium, Miami"
+                },
+                {
+                    "match_id": 49,
+                    "teams": [
+                        "France",
+                        "Senegal"
+                    ],
+                    "date": "2026-06-16",
+                    "time": "15:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 50,
+                    "teams": [
+                        "Iraq",
+                        "Norway"
+                    ],
+                    "date": "2026-06-16",
+                    "time": "18:00 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 55,
+                    "teams": [
+                        "Argentina",
+                        "Algeria"
+                    ],
+                    "date": "2026-06-16",
+                    "time": "20:00 UTC-5",
+                    "venue": "Arrowhead Stadium, Kansas City"
+                },
+                {
+                    "match_id": 56,
+                    "teams": [
+                        "Austria",
+                        "Jordan"
+                    ],
+                    "date": "2026-06-16",
+                    "time": "21:00 UTC-7",
+                    "venue": "Levi's Stadium, Santa Clara"
+                },
+                {
+                    "match_id": 61,
+                    "teams": [
+                        "Portugal",
+                        "DR Congo"
+                    ],
+                    "date": "2026-06-17",
+                    "time": "12:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 62,
+                    "teams": [
+                        "Uzbekistan",
+                        "Colombia"
+                    ],
+                    "date": "2026-06-17",
+                    "time": "20:00 UTC-6",
+                    "venue": "Estadio Azteca, Mexico City"
+                },
+                {
+                    "match_id": 67,
+                    "teams": [
+                        "England",
+                        "Croatia"
+                    ],
+                    "date": "2026-06-17",
+                    "time": "15:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 68,
+                    "teams": [
+                        "Ghana",
+                        "Panama"
+                    ],
+                    "date": "2026-06-17",
+                    "time": "19:00 UTC-4",
+                    "venue": "BMO Field, Toronto"
+                }
             ]
         },
         "2": {
-            "name": "Group Stage — Matchday 2",
+            "name": "Group Stage \u2014 Matchday 2",
             "phase": "Group Stage",
             "dates": "Jun 17-22, 2026",
             "matches": [
-                {"match_id": 25, "teams": ["South Africa", "Korea Republic"], "date": "2026-06-17", "venue": "TBD"},
-                {"match_id": 26, "teams": ["Mexico", "Czechia"], "date": "2026-06-17", "venue": "TBD"},
-                {"match_id": 27, "teams": ["Bosnia and Herzegovina", "Qatar"], "date": "2026-06-17", "venue": "TBD"},
-                {"match_id": 28, "teams": ["Canada", "Switzerland"], "date": "2026-06-18", "venue": "TBD"},
-                {"match_id": 29, "teams": ["Morocco", "Haiti"], "date": "2026-06-18", "venue": "TBD"},
-                {"match_id": 30, "teams": ["Brazil", "Scotland"], "date": "2026-06-18", "venue": "TBD"},
-                {"match_id": 31, "teams": ["Paraguay", "Australia"], "date": "2026-06-19", "venue": "TBD"},
-                {"match_id": 32, "teams": ["United States", "Türkiye"], "date": "2026-06-19", "venue": "TBD"},
-                {"match_id": 33, "teams": ["Curaçao", "Côte d'Ivoire"], "date": "2026-06-19", "venue": "TBD"},
-                {"match_id": 34, "teams": ["Germany", "Ecuador"], "date": "2026-06-20", "venue": "TBD"},
-                {"match_id": 35, "teams": ["Japan", "Sweden"], "date": "2026-06-20", "venue": "TBD"},
-                {"match_id": 36, "teams": ["Netherlands", "Tunisia"], "date": "2026-06-20", "venue": "TBD"},
-                {"match_id": 37, "teams": ["Egypt", "Iran"], "date": "2026-06-21", "venue": "TBD"},
-                {"match_id": 38, "teams": ["Belgium", "New Zealand"], "date": "2026-06-21", "venue": "TBD"},
-                {"match_id": 39, "teams": ["Cape Verde", "Saudi Arabia"], "date": "2026-06-21", "venue": "TBD"},
-                {"match_id": 40, "teams": ["Spain", "Uruguay"], "date": "2026-06-21", "venue": "TBD"},
-                {"match_id": 41, "teams": ["Senegal", "Iraq"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 42, "teams": ["France", "Norway"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 43, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 44, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 45, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 46, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 47, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-22", "venue": "TBD"},
-                {"match_id": 48, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-22", "venue": "TBD"}
+                {
+                    "match_id": 3,
+                    "teams": [
+                        "Czech Republic",
+                        "South Africa"
+                    ],
+                    "date": "2026-06-18",
+                    "time": "12:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 4,
+                    "teams": [
+                        "Mexico",
+                        "Korea Republic"
+                    ],
+                    "date": "2026-06-18",
+                    "time": "19:00 UTC-6",
+                    "venue": "Estadio Akron, Guadalajara"
+                },
+                {
+                    "match_id": 9,
+                    "teams": [
+                        "Switzerland",
+                        "Bosnia and Herzegovina"
+                    ],
+                    "date": "2026-06-18",
+                    "time": "12:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 10,
+                    "teams": [
+                        "Canada",
+                        "Qatar"
+                    ],
+                    "date": "2026-06-18",
+                    "time": "15:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                },
+                {
+                    "match_id": 15,
+                    "teams": [
+                        "Scotland",
+                        "Morocco"
+                    ],
+                    "date": "2026-06-19",
+                    "time": "18:00 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 16,
+                    "teams": [
+                        "Brazil",
+                        "Haiti"
+                    ],
+                    "date": "2026-06-19",
+                    "time": "20:30 UTC-4",
+                    "venue": "Lincoln Financial Field, Philadelphia"
+                },
+                {
+                    "match_id": 21,
+                    "teams": [
+                        "United States",
+                        "Australia"
+                    ],
+                    "date": "2026-06-19",
+                    "time": "12:00 UTC-7",
+                    "venue": "Lumen Field, Seattle"
+                },
+                {
+                    "match_id": 22,
+                    "teams": [
+                        "T\u00fcrkiye",
+                        "Paraguay"
+                    ],
+                    "date": "2026-06-19",
+                    "time": "20:00 UTC-7",
+                    "venue": "Levi's Stadium, Santa Clara"
+                },
+                {
+                    "match_id": 27,
+                    "teams": [
+                        "Germany",
+                        "C\u00f4te d'Ivoire"
+                    ],
+                    "date": "2026-06-20",
+                    "time": "16:00 UTC-4",
+                    "venue": "BMO Field, Toronto"
+                },
+                {
+                    "match_id": 28,
+                    "teams": [
+                        "Ecuador",
+                        "Cura\u00e7ao"
+                    ],
+                    "date": "2026-06-20",
+                    "time": "19:00 UTC-5",
+                    "venue": "Arrowhead Stadium, Kansas City"
+                },
+                {
+                    "match_id": 33,
+                    "teams": [
+                        "Netherlands",
+                        "Sweden"
+                    ],
+                    "date": "2026-06-20",
+                    "time": "12:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 34,
+                    "teams": [
+                        "Tunisia",
+                        "Japan"
+                    ],
+                    "date": "2026-06-20",
+                    "time": "22:00 UTC-6",
+                    "venue": "Estadio BBVA, Monterrey"
+                },
+                {
+                    "match_id": 39,
+                    "teams": [
+                        "Belgium",
+                        "Iran"
+                    ],
+                    "date": "2026-06-21",
+                    "time": "12:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 40,
+                    "teams": [
+                        "New Zealand",
+                        "Egypt"
+                    ],
+                    "date": "2026-06-21",
+                    "time": "18:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                },
+                {
+                    "match_id": 45,
+                    "teams": [
+                        "Spain",
+                        "Saudi Arabia"
+                    ],
+                    "date": "2026-06-21",
+                    "time": "12:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 46,
+                    "teams": [
+                        "Uruguay",
+                        "Cape Verde"
+                    ],
+                    "date": "2026-06-21",
+                    "time": "18:00 UTC-4",
+                    "venue": "Hard Rock Stadium, Miami"
+                },
+                {
+                    "match_id": 51,
+                    "teams": [
+                        "France",
+                        "Iraq"
+                    ],
+                    "date": "2026-06-22",
+                    "time": "17:00 UTC-4",
+                    "venue": "Lincoln Financial Field, Philadelphia"
+                },
+                {
+                    "match_id": 52,
+                    "teams": [
+                        "Norway",
+                        "Senegal"
+                    ],
+                    "date": "2026-06-22",
+                    "time": "20:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 57,
+                    "teams": [
+                        "Argentina",
+                        "Austria"
+                    ],
+                    "date": "2026-06-22",
+                    "time": "12:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 58,
+                    "teams": [
+                        "Jordan",
+                        "Algeria"
+                    ],
+                    "date": "2026-06-22",
+                    "time": "20:00 UTC-7",
+                    "venue": "Levi's Stadium, Santa Clara"
+                },
+                {
+                    "match_id": 63,
+                    "teams": [
+                        "Portugal",
+                        "Uzbekistan"
+                    ],
+                    "date": "2026-06-23",
+                    "time": "12:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 64,
+                    "teams": [
+                        "Colombia",
+                        "DR Congo"
+                    ],
+                    "date": "2026-06-23",
+                    "time": "20:00 UTC-6",
+                    "venue": "Estadio Akron, Guadalajara"
+                },
+                {
+                    "match_id": 69,
+                    "teams": [
+                        "England",
+                        "Ghana"
+                    ],
+                    "date": "2026-06-23",
+                    "time": "16:00 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 70,
+                    "teams": [
+                        "Panama",
+                        "Croatia"
+                    ],
+                    "date": "2026-06-23",
+                    "time": "19:00 UTC-4",
+                    "venue": "BMO Field, Toronto"
+                }
             ]
         },
         "3": {
-            "name": "Group Stage — Matchday 3",
+            "name": "Group Stage \u2014 Matchday 3",
             "phase": "Group Stage",
             "dates": "Jun 23-27, 2026",
             "matches": [
-                {"match_id": 49, "teams": ["Korea Republic", "Mexico"], "date": "2026-06-23", "venue": "TBD"},
-                {"match_id": 50, "teams": ["Czechia", "South Africa"], "date": "2026-06-23", "venue": "TBD"},
-                {"match_id": 51, "teams": ["Qatar", "Canada"], "date": "2026-06-23", "venue": "TBD"},
-                {"match_id": 52, "teams": ["Switzerland", "Bosnia and Herzegovina"], "date": "2026-06-23", "venue": "TBD"},
-                {"match_id": 53, "teams": ["Haiti", "Brazil"], "date": "2026-06-24", "venue": "TBD"},
-                {"match_id": 54, "teams": ["Scotland", "Morocco"], "date": "2026-06-24", "venue": "TBD"},
-                {"match_id": 55, "teams": ["Australia", "United States"], "date": "2026-06-24", "venue": "TBD"},
-                {"match_id": 56, "teams": ["Türkiye", "Paraguay"], "date": "2026-06-24", "venue": "TBD"},
-                {"match_id": 57, "teams": ["Côte d'Ivoire", "Germany"], "date": "2026-06-25", "venue": "TBD"},
-                {"match_id": 58, "teams": ["Ecuador", "Curaçao"], "date": "2026-06-25", "venue": "TBD"},
-                {"match_id": 59, "teams": ["Sweden", "Netherlands"], "date": "2026-06-25", "venue": "TBD"},
-                {"match_id": 60, "teams": ["Tunisia", "Japan"], "date": "2026-06-25", "venue": "TBD"},
-                {"match_id": 61, "teams": ["Iran", "Belgium"], "date": "2026-06-26", "venue": "TBD"},
-                {"match_id": 62, "teams": ["New Zealand", "Egypt"], "date": "2026-06-26", "venue": "TBD"},
-                {"match_id": 63, "teams": ["Saudi Arabia", "Spain"], "date": "2026-06-26", "venue": "TBD"},
-                {"match_id": 64, "teams": ["Uruguay", "Cape Verde"], "date": "2026-06-26", "venue": "TBD"},
-                {"match_id": 65, "teams": ["Iraq", "France"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 66, "teams": ["Norway", "Senegal"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 67, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 68, "teams": ["TBD (J)", "TBD (J)"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 69, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 70, "teams": ["TBD (K)", "TBD (K)"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 71, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-27", "venue": "TBD"},
-                {"match_id": 72, "teams": ["TBD (L)", "TBD (L)"], "date": "2026-06-27", "venue": "TBD"}
+                {
+                    "match_id": 5,
+                    "teams": [
+                        "Czech Republic",
+                        "Mexico"
+                    ],
+                    "date": "2026-06-24",
+                    "time": "19:00 UTC-6",
+                    "venue": "Estadio Azteca, Mexico City"
+                },
+                {
+                    "match_id": 6,
+                    "teams": [
+                        "South Africa",
+                        "Korea Republic"
+                    ],
+                    "date": "2026-06-24",
+                    "time": "19:00 UTC-6",
+                    "venue": "Estadio BBVA, Monterrey"
+                },
+                {
+                    "match_id": 11,
+                    "teams": [
+                        "Switzerland",
+                        "Canada"
+                    ],
+                    "date": "2026-06-24",
+                    "time": "12:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                },
+                {
+                    "match_id": 12,
+                    "teams": [
+                        "Bosnia and Herzegovina",
+                        "Qatar"
+                    ],
+                    "date": "2026-06-24",
+                    "time": "12:00 UTC-7",
+                    "venue": "Lumen Field, Seattle"
+                },
+                {
+                    "match_id": 17,
+                    "teams": [
+                        "Scotland",
+                        "Brazil"
+                    ],
+                    "date": "2026-06-24",
+                    "time": "18:00 UTC-4",
+                    "venue": "Hard Rock Stadium, Miami"
+                },
+                {
+                    "match_id": 18,
+                    "teams": [
+                        "Morocco",
+                        "Haiti"
+                    ],
+                    "date": "2026-06-24",
+                    "time": "18:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 23,
+                    "teams": [
+                        "T\u00fcrkiye",
+                        "United States"
+                    ],
+                    "date": "2026-06-25",
+                    "time": "19:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 24,
+                    "teams": [
+                        "Paraguay",
+                        "Australia"
+                    ],
+                    "date": "2026-06-25",
+                    "time": "19:00 UTC-7",
+                    "venue": "Levi's Stadium, Santa Clara"
+                },
+                {
+                    "match_id": 29,
+                    "teams": [
+                        "Cura\u00e7ao",
+                        "C\u00f4te d'Ivoire"
+                    ],
+                    "date": "2026-06-25",
+                    "time": "16:00 UTC-4",
+                    "venue": "Lincoln Financial Field, Philadelphia"
+                },
+                {
+                    "match_id": 30,
+                    "teams": [
+                        "Ecuador",
+                        "Germany"
+                    ],
+                    "date": "2026-06-25",
+                    "time": "16:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 35,
+                    "teams": [
+                        "Japan",
+                        "Sweden"
+                    ],
+                    "date": "2026-06-25",
+                    "time": "18:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 36,
+                    "teams": [
+                        "Tunisia",
+                        "Netherlands"
+                    ],
+                    "date": "2026-06-25",
+                    "time": "18:00 UTC-5",
+                    "venue": "Arrowhead Stadium, Kansas City"
+                },
+                {
+                    "match_id": 41,
+                    "teams": [
+                        "Egypt",
+                        "Iran"
+                    ],
+                    "date": "2026-06-26",
+                    "time": "20:00 UTC-7",
+                    "venue": "Lumen Field, Seattle"
+                },
+                {
+                    "match_id": 42,
+                    "teams": [
+                        "New Zealand",
+                        "Belgium"
+                    ],
+                    "date": "2026-06-26",
+                    "time": "20:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                },
+                {
+                    "match_id": 47,
+                    "teams": [
+                        "Cape Verde",
+                        "Saudi Arabia"
+                    ],
+                    "date": "2026-06-26",
+                    "time": "19:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 48,
+                    "teams": [
+                        "Uruguay",
+                        "Spain"
+                    ],
+                    "date": "2026-06-26",
+                    "time": "18:00 UTC-6",
+                    "venue": "Estadio Akron, Guadalajara"
+                },
+                {
+                    "match_id": 53,
+                    "teams": [
+                        "Norway",
+                        "France"
+                    ],
+                    "date": "2026-06-26",
+                    "time": "15:00 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 54,
+                    "teams": [
+                        "Senegal",
+                        "Iraq"
+                    ],
+                    "date": "2026-06-26",
+                    "time": "15:00 UTC-4",
+                    "venue": "BMO Field, Toronto"
+                },
+                {
+                    "match_id": 59,
+                    "teams": [
+                        "Algeria",
+                        "Austria"
+                    ],
+                    "date": "2026-06-27",
+                    "time": "21:00 UTC-5",
+                    "venue": "Arrowhead Stadium, Kansas City"
+                },
+                {
+                    "match_id": 60,
+                    "teams": [
+                        "Jordan",
+                        "Argentina"
+                    ],
+                    "date": "2026-06-27",
+                    "time": "21:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 65,
+                    "teams": [
+                        "Colombia",
+                        "Portugal"
+                    ],
+                    "date": "2026-06-27",
+                    "time": "19:30 UTC-4",
+                    "venue": "Hard Rock Stadium, Miami"
+                },
+                {
+                    "match_id": 66,
+                    "teams": [
+                        "DR Congo",
+                        "Uzbekistan"
+                    ],
+                    "date": "2026-06-27",
+                    "time": "19:30 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 71,
+                    "teams": [
+                        "Panama",
+                        "England"
+                    ],
+                    "date": "2026-06-27",
+                    "time": "17:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 72,
+                    "teams": [
+                        "Croatia",
+                        "Ghana"
+                    ],
+                    "date": "2026-06-27",
+                    "time": "17:00 UTC-4",
+                    "venue": "Lincoln Financial Field, Philadelphia"
+                }
             ]
         },
         "4": {
@@ -117,22 +829,166 @@
             "phase": "Knockout",
             "dates": "Jun 28 - Jul 3, 2026",
             "matches": [
-                {"match_id": 73, "teams": ["TBD (R32-1)", "TBD (R32-1)"], "date": "2026-06-28", "venue": "TBD"},
-                {"match_id": 74, "teams": ["TBD (R32-2)", "TBD (R32-2)"], "date": "2026-06-28", "venue": "TBD"},
-                {"match_id": 75, "teams": ["TBD (R32-3)", "TBD (R32-3)"], "date": "2026-06-29", "venue": "TBD"},
-                {"match_id": 76, "teams": ["TBD (R32-4)", "TBD (R32-4)"], "date": "2026-06-29", "venue": "TBD"},
-                {"match_id": 77, "teams": ["TBD (R32-5)", "TBD (R32-5)"], "date": "2026-06-30", "venue": "TBD"},
-                {"match_id": 78, "teams": ["TBD (R32-6)", "TBD (R32-6)"], "date": "2026-06-30", "venue": "TBD"},
-                {"match_id": 79, "teams": ["TBD (R32-7)", "TBD (R32-7)"], "date": "2026-07-01", "venue": "TBD"},
-                {"match_id": 80, "teams": ["TBD (R32-8)", "TBD (R32-8)"], "date": "2026-07-01", "venue": "TBD"},
-                {"match_id": 81, "teams": ["TBD (R32-9)", "TBD (R32-9)"], "date": "2026-07-02", "venue": "TBD"},
-                {"match_id": 82, "teams": ["TBD (R32-10)", "TBD (R32-10)"], "date": "2026-07-02", "venue": "TBD"},
-                {"match_id": 83, "teams": ["TBD (R32-11)", "TBD (R32-11)"], "date": "2026-07-02", "venue": "TBD"},
-                {"match_id": 84, "teams": ["TBD (R32-12)", "TBD (R32-12)"], "date": "2026-07-02", "venue": "TBD"},
-                {"match_id": 85, "teams": ["TBD (R32-13)", "TBD (R32-13)"], "date": "2026-07-03", "venue": "TBD"},
-                {"match_id": 86, "teams": ["TBD (R32-14)", "TBD (R32-14)"], "date": "2026-07-03", "venue": "TBD"},
-                {"match_id": 87, "teams": ["TBD (R32-15)", "TBD (R32-15)"], "date": "2026-07-03", "venue": "TBD"},
-                {"match_id": 88, "teams": ["TBD (R32-16)", "TBD (R32-16)"], "date": "2026-07-03", "venue": "TBD"}
+                {
+                    "match_id": 73,
+                    "teams": [
+                        "2A",
+                        "2B"
+                    ],
+                    "date": "2026-06-28",
+                    "time": "12:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 74,
+                    "teams": [
+                        "1E",
+                        "3A/B/C/D/F"
+                    ],
+                    "date": "2026-06-29",
+                    "time": "16:30 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 75,
+                    "teams": [
+                        "1F",
+                        "2C"
+                    ],
+                    "date": "2026-06-29",
+                    "time": "19:00 UTC-6",
+                    "venue": "Estadio BBVA, Monterrey"
+                },
+                {
+                    "match_id": 76,
+                    "teams": [
+                        "1C",
+                        "2F"
+                    ],
+                    "date": "2026-06-29",
+                    "time": "12:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 77,
+                    "teams": [
+                        "1I",
+                        "3C/D/F/G/H"
+                    ],
+                    "date": "2026-06-30",
+                    "time": "17:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 78,
+                    "teams": [
+                        "2E",
+                        "2I"
+                    ],
+                    "date": "2026-06-30",
+                    "time": "12:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 79,
+                    "teams": [
+                        "1A",
+                        "3C/E/F/H/I"
+                    ],
+                    "date": "2026-06-30",
+                    "time": "19:00 UTC-6",
+                    "venue": "Estadio Azteca, Mexico City"
+                },
+                {
+                    "match_id": 80,
+                    "teams": [
+                        "1L",
+                        "3E/H/I/J/K"
+                    ],
+                    "date": "2026-07-01",
+                    "time": "12:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 81,
+                    "teams": [
+                        "1D",
+                        "3B/E/F/I/J"
+                    ],
+                    "date": "2026-07-01",
+                    "time": "17:00 UTC-7",
+                    "venue": "Levi's Stadium, Santa Clara"
+                },
+                {
+                    "match_id": 82,
+                    "teams": [
+                        "1G",
+                        "3A/E/H/I/J"
+                    ],
+                    "date": "2026-07-01",
+                    "time": "13:00 UTC-7",
+                    "venue": "Lumen Field, Seattle"
+                },
+                {
+                    "match_id": 83,
+                    "teams": [
+                        "2K",
+                        "2L"
+                    ],
+                    "date": "2026-07-02",
+                    "time": "19:00 UTC-4",
+                    "venue": "BMO Field, Toronto"
+                },
+                {
+                    "match_id": 84,
+                    "teams": [
+                        "1H",
+                        "2J"
+                    ],
+                    "date": "2026-07-02",
+                    "time": "12:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 85,
+                    "teams": [
+                        "1B",
+                        "3E/F/G/I/J"
+                    ],
+                    "date": "2026-07-02",
+                    "time": "20:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                },
+                {
+                    "match_id": 86,
+                    "teams": [
+                        "1J",
+                        "2H"
+                    ],
+                    "date": "2026-07-03",
+                    "time": "18:00 UTC-4",
+                    "venue": "Hard Rock Stadium, Miami"
+                },
+                {
+                    "match_id": 87,
+                    "teams": [
+                        "1K",
+                        "3D/E/I/J/L"
+                    ],
+                    "date": "2026-07-03",
+                    "time": "20:30 UTC-5",
+                    "venue": "Arrowhead Stadium, Kansas City"
+                },
+                {
+                    "match_id": 88,
+                    "teams": [
+                        "2D",
+                        "2G"
+                    ],
+                    "date": "2026-07-03",
+                    "time": "13:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                }
             ]
         },
         "5": {
@@ -140,14 +996,86 @@
             "phase": "Knockout",
             "dates": "Jul 4-7, 2026",
             "matches": [
-                {"match_id": 89, "teams": ["TBD (R16-1)", "TBD (R16-1)"], "date": "2026-07-04", "venue": "TBD"},
-                {"match_id": 90, "teams": ["TBD (R16-2)", "TBD (R16-2)"], "date": "2026-07-04", "venue": "TBD"},
-                {"match_id": 91, "teams": ["TBD (R16-3)", "TBD (R16-3)"], "date": "2026-07-05", "venue": "TBD"},
-                {"match_id": 92, "teams": ["TBD (R16-4)", "TBD (R16-4)"], "date": "2026-07-05", "venue": "TBD"},
-                {"match_id": 93, "teams": ["TBD (R16-5)", "TBD (R16-5)"], "date": "2026-07-06", "venue": "TBD"},
-                {"match_id": 94, "teams": ["TBD (R16-6)", "TBD (R16-6)"], "date": "2026-07-06", "venue": "TBD"},
-                {"match_id": 95, "teams": ["TBD (R16-7)", "TBD (R16-7)"], "date": "2026-07-07", "venue": "TBD"},
-                {"match_id": 96, "teams": ["TBD (R16-8)", "TBD (R16-8)"], "date": "2026-07-07", "venue": "TBD"}
+                {
+                    "match_id": 89,
+                    "teams": [
+                        "W74",
+                        "W77"
+                    ],
+                    "date": "2026-07-04",
+                    "time": "17:00 UTC-4",
+                    "venue": "Lincoln Financial Field, Philadelphia"
+                },
+                {
+                    "match_id": 90,
+                    "teams": [
+                        "W73",
+                        "W75"
+                    ],
+                    "date": "2026-07-04",
+                    "time": "12:00 UTC-5",
+                    "venue": "NRG Stadium, Houston"
+                },
+                {
+                    "match_id": 91,
+                    "teams": [
+                        "W76",
+                        "W78"
+                    ],
+                    "date": "2026-07-05",
+                    "time": "16:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                },
+                {
+                    "match_id": 92,
+                    "teams": [
+                        "W79",
+                        "W80"
+                    ],
+                    "date": "2026-07-05",
+                    "time": "18:00 UTC-6",
+                    "venue": "Estadio Azteca, Mexico City"
+                },
+                {
+                    "match_id": 93,
+                    "teams": [
+                        "W83",
+                        "W84"
+                    ],
+                    "date": "2026-07-06",
+                    "time": "14:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 94,
+                    "teams": [
+                        "W81",
+                        "W82"
+                    ],
+                    "date": "2026-07-06",
+                    "time": "17:00 UTC-7",
+                    "venue": "Lumen Field, Seattle"
+                },
+                {
+                    "match_id": 95,
+                    "teams": [
+                        "W86",
+                        "W88"
+                    ],
+                    "date": "2026-07-07",
+                    "time": "12:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                },
+                {
+                    "match_id": 96,
+                    "teams": [
+                        "W85",
+                        "W87"
+                    ],
+                    "date": "2026-07-07",
+                    "time": "13:00 UTC-7",
+                    "venue": "BC Place, Vancouver"
+                }
             ]
         },
         "6": {
@@ -155,10 +1083,46 @@
             "phase": "Knockout",
             "dates": "Jul 9-11, 2026",
             "matches": [
-                {"match_id": 97, "teams": ["TBD (QF1)", "TBD (QF1)"], "date": "2026-07-09", "venue": "TBD"},
-                {"match_id": 98, "teams": ["TBD (QF2)", "TBD (QF2)"], "date": "2026-07-09", "venue": "TBD"},
-                {"match_id": 99, "teams": ["TBD (QF3)", "TBD (QF3)"], "date": "2026-07-10", "venue": "TBD"},
-                {"match_id": 100, "teams": ["TBD (QF4)", "TBD (QF4)"], "date": "2026-07-11", "venue": "TBD"}
+                {
+                    "match_id": 97,
+                    "teams": [
+                        "W89",
+                        "W90"
+                    ],
+                    "date": "2026-07-09",
+                    "time": "16:00 UTC-4",
+                    "venue": "Gillette Stadium, Boston"
+                },
+                {
+                    "match_id": 98,
+                    "teams": [
+                        "W93",
+                        "W94"
+                    ],
+                    "date": "2026-07-10",
+                    "time": "12:00 UTC-7",
+                    "venue": "SoFi Stadium, Los Angeles"
+                },
+                {
+                    "match_id": 99,
+                    "teams": [
+                        "W91",
+                        "W92"
+                    ],
+                    "date": "2026-07-11",
+                    "time": "17:00 UTC-4",
+                    "venue": "Hard Rock Stadium, Miami"
+                },
+                {
+                    "match_id": 100,
+                    "teams": [
+                        "W95",
+                        "W96"
+                    ],
+                    "date": "2026-07-11",
+                    "time": "20:00 UTC-5",
+                    "venue": "Arrowhead Stadium, Kansas City"
+                }
             ]
         },
         "7": {
@@ -166,17 +1130,43 @@
             "phase": "Knockout",
             "dates": "Jul 14-15, 2026",
             "matches": [
-                {"match_id": 101, "teams": ["TBD (SF1)", "TBD (SF1)"], "date": "2026-07-14", "venue": "TBD"},
-                {"match_id": 102, "teams": ["TBD (SF2)", "TBD (SF2)"], "date": "2026-07-15", "venue": "TBD"}
+                {
+                    "match_id": 101,
+                    "teams": [
+                        "W97",
+                        "W98"
+                    ],
+                    "date": "2026-07-14",
+                    "time": "14:00 UTC-5",
+                    "venue": "AT&T Stadium, Dallas"
+                },
+                {
+                    "match_id": 102,
+                    "teams": [
+                        "W99",
+                        "W100"
+                    ],
+                    "date": "2026-07-15",
+                    "time": "15:00 UTC-4",
+                    "venue": "Mercedes-Benz Stadium, Atlanta"
+                }
             ]
         },
         "8": {
-            "name": "Third Place & Final",
+            "name": "Final",
             "phase": "Final",
-            "dates": "Jul 18-19, 2026",
+            "dates": "Jul 19, 2026",
             "matches": [
-                {"match_id": 103, "teams": ["TBD (3rd Place)", "TBD (3rd Place)"], "date": "2026-07-18", "venue": "TBD"},
-                {"match_id": 104, "teams": ["TBD (Final)", "TBD (Final)"], "date": "2026-07-19", "venue": "MetLife Stadium, New York/New Jersey"}
+                {
+                    "match_id": 104,
+                    "teams": [
+                        "W101",
+                        "W102"
+                    ],
+                    "date": "2026-07-19",
+                    "time": "15:00 UTC-4",
+                    "venue": "MetLife Stadium, New York/New Jersey"
+                }
             ]
         }
     }
