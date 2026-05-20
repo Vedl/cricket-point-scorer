@@ -4207,12 +4207,13 @@ def show_main_app():
                     st.markdown("**Matches in this Gameweek:**")
                     matches_df = pd.DataFrame(gw_data['matches'])
                     matches_df['Match'] = matches_df['teams'].apply(lambda x: f"{x[0]} vs {x[1]}")
-                    st.dataframe(matches_df[['match_id', 'Match', 'date', 'venue']], use_container_width=True, hide_index=True)
+                    display_cols = ['match_id', 'Match', 'date']
+                    if 'time' in matches_df.columns:
+                        display_cols.append('time')
+                    display_cols.append('venue')
+                    st.dataframe(matches_df[display_cols], use_container_width=True, hide_index=True)
                     
                     locked_squads = room.get('gameweek_squads', {}).get(selected_gw, {})
-                    # Debug:
-                    st.write(f"DEBUG: Viewer selected_gw type: {type(selected_gw)}, val: {selected_gw}")
-                    st.write(f"DEBUG: squad keys: {list(room.get('gameweek_squads', {}).keys())}")
 
                     if locked_squads:
                         st.success(f"✅ Squads are locked for GW {selected_gw}. {len(locked_squads)} participants locked.")
@@ -4240,9 +4241,9 @@ def show_main_app():
                     if is_admin:
                         st.divider()
                         if active_tournament_type == 'FIFA World Cup 2026':
-                            st.markdown("**Enter FBref Match Report URLs for the above matches:**")
-                            st.caption("After each match completes, paste the FBref match report URL here.")
-                            url_placeholder = "https://fbref.com/en/matches/abc123/...\nhttps://fbref.com/en/matches/def456/..."
+                            st.markdown("**Enter WhoScored Match URLs for the above matches:**")
+                            st.caption("After each match completes, paste the WhoScored match URL here.")
+                            url_placeholder = "https://www.whoscored.com/Matches/12345/Live/...\nhttps://www.whoscored.com/Matches/67890/Live/..."
                         else:
                             st.markdown("**Enter Cricbuzz Scorecard URLs for the above matches:**")
                             st.caption("After each match completes, paste the scorecard URL here.")
@@ -4377,7 +4378,7 @@ def show_main_app():
             else:
                 manual_gw = st.number_input("Gameweek Number", min_value=1, max_value=10, value=1)
                 if active_tournament_type == 'FIFA World Cup 2026':
-                    manual_url_placeholder = "https://fbref.com/en/matches/abc123/..."
+                    manual_url_placeholder = "https://www.whoscored.com/Matches/12345/Live/..."
                 else:
                     manual_url_placeholder = "https://www.cricbuzz.com/live-cricket-scorecard/..."
                 manual_urls = st.text_area("Match URLs (one per line)", height=200, placeholder=manual_url_placeholder, key="manual_urls")
@@ -4758,17 +4759,39 @@ def show_main_app():
                 # Apply hattrick bonuses for this specific gameweek
                 hattrick_bonuses = room.get('hattrick_bonuses', {}).get(selected_gw, {})
                 for player, bonus in hattrick_bonuses.items():
-                    gw_scores[player] = gw_scores.get(player, 0) + bonus
+                    existing = gw_scores.get(player, 0)
+                    if isinstance(existing, dict):
+                        gw_scores[player] = {k: v + bonus for k, v in existing.items()}
+                    else:
+                        gw_scores[player] = existing + bonus
             else:
                 gw_scores = {}
                 for gw, scores in room['gameweek_scores'].items():
-                    # Add base scores
+                    # Add base scores (handle dict scores for dual-position players)
                     for player, score in scores.items():
-                        gw_scores[player] = gw_scores.get(player, 0) + score
+                        existing = gw_scores.get(player, 0)
+                        if isinstance(score, dict) and isinstance(existing, dict):
+                            merged = dict(existing)
+                            for k, v in score.items():
+                                merged[k] = merged.get(k, 0) + v
+                            gw_scores[player] = merged
+                        elif isinstance(score, dict):
+                            if existing == 0:
+                                gw_scores[player] = dict(score)
+                            else:
+                                gw_scores[player] = {k: v + existing for k, v in score.items()}
+                        elif isinstance(existing, dict):
+                            gw_scores[player] = {k: v + score for k, v in existing.items()}
+                        else:
+                            gw_scores[player] = existing + score
                     # Add hattrick bonuses for this GW
                     hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
                     for player, bonus in hattrick_bonuses.items():
-                        gw_scores[player] = gw_scores.get(player, 0) + bonus
+                        existing = gw_scores.get(player, 0)
+                        if isinstance(existing, dict):
+                            gw_scores[player] = {k: v + bonus for k, v in existing.items()}
+                        else:
+                            gw_scores[player] = existing + bonus
             
             # Calculate Best 11 for each participant
             def get_best_11(squad, player_scores, ir_player=None):

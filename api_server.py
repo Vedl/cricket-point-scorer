@@ -1320,7 +1320,21 @@ def _rebuild_gameweek_scores_from_matches(room: dict, gw_key: str) -> dict:
         if entry.get("include_in_gameweek", True) is False:
             continue
         for player, score in entry.get("scores", {}).items():
-            aggregate[player] = aggregate.get(player, 0) + score
+            existing = aggregate.get(player, 0)
+            if isinstance(score, dict) and isinstance(existing, dict):
+                merged = dict(existing)
+                for k, v in score.items():
+                    merged[k] = merged.get(k, 0) + v
+                aggregate[player] = merged
+            elif isinstance(score, dict):
+                if existing == 0:
+                    aggregate[player] = dict(score)
+                else:
+                    aggregate[player] = {k: v + existing for k, v in score.items()}
+            elif isinstance(existing, dict):
+                aggregate[player] = {k: v + score for k, v in existing.items()}
+            else:
+                aggregate[player] = existing + score
     room.setdefault("gameweek_scores", {})[gw_key] = aggregate
     return aggregate
 
