@@ -1092,16 +1092,28 @@ def show_main_app():
             except Exception as _e1:
                 _auto_result['steps'].append(f"❌ Deadline rollover ERROR: {type(_e1).__name__}: {_e1}")
             
-            # Step 2: IPL scoring
-            _auto_result['steps'].append("🔄 Running IPL scoring check...")
-            try:
-                if _api._run_ipl_scoring_for_room(room_code, room):
-                    _room_changed = True
-                    _auto_result['steps'].append("✅ IPL scoring TRIGGERED (room changed)")
-                else:
-                    _auto_result['steps'].append("⏭️ IPL scoring: no action needed")
-            except Exception as _e2:
-                _auto_result['steps'].append(f"❌ IPL scoring ERROR: {type(_e2).__name__}: {_e2}")
+            # Step 2: Tournament scoring (IPL or FIFA)
+            _is_fifa_room = room.get('tournament_type') == 'FIFA World Cup 2026'
+            if _is_fifa_room:
+                _auto_result['steps'].append("🔄 Running FIFA WC scoring check...")
+                try:
+                    if _api._run_fifa_scoring_for_room(room_code, room):
+                        _room_changed = True
+                        _auto_result['steps'].append("✅ FIFA scoring TRIGGERED (room changed)")
+                    else:
+                        _auto_result['steps'].append("⏭️ FIFA scoring: no action needed")
+                except Exception as _e2:
+                    _auto_result['steps'].append(f"❌ FIFA scoring ERROR: {type(_e2).__name__}: {_e2}")
+            else:
+                _auto_result['steps'].append("🔄 Running IPL scoring check...")
+                try:
+                    if _api._run_ipl_scoring_for_room(room_code, room):
+                        _room_changed = True
+                        _auto_result['steps'].append("✅ IPL scoring TRIGGERED (room changed)")
+                    else:
+                        _auto_result['steps'].append("⏭️ IPL scoring: no action needed")
+                except Exception as _e2:
+                    _auto_result['steps'].append(f"❌ IPL scoring ERROR: {type(_e2).__name__}: {_e2}")
             
             # Step 3: Save
             if _room_changed:
@@ -1134,9 +1146,11 @@ def show_main_app():
     if is_admin:
         _auto_result = st.session_state.get(_auto_result_key)
         _automation_data = room.get('automation', {})
-        _ipl_scoring = _automation_data.get('ipl_scoring', {})
-        _match_states = _ipl_scoring.get('matches', {})
-        _gw_states = _ipl_scoring.get('gameweeks', {})
+        _is_fifa = active_tournament_type == 'FIFA World Cup 2026'
+        _scoring_key = 'fifa_scoring' if _is_fifa else 'ipl_scoring'
+        _scoring_state = _automation_data.get(_scoring_key, {})
+        _match_states = _scoring_state.get('matches', {})
+        _gw_states = _scoring_state.get('gameweeks', {})
         _recent_errors = _automation_data.get('errors', [])[-5:]
         
         with st.expander("🤖 Automation Status Dashboard", expanded=bool(_recent_errors)):
@@ -1177,14 +1191,20 @@ def show_main_app():
                 for gw_k in sorted(_gw_states.keys(), key=lambda x: int(x) if x.isdigit() else 0):
                     gs = _gw_states[gw_k]
                     _status = gs.get('status', 'unknown')
-                    _emoji = {'processed': '✅', 'incomplete': '⏳', 'unresolved': '🔍', 'error': '❌', 'skipped_existing_scores': '⏭️'}.get(_status, '❓')
-                    _gw_rows.append({
+                    _emoji = {
+                        'processed': '✅', 'incomplete': '⏳', 'unresolved': '🔍',
+                        'error': '❌', 'skipped_existing_scores': '⏭️', 'waiting_24h': '⏰'
+                    }.get(_status, '❓')
+                    _row = {
                         'GW': f"GW{gw_k}",
                         'Status': f"{_emoji} {_status}",
                         'Unresolved': str(gs.get('unresolved_match_ids', '-')),
                         'Incomplete': str(gs.get('incomplete_match_ids', '-')),
                         'Errors': str(gs.get('error_match_ids', gs.get('error', '-'))),
-                    })
+                    }
+                    if _is_fifa:
+                        _row['Waiting 24h'] = str(gs.get('waiting_24h_match_ids', '-'))
+                    _gw_rows.append(_row)
                 st.dataframe(pd.DataFrame(_gw_rows), use_container_width=True, hide_index=True)
             
             # Match-level detail for current or recent GW
@@ -1195,15 +1215,23 @@ def show_main_app():
                 _m_rows = []
                 for mid in sorted(_relevant_matches.keys(), key=lambda x: int(x) if x.isdigit() else 0):
                     ms = _relevant_matches[mid]
-                    _m_rows.append({
+                    _row = {
                         'Match': mid,
                         'GW': ms.get('gameweek', '?'),
                         'Teams': ' vs '.join(ms.get('teams', [])),
                         'Status': ms.get('status', 'unknown'),
-                        'URL': (ms.get('url', 'None') or 'None')[:50],
-                        'Error': str(ms.get('error', '-'))[:40],
-                    })
+                        'URL': (ms.get('url', 'None') or 'None')[:60],
+                    }
+                    if _is_fifa and ms.get('kickoff_time'):
+                        _row['Kickoff'] = ms.get('kickoff_time', '-')[:16]
+                    if ms.get('error'):
+                        _row['Error'] = str(ms['error'])[:40]
+                    _m_rows.append(_row)
                 st.dataframe(pd.DataFrame(_m_rows), use_container_width=True, hide_index=True)
+            
+            # Data source info for FIFA
+            if _is_fifa:
+                st.caption("📊 **Data Source:** WhoScored.com  |  ⏰ **Delay:** 24 hours post-kickoff before scoring")
             
             # Recent errors
             if _recent_errors:
@@ -3517,12 +3545,13 @@ def show_main_app():
                                 del _rollovers[revert_key]
                                 _rev_log.append(f"Cleared rollover state for GW{revert_to}")
                             
-                            # 4. Clear automation IPL scoring state
-                            _ipl_st = _auto.get('ipl_scoring', {})
-                            _gw_st = _normalize_dict(_ipl_st, 'gameweeks')
+                            # 4. Clear automation scoring state (IPL or FIFA)
+                            _scoring_key = 'fifa_scoring' if active_tournament_type == 'FIFA World Cup 2026' else 'ipl_scoring'
+                            _scoring_st = _auto.get(_scoring_key, {})
+                            _gw_st = _normalize_dict(_scoring_st, 'gameweeks')
                             if revert_key in _gw_st:
                                 del _gw_st[revert_key]
-                                _rev_log.append(f"Cleared IPL scoring state for GW{revert_to}")
+                                _rev_log.append(f"Cleared scoring state for GW{revert_to}")
                             
                             # 5. Restore room state
                             room['current_gameweek'] = revert_to
@@ -3585,11 +3614,12 @@ def show_main_app():
                                 del _rollovers[_del_gw]
                                 _del_log.append("Rollover State")
                                 
-                            _ipl_st = _auto.get('ipl_scoring', {})
-                            _gw_st = _normalize_dict(_ipl_st, 'gameweeks')
+                            _scoring_key = 'fifa_scoring' if active_tournament_type == 'FIFA World Cup 2026' else 'ipl_scoring'
+                            _scoring_st = _auto.get(_scoring_key, {})
+                            _gw_st = _normalize_dict(_scoring_st, 'gameweeks')
                             if _del_gw in _gw_st:
                                 del _gw_st[_del_gw]
-                                _del_log.append("IPL Scoring State")
+                                _del_log.append("Scoring State")
                             
                             if _del_log:
                                 save_auction_data(auction_data)
