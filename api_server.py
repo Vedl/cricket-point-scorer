@@ -1217,14 +1217,50 @@ def _construct_cricbuzz_scorecard_url(match: dict) -> Optional[str]:
     return f"https://www.cricbuzz.com/live-cricket-scorecard/{cricbuzz_id}/{t1}-vs-{t2}-{ordinal}-match-{IPL_CRICBUZZ_SERIES_SLUG}"
 
 
+def _is_cricbuzz_url_invalid(url: str) -> bool:
+    if not url:
+        return True
+    if "cricbuzz.com" not in url.lower():
+        return True
+    try:
+        resp = http_requests.get(url, headers=scraper.headers, timeout=8)
+        if resp.status_code >= 400:
+            return True
+        soup = BeautifulSoup(resp.text, "html.parser")
+        title = soup.title.string or ""
+        if "Live Cricket Score, Schedule, Latest News, Stats & Videos" in title:
+            return True
+        return False
+    except Exception:
+        return False
+
+
 def _discover_cricbuzz_scorecard_url(match: dict, candidates: Optional[List[dict]] = None) -> Optional[dict]:
-    # 1. Try direct URL construction first (reliable, no scraping needed)
     direct_url = _construct_cricbuzz_scorecard_url(match)
     if direct_url:
         try:
-            resp = http_requests.head(direct_url, headers=scraper.headers, timeout=8, allow_redirects=True)
+            resp = http_requests.get(direct_url, headers=scraper.headers, timeout=8)
             if resp.status_code < 400:
-                return {"url": direct_url, "confidence": 100, "source": "direct_construction"}
+                soup = BeautifulSoup(resp.text, "html.parser")
+                title = soup.title.string or ""
+                title_lower = title.lower()
+                
+                # Verify that it is indeed a match-specific scorecard page
+                teams = match.get("teams", [])
+                has_teams = False
+                if len(teams) >= 2:
+                    t1, t2 = str(teams[0]).upper(), str(teams[1]).upper()
+                    t1_name = IPL_TEAMS.get(t1, "").lower()
+                    t2_name = IPL_TEAMS.get(t2, "").lower()
+                    has_t1 = t1.lower() in title_lower or (t1_name and t1_name in title_lower)
+                    has_t2 = t2.lower() in title_lower or (t2_name and t2_name in title_lower)
+                    has_teams = has_t1 or has_t2
+                
+                is_scorecard = "scorecard" in title_lower or "scores" in title_lower or "live-cricket" in direct_url
+                is_generic = "Live Cricket Score, Schedule, Latest News, Stats & Videos" in title
+                
+                if has_teams and is_scorecard and not is_generic:
+                    return {"url": direct_url, "confidence": 100, "source": "direct_construction"}
         except Exception:
             pass  # Fall through to scraping-based discovery
     
@@ -1232,9 +1268,15 @@ def _discover_cricbuzz_scorecard_url(match: dict, candidates: Optional[List[dict
     if candidates is None:
         candidates = _fetch_cricbuzz_scorecard_candidates()
     scored = []
+    seen_ids = set()
     for candidate in candidates:
         confidence = _match_candidate_confidence(match, candidate)
         if confidence:
+            cid = _match_id_from_url(candidate.get("url", ""))
+            if cid:
+                if cid in seen_ids:
+                    continue
+                seen_ids.add(cid)
             scored.append({**candidate, "confidence": confidence})
     scored.sort(key=lambda item: item["confidence"], reverse=True)
 
@@ -1509,6 +1551,13 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
         )
 
         url = match_state.get("url")
+        # If a URL is stored but it is invalid (e.g. generic Cricbuzz page), clear it to trigger re-discovery
+        if url and match_state.get("status") not in {"processed", "washed_out"}:
+            if _is_cricbuzz_url_invalid(url):
+                print(f"[scoring] Stored URL {url} for match {match_id} is invalid (generic page). Clearing to allow re-discovery.")
+                match_state.pop("url", None)
+                url = None
+
         # Reset ambiguous/unresolved/error states to retry discovery with improved logic
         if not url and match_state.get("status") in {"ambiguous", "unresolved", "error"}:
             match_state["status"] = "pending"  # Allow re-discovery
