@@ -1261,7 +1261,8 @@ def _fetch_cricbuzz_match_status(url: str) -> dict:
     scorecard_url = _normalize_scorecard_url(url)
     resp = http_requests.get(scorecard_url, headers=scraper.headers, timeout=15)
     resp.raise_for_status()
-    text = BeautifulSoup(resp.text, "html.parser").get_text(" ", strip=True)
+    raw_html = resp.text
+    text = BeautifulSoup(raw_html, "html.parser").get_text(" ", strip=True)
     lower = text.lower()
 
     completed_patterns = [
@@ -1277,6 +1278,33 @@ def _fetch_cricbuzz_match_status(url: str) -> dict:
     result_match = re.search(r"([A-Z][A-Za-z ]+ won by [^.|\n]+|Match tied|No result|[^.|\n]*abandon[^.|\n]*)", text)
     if result_match:
         result_text = result_match.group(1).strip()
+
+    # Fallback: Cricbuzz sometimes delays SSR for recently completed matches,
+    # but embeds the result in JS/JSON data within the raw HTML.
+    if not completed:
+        raw_lower = raw_html.lower()
+        json_result_patterns = [
+            r"won by \d+\s*(?:wkts?|runs?|wickets?)",
+            r"match tied",
+            r"no result",
+            r"abandon",
+            r"match drawn",
+        ]
+        for pattern in json_result_patterns:
+            m = re.search(pattern, raw_lower)
+            if m:
+                completed = True
+                # Extract result text from raw HTML context
+                start = max(0, m.start() - 40)
+                end = min(len(raw_html), m.end() + 20)
+                raw_ctx = raw_html[start:end]
+                # Try to extract a clean result string
+                clean = re.search(r"([A-Za-z ]+won by \d+\s*(?:wkts?|runs?|wickets?))", raw_ctx, re.IGNORECASE)
+                if clean and not result_text:
+                    result_text = clean.group(1).strip()
+                if pattern in ("no result", "abandon"):
+                    no_result = True
+                break
 
     return {
         "url": scorecard_url,
@@ -1569,15 +1597,24 @@ def _process_ipl_gameweek_scores(room_code: str, room: dict, gw_key: str, gw_dat
                     match_state["processed_at"] = now.isoformat()
                     match_state["washed_out"] = True
                 else:
-                    _calculate_and_store_scores_from_url(
-                        room=room,
-                        gameweek=int(gw_key),
-                        cricbuzz_url=match_state["url"],
-                        match_id=match_id,
-                        allow_empty=False,
-                    )
-                    match_state["status"] = "processed"
-                    match_state["processed_at"] = now.isoformat()
+                    try:
+                        _calculate_and_store_scores_from_url(
+                            room=room,
+                            gameweek=int(gw_key),
+                            cricbuzz_url=match_state["url"],
+                            match_id=match_id,
+                            allow_empty=False,
+                        )
+                        match_state["status"] = "processed"
+                        match_state["processed_at"] = now.isoformat()
+                    except HTTPException as he:
+                        if he.status_code == 404 and "No player data" in str(he.detail):
+                            # Scorecard page exists but hasn't been populated yet
+                            match_state["status"] = "scorecard_pending"
+                            match_state["checked_at"] = now.isoformat()
+                            incomplete.append(match_id)
+                        else:
+                            raise
                 changed = True
         except Exception as exc:
             _record_automation_error(room, f"ipl_scoring:{room_code}:GW{gw_key}:partial", str(exc), now)
