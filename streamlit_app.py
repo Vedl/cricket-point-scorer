@@ -235,6 +235,178 @@ def format_player_name(name):
     info = player_info_map.get(name, {})
     return f"{name} ({info.get('role', 'N/A')} - {info.get('country', 'N/A')})"
 
+# =========================================================
+# Best-11 Calculator (shared across Standings + Knockout)
+# =========================================================
+def get_best_11(squad, player_scores, ir_player=None):
+    import itertools
+    
+    # IMPORTANT: IR only applies if squad >= 19 players
+    # If squad is smaller, ignore IR and count all players
+    if len(squad) < 19:
+        ir_player = None
+    
+    # Active pool (excluding IR player if applicable)
+    active_squad = [p for p in squad if p['name'] != ir_player]
+    # Detect if this is a football room
+    is_football = active_tournament_type == 'FIFA World Cup 2026'
+    
+    scored_players = []
+    for p in active_squad: 
+        score_entry = player_scores.get(p['name'], 0)
+        
+        if isinstance(score_entry, dict):
+            # Dual position player
+            for pos_key, pos_score in score_entry.items():
+                scored_players.append({
+                    'name': p['name'], 
+                    'role': p.get('role', ''), 
+                    'category': pos_key, 
+                    'score': pos_score
+                })
+        else:
+            # Single position player
+            role_str = p.get('role', '')
+            if not role_str:
+                 role_str = player_role_lookup.get(p['name'], 'Unknown')
+            
+            role_str = role_str.lower()
+            
+            if is_football:
+                if 'gk' in role_str or 'goalkeeper' in role_str: cat = 'GK'
+                elif 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: cat = 'DEF'
+                elif 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: cat = 'MID'
+                elif 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: cat = 'FWD'
+                else: cat = 'MID'
+            else:
+                if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
+                elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
+                elif 'bat' in role_str: cat = 'BAT'
+                elif 'bowl' in role_str: cat = 'BWL'
+                else: cat = 'BAT'
+            
+            scored_players.append({
+                'name': p['name'], 
+                'role': p.get('role', ''), 
+                'category': cat, 
+                'score': score_entry
+            })
+    
+    # If unique players in active squad is <= 11, return them collapsed to their best scoring positions
+    unique_names = set(p['name'] for p in scored_players)
+    if len(unique_names) <= 11:
+        collapsed_players = {}
+        for p in scored_players:
+            name = p['name']
+            if name not in collapsed_players or p['score'] > collapsed_players[name]['score']:
+                collapsed_players[name] = p
+        return list(collapsed_players.values()), []
+    
+    # Brute force 11 from N
+    scored_players.sort(key=lambda x: x['score'], reverse=True)
+    
+    if is_football:
+        valid_ranges = {
+            'GK': (1, 1),
+            'DEF': (3, 5),
+            'MID': (3, 5),
+            'FWD': (1, 3)
+        }
+    else:
+        valid_ranges = {
+            'WK': (1, 3),
+            'BAT': (1, 4),
+            'AR': (3, 6),
+            'BWL': (2, 4)
+        }
+    
+    best_team = []
+    best_score = -1
+    
+    # Brute force check unique combinations
+    for team in itertools.combinations(scored_players, 11):
+        # Enforce unique player names (prevent playing same player in two positions)
+        player_names_in_team = [p['name'] for p in team]
+        if len(set(player_names_in_team)) < 11:
+            continue
+            
+        counts = {k: 0 for k in valid_ranges}
+        current_score = 0
+        for p in team:
+            counts[p['category']] += 1
+            current_score += p['score']
+        
+        is_valid = True
+        for role, (min_v, max_v) in valid_ranges.items():
+            if not (min_v <= counts[role] <= max_v):
+                is_valid = False
+                break
+        
+        if is_valid:
+            if current_score > best_score:
+                best_score = current_score
+                best_team = list(team)
+    
+    if best_team:
+        return best_team, []
+    else:
+        # Greedy fill: respect role minimums, pad unfilled mandatory slots with 0
+        range_str = ", ".join([f"{k}:{v[0]}-{v[1]}" for k, v in valid_ranges.items()])
+        warnings = [f"⚠️ Could not satisfy role constraints ({range_str}). Filling minimums with available players; empty slots score 0."]
+        
+        # Collapse dual positions to highest-scoring position for fallback
+        collapsed_players = {}
+        for p in scored_players:
+            name = p['name']
+            if name not in collapsed_players or p['score'] > collapsed_players[name]['score']:
+                collapsed_players[name] = p
+        collapsed_pool = list(collapsed_players.values())
+        
+        # Group available players by category, sorted by score desc
+        by_cat = {k: [] for k in valid_ranges}
+        for p in collapsed_pool:
+            if p['category'] in by_cat:
+                by_cat[p['category']].append(p)
+
+        for cat in by_cat:
+            by_cat[cat].sort(key=lambda x: x['score'], reverse=True)
+        
+        greedy_team = []
+        used_names = set()
+        
+        # Step 1: Fill each role's minimum quota
+        for role, (min_v, _) in valid_ranges.items():
+            available = [p for p in by_cat[role] if p['name'] not in used_names]
+            filled = 0
+            for p in available:
+                if filled >= min_v:
+                    break
+                greedy_team.append(p)
+                used_names.add(p['name'])
+                filled += 1
+            # Pad with 0-point placeholders if not enough players for minimum
+            while filled < min_v:
+                greedy_team.append({'name': f'[Empty {role} slot]', 'role': role, 'category': role, 'score': 0})
+                filled += 1
+        
+        # Step 2: Fill remaining slots (11 - filled) with best available unused players
+        remaining_slots = 11 - len(greedy_team)
+        if remaining_slots > 0:
+            unused = [p for p in scored_players if p['name'] not in used_names]
+            unused.sort(key=lambda x: x['score'], reverse=True)
+            for p in unused[:remaining_slots]:
+                # Check we don't exceed the max for this category
+                cat_count = sum(1 for t in greedy_team if t['category'] == p['category'])
+                _, max_v = valid_ranges.get(p['category'], (0, 99))
+                if cat_count < max_v:
+                    greedy_team.append(p)
+                    used_names.add(p['name'])
+        
+        # Sort final team by score descending for display
+        greedy_team.sort(key=lambda x: x['score'], reverse=True)
+        return greedy_team[:11], warnings
+
+
 def inject_custom_css():
     inject_premium_theme()
 
@@ -4761,6 +4933,81 @@ def show_main_app():
                 with st.expander(f"🔓 Released Players ({len(released_players)})"):
                     for rp in released_players:
                         st.write(f"- **{rp['name']}** ({rp.get('team', '?')}) - from {rp['from_participant']}")
+            
+            # === REVERSE ELIMINATION ===
+            eliminated_participants = [p for p in room.get('participants', []) if p.get('eliminated', False)]
+            if eliminated_participants:
+                st.markdown("---")
+                st.subheader("↩️ Reverse Elimination")
+                st.warning("⚠️ Use this to undo a wrongly-processed knockout. Squads will be restored from the latest gameweek snapshot.")
+                eliminated_names_list = [p['name'] for p in eliminated_participants]
+                st.write(f"**Currently eliminated:** {', '.join(eliminated_names_list)}")
+                
+                if st.button("↩️ Reverse Last Elimination", type="secondary", key="reverse_elimination_btn"):
+                    # Find the latest gameweek snapshot to restore squads from
+                    gw_squads = room.get('gameweek_squads', {})
+                    if not gw_squads:
+                        st.error("No gameweek squad snapshots found — cannot restore squads.")
+                    else:
+                        latest_gw = max(gw_squads.keys(), key=lambda k: int(k) if k.isdigit() else 0)
+                        latest_snapshot = gw_squads[latest_gw]
+                        
+                        restored_names = []
+                        for p in eliminated_participants:
+                            p_name = p['name']
+                            
+                            # Restore squad from snapshot
+                            sq_data = latest_snapshot.get(p_name)
+                            if sq_data:
+                                if isinstance(sq_data, dict):
+                                    restored_squad = sq_data.get('squad', [])
+                                    restored_ir = sq_data.get('injury_reserve')
+                                else:
+                                    restored_squad = sq_data if isinstance(sq_data, list) else []
+                                    restored_ir = None
+                                
+                                p['squad'] = restored_squad
+                                if restored_ir:
+                                    p['injury_reserve'] = restored_ir
+                            
+                            # Clear elimination flags
+                            p['eliminated'] = False
+                            p.pop('eliminated_phase', None)
+                            restored_names.append(p_name)
+                        
+                        # Revert tournament_phase
+                        trn = room.get('tournament_type', 'T20 World Cup')
+                        curr_phase = room.get('tournament_phase', '')
+                        if trn == 'IPL 2026':
+                            phase_order = ['league_stage', 'q1_eliminator', 'qualifier_2', 'finals', 'completed']
+                        elif trn == 'FIFA World Cup 2026':
+                            phase_order = ['group_stage', 'round_of_32', 'round_of_16', 'quarterfinals', 'semifinals', 'finals', 'completed']
+                        else:
+                            phase_order = ['super8', 'semifinals', 'finals', 'completed']
+                        
+                        if curr_phase in phase_order:
+                            idx = phase_order.index(curr_phase)
+                            if idx > 0:
+                                room['tournament_phase'] = phase_order[idx - 1]
+                        
+                        # Clear knockout_history for the reversed phase
+                        ko_history = room.get('knockout_history', {})
+                        if ko_history:
+                            last_phase = list(ko_history.keys())[-1] if ko_history else None
+                            if last_phase:
+                                del ko_history[last_phase]
+                        
+                        # Clear released_players from the reversed elimination
+                        released = room.get('released_players', [])
+                        if released:
+                            room['released_players'] = [
+                                rp for rp in released
+                                if rp.get('from_participant') not in restored_names
+                            ]
+                        
+                        save_auction_data(auction_data)
+                        st.success(f"✅ Elimination reversed! Restored: {', '.join(restored_names)} (squads from GW {latest_gw} snapshot)")
+                        st.rerun()
 
     # =====================================
     # PAGE 4: Standings
@@ -4822,174 +5069,7 @@ def show_main_app():
                         else:
                             gw_scores[player] = existing + bonus
             
-            # Calculate Best 11 for each participant
-            def get_best_11(squad, player_scores, ir_player=None):
-                import itertools
-                
-                # IMPORTANT: IR only applies if squad >= 19 players
-                # If squad is smaller, ignore IR and count all players
-                if len(squad) < 19:
-                    ir_player = None
-                
-                # Active pool (excluding IR player if applicable)
-                active_squad = [p for p in squad if p['name'] != ir_player]
-                # Detect if this is a football room
-                is_football = active_tournament_type == 'FIFA World Cup 2026'
-                
-                scored_players = []
-                for p in active_squad: 
-                    score_entry = player_scores.get(p['name'], 0)
-                    
-                    if isinstance(score_entry, dict):
-                        # Dual position player
-                        for pos_key, pos_score in score_entry.items():
-                            scored_players.append({
-                                'name': p['name'], 
-                                'role': p.get('role', ''), 
-                                'category': pos_key, 
-                                'score': pos_score
-                            })
-                    else:
-                        # Single position player
-                        role_str = p.get('role', '')
-                        if not role_str:
-                             role_str = player_role_lookup.get(p['name'], 'Unknown')
-                        
-                        role_str = role_str.lower()
-                        
-                        if is_football:
-                            if 'gk' in role_str or 'goalkeeper' in role_str: cat = 'GK'
-                            elif 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: cat = 'DEF'
-                            elif 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: cat = 'MID'
-                            elif 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: cat = 'FWD'
-                            else: cat = 'MID'
-                        else:
-                            if 'wk' in role_str or 'wicket' in role_str: cat = 'WK'
-                            elif 'allrounder' in role_str or 'ar' in role_str: cat = 'AR'
-                            elif 'bat' in role_str: cat = 'BAT'
-                            elif 'bowl' in role_str: cat = 'BWL'
-                            else: cat = 'BAT'
-                        
-                        scored_players.append({
-                            'name': p['name'], 
-                            'role': p.get('role', ''), 
-                            'category': cat, 
-                            'score': score_entry
-                        })
-                
-                # If unique players in active squad is <= 11, return them collapsed to their best scoring positions
-                unique_names = set(p['name'] for p in scored_players)
-                if len(unique_names) <= 11:
-                    collapsed_players = {}
-                    for p in scored_players:
-                        name = p['name']
-                        if name not in collapsed_players or p['score'] > collapsed_players[name]['score']:
-                            collapsed_players[name] = p
-                    return list(collapsed_players.values()), []
-                
-                # Brute force 11 from N
-                scored_players.sort(key=lambda x: x['score'], reverse=True)
-                
-                if is_football:
-                    valid_ranges = {
-                        'GK': (1, 1),
-                        'DEF': (3, 5),
-                        'MID': (3, 5),
-                        'FWD': (1, 3)
-                    }
-                else:
-                    valid_ranges = {
-                        'WK': (1, 3),
-                        'BAT': (1, 4),
-                        'AR': (3, 6),
-                        'BWL': (2, 4)
-                    }
-                
-                best_team = []
-                best_score = -1
-                
-                # Brute force check unique combinations
-                for team in itertools.combinations(scored_players, 11):
-                    # Enforce unique player names (prevent playing same player in two positions)
-                    player_names_in_team = [p['name'] for p in team]
-                    if len(set(player_names_in_team)) < 11:
-                        continue
-                        
-                    counts = {k: 0 for k in valid_ranges}
-                    current_score = 0
-                    for p in team:
-                        counts[p['category']] += 1
-                        current_score += p['score']
-                    
-                    is_valid = True
-                    for role, (min_v, max_v) in valid_ranges.items():
-                        if not (min_v <= counts[role] <= max_v):
-                            is_valid = False
-                            break
-                    
-                    if is_valid:
-                        if current_score > best_score:
-                            best_score = current_score
-                            best_team = list(team)
-                
-                if best_team:
-                    return best_team, []
-                else:
-                    # Greedy fill: respect role minimums, pad unfilled mandatory slots with 0
-                    range_str = ", ".join([f"{k}:{v[0]}-{v[1]}" for k, v in valid_ranges.items()])
-                    warnings = [f"⚠️ Could not satisfy role constraints ({range_str}). Filling minimums with available players; empty slots score 0."]
-                    
-                    # Collapse dual positions to highest-scoring position for fallback
-                    collapsed_players = {}
-                    for p in scored_players:
-                        name = p['name']
-                        if name not in collapsed_players or p['score'] > collapsed_players[name]['score']:
-                            collapsed_players[name] = p
-                    collapsed_pool = list(collapsed_players.values())
-                    
-                    # Group available players by category, sorted by score desc
-                    by_cat = {k: [] for k in valid_ranges}
-                    for p in collapsed_pool:
-                        if p['category'] in by_cat:
-                            by_cat[p['category']].append(p)
-
-                    for cat in by_cat:
-                        by_cat[cat].sort(key=lambda x: x['score'], reverse=True)
-                    
-                    greedy_team = []
-                    used_names = set()
-                    
-                    # Step 1: Fill each role's minimum quota
-                    for role, (min_v, _) in valid_ranges.items():
-                        available = [p for p in by_cat[role] if p['name'] not in used_names]
-                        filled = 0
-                        for p in available:
-                            if filled >= min_v:
-                                break
-                            greedy_team.append(p)
-                            used_names.add(p['name'])
-                            filled += 1
-                        # Pad with 0-point placeholders if not enough players for minimum
-                        while filled < min_v:
-                            greedy_team.append({'name': f'[Empty {role} slot]', 'role': role, 'category': role, 'score': 0})
-                            filled += 1
-                    
-                    # Step 2: Fill remaining slots (11 - filled) with best available unused players
-                    remaining_slots = 11 - len(greedy_team)
-                    if remaining_slots > 0:
-                        unused = [p for p in scored_players if p['name'] not in used_names]
-                        unused.sort(key=lambda x: x['score'], reverse=True)
-                        for p in unused[:remaining_slots]:
-                            # Check we don't exceed the max for this category
-                            cat_count = sum(1 for t in greedy_team if t['category'] == p['category'])
-                            _, max_v = valid_ranges.get(p['category'], (0, 99))
-                            if cat_count < max_v:
-                                greedy_team.append(p)
-                                used_names.add(p['name'])
-                    
-                    # Sort final team by score descending for display
-                    greedy_team.sort(key=lambda x: x['score'], reverse=True)
-                    return greedy_team[:11], warnings
+            # get_best_11 is now defined at module level (shared with knockout code)
             
             # Calculate standings
             standings = []
