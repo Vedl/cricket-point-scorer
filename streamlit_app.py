@@ -3589,6 +3589,60 @@ def show_main_app():
                     elif target_p_rel:
                         st.warning("This participant has no players.")
 
+            if is_admin:
+                 with st.expander("👮 Admin: Reset/Manage Paid Release Flags"):
+                     st.info("Reset or toggle the 'Paid Release' flag for participants in the current gameweek. Use this if a player's release mistakenly counted towards their paid release limit.")
+                     
+                     selected_p_to_reset = st.selectbox("Select Participant to Manage", ["All Participants"] + [p['name'] for p in room.get('participants', [])], key="admin_reset_paid_part_sel")
+                     
+                     curr_gw = room.get('current_gameweek', 1)
+                     
+                     if selected_p_to_reset == "All Participants":
+                         st.write(f"This will clear the paid release flag for **ALL** participants for **GW {curr_gw}**.")
+                         if st.button("🚨 Reset Paid Release Flags for All"):
+                             for p in room.get('participants', []):
+                                 paid_rels = p.get('paid_releases', {})
+                                 if isinstance(paid_rels, list):
+                                     if curr_gw < len(paid_rels):
+                                         paid_rels[curr_gw] = False
+                                 elif isinstance(paid_rels, dict):
+                                     if str(curr_gw) in paid_rels:
+                                         del paid_rels[str(curr_gw)]
+                             save_auction_data(auction_data)
+                             st.success(f"Successfully reset paid release flags for all participants for GW {curr_gw}!")
+                             time.sleep(1)
+                             st.rerun()
+                     else:
+                         target_p_obj = next((p for p in room.get('participants', []) if p['name'] == selected_p_to_reset), None)
+                         if target_p_obj:
+                             paid_releases = target_p_obj.get('paid_releases', {})
+                             if isinstance(paid_releases, list):
+                                 used_paid = paid_releases[curr_gw] if curr_gw < len(paid_releases) and paid_releases[curr_gw] else False
+                             else:
+                                 used_paid = paid_releases.get(str(curr_gw), False) if curr_gw > 0 else False
+                             
+                             st.write(f"Current status for **{selected_p_to_reset}** in **GW {curr_gw}**: {'❌ Paid Release Used' if used_paid else '✅ Paid Release Available'}")
+                             
+                             btn_label = "🔓 Reset Paid Release (Mark as Available)" if used_paid else "🔒 Mark Paid Release as Used"
+                             
+                             if st.button(btn_label):
+                                 if isinstance(paid_releases, list):
+                                     # Expand list if needed
+                                     while len(paid_releases) <= curr_gw:
+                                         paid_releases.append(False)
+                                     paid_releases[curr_gw] = not used_paid
+                                 else:
+                                     if used_paid:
+                                         if str(curr_gw) in paid_releases:
+                                             del paid_releases[str(curr_gw)]
+                                     else:
+                                         target_p_obj.setdefault('paid_releases', {})[str(curr_gw)] = True
+                                 
+                                 save_auction_data(auction_data)
+                                 st.success(f"Updated paid release status for {selected_p_to_reset}!")
+                                 time.sleep(1)
+                                 st.rerun()
+
             st.divider()
             
             # === ADMIN DEADLINE SETTER ===
