@@ -2227,7 +2227,13 @@ def show_main_app():
                                 st.error(f"🚫 Cannot release {player_to_remove} because they are on loan.")
                             elif player_obj:
                                 player_country = player_country_lookup.get(player_to_remove, 'Unknown')
-                                is_knocked_out_team = player_country in knocked_out_teams
+                                player_ipl_team = player_info_map.get(player_to_remove, {}).get('ipl_team', '')
+                                player_squad_team = player_obj.get('team', '')
+                                is_knocked_out_team = (
+                                    player_country in knocked_out_teams or
+                                    player_ipl_team in knocked_out_teams or
+                                    player_squad_team in knocked_out_teams
+                                )
                             
 
                             
