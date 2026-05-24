@@ -4267,17 +4267,168 @@ async def eliminate_participants(req: EliminateRequest):
             detail=f"Elimination not applicable for GW{curr_gw}. Valid: GW 10-13.",
         )
 
-    # Calculate standings from accumulated scores
+    # Calculate standings from accumulated scores using the SAME
+    # get_best_11 logic as the /auction/standings endpoint to ensure
+    # consistent rankings between what users see and what knockout uses.
+    import itertools
+
     gw_scores_all = room.get("gameweek_scores", {})
+    is_football = room.get("tournament_type") == "FIFA World Cup 2026"
     active_participants = [
         p for p in room.get("participants", []) if not p.get("eliminated", False)
     ]
 
-    # Calculate cumulative points
+    # Load player role lookup (same as standings endpoint)
+    player_role_lookup = {}
+    if is_football:
+        players_file = Path(__file__).parent / "fifa_wc_2026_players.json"
+        if players_file.exists():
+            with open(players_file) as f:
+                players_data = json.load(f)
+            if isinstance(players_data, list):
+                for pl in players_data:
+                    if isinstance(pl, dict) and "name" in pl:
+                        player_role_lookup[pl["name"]] = pl.get("role", "Midfielder")
+    else:
+        squads_file = Path(__file__).parent / "ipl_2026_squads.json"
+        if squads_file.exists():
+            with open(squads_file) as f:
+                squads_data = json.load(f)
+            for team_data in squads_data.get("teams", {}).values():
+                for pl in team_data.get("squad", []):
+                    player_role_lookup[pl["name"]] = pl.get("role", "Batsman")
+
+    def _elim_categorize_role(role_str):
+        role_str = (role_str or "").lower()
+        if "wk" in role_str or "wicket" in role_str or "keeper" in role_str:
+            return "WK"
+        if "allrounder" in role_str or "all-rounder" in role_str or "all rounder" in role_str:
+            return "AR"
+        if "bowl" in role_str:
+            return "BWL"
+        return "BAT"
+
+    def _elim_map_football_role(role_str):
+        role_str = (role_str or "").lower()
+        if 'gk' in role_str or 'goalkeeper' in role_str: return 'GK'
+        if 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: return 'DEF'
+        if 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: return 'MID'
+        if 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: return 'FWD'
+        return 'MID'
+
+    def _elim_apply_bonus(score_val, bonus):
+        if isinstance(score_val, dict):
+            return {pos: val + bonus for pos, val in score_val.items()}
+        return score_val + bonus
+
+    def _elim_get_best_11(squad, player_scores, ir_player=None):
+        if len(squad) < 19:
+            ir_player = None
+        active_squad = [p for p in squad if (p["name"] if isinstance(p, dict) else p) != ir_player]
+
+        scored_players = []
+        for p in active_squad:
+            name = p["name"] if isinstance(p, dict) else p
+            score_entry = player_scores.get(name, 0)
+            if isinstance(score_entry, dict):
+                for pos_key, pos_score in score_entry.items():
+                    scored_players.append({"name": name, "category": pos_key, "score": pos_score})
+            else:
+                role_str = p.get("role", "") if isinstance(p, dict) else ""
+                if not role_str:
+                    role_str = player_role_lookup.get(name, "Midfielder" if is_football else "Batsman")
+                if is_football:
+                    cat = _elim_map_football_role(role_str)
+                else:
+                    cat = _elim_categorize_role(role_str)
+                scored_players.append({"name": name, "category": cat, "score": score_entry})
+
+        unique_names = set(p["name"] for p in scored_players)
+        if len(unique_names) <= 11:
+            collapsed = {}
+            for p in scored_players:
+                n = p["name"]
+                if n not in collapsed or p["score"] > collapsed[n]["score"]:
+                    collapsed[n] = p
+            return list(collapsed.values())
+
+        scored_players.sort(key=lambda x: x["score"], reverse=True)
+        if is_football:
+            valid_ranges = {"GK": (1, 1), "DEF": (3, 5), "MID": (3, 5), "FWD": (1, 3)}
+        else:
+            valid_ranges = {"WK": (1, 3), "BAT": (1, 4), "AR": (3, 6), "BWL": (2, 4)}
+
+        best_team = []
+        best_score = -1
+        for team in itertools.combinations(scored_players, 11):
+            player_names_in_team = [p["name"] for p in team]
+            if len(set(player_names_in_team)) < 11:
+                continue
+            counts = {k: 0 for k in valid_ranges}
+            current_score = 0
+            for p in team:
+                counts[p["category"]] += 1
+                current_score += p["score"]
+            is_valid = all(min_v <= counts[role] <= max_v for role, (min_v, max_v) in valid_ranges.items())
+            if is_valid and current_score > best_score:
+                best_score = current_score
+                best_team = list(team)
+
+        if best_team:
+            return best_team
+
+        # Greedy fallback
+        collapsed = {}
+        for p in scored_players:
+            n = p["name"]
+            if n not in collapsed or p["score"] > collapsed[n]["score"]:
+                collapsed[n] = p
+        collapsed_pool = list(collapsed.values())
+        by_cat = {k: [] for k in valid_ranges}
+        for p in collapsed_pool:
+            if p["category"] in by_cat:
+                by_cat[p["category"]].append(p)
+        for cat in by_cat:
+            by_cat[cat].sort(key=lambda x: x["score"], reverse=True)
+
+        greedy_team = []
+        used_names = set()
+        for role, (min_v, _) in valid_ranges.items():
+            available = [p for p in by_cat[role] if p["name"] not in used_names]
+            filled = 0
+            for p in available:
+                if filled >= min_v:
+                    break
+                greedy_team.append(p)
+                used_names.add(p["name"])
+                filled += 1
+            while filled < min_v:
+                greedy_team.append({"name": f"[Empty {role} slot]", "category": role, "score": 0})
+                filled += 1
+        remaining_slots = 11 - len(greedy_team)
+        if remaining_slots > 0:
+            unused = [p for p in scored_players if p["name"] not in used_names]
+            unused.sort(key=lambda x: x["score"], reverse=True)
+            for p in unused[:remaining_slots]:
+                cat_count = sum(1 for t in greedy_team if t["category"] == p["category"])
+                _, max_v = valid_ranges.get(p["category"], (0, 99))
+                if cat_count < max_v:
+                    greedy_team.append(p)
+                    used_names.add(p["name"])
+        greedy_team.sort(key=lambda x: x["score"], reverse=True)
+        return greedy_team[:11]
+
+    # Calculate cumulative points using proper Best-11 with role constraints
     p_totals = {}
     for p in active_participants:
         p_totals[p["name"]] = 0.0
         for gw, scores in gw_scores_all.items():
+            # Apply hattrick bonuses (was missing before!)
+            scores_with_bonus = dict(scores)
+            bonuses = room.get("hattrick_bonuses", {}).get(gw, {})
+            for pl_name, bonus in bonuses.items():
+                scores_with_bonus[pl_name] = _elim_apply_bonus(scores_with_bonus.get(pl_name, 0), bonus)
+
             locked = room.get("gameweek_squads", {}).get(str(gw), {})
             sq_data = locked.get(p["name"])
             if sq_data:
@@ -4286,15 +4437,8 @@ async def eliminate_participants(req: EliminateRequest):
             else:
                 squad = p.get("squad", [])
                 ir = p.get("injury_reserve")
-            # Simple best-11 (top 11 by score, exclude IR)
-            squad_scores = []
-            for pl in squad:
-                name = pl["name"] if isinstance(pl, dict) else pl
-                if name == ir:
-                    continue
-                squad_scores.append(scores.get(name, 0))
-            squad_scores.sort(reverse=True)
-            p_totals[p["name"]] += sum(squad_scores[:11])
+            best = _elim_get_best_11(squad, scores_with_bonus, ir)
+            p_totals[p["name"]] += sum(x["score"] for x in best)
 
     # Sort by points descending
     ranked = sorted(p_totals.items(), key=lambda x: -x[1])
@@ -4333,6 +4477,117 @@ async def eliminate_participants(req: EliminateRequest):
         "gameweek": curr_gw,
     }
 
+
+# ----------------------------------------------------------
+# 30b. POST /auction/reverse-elimination
+# ----------------------------------------------------------
+class ReverseEliminationRequest(BaseModel):
+    """Admin reverses a wrongly-processed elimination."""
+    room_code: str
+    admin_name: str
+
+@app.post("/auction/reverse-elimination")
+async def reverse_elimination(req: ReverseEliminationRequest):
+    """
+    Reverses the most recent elimination round:
+    1. Finds all participants eliminated in the latest phase
+    2. Restores their squads from the most recent gameweek_squads snapshot
+    3. Removes those players from unsold_players
+    4. Clears the eliminated flag
+    5. Reverts the tournament_phase to the previous phase
+    """
+    data = _firebase_get()
+    room = data.get("rooms", {}).get(req.room_code)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.get("admin") != req.admin_name:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    # Find participants that were eliminated (they have eliminated=True)
+    eliminated_participants = [
+        p for p in room.get("participants", [])
+        if p.get("eliminated", False)
+    ]
+
+    if not eliminated_participants:
+        raise HTTPException(status_code=400, detail="No eliminated participants to reverse")
+
+    # Find the latest gameweek snapshot to restore squads from
+    gw_squads = room.get("gameweek_squads", {})
+    if not gw_squads:
+        raise HTTPException(
+            status_code=400,
+            detail="No gameweek squad snapshots found — cannot restore squads"
+        )
+
+    # Get the latest GW key
+    latest_gw = max(gw_squads.keys(), key=lambda k: int(k) if k.isdigit() else 0)
+    latest_snapshot = gw_squads[latest_gw]
+
+    unsold = room.get("unsold_players", [])
+    restored_names = []
+
+    for p in eliminated_participants:
+        p_name = p["name"]
+
+        # Restore squad from snapshot
+        sq_data = latest_snapshot.get(p_name)
+        if sq_data:
+            if isinstance(sq_data, dict):
+                restored_squad = sq_data.get("squad", [])
+                restored_ir = sq_data.get("injury_reserve")
+            else:
+                restored_squad = sq_data if isinstance(sq_data, list) else []
+                restored_ir = None
+
+            p["squad"] = restored_squad
+            if restored_ir:
+                p["injury_reserve"] = restored_ir
+
+            # Remove restored players from unsold_players
+            for pl in restored_squad:
+                pl_name = pl.get("name", "") if isinstance(pl, dict) else pl
+                if pl_name in unsold:
+                    unsold.remove(pl_name)
+        else:
+            # No snapshot for this participant — flag it but still un-eliminate
+            pass
+
+        # Clear elimination flags
+        p["eliminated"] = False
+        p.pop("eliminated_phase", None)
+        restored_names.append(p_name)
+
+    # Revert tournament_phase to the previous phase
+    curr_phase = room.get("tournament_phase", "")
+    phase_order = ["league_stage", "q1_eliminator", "qualifier_2", "finals", "completed"]
+    if curr_phase in phase_order:
+        idx = phase_order.index(curr_phase)
+        if idx > 0:
+            room["tournament_phase"] = phase_order[idx - 1]
+
+    # Also clear knockout_history for the reversed phase if it exists
+    ko_history = room.get("knockout_history", {})
+    if ko_history:
+        # Remove the last entry
+        last_phase = list(ko_history.keys())[-1] if ko_history else None
+        if last_phase:
+            del ko_history[last_phase]
+
+    # Also clear released_players that came from the reversed phase
+    released = room.get("released_players", [])
+    if released:
+        room["released_players"] = [
+            rp for rp in released
+            if rp.get("from_participant") not in restored_names
+        ]
+
+    _firebase_put(data)
+    return {
+        "message": f"Elimination reversed! {len(restored_names)} participants restored: {', '.join(restored_names)}",
+        "restored": restored_names,
+        "squad_source": f"GW {latest_gw} snapshot",
+    }
 
 # ----------------------------------------------------------
 # 31.  GET /auction/available-players

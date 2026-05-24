@@ -4611,12 +4611,9 @@ def show_main_app():
                                 squad = participant['squad']
                                 ir_player = participant.get('injury_reserve')
                             
-                            # Simple sum for preview (skip best 11 complexity)
-                            squad_names = [p['name'] for p in squad if p['name'] != ir_player]
-                            squad_scores = [(n, scores_with_bonus.get(n, 0)) for n in squad_names]
-                            squad_scores.sort(key=lambda x: -x[1])
-                            top_11_score = sum(s[1] for s in squad_scores[:11])
-                            p_totals[p_name] += top_11_score
+                            # Use proper best-11 with role constraints for accurate preview
+                            best_11, _ = get_best_11(squad, scores_with_bonus, ir_player)
+                            p_totals[p_name] += sum(p_entry['score'] for p_entry in best_11)
                     
                     # Sort by points
                     sorted_participants = sorted(p_totals.items(), key=lambda x: -x[1])
@@ -4657,7 +4654,8 @@ def show_main_app():
                 st.warning("⚠️ **Process Knockout** is irreversible! This will eliminate bottom participants and release their qualifying players.")
                 
                 if st.button(f"🔥 Process {phase_names.get(phase, phase)} Knockout", type="primary"):
-                    # Calculate final standings (only non-eliminated participants)
+                    # Calculate final standings using the SAME get_best_11 logic
+                    # as the standings display to ensure consistent rankings
                     p_totals = {}
                     active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
@@ -4677,16 +4675,17 @@ def show_main_app():
                             if squad_data:
                                 if isinstance(squad_data, list):
                                     squad = squad_data
+                                    ir_player = None
                                 else:
                                     squad = squad_data.get('squad', [])
+                                    ir_player = squad_data.get('injury_reserve')
                             else:
                                 squad = participant['squad']
+                                ir_player = participant.get('injury_reserve')
                             
-                            squad_names = [p['name'] for p in squad]
-                            squad_scores = [(n, scores_with_bonus.get(n, 0)) for n in squad_names]
-                            squad_scores.sort(key=lambda x: -x[1])
-                            top_11_score = sum(s[1] for s in squad_scores[:11])
-                            p_totals[p_name] += top_11_score
+                            # Use the same get_best_11 function as the standings display
+                            best_11, _ = get_best_11(squad, scores_with_bonus, ir_player)
+                            p_totals[p_name] += sum(p_entry['score'] for p_entry in best_11)
                     
                     sorted_participants = sorted(p_totals.items(), key=lambda x: -x[1])
                     
