@@ -316,8 +316,8 @@ def get_best_11(squad, player_scores, ir_player=None):
         valid_ranges = {
             'WK': (1, 3),
             'BAT': (1, 4),
-            'AR': (3, 6),
-            'BWL': (2, 4)
+            'AR': (2, 6),
+            'BWL': (3, 4)
         }
     
     best_team = []
