@@ -448,7 +448,19 @@ class ApiService {
     return jsonDecode(resp.body);
   }
 
+  // ── Reverse Elimination ──────────────────────────────────
+  Future<Map<String, dynamic>> reverseElimination({
+    required String roomCode,
+    required String adminName,
+  }) async {
+    final body = {'room_code': roomCode, 'admin_name': adminName};
+    final resp = await _post('/auction/reverse-elimination', body);
+    _checkResponse(resp);
+    return jsonDecode(resp.body);
+  }
+
   // ── Available Players ────────────────────────────────────
+
   Future<Map<String, dynamic>> getAvailablePlayers(String roomCode) async {
     final resp = await _get('/auction/available-players?room_code=$roomCode');
     _checkResponse(resp);
