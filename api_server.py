@@ -1299,6 +1299,41 @@ def _discover_cricbuzz_scorecard_url(match: dict, candidates: Optional[List[dict
     }
 
 
+def _teams_from_url(url: str) -> List[str]:
+    match = re.search(r'/([^/]+)-vs-([^/]+)-\d+(?:st|nd|rd|th)-match', url)
+    if match:
+        return [match.group(1).lower(), match.group(2).lower()]
+    match_slug = re.search(r'/([^/]+)$', url)
+    if match_slug:
+        parts = match_slug.group(1).lower().split('-vs-')
+        if len(parts) >= 2:
+            p2 = re.split(r'[^a-z]', parts[1])[0]
+            p1 = re.split(r'[^a-z]', parts[0])[-1]
+            return [p1, p2]
+    return []
+
+
+def _is_result_valid_for_match(result_text: str, url: str) -> bool:
+    if not result_text:
+        return False
+    result_lower = result_text.lower()
+    if "no result" in result_lower or "abandon" in result_lower:
+        return True
+    
+    url_teams = _teams_from_url(url)
+    if not url_teams:
+        return True
+    
+    for t_code in url_teams:
+        if t_code in result_lower:
+            return True
+        t_name = IPL_TEAMS.get(t_code.upper(), "")
+        if t_name and any(part.lower() in result_lower for part in t_name.split()[:2]):
+            return True
+            
+    return False
+
+
 def _fetch_cricbuzz_match_status(url: str) -> dict:
     scorecard_url = _normalize_scorecard_url(url)
     resp = http_requests.get(scorecard_url, headers=scraper.headers, timeout=15)
@@ -1320,6 +1355,11 @@ def _fetch_cricbuzz_match_status(url: str) -> dict:
     result_match = re.search(r"([A-Z][A-Za-z ]+ won by [^.|\n]+|Match tied|No result|[^.|\n]*abandon[^.|\n]*)", text)
     if result_match:
         result_text = result_match.group(1).strip()
+
+    # Fallback/Override: Check the Next.js/React matchHeader status directly in the script tag
+    match_complete = re.search(r'matchHeader.*?complete.*?(true|false)', raw_html)
+    if match_complete:
+        completed = match_complete.group(1) == "true"
 
     # Fallback: Cricbuzz sometimes delays SSR for recently completed matches,
     # but embeds the result in JS/JSON data within the raw HTML.
@@ -1347,6 +1387,11 @@ def _fetch_cricbuzz_match_status(url: str) -> dict:
                 if pattern in ("no result", "abandon"):
                     no_result = True
                 break
+
+    # Enforce result/team validation: Ensure the result mentions one of the teams playing
+    if completed and not _is_result_valid_for_match(result_text, url):
+        completed = False
+        result_text = ""
 
     return {
         "url": scorecard_url,
