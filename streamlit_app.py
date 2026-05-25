@@ -238,7 +238,7 @@ def format_player_name(name):
 # =========================================================
 # Best-11 Calculator (shared across Standings + Knockout)
 # =========================================================
-def get_best_11(squad, player_scores, ir_player=None):
+def get_best_11(squad, player_scores, ir_player=None, gameweek=None):
     import itertools
     
     # IMPORTANT: IR only applies if squad >= 19 players
@@ -313,12 +313,30 @@ def get_best_11(squad, player_scores, ir_player=None):
             'FWD': (1, 3)
         }
     else:
-        valid_ranges = {
-            'WK': (1, 3),
-            'BAT': (1, 4),
-            'AR': (2, 6),
-            'BWL': (3, 4)
-        }
+        # Determine rules based on gameweek
+        use_old_rule = False
+        if gameweek is not None:
+            try:
+                cleaned_gw = "".join(c for c in str(gameweek) if c.isdigit())
+                if cleaned_gw and int(cleaned_gw) <= 10:
+                    use_old_rule = True
+            except (ValueError, TypeError):
+                pass
+        
+        if use_old_rule:
+            valid_ranges = {
+                'WK': (1, 3),
+                'BAT': (1, 4),
+                'AR': (3, 6),
+                'BWL': (2, 4)
+            }
+        else:
+            valid_ranges = {
+                'WK': (1, 3),
+                'BAT': (1, 4),
+                'AR': (2, 6),
+                'BWL': (3, 4)
+            }
     
     best_team = []
     best_score = -1
@@ -4820,7 +4838,7 @@ def show_main_app():
                     active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
                         scores_with_bonus = scores.copy()
-                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(gw), {})
                         for player, bonus in hattrick_bonuses.items():
                             scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
                         
@@ -4844,7 +4862,7 @@ def show_main_app():
                                 ir_player = participant.get('injury_reserve')
                             
                             # Use proper best-11 with role constraints for accurate preview
-                            best_11, _ = get_best_11(squad, scores_with_bonus, ir_player)
+                            best_11, _ = get_best_11(squad, scores_with_bonus, ir_player, gameweek=gw)
                             p_totals[p_name] += sum(p_entry['score'] for p_entry in best_11)
                     
                     # Sort by points
@@ -4892,7 +4910,7 @@ def show_main_app():
                     active_participants = [p for p in room.get('participants', []) if not p.get('eliminated', False)]
                     for gw, scores in room.get('gameweek_scores', {}).items():
                         scores_with_bonus = scores.copy()
-                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(gw), {})
                         for player, bonus in hattrick_bonuses.items():
                             scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
                         
@@ -4916,7 +4934,7 @@ def show_main_app():
                                 ir_player = participant.get('injury_reserve')
                             
                             # Use the same get_best_11 function as the standings display
-                            best_11, _ = get_best_11(squad, scores_with_bonus, ir_player)
+                            best_11, _ = get_best_11(squad, scores_with_bonus, ir_player, gameweek=gw)
                             p_totals[p_name] += sum(p_entry['score'] for p_entry in best_11)
                     
                     sorted_participants = sorted(p_totals.items(), key=lambda x: -x[1])
@@ -5093,7 +5111,7 @@ def show_main_app():
                 gw_scores = room['gameweek_scores'].get(selected_gw, {}).copy()  # Copy to avoid modifying original
                 
                 # Apply hattrick bonuses for this specific gameweek
-                hattrick_bonuses = room.get('hattrick_bonuses', {}).get(selected_gw, {})
+                hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(selected_gw), {})
                 for player, bonus in hattrick_bonuses.items():
                     existing = gw_scores.get(player, 0)
                     if isinstance(existing, dict):
@@ -5121,7 +5139,7 @@ def show_main_app():
                         else:
                             gw_scores[player] = existing + score
                     # Add hattrick bonuses for this GW
-                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(gw), {})
                     for player, bonus in hattrick_bonuses.items():
                         existing = gw_scores.get(player, 0)
                         if isinstance(existing, dict):
@@ -5164,7 +5182,7 @@ def show_main_app():
                             squad = participant['squad']
                             ir_player = participant.get('injury_reserve')
                         
-                        best_11, warnings = get_best_11(squad, gw_scores, ir_player)
+                        best_11, warnings = get_best_11(squad, gw_scores, ir_player, gameweek=selected_gw)
                         total_points = sum(p['score'] for p in best_11)
                         
                         standings.append({
@@ -5206,11 +5224,11 @@ def show_main_app():
                         
                         # Apply hattrick bonuses for this specific gameweek
                         scores_with_bonus = scores.copy()
-                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                        hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(gw), {})
                         for player, bonus in hattrick_bonuses.items():
                             scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
                         
-                        best_11, warnings = get_best_11(squad, scores_with_bonus, ir_player)
+                        best_11, warnings = get_best_11(squad, scores_with_bonus, ir_player, gameweek=gw)
                         gw_points = sum(p['score'] for p in best_11)
                         p_totals[p_name] += gw_points
                         
@@ -5281,12 +5299,12 @@ def show_main_app():
                             
                             # Apply Hattrick Bonus for this GW
                             gw_scores_final = scores.copy()
-                            hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                            hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(gw), {})
                             for player, bonus in hattrick_bonuses.items():
                                 gw_scores_final[player] = gw_scores_final.get(player, 0) + bonus
                                 
                             # Calculate Best 11 for this GW
-                            b11, _ = get_best_11(gw_squad, gw_scores_final, gw_ir)
+                            b11, _ = get_best_11(gw_squad, gw_scores_final, gw_ir, gameweek=gw)
                             
                             # Aggregate
                             for p in b11:
@@ -5343,7 +5361,7 @@ def show_main_app():
                         elif display_gw_key:
                             st.caption(f"⚠️ Using Current Squad (No snapshot found for GW {display_gw_key})")
                         
-                        best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir)
+                        best_11, warnings = get_best_11(detail_squad, gw_scores, detail_ir, gameweek=display_gw_key)
                         if warnings:
                             for w in warnings: st.warning(w)
                         best_11_df = pd.DataFrame(best_11)
@@ -5373,7 +5391,7 @@ def show_main_app():
                 if selected_scorer_gw:
                     scores = room['gameweek_scores'].get(selected_scorer_gw, {})
                     # Apply hattrick bonuses
-                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(selected_scorer_gw, {})
+                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(selected_scorer_gw), {})
                     
                     for player, score in scores.items():
                         bonus = hattrick_bonuses.get(player, 0)
@@ -5386,7 +5404,7 @@ def show_main_app():
             else:
                 # Cumulative across all gameweeks
                 for gw, scores in room.get('gameweek_scores', {}).items():
-                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(gw, {})
+                    hattrick_bonuses = room.get('hattrick_bonuses', {}).get(str(gw), {})
                     for player, score in scores.items():
                         bonus = hattrick_bonuses.get(player, 0)
                         total = score + bonus

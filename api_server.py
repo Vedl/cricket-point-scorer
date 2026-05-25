@@ -2141,6 +2141,182 @@ async def auth_register(req: AuthRegisterRequest):
     }
 
 
+def get_best_11(squad, player_scores, ir_player=None, is_football=False, player_role_lookup=None, gameweek=None):
+    import itertools
+
+    if player_role_lookup is None:
+        player_role_lookup = {}
+
+    if len(squad) < 19:
+        ir_player = None
+
+    active_squad = [p for p in squad if (p["name"] if isinstance(p, dict) else p) != ir_player]
+
+    def categorize_role(role_str):
+        role_str = (role_str or "").lower()
+        if "wk" in role_str or "wicket" in role_str or "keeper" in role_str:
+            return "WK"
+        if "allrounder" in role_str or "all-rounder" in role_str or "all rounder" in role_str or "ar" in role_str:
+            return "AR"
+        if "bowl" in role_str:
+            return "BWL"
+        return "BAT"
+
+    def map_football_role(role_str):
+        role_str = (role_str or "").lower()
+        if 'gk' in role_str or 'goalkeeper' in role_str: return 'GK'
+        if 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: return 'DEF'
+        if 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: return 'MID'
+        if 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: return 'FWD'
+        return 'MID'
+
+    scored_players = []
+    for p in active_squad:
+        name = p["name"] if isinstance(p, dict) else p
+        score_entry = player_scores.get(name, 0)
+        
+        if isinstance(score_entry, dict):
+            for pos_key, pos_score in score_entry.items():
+                scored_players.append({
+                    "name": name,
+                    "category": pos_key,
+                    "score": pos_score
+                })
+        else:
+            role_str = p.get("role", "") if isinstance(p, dict) else ""
+            if not role_str:
+                role_str = player_role_lookup.get(name, "Midfielder" if is_football else "Batsman")
+            
+            if is_football:
+                cat = map_football_role(role_str)
+            else:
+                cat = categorize_role(role_str)
+                
+            scored_players.append({
+                "name": name,
+                "category": cat,
+                "score": score_entry
+            })
+
+    unique_names = set(p["name"] for p in scored_players)
+    if len(unique_names) <= 11:
+        collapsed_players = {}
+        for p in scored_players:
+            n = p["name"]
+            if n not in collapsed_players or p["score"] > collapsed_players[n]["score"]:
+                collapsed_players[n] = p
+        return list(collapsed_players.values())
+
+    scored_players.sort(key=lambda x: x["score"], reverse=True)
+    
+    if is_football:
+        valid_ranges = {
+            "GK": (1, 1),
+            "DEF": (3, 5),
+            "MID": (3, 5),
+            "FWD": (1, 3)
+        }
+    else:
+        # Determine rules based on gameweek
+        use_old_rule = False
+        if gameweek is not None:
+            try:
+                cleaned_gw = "".join(c for c in str(gameweek) if c.isdigit())
+                if cleaned_gw and int(cleaned_gw) <= 10:
+                    use_old_rule = True
+            except (ValueError, TypeError):
+                pass
+
+        if use_old_rule:
+            valid_ranges = {
+                "WK": (1, 3),
+                "BAT": (1, 4),
+                "AR": (3, 6),
+                "BWL": (2, 4)
+            }
+        else:
+            valid_ranges = {
+                "WK": (1, 3),
+                "BAT": (1, 4),
+                "AR": (2, 6),
+                "BWL": (3, 4)
+            }
+        
+    best_team = []
+    best_score = -1
+    
+    for team in itertools.combinations(scored_players, 11):
+        player_names_in_team = [p["name"] for p in team]
+        if len(set(player_names_in_team)) < 11:
+            continue
+            
+        counts = {k: 0 for k in valid_ranges}
+        current_score = 0
+        for p in team:
+            counts[p["category"]] += 1
+            current_score += p["score"]
+            
+        is_valid = True
+        for role, (min_v, max_v) in valid_ranges.items():
+            if not (min_v <= counts[role] <= max_v):
+                is_valid = False
+                break
+                
+        if is_valid:
+            if current_score > best_score:
+                best_score = current_score
+                best_team = list(team)
+                
+    if best_team:
+        return best_team
+        
+    # Greedy fallback
+    collapsed_players = {}
+    for p in scored_players:
+        n = p["name"]
+        if n not in collapsed_players or p["score"] > collapsed_players[n]["score"]:
+            collapsed_players[n] = p
+    collapsed_pool = list(collapsed_players.values())
+    
+    by_cat = {k: [] for k in valid_ranges}
+    for p in collapsed_pool:
+        if p["category"] in by_cat:
+            by_cat[p["category"]].append(p)
+            
+    for cat in by_cat:
+        by_cat[cat].sort(key=lambda x: x["score"], reverse=True)
+        
+    greedy_team = []
+    used_names = set()
+    
+    for role, (min_v, _) in valid_ranges.items():
+        available = [p for p in by_cat[role] if p["name"] not in used_names]
+        filled = 0
+        for p in available:
+            if filled >= min_v:
+                break
+            greedy_team.append(p)
+            used_names.add(p["name"])
+            filled += 1
+        while filled < min_v:
+            greedy_team.append({"name": f"[Empty {role} slot]", "category": role, "score": 0})
+            filled += 1
+            
+    remaining_slots = 11 - len(greedy_team)
+    if remaining_slots > 0:
+        unused = [p for p in scored_players if p["name"] not in used_names]
+        unused.sort(key=lambda x: x["score"], reverse=True)
+        for p in unused[:remaining_slots]:
+            cat_count = sum(1 for t in greedy_team if t["category"] == p["category"])
+            _, max_v = valid_ranges.get(p["category"], (0, 99))
+            if cat_count < max_v:
+                greedy_team.append(p)
+                used_names.add(p["name"])
+                
+    greedy_team.sort(key=lambda x: x["score"], reverse=True)
+    return greedy_team[:11]
+
+
 # ----------------------------------------------------------
 # 0. GET /
 # ----------------------------------------------------------
@@ -2650,6 +2826,28 @@ async def auction_results(room_code: str = Query(..., description="Room code")):
         if not p.get("eliminated", False)
     ]
 
+    is_football = room.get("tournament_type") == "FIFA World Cup 2026"
+
+    # Load player role lookup
+    player_role_lookup = {}
+    if is_football:
+        players_file = Path(__file__).parent / "fifa_wc_2026_players.json"
+        if players_file.exists():
+            with open(players_file) as f:
+                players_data = json.load(f)
+            if isinstance(players_data, list):
+                for pl in players_data:
+                    if isinstance(pl, dict) and "name" in pl:
+                        player_role_lookup[pl["name"]] = pl.get("role", "Midfielder")
+    else:
+        squads_file = Path(__file__).parent / "ipl_2026_squads.json"
+        if squads_file.exists():
+            with open(squads_file) as f:
+                squads_data = json.load(f)
+            for team_data in squads_data.get("teams", {}).values():
+                for pl in team_data.get("squad", []):
+                    player_role_lookup[pl["name"]] = pl.get("role", "Batsman")
+
     p_totals = {p["name"]: 0.0 for p in active_participants}
     p_gw_breakdown = {p["name"]: {} for p in active_participants}
 
@@ -2658,7 +2856,7 @@ async def auction_results(room_code: str = Query(..., description="Room code")):
 
         # Apply hattrick bonuses
         scores_with_bonus = dict(scores)
-        hattrick_bonuses = room.get("hattrick_bonuses", {}).get(gw, {})
+        hattrick_bonuses = room.get("hattrick_bonuses", {}).get(str(gw), {})
         for player, bonus in hattrick_bonuses.items():
             scores_with_bonus[player] = scores_with_bonus.get(player, 0) + bonus
 
@@ -2678,20 +2876,8 @@ async def auction_results(room_code: str = Query(..., description="Room code")):
                 squad = participant.get("squad", [])
                 ir_player = participant.get("injury_reserve")
 
-            # Get scores for squad (exclude IR)
-            squad_scores = []
-            for pl in squad:
-                name = pl["name"] if isinstance(pl, dict) else pl
-                if name == ir_player:
-                    continue
-                squad_scores.append({
-                    "name": name,
-                    "score": scores_with_bonus.get(name, 0),
-                })
-
-            # Best 11 (simple: top 11 by score)
-            squad_scores.sort(key=lambda x: -x["score"])
-            best_11 = squad_scores[:11]
+            # Best 11 using proper Best-11 with role constraints
+            best_11 = get_best_11(squad, scores_with_bonus, ir_player, is_football, player_role_lookup, gameweek=gw)
             gw_points = sum(s["score"] for s in best_11)
 
             p_totals[p_name] += gw_points
@@ -3941,7 +4127,8 @@ async def get_standings(
 ):
     """
     Returns standings with proper Best-11 selection using role constraints.
-    WK: 1-3, BAT: 1-4, AR: 3-6, BWL: 2-4
+    GW1-10:  WK: 1-3, BAT: 1-4, AR: 3-6, BWL: 2-4
+    GW11+:   WK: 1-3, BAT: 1-4, AR: 2-6, BWL: 3-4
     """
     import itertools
     data = _firebase_get()
@@ -3975,161 +4162,10 @@ async def get_standings(
                 for pl in team_data.get("squad", []):
                     player_role_lookup[pl["name"]] = pl.get("role", "Batsman")
 
-    def categorize_role(role_str):
-        role_str = (role_str or "").lower()
-        if "wk" in role_str or "wicket" in role_str or "keeper" in role_str:
-            return "WK"
-        if "allrounder" in role_str or "all-rounder" in role_str or "all rounder" in role_str:
-            return "AR"
-        if "bowl" in role_str:
-            return "BWL"
-        return "BAT"
-
-    def map_football_role(role_str):
-        role_str = (role_str or "").lower()
-        if 'gk' in role_str or 'goalkeeper' in role_str: return 'GK'
-        if 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: return 'DEF'
-        if 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: return 'MID'
-        if 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: return 'FWD'
-        return 'MID'
-
     def apply_bonus(score_val, bonus):
         if isinstance(score_val, dict):
             return {pos: val + bonus for pos, val in score_val.items()}
         return score_val + bonus
-
-    def get_best_11(squad, player_scores, ir_player=None):
-        if len(squad) < 19:
-            ir_player = None
-            
-        active_squad = [p for p in squad if (p["name"] if isinstance(p, dict) else p) != ir_player]
-        
-        scored_players = []
-        for p in active_squad:
-            name = p["name"] if isinstance(p, dict) else p
-            score_entry = player_scores.get(name, 0)
-            
-            if isinstance(score_entry, dict):
-                for pos_key, pos_score in score_entry.items():
-                    scored_players.append({
-                        "name": name,
-                        "category": pos_key,
-                        "score": pos_score
-                    })
-            else:
-                role_str = p.get("role", "") if isinstance(p, dict) else ""
-                if not role_str:
-                    role_str = player_role_lookup.get(name, "Midfielder" if is_football else "Batsman")
-                
-                if is_football:
-                    cat = map_football_role(role_str)
-                else:
-                    cat = categorize_role(role_str)
-                    
-                scored_players.append({
-                    "name": name,
-                    "category": cat,
-                    "score": score_entry
-                })
-                
-        unique_names = set(p["name"] for p in scored_players)
-        if len(unique_names) <= 11:
-            collapsed_players = {}
-            for p in scored_players:
-                n = p["name"]
-                if n not in collapsed_players or p["score"] > collapsed_players[n]["score"]:
-                    collapsed_players[n] = p
-            return list(collapsed_players.values())
-
-        scored_players.sort(key=lambda x: x["score"], reverse=True)
-        
-        if is_football:
-            valid_ranges = {
-                "GK": (1, 1),
-                "DEF": (3, 5),
-                "MID": (3, 5),
-                "FWD": (1, 3)
-            }
-        else:
-            valid_ranges = {
-                "WK": (1, 3),
-                "BAT": (1, 4),
-                "AR": (3, 6),
-                "BWL": (2, 4)
-            }
-            
-        best_team = []
-        best_score = -1
-        
-        for team in itertools.combinations(scored_players, 11):
-            player_names_in_team = [p["name"] for p in team]
-            if len(set(player_names_in_team)) < 11:
-                continue
-                
-            counts = {k: 0 for k in valid_ranges}
-            current_score = 0
-            for p in team:
-                counts[p["category"]] += 1
-                current_score += p["score"]
-                
-            is_valid = True
-            for role, (min_v, max_v) in valid_ranges.items():
-                if not (min_v <= counts[role] <= max_v):
-                    is_valid = False
-                    break
-                    
-            if is_valid:
-                if current_score > best_score:
-                    best_score = current_score
-                    best_team = list(team)
-                    
-        if best_team:
-            return best_team
-            
-        collapsed_players = {}
-        for p in scored_players:
-            n = p["name"]
-            if n not in collapsed_players or p["score"] > collapsed_players[n]["score"]:
-                collapsed_players[n] = p
-        collapsed_pool = list(collapsed_players.values())
-        
-        by_cat = {k: [] for k in valid_ranges}
-        for p in collapsed_pool:
-            if p["category"] in by_cat:
-                by_cat[p["category"]].append(p)
-                
-        for cat in by_cat:
-            by_cat[cat].sort(key=lambda x: x["score"], reverse=True)
-            
-        greedy_team = []
-        used_names = set()
-        
-        for role, (min_v, _) in valid_ranges.items():
-            available = [p for p in by_cat[role] if p["name"] not in used_names]
-            filled = 0
-            for p in available:
-                if filled >= min_v:
-                    break
-                greedy_team.append(p)
-                used_names.add(p["name"])
-                filled += 1
-            while filled < min_v:
-                greedy_team.append({"name": f"[Empty {role} slot]", "category": role, "score": 0})
-                filled += 1
-                
-        remaining_slots = 11 - len(greedy_team)
-        if remaining_slots > 0:
-            unused = [p for p in scored_players if p["name"] not in used_names]
-            unused.sort(key=lambda x: x["score"], reverse=True)
-            for p in unused[:remaining_slots]:
-                cat_count = sum(1 for t in greedy_team if t["category"] == p["category"])
-                _, max_v = valid_ranges.get(p["category"], (0, 99))
-                if cat_count < max_v:
-                    greedy_team.append(p)
-                    used_names.add(p["name"])
-                    
-        greedy_team.sort(key=lambda x: x["score"], reverse=True)
-        return greedy_team[:11]
 
     # Build standings
     standings = []
@@ -4151,14 +4187,14 @@ async def get_standings(
             else:
                 squad = p["squad"]
                 ir = p.get("injury_reserve")
-            best = get_best_11(squad, scores, ir)
+            best = get_best_11(squad, scores, ir, is_football, player_role_lookup, gameweek=gw_key)
             total = sum(x["score"] for x in best)
             standings.append({"participant": p["name"], "points": total, "best_11": [x["name"] for x in best]})
     else:
         p_totals = {p["name"]: 0.0 for p in active_participants}
         for gw, scores in gw_scores_all.items():
             scores_with_bonus = dict(scores)
-            bonuses = room.get("hattrick_bonuses", {}).get(gw, {})
+            bonuses = room.get("hattrick_bonuses", {}).get(str(gw), {})
             for pl, b in bonuses.items():
                 scores_with_bonus[pl] = apply_bonus(scores_with_bonus.get(pl, 0), b)
             locked = room.get("gameweek_squads", {}).get(str(gw), {})
@@ -4170,7 +4206,7 @@ async def get_standings(
                 else:
                     squad = p["squad"]
                     ir = p.get("injury_reserve")
-                best = get_best_11(squad, scores_with_bonus, ir)
+                best = get_best_11(squad, scores_with_bonus, ir, is_football, player_role_lookup, gameweek=gw)
                 p_totals[p["name"]] += sum(x["score"] for x in best)
         for name, pts in p_totals.items():
             standings.append({"participant": name, "points": pts})
@@ -4274,8 +4310,6 @@ async def eliminate_participants(req: EliminateRequest):
     # Calculate standings from accumulated scores using the SAME
     # get_best_11 logic as the /auction/standings endpoint to ensure
     # consistent rankings between what users see and what knockout uses.
-    import itertools
-
     gw_scores_all = room.get("gameweek_scores", {})
     is_football = room.get("tournament_type") == "FIFA World Cup 2026"
     active_participants = [
@@ -4302,126 +4336,6 @@ async def eliminate_participants(req: EliminateRequest):
                 for pl in team_data.get("squad", []):
                     player_role_lookup[pl["name"]] = pl.get("role", "Batsman")
 
-    def _elim_categorize_role(role_str):
-        role_str = (role_str or "").lower()
-        if "wk" in role_str or "wicket" in role_str or "keeper" in role_str:
-            return "WK"
-        if "allrounder" in role_str or "all-rounder" in role_str or "all rounder" in role_str:
-            return "AR"
-        if "bowl" in role_str:
-            return "BWL"
-        return "BAT"
-
-    def _elim_map_football_role(role_str):
-        role_str = (role_str or "").lower()
-        if 'gk' in role_str or 'goalkeeper' in role_str: return 'GK'
-        if 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: return 'DEF'
-        if 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: return 'MID'
-        if 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: return 'FWD'
-        return 'MID'
-
-    def _elim_apply_bonus(score_val, bonus):
-        if isinstance(score_val, dict):
-            return {pos: val + bonus for pos, val in score_val.items()}
-        return score_val + bonus
-
-    def _elim_get_best_11(squad, player_scores, ir_player=None):
-        if len(squad) < 19:
-            ir_player = None
-        active_squad = [p for p in squad if (p["name"] if isinstance(p, dict) else p) != ir_player]
-
-        scored_players = []
-        for p in active_squad:
-            name = p["name"] if isinstance(p, dict) else p
-            score_entry = player_scores.get(name, 0)
-            if isinstance(score_entry, dict):
-                for pos_key, pos_score in score_entry.items():
-                    scored_players.append({"name": name, "category": pos_key, "score": pos_score})
-            else:
-                role_str = p.get("role", "") if isinstance(p, dict) else ""
-                if not role_str:
-                    role_str = player_role_lookup.get(name, "Midfielder" if is_football else "Batsman")
-                if is_football:
-                    cat = _elim_map_football_role(role_str)
-                else:
-                    cat = _elim_categorize_role(role_str)
-                scored_players.append({"name": name, "category": cat, "score": score_entry})
-
-        unique_names = set(p["name"] for p in scored_players)
-        if len(unique_names) <= 11:
-            collapsed = {}
-            for p in scored_players:
-                n = p["name"]
-                if n not in collapsed or p["score"] > collapsed[n]["score"]:
-                    collapsed[n] = p
-            return list(collapsed.values())
-
-        scored_players.sort(key=lambda x: x["score"], reverse=True)
-        if is_football:
-            valid_ranges = {"GK": (1, 1), "DEF": (3, 5), "MID": (3, 5), "FWD": (1, 3)}
-        else:
-            valid_ranges = {"WK": (1, 3), "BAT": (1, 4), "AR": (3, 6), "BWL": (2, 4)}
-
-        best_team = []
-        best_score = -1
-        for team in itertools.combinations(scored_players, 11):
-            player_names_in_team = [p["name"] for p in team]
-            if len(set(player_names_in_team)) < 11:
-                continue
-            counts = {k: 0 for k in valid_ranges}
-            current_score = 0
-            for p in team:
-                counts[p["category"]] += 1
-                current_score += p["score"]
-            is_valid = all(min_v <= counts[role] <= max_v for role, (min_v, max_v) in valid_ranges.items())
-            if is_valid and current_score > best_score:
-                best_score = current_score
-                best_team = list(team)
-
-        if best_team:
-            return best_team
-
-        # Greedy fallback
-        collapsed = {}
-        for p in scored_players:
-            n = p["name"]
-            if n not in collapsed or p["score"] > collapsed[n]["score"]:
-                collapsed[n] = p
-        collapsed_pool = list(collapsed.values())
-        by_cat = {k: [] for k in valid_ranges}
-        for p in collapsed_pool:
-            if p["category"] in by_cat:
-                by_cat[p["category"]].append(p)
-        for cat in by_cat:
-            by_cat[cat].sort(key=lambda x: x["score"], reverse=True)
-
-        greedy_team = []
-        used_names = set()
-        for role, (min_v, _) in valid_ranges.items():
-            available = [p for p in by_cat[role] if p["name"] not in used_names]
-            filled = 0
-            for p in available:
-                if filled >= min_v:
-                    break
-                greedy_team.append(p)
-                used_names.add(p["name"])
-                filled += 1
-            while filled < min_v:
-                greedy_team.append({"name": f"[Empty {role} slot]", "category": role, "score": 0})
-                filled += 1
-        remaining_slots = 11 - len(greedy_team)
-        if remaining_slots > 0:
-            unused = [p for p in scored_players if p["name"] not in used_names]
-            unused.sort(key=lambda x: x["score"], reverse=True)
-            for p in unused[:remaining_slots]:
-                cat_count = sum(1 for t in greedy_team if t["category"] == p["category"])
-                _, max_v = valid_ranges.get(p["category"], (0, 99))
-                if cat_count < max_v:
-                    greedy_team.append(p)
-                    used_names.add(p["name"])
-        greedy_team.sort(key=lambda x: x["score"], reverse=True)
-        return greedy_team[:11]
-
     # Calculate cumulative points using proper Best-11 with role constraints
     p_totals = {}
     for p in active_participants:
@@ -4429,9 +4343,12 @@ async def eliminate_participants(req: EliminateRequest):
         for gw, scores in gw_scores_all.items():
             # Apply hattrick bonuses (was missing before!)
             scores_with_bonus = dict(scores)
-            bonuses = room.get("hattrick_bonuses", {}).get(gw, {})
+            bonuses = room.get("hattrick_bonuses", {}).get(str(gw), {})
             for pl_name, bonus in bonuses.items():
-                scores_with_bonus[pl_name] = _elim_apply_bonus(scores_with_bonus.get(pl_name, 0), bonus)
+                if isinstance(scores_with_bonus.get(pl_name, 0), dict):
+                    scores_with_bonus[pl_name] = {pos: val + bonus for pos, val in scores_with_bonus[pl_name].items()}
+                else:
+                    scores_with_bonus[pl_name] = scores_with_bonus.get(pl_name, 0) + bonus
 
             locked = room.get("gameweek_squads", {}).get(str(gw), {})
             sq_data = locked.get(p["name"])
@@ -4441,7 +4358,7 @@ async def eliminate_participants(req: EliminateRequest):
             else:
                 squad = p.get("squad", [])
                 ir = p.get("injury_reserve")
-            best = _elim_get_best_11(squad, scores_with_bonus, ir)
+            best = get_best_11(squad, scores_with_bonus, ir, is_football, player_role_lookup, gameweek=gw)
             p_totals[p["name"]] += sum(x["score"] for x in best)
 
     # Sort by points descending
