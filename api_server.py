@@ -1204,6 +1204,10 @@ def _construct_cricbuzz_scorecard_url(match: dict) -> Optional[str]:
     This is far more reliable than scraping the series page, which only shows
     ~20 recent matches. The Cricbuzz ID pattern: base_id + (match_num - 1) * stride.
     """
+    custom_url = match.get("cricbuzz_url") or match.get("url")
+    if custom_url:
+        return _normalize_scorecard_url(custom_url)
+
     match_id = int(match.get("match_id", 0) or 0)
     teams = match.get("teams", [])
     if not match_id or len(teams) < 2:

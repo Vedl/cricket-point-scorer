@@ -831,7 +831,7 @@
     "11": {
       "name": "Qualifier 1 & Eliminator",
       "phase": "Playoff",
-      "dates": "TBD",
+      "dates": "May 26 - May 27, 2026",
       "matches": [
         {
           "match_id": 71,
@@ -842,17 +842,19 @@
           "date": "2026-05-26",
           "time": "19:30",
           "venue": "Himachal Pradesh Cricket Association Stadium, Dharamsala",
+          "cricbuzz_url": "https://www.cricbuzz.com/live-cricket-scores/155376/rcb-vs-gt-qualifier-1-indian-premier-league-2026",
           "type": "Qualifier 1"
         },
         {
           "match_id": 72,
           "teams": [
-            "TBD (EL)",
-            "TBD (EL)"
+            "SRH",
+            "RR"
           ],
-          "date": "TBD",
+          "date": "2026-05-27",
           "time": "19:30",
-          "venue": "TBD",
+          "venue": "Maharaja Yadavindra Singh Stadium, New Chandigarh",
+          "cricbuzz_url": "https://www.cricbuzz.com/live-cricket-scores/155387/srh-vs-rr-eliminator-indian-premier-league-2026",
           "type": "Eliminator"
         }
       ]
@@ -860,7 +862,7 @@
     "12": {
       "name": "Qualifier 2",
       "phase": "Playoff",
-      "dates": "TBD",
+      "dates": "May 29, 2026",
       "matches": [
         {
           "match_id": 73,
@@ -868,9 +870,9 @@
             "TBD (Q2)",
             "TBD (Q2)"
           ],
-          "date": "TBD",
+          "date": "2026-05-29",
           "time": "19:30",
-          "venue": "TBD",
+          "venue": "Maharaja Yadavindra Singh Stadium, New Chandigarh",
           "type": "Qualifier 2"
         }
       ]
@@ -888,7 +890,7 @@
           ],
           "date": "2026-05-31",
           "time": "19:30",
-          "venue": "M. Chinnaswamy Stadium, Bengaluru",
+          "venue": "Narendra Modi Stadium, Ahmedabad",
           "type": "Final"
         }
       ]
