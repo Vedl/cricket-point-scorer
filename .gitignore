@@ -8,7 +8,31 @@ venv/
 frontend/node_modules/
 frontend/dist/
 frontend/.DS_Store
+flutter_frontend/build/
 
 # System
 .DS_Store
 .vscode/
+
+# Build artifacts
+build/
+
+# Local backups (use cloud storage instead)
+backups/
+*_backup_*.json
+
+# Scratch / throwaway work
+scratch/
+
+# Office crash-recovery artifacts
+*AutoRecovered*
+*.xlsx
+*.xls
+
+# Temporary scrape outputs
+fbref_test.html
+fbref_wc_schedule.html
+group_stage.html
+openfootball_2026.json
+Arsenal_AtleticoMadrid_FinalPoints.csv
+ParisSG_BayernMunich_FinalPoints.csv

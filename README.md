@@ -1,64 +1,95 @@
-# Cricket Point Scorer 🏏
+# Fantasy Sports Platform 🏏⚽
 
-An advanced, aesthetic web application to calculate Fantasy Cricket points based on Cricbuzz scorecards. Features a role-based scoring system that ensures fairness between Batsmen, Bowlers, and All-rounders.
+A full-stack fantasy sports platform supporting **IPL**, **T20 World Cup**, **UEFA Champions League**, and **FIFA World Cup 2026** — with live scoring, auction rooms, and multi-frontend delivery.
 
-![Frontend Preview](https://via.placeholder.com/800x400?text=App+Preview) 
-*(Add a screenshot of your app here!)*
+## Features
 
-## ✨ Features
+- **Live Scoring Engine** — real-time point calculation for cricket and football via Cricbuzz and FBRef scraping
+- **Fantasy Auction Rooms** — multi-user draft rooms with bidding, squad constraints, and gameweek locking
+- **Best-11 Selection** — per-gameweek auto-selection with role-based constraints (min. WK, BAT, AR, BWL counts)
+- **Multi-Sport Support** — cricket (IPL, T20 WC) and football (UCL, FIFA WC 2026) in one platform
+- **Admin Tools** — release management, player transfers, room resets, and paid-flag controls
+- **Streamlit Dashboard** — lightweight admin interface alongside the React web app
 
-- **Role-Based Scoring**: Intelligent point calculation that adapts rules based on player roles (e.g., Bowlers are exempt from low strike-rate penalties).
-- **Aesthetic UI**: A stunning Dark Mode interface built with React, Tailwind CSS, and Glassmorphism effects.
-- **Fairness Logic**:
-    - **Cumulative Bonuses**: Run bonuses (30, 50, 100) stack for high rewards.
-    - **Power Hitting Rewards**: Special bonuses for Strike Rates > 200 and > 250.
-    - **Deflated Scoring**: Calibrated so >100 points is very hard (Test/IPL level difficulty).
-- **Live Scraping**: Fetches real-time data directly from Cricbuzz URLs.
+## Tech Stack
 
-## 🛠️ Tech Stack
+| Layer | Technology |
+|---|---|
+| Backend API | Python, FastAPI |
+| Scoring / Scraping | BeautifulSoup4, Cricbuzz, FBRef, WhoScored |
+| Database | Firebase Firestore |
+| Web Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Mobile Frontend | Flutter / Dart |
+| Admin UI | Streamlit |
+| Hosting | Firebase Hosting |
 
-- **Backend**: Python, FastAPI, BeautifulSoup4
-- **Frontend**: React, Vite, Tailwind CSS, Lucide Icons
+## Project Structure
 
-## 🚀 Getting Started
+```
+├── api_server.py            # FastAPI backend (main entry point)
+├── player_score_calculator.py
+├── football_score_calculator.py
+├── cricbuzz_scraper.py
+├── fbref_adapter.py
+├── whoscored_adapter.py
+├── streamlit_app.py         # Admin dashboard
+├── ui_theme.py
+├── frontend/                # React/TypeScript web app
+├── flutter_frontend/        # Flutter mobile app
+├── backend/                 # Supporting backend modules
+├── tests/                   # Pytest test suite
+├── scripts/                 # Utility and migration scripts
+│   ├── debug/               # Standalone debug scripts
+│   └── migrations/          # One-off data migration scripts
+└── data/                    # Static reference data (CSVs, schedules)
+```
+
+## Getting Started
 
 ### Prerequisites
-- Python 3.8+
-- Node.js & npm
+- Python 3.10+
+- Node.js 18+ & npm
+- Firebase project (for Firestore)
 
-### Installation
+### Backend
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/cricket-point-scorer.git
-    cd cricket-point-scorer
-    ```
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python api_server.py
+```
 
-2.  **Setup Backend**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    ```
+### React Frontend
 
-3.  **Setup Frontend**
-    ```bash
-    cd frontend
-    npm install
-    ```
+```bash
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
+```
 
-### Running the App
+### Admin Dashboard (Streamlit)
 
-1.  **Start Backend** (from root)
-    ```bash
-    python backend/app.py
-    ```
-2.  **Start Frontend** (from `frontend/` directory)
-    ```bash
-    npm run dev
-    ```
-3.  Open `http://localhost:5173` and paste a match URL!
+```bash
+streamlit run streamlit_app.py
+```
 
-## 📝 License
+### Convenience script (all services)
+
+```bash
+./start_local.sh
+```
+
+## Supported Sports & Competitions
+
+| Sport | Competition | Scoring Source |
+|---|---|---|
+| Cricket | IPL 2026 | Cricbuzz |
+| Cricket | T20 World Cup | Cricbuzz |
+| Football | UEFA Champions League | FBRef / WhoScored |
+| Football | FIFA World Cup 2026 | FBRef / WhoScored |
+
+## License
 
 MIT
