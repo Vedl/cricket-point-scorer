@@ -120,6 +120,19 @@ def get_whoscored_stats(ws_url):
     events = data.get('events', [])
     ft = data.get('ftScore', '0:0').split(':')
     
+    # Detect extra time: if etScore exists, match went to 120 minutes
+    et_score = data.get('etScore')
+    has_extra_time = et_score is not None
+    match_duration = 120 if has_extra_time else 90
+    
+    # Also check maxMinute as a fallback indicator
+    max_minute = data.get('maxMinute', 90)
+    if max_minute > 95 and not has_extra_time:
+        has_extra_time = True
+        match_duration = 120
+    
+    print(f"[WhoScoredAdapter] Extra time: {has_extra_time}, match duration: {match_duration} min")
+    
     exp_mins = data.get('expandedMinutes', {})
     expanded_to_real = {}
     for period, mapping in exp_mins.items():
@@ -132,6 +145,11 @@ def get_whoscored_stats(ws_url):
     goal_events = []
     
     for e in events:
+        # Skip penalty shootout events — they should NOT count towards player stats
+        event_period = e.get('period', {}).get('displayName', '')
+        if event_period == 'PenaltyShootout':
+            continue
+        
         pid = str(int(e.get('playerId', 0))) if e.get('playerId') else None
         if not pid: continue
         name = pdict.get(pid, '?')
@@ -193,7 +211,8 @@ def get_whoscored_stats(ws_url):
             else: 
                 continue
                 
-            minutes = max(0, min(end, 90) - min(start, 90))
+            # Use actual match duration (90 or 120) instead of hard-coded 90
+            minutes = max(0, min(end, match_duration) - min(start, match_duration))
             
             gs, gc = 0, 0
             for g in goal_events:

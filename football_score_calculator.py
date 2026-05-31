@@ -305,10 +305,16 @@ def score_calc_wrapper(pos, df, team_score, team_conc):
 # MATCH EVENTS PROCESSOR (UNMODIFIED FROM UCL SCORER)
 # ============================================================
 
-def process_match_events(match_events, df_home, df_away):
+def process_match_events(match_events, df_home, df_away, match_duration=90):
     """
     Processes match events and returns a DataFrame with player statistics.
     Fixed to handle 0-minute bench players correctly.
+    
+    Args:
+        match_events: List of match event dicts (goals, subs)
+        df_home: DataFrame of home team players
+        df_away: DataFrame of away team players
+        match_duration: Total match duration in minutes (90 for normal, 120 for extra time)
     """
     # Combine home and away players into sets for team assignments
     team_home_players = set(df_home['Unnamed: 0_level_0_Player'].str.strip())
@@ -360,8 +366,8 @@ def process_match_events(match_events, df_home, df_away):
                 'away_goals': current_away_goals
             })
 
-    # Ensure the final scoreline is included
-    match_end_time = 90
+    # Ensure the final scoreline is included — use actual match duration
+    match_end_time = match_duration
     if scoreline_timeline[-1]['minute'] < match_end_time:
         scoreline_timeline.append({
             'minute': match_end_time,
