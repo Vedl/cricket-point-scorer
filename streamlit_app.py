@@ -39,6 +39,13 @@ except (KeyError, ImportError):
     import backend.storage
     StorageManager = backend.storage.StorageManager
 
+# Force reload scoring modules so Streamlit Cloud always picks up code changes without a reboot
+import importlib
+import whoscored_adapter
+import football_score_calculator
+importlib.reload(whoscored_adapter)
+importlib.reload(football_score_calculator)
+
 import textwrap
 from ui_theme import inject_premium_theme, hero_header, section_header, status_badge, metric_row, broadcast_header, sidebar_room_info, auction_player_card, timer_bar
 
