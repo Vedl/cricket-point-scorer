@@ -25,6 +25,10 @@ class SeasonState(rx.State):
     scores_text: str = ""
     msg: str = ""
 
+    # knockout
+    eliminated: list[str] = []
+    knockout_count: str = "1"
+
     @rx.event
     def set_field(self, name: str, value):
         setattr(self, name, value)
@@ -52,8 +56,11 @@ class SeasonState(rx.State):
         self._recompute(room)
 
     def _recompute(self, room: dict):
+        self.eliminated = sorted(so.eliminated_names(room))
+        elim = set(self.eliminated)
         self.cumulative = [
-            {"participant": r["participant"], "points": str(r["points"])}
+            {"participant": r["participant"] + (" ❌" if r["participant"] in elim else ""),
+             "points": str(r["points"])}
             for r in so.compute_cumulative_standings(room)
         ]
         if self.selected_gw:
@@ -110,3 +117,33 @@ class SeasonState(rx.State):
         repo.save(doc)
         self.current_gameweek = str(gw)
         self.msg = f"⏭️ Advanced to GW{gw}."
+
+    @rx.event
+    def do_eliminate(self):
+        self.msg = ""
+        if not self.selected_gw:
+            self.msg = "⚠️ Select a gameweek with scores first."
+            return
+        code, doc, room = self._load_room()
+        if not room:
+            return
+        try:
+            count = max(1, int(self.knockout_count or 1))
+        except ValueError:
+            count = 1
+        losers = so.eliminate_for_gameweek(room, self.selected_gw, count)
+        repo.save(doc)
+        self._recompute(room)
+        self.msg = (f"❌ Eliminated: {', '.join(losers)}" if losers
+                    else "No active participants to eliminate.")
+
+    @rx.event
+    def reverse_elimination(self):
+        code, doc, room = self._load_room()
+        if not room:
+            return
+        restored = so.reverse_last_elimination(room)
+        repo.save(doc)
+        self._recompute(room)
+        self.msg = (f"↩️ Restored: {', '.join(restored)}" if restored
+                    else "Nothing to reverse.")

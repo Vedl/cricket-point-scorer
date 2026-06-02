@@ -7,6 +7,7 @@ caller's job.
 
 from __future__ import annotations
 
+from season_engine.knockout import select_for_elimination
 from season_engine.standings import cumulative_standings, gameweek_standings
 
 from .config_layer import SPORT_BY_TOURNAMENT
@@ -92,3 +93,38 @@ def advance_gameweek(room: dict) -> int:
     cur = int(room.get("current_gameweek", 0) or 0)
     room["current_gameweek"] = cur + 1
     return room["current_gameweek"]
+
+
+# --- knockout ------------------------------------------------------------ #
+def eliminated_names(room: dict) -> set[str]:
+    return {p["name"] for p in room.get("participants", []) if p.get("is_eliminated")}
+
+
+def eliminate_for_gameweek(room: dict, gameweek: str, count: int = 1) -> list[str]:
+    """Eliminate the bottom ``count`` active participants by that gameweek's Best-11."""
+    standings = compute_gameweek_standings(room, gameweek)
+    losers = select_for_elimination(
+        standings, count=count, already_eliminated=eliminated_names(room)
+    )
+    by = {p["name"]: p for p in room.get("participants", [])}
+    for name in losers:
+        if name in by:
+            by[name]["is_eliminated"] = True
+    if losers:
+        room.setdefault("knockout_history", []).append(
+            {"gameweek": str(gameweek), "eliminated": losers}
+        )
+    return losers
+
+
+def reverse_last_elimination(room: dict) -> list[str]:
+    """Undo the most recent knockout round (un-eliminate those participants)."""
+    history = room.get("knockout_history", [])
+    if not history:
+        return []
+    last = history.pop()
+    by = {p["name"]: p for p in room.get("participants", [])}
+    for name in last["eliminated"]:
+        if name in by:
+            by[name]["is_eliminated"] = False
+    return last["eliminated"]
