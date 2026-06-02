@@ -39,3 +39,11 @@ ParisSG_BayernMunich_FinalPoints.csv
 
 # New Reflex app venv
 .venv/
+
+# Reflex build artifacts
+.web/
+.states/
+reflex_internal.db
+uploaded_files/
+*.db
+.env
