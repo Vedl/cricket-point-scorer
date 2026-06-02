@@ -7498,5 +7498,161 @@
     "role": "Forward",
     "country": "Panama",
     "club": "Deportivo Saprissa"
+  },
+  {
+    "name": "Utkir Yusupov",
+    "role": "Goalkeeper",
+    "country": "Uzbekistan",
+    "club": "Navbahor"
+  },
+  {
+    "name": "Abduvohid Nematov",
+    "role": "Goalkeeper",
+    "country": "Uzbekistan",
+    "club": "Nasaf"
+  },
+  {
+    "name": "Botirali Ergashev",
+    "role": "Goalkeeper",
+    "country": "Uzbekistan",
+    "club": "Neftchi"
+  },
+  {
+    "name": "Rustam Ashurmatov",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Esteghlal"
+  },
+  {
+    "name": "Farrukh Sayfiev",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Neftchi"
+  },
+  {
+    "name": "Khojiakbar Alijonov",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Pakhtakor"
+  },
+  {
+    "name": "Sherzod Nasrullaev",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Nasaf"
+  },
+  {
+    "name": "Umar Eshmurodov",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Nasaf"
+  },
+  {
+    "name": "Abdukodir Khusanov",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Manchester City"
+  },
+  {
+    "name": "Abdulla Abdullaev",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Dibba"
+  },
+  {
+    "name": "Bekhruz Karimov",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Surkhon"
+  },
+  {
+    "name": "Jakhongir Urozov",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "Dinamo Samarqand"
+  },
+  {
+    "name": "Avazbek Ulmasaliev",
+    "role": "Defender",
+    "country": "Uzbekistan",
+    "club": "AGMK"
+  },
+  {
+    "name": "Otabek Shukurov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Baniyas"
+  },
+  {
+    "name": "Jaloliddin Masharipov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Esteghlal"
+  },
+  {
+    "name": "Odiljon Hamrobekov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Tractor"
+  },
+  {
+    "name": "Oston Urunov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Persepolis"
+  },
+  {
+    "name": "Jamshid Iskanderov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Neftchi"
+  },
+  {
+    "name": "Dostonbek Khamdamov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Pakhtakor"
+  },
+  {
+    "name": "Abbosbek Fayzullaev",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Istanbul Basaksehir"
+  },
+  {
+    "name": "Akmal Mozgovoy",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Pakhtakor"
+  },
+  {
+    "name": "Azizjon Ganiev",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Al Bataeh"
+  },
+  {
+    "name": "Sherzod Esanov",
+    "role": "Midfielder",
+    "country": "Uzbekistan",
+    "club": "Bukhara"
+  },
+  {
+    "name": "Eldor Shomurodov",
+    "role": "Forward",
+    "country": "Uzbekistan",
+    "club": "Istanbul Basaksehir"
+  },
+  {
+    "name": "Igor Sergeev",
+    "role": "Forward",
+    "country": "Uzbekistan",
+    "club": "Persepolis"
+  },
+  {
+    "name": "Azizbek Amonov",
+    "role": "Forward",
+    "country": "Uzbekistan",
+    "club": "Bukhara"
   }
 ]
