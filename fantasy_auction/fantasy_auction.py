@@ -9,6 +9,7 @@ import reflex as rx
 
 from . import theme
 from .state import AppState
+from .room_state import RoomState
 
 
 # --------------------------------------------------------------------------- #
@@ -324,19 +325,219 @@ def setup_page() -> rx.Component:
 
 
 # --------------------------------------------------------------------------- #
-# Auction room (Phase 3 placeholder)
+# Auction room (Phase 3)
 # --------------------------------------------------------------------------- #
+def _status_pill(text, color) -> rx.Component:
+    return rx.box(text, style={"background": color, "color": "white", "padding": "2px 10px",
+                               "border_radius": "999px", "font_size": "0.7rem", "font_weight": "700"})
+
+
+def featured_card() -> rx.Component:
+    return theme.card(
+        rx.vstack(
+            rx.hstack(
+                rx.text(RoomState.current_team, style={"color": theme.ACCENT, "font_weight": "700"}),
+                rx.spacer(),
+                rx.badge(RoomState.current_role, color_scheme="cyan"),
+                width="100%",
+            ),
+            rx.heading(RoomState.current_player, size="8", style={"color": theme.TEXT}),
+            rx.hstack(
+                rx.vstack(
+                    rx.text("CURRENT BID", style={"color": theme.MUTED, "font_size": "0.7rem"}),
+                    rx.heading(RoomState.current_bid.to_string() + "M", size="7",
+                               style={"color": theme.SUCCESS}),
+                    spacing="0", align="start",
+                ),
+                rx.spacer(),
+                rx.vstack(
+                    rx.text("TOP BIDDER", style={"color": theme.MUTED, "font_size": "0.7rem"}),
+                    rx.heading(
+                        rx.cond(RoomState.current_bidder != "", RoomState.current_bidder, "—"),
+                        size="6", style={"color": theme.TEXT}),
+                    spacing="0", align="end",
+                ),
+                width="100%", align="end",
+            ),
+            # timer bar
+            rx.box(
+                rx.box(style={"width": RoomState.timer_pct, "height": "100%",
+                              "background": f"linear-gradient(90deg,{theme.PRIMARY},{theme.ACCENT})",
+                              "transition": "width 0.35s linear"}),
+                style={"width": "100%", "height": "8px", "background": "rgba(255,255,255,0.08)",
+                       "border_radius": "999px", "overflow": "hidden", "margin_top": "0.5rem"},
+            ),
+            rx.text("⏱️ " + RoomState.time_left.to_string() + "s", style={"color": theme.MUTED}),
+            spacing="3", width="100%", align="start",
+        ),
+        width="100%",
+    )
+
+
+def bid_panel() -> rx.Component:
+    return theme.card(
+        rx.heading("🎯 Place a bid", size="5", style={"color": theme.TEXT}, margin_bottom="0.5rem"),
+        rx.cond(
+            RoomState.is_admin,
+            _field("Bid as", rx.select(RoomState.team_names, value=RoomState.bid_as,
+                   on_change=RoomState.set_field("bid_as"), width="100%")),
+            rx.text("Bidding as: " + RoomState.bid_as, style={"color": theme.ACCENT}),
+        ),
+        rx.text("Min next bid: " + RoomState.min_bid.to_string() + "M",
+                style={"color": theme.MUTED, "font_size": "0.8rem"}),
+        rx.hstack(
+            rx.input(value=RoomState.bid_amount, on_change=RoomState.set_field("bid_amount"),
+                     placeholder=RoomState.min_bid.to_string(), type="number", width="50%"),
+            theme.primary_button("🔨 BID", on_click=RoomState.place_bid),
+            width="100%", spacing="2",
+        ),
+        rx.hstack(
+            rx.button("+ Min bid", on_click=RoomState.quick_bid, variant="soft"),
+            rx.button("Opt out", on_click=RoomState.opt_out, variant="soft", color_scheme="gray"),
+            spacing="2", margin_top="0.5rem",
+        ),
+        width="100%",
+    )
+
+
+def admin_controls() -> rx.Component:
+    return theme.card(
+        rx.heading("🔧 Admin", size="5", style={"color": theme.TEXT}, margin_bottom="0.5rem"),
+        rx.hstack(
+            rx.cond(
+                RoomState.is_paused,
+                rx.button("▶️ Resume", on_click=RoomState.admin_resume, variant="soft"),
+                rx.button("⏸️ Pause", on_click=RoomState.admin_pause, variant="soft"),
+            ),
+            rx.button("🔨 Force sell", on_click=RoomState.admin_force_sell, variant="soft",
+                      color_scheme="green"),
+            rx.button("⏭️ Force unsold", on_click=RoomState.admin_force_unsold, variant="soft",
+                      color_scheme="amber"),
+            rx.button("↩️ Undo", on_click=RoomState.admin_undo, variant="soft",
+                      color_scheme="red", disabled=~RoomState.can_undo),
+            spacing="2", wrap="wrap",
+        ),
+        rx.cond(
+            RoomState.opted_out_names.length() > 0,
+            rx.hstack(
+                rx.text("Revive:", style={"color": theme.MUTED}),
+                rx.foreach(
+                    RoomState.opted_out_names,
+                    lambda n: rx.button(n, size="1", variant="surface",
+                                        on_click=RoomState.revive(n)),
+                ),
+                spacing="2", margin_top="0.5rem", wrap="wrap",
+            ),
+        ),
+        width="100%",
+    )
+
+
+def participant_card(p: rx.Var) -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            rx.text(p["name"], style={"color": theme.TEXT, "font_weight": "600"}),
+            rx.spacer(),
+            rx.match(
+                p["status"],
+                ("holding", _status_pill("LEADING", theme.SUCCESS)),
+                ("out", _status_pill("OUT", theme.DANGER)),
+                _status_pill("ACTIVE", theme.PRIMARY),
+            ),
+            width="100%",
+        ),
+        rx.hstack(
+            rx.text("💰 " + p["budget"] + "M", style={"color": theme.ACCENT, "font_family": theme.MONO}),
+            rx.spacer(),
+            rx.text("🦅 " + p["squad"], style={"color": theme.MUTED}),
+            width="100%",
+        ),
+        style={"background": theme.SURFACE_2, "border": f"1px solid {theme.BORDER}",
+               "border_radius": "10px", "padding": "0.75rem"},
+    )
+
+
+def start_panel() -> rx.Component:
+    return rx.cond(
+        RoomState.is_admin,
+        theme.card(
+            rx.heading("🎬 Start the auction", size="5", style={"color": theme.TEXT},
+                       margin_bottom="0.5rem"),
+            rx.text("Pick a team to put their players up for bidding, one by one.",
+                    style={"color": theme.MUTED}),
+            rx.hstack(
+                rx.select(
+                    RoomState.available_team_names,
+                    value=RoomState.selected_team,
+                    placeholder="Select a team",
+                    on_change=RoomState.set_field("selected_team"),
+                    width="60%",
+                ),
+                theme.primary_button("🚀 Start", on_click=RoomState.start_team),
+                spacing="2", width="100%", margin_top="0.5rem",
+            ),
+            width="100%",
+        ),
+        theme.card(
+            rx.vstack(
+                rx.heading("📡 Waiting for the admin…", size="5", style={"color": theme.TEXT}),
+                rx.text("The auction will begin shortly. Hang tight.", style={"color": theme.MUTED}),
+                spacing="2", align="start",
+            ),
+            width="100%",
+        ),
+    )
+
+
 def room_page() -> rx.Component:
     return theme.page_shell(
         _topbar(),
-        theme.card(
-            rx.vstack(
-                rx.heading("🔴 Live auction", size="6", style={"color": theme.TEXT}),
-                rx.text("The real-time auction room is built in Phase 3.",
-                        style={"color": theme.MUTED}),
-                rx.link("← Back to rooms", href="/rooms", style={"color": theme.ACCENT}),
-                spacing="3", align="start",
-            )
+        rx.hstack(
+            rx.heading(RoomState.room_name, size="6", style={"color": theme.TEXT}),
+            rx.badge("Code: " + RoomState.room_code, size="2"),
+            rx.badge(RoomState.tournament, size="2", color_scheme="cyan"),
+            rx.badge(RoomState.queue_count.to_string() + " in queue", size="2"),
+            rx.spacer(),
+            rx.link("← Rooms", href="/rooms", on_click=RoomState.stop_watching,
+                    style={"color": theme.MUTED}),
+            width="100%", align="center", spacing="3", wrap="wrap",
+        ),
+        rx.cond(RoomState.message != "",
+                rx.callout(RoomState.message, color_scheme="amber", size="1", margin_y="0.5rem")),
+        rx.box(height="1rem"),
+        rx.cond(
+            RoomState.is_idle,
+            start_panel(),
+            rx.grid(
+                rx.vstack(
+                    featured_card(),
+                    bid_panel(),
+                    rx.cond(RoomState.is_admin, admin_controls()),
+                    spacing="4", width="100%",
+                ),
+                rx.vstack(
+                    theme.card(
+                        rx.heading("👥 Teams", size="5", style={"color": theme.TEXT},
+                                   margin_bottom="0.5rem"),
+                        rx.vstack(rx.foreach(RoomState.participants, participant_card),
+                                  spacing="2", width="100%"),
+                        width="100%",
+                    ),
+                    theme.card(
+                        rx.heading("📜 Bid log", size="5", style={"color": theme.TEXT},
+                                   margin_bottom="0.5rem"),
+                        rx.vstack(
+                            rx.foreach(RoomState.log,
+                                       lambda e: rx.text(e["text"], style={"color": theme.MUTED,
+                                                         "font_size": "0.85rem"})),
+                            spacing="1", width="100%", align="start",
+                        ),
+                        width="100%",
+                    ),
+                    spacing="4", width="100%",
+                ),
+                columns="2", spacing="4", width="100%",
+            ),
         ),
     )
 
@@ -352,4 +553,4 @@ app.add_page(rooms_page, route="/rooms", title="Your Rooms",
 app.add_page(setup_page, route="/setup", title="Room Setup",
              on_load=AppState.load_setup)
 app.add_page(room_page, route="/room", title="Auction Room",
-             on_load=AppState.require_login)
+             on_load=RoomState.on_load_room)
