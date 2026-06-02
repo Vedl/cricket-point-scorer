@@ -22,11 +22,26 @@ from .room_hub import RoomHub
 from .state import AppState
 
 
-def _build_view(engine, my_team: str) -> dict:
+def _build_view(engine, my_team: str, room: dict | None = None) -> dict:
     """Pure read of the engine into JSON-serialisable display data."""
     st = engine.state
     players = engine.players
     now = time.time()
+
+    lobby = []
+    if room is not None:
+        for p in room.get("participants", []):
+            lobby.append(
+                {
+                    "name": p["name"],
+                    "claimed_by": p.get("user") or "",
+                    "claimed": "yes" if p.get("user") else "no",
+                    "squad": str(len(p.get("squad", []))),
+                    "budget": str(p.get("budget", 0)),
+                }
+            )
+    members_count = len(room.get("members", [])) if room else 0
+    pool_count = len(engine.players)
 
     cur_id = st.current_player_id
     cur = players.get(cur_id) if cur_id else None
@@ -73,6 +88,9 @@ def _build_view(engine, my_team: str) -> dict:
         "queue_count": len(st.queue),
         "can_undo": engine.can_undo,
         "min_bid": min_next_bid(st.current_bid, engine.config.starting_min_bid),
+        "lobby": lobby,
+        "members_count": members_count,
+        "pool_count": pool_count,
     }
 
 
@@ -98,6 +116,9 @@ class RoomState(rx.State):
     can_undo: bool = False
     min_bid: int = 5
     timer_pct: str = "100%"
+    lobby: list[dict[str, str]] = []
+    members_count: int = 0
+    pool_count: int = 0
 
     # admin: team selection to start an auction
     teams_available: list[dict[str, str]] = []
@@ -207,7 +228,7 @@ class RoomState(rx.State):
                             if engine.pending_resolution(time.time()):
                                 engine.resolve(time.time())
                                 RoomHub.persist(code)
-                    view = _build_view(engine, my_team)
+                    view = _build_view(engine, my_team, RoomHub.room(code))
                     async with self:
                         self._apply_view(view)
                 await asyncio.sleep(0.35)
@@ -231,6 +252,9 @@ class RoomState(rx.State):
         self.min_bid = v["min_bid"]
         total = max(1, v["timer_total"])
         self.timer_pct = f"{max(0, min(100, int(v['time_left'] * 100 / total)))}%"
+        self.lobby = v["lobby"]
+        self.members_count = v["members_count"]
+        self.pool_count = v["pool_count"]
 
     @rx.event
     def stop_watching(self):

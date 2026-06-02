@@ -457,35 +457,84 @@ def participant_card(p: rx.Var) -> rx.Component:
     )
 
 
+def lobby_team_card(t: rx.Var) -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            rx.text(t["name"], style={"color": theme.TEXT, "font_weight": "600"}),
+            rx.spacer(),
+            rx.cond(
+                t["claimed"] == "yes",
+                _status_pill("✓ " + t["claimed_by"], theme.SUCCESS),
+                _status_pill("OPEN", theme.MUTED),
+            ),
+            width="100%",
+        ),
+        rx.hstack(
+            rx.text("💰 " + t["budget"] + "M", style={"color": theme.ACCENT, "font_family": theme.MONO,
+                    "font_size": "0.85rem"}),
+            rx.spacer(),
+            rx.text("🦅 " + t["squad"], style={"color": theme.MUTED, "font_size": "0.85rem"}),
+            width="100%",
+        ),
+        style={"background": theme.SURFACE_2, "border": f"1px solid {theme.BORDER}",
+               "border_radius": "10px", "padding": "0.75rem"},
+    )
+
+
+def lobby_view() -> rx.Component:
+    return theme.card(
+        rx.hstack(
+            rx.heading("👥 Lobby", size="5", style={"color": theme.TEXT}),
+            rx.spacer(),
+            rx.badge(RoomState.members_count.to_string() + " joined", size="2"),
+            rx.badge(RoomState.pool_count.to_string() + " players in pool", size="2",
+                     color_scheme="cyan"),
+            width="100%", align="center",
+        ),
+        rx.text("Teams — share the room code + each team's PIN so managers can claim theirs.",
+                style={"color": theme.MUTED, "font_size": "0.85rem"}, margin_y="0.5rem"),
+        rx.cond(
+            RoomState.lobby.length() > 0,
+            rx.grid(rx.foreach(RoomState.lobby, lobby_team_card), columns="3", spacing="3",
+                    width="100%"),
+            rx.text("No teams set up yet.", style={"color": theme.MUTED}),
+        ),
+        width="100%",
+    )
+
+
 def start_panel() -> rx.Component:
-    return rx.cond(
-        RoomState.is_admin,
-        theme.card(
-            rx.heading("🎬 Start the auction", size="5", style={"color": theme.TEXT},
-                       margin_bottom="0.5rem"),
-            rx.text("Pick a team to put their players up for bidding, one by one.",
+    admin_start = theme.card(
+        rx.heading("🎬 Start the auction", size="5", style={"color": theme.TEXT},
+                   margin_bottom="0.5rem"),
+        rx.text("Pick a team to put their players up for bidding, one by one.",
+                style={"color": theme.MUTED}),
+        rx.hstack(
+            rx.select(
+                RoomState.available_team_names,
+                value=RoomState.selected_team,
+                placeholder="Select a team",
+                on_change=RoomState.set_field("selected_team"),
+                width="60%",
+            ),
+            theme.primary_button("🚀 Start", on_click=RoomState.start_team),
+            spacing="2", width="100%", margin_top="0.5rem",
+        ),
+        width="100%",
+    )
+    waiting = theme.card(
+        rx.vstack(
+            rx.heading("📡 Waiting for the admin…", size="5", style={"color": theme.TEXT}),
+            rx.text("The auction will begin shortly. Hang tight — the lobby updates live.",
                     style={"color": theme.MUTED}),
-            rx.hstack(
-                rx.select(
-                    RoomState.available_team_names,
-                    value=RoomState.selected_team,
-                    placeholder="Select a team",
-                    on_change=RoomState.set_field("selected_team"),
-                    width="60%",
-                ),
-                theme.primary_button("🚀 Start", on_click=RoomState.start_team),
-                spacing="2", width="100%", margin_top="0.5rem",
-            ),
-            width="100%",
+            spacing="2", align="start",
         ),
-        theme.card(
-            rx.vstack(
-                rx.heading("📡 Waiting for the admin…", size="5", style={"color": theme.TEXT}),
-                rx.text("The auction will begin shortly. Hang tight.", style={"color": theme.MUTED}),
-                spacing="2", align="start",
-            ),
-            width="100%",
-        ),
+        width="100%",
+    )
+    return rx.vstack(
+        rx.cond(RoomState.is_admin, admin_start, waiting),
+        lobby_view(),
+        spacing="4", width="100%",
     )
 
 
