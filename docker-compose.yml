@@ -1,0 +1,17 @@
+# Fantasy Auction Platform — one-command self-host.
+#   cp .env.example .env   # fill in Firebase config
+#   docker compose up --build
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"   # web UI
+      - "8000:8000"   # backend (websocket/events)
+    env_file:
+      - .env
+    environment:
+      # For a VPS, set these to your public URL so the browser can reach the backend:
+      #   API_URL=https://auction.example.com
+      #   FRONTEND_PORT=3000
+      API_URL: ${API_URL:-http://localhost:8000}
+    restart: unless-stopped
