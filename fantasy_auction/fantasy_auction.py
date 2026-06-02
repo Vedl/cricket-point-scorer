@@ -10,6 +10,7 @@ import reflex as rx
 from . import theme
 from .state import AppState
 from .room_state import RoomState
+from .season_state import SeasonState
 
 
 # --------------------------------------------------------------------------- #
@@ -558,6 +559,8 @@ def room_page() -> rx.Component:
             rx.badge(RoomState.tournament, size="2", color_scheme="cyan"),
             rx.badge(RoomState.queue_count.to_string() + " in queue", size="2"),
             rx.spacer(),
+            rx.link("📊 Standings", href="/standings?room=" + RoomState.room_code,
+                    on_click=RoomState.stop_watching, style={"color": theme.ACCENT}),
             rx.link("← Rooms", href="/rooms", on_click=RoomState.stop_watching,
                     style={"color": theme.MUTED}),
             width="100%", align="center", spacing="3", wrap="wrap",
@@ -615,6 +618,98 @@ def room_page() -> rx.Component:
 
 
 # --------------------------------------------------------------------------- #
+# Standings + gameweek management (Phase 8)
+# --------------------------------------------------------------------------- #
+def _rank_table(rows, *, show_warn=False) -> rx.Component:
+    def row(item):
+        cells = [
+            rx.table.row_header_cell(item["participant"]),
+            rx.table.cell(item["points"] + " pts"),
+        ]
+        if show_warn:
+            cells.append(rx.table.cell(item["warn"]))
+        return rx.table.row(*cells)
+
+    headers = [rx.table.column_header_cell("Team"), rx.table.column_header_cell("Points")]
+    if show_warn:
+        headers.append(rx.table.column_header_cell(""))
+    return rx.table.root(
+        rx.table.header(rx.table.row(*headers)),
+        rx.table.body(rx.foreach(rows, row)),
+        width="100%",
+    )
+
+
+def gameweek_admin_panel() -> rx.Component:
+    return theme.card(
+        rx.heading("⚙️ Gameweek admin", size="5", style={"color": theme.TEXT},
+                   margin_bottom="0.5rem"),
+        rx.hstack(
+            rx.text("Current gameweek:", style={"color": theme.MUTED}),
+            rx.badge("GW " + SeasonState.current_gameweek, size="2"),
+            rx.button("⏭️ Advance", on_click=SeasonState.advance_gw, variant="soft", size="2"),
+            spacing="3", align="center",
+        ),
+        rx.divider(margin_y="0.75rem"),
+        _field("Gameweek to edit", rx.input(value=SeasonState.gw_input,
+               on_change=SeasonState.set_field("gw_input"), width="120px")),
+        rx.text("Paste scores, one per line:  Player Name, points",
+                style={"color": theme.MUTED, "font_size": "0.8rem"}, margin_top="0.5rem"),
+        rx.text_area(value=SeasonState.scores_text, on_change=SeasonState.set_field("scores_text"),
+                     placeholder="Virat Kohli, 72\nJasprit Bumrah, 45", rows="6", width="100%"),
+        rx.hstack(
+            theme.primary_button("💾 Save scores", on_click=SeasonState.save_scores),
+            rx.button("🔒 Lock squads for GW", on_click=SeasonState.lock_squads, variant="soft"),
+            spacing="3", margin_top="0.5rem",
+        ),
+        _error(SeasonState.msg),
+        width="100%",
+    )
+
+
+def standings_page() -> rx.Component:
+    return theme.page_shell(
+        _topbar(),
+        rx.hstack(
+            rx.heading(SeasonState.room_name + " · Standings", size="6",
+                       style={"color": theme.TEXT}),
+            rx.spacer(),
+            rx.link("← Room", href="/room?room=" + SeasonState.room_code,
+                    style={"color": theme.MUTED}),
+            width="100%", align="center",
+        ),
+        rx.box(height="1rem"),
+        rx.grid(
+            theme.card(
+                rx.heading("🏆 Overall", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.cond(SeasonState.cumulative.length() > 0,
+                        _rank_table(SeasonState.cumulative),
+                        rx.text("No scores entered yet.", style={"color": theme.MUTED})),
+                width="100%",
+            ),
+            theme.card(
+                rx.hstack(
+                    rx.heading("📅 Gameweek", size="5", style={"color": theme.TEXT}),
+                    rx.spacer(),
+                    rx.select(SeasonState.gameweeks, value=SeasonState.selected_gw,
+                              placeholder="GW", on_change=SeasonState.select_gw),
+                    width="100%", align="center",
+                ),
+                rx.box(height="0.5rem"),
+                rx.cond(SeasonState.gw_standings.length() > 0,
+                        _rank_table(SeasonState.gw_standings, show_warn=True),
+                        rx.text("Pick a gameweek with scores.", style={"color": theme.MUTED})),
+                width="100%",
+            ),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%",
+        ),
+        rx.box(height="1.5rem"),
+        rx.cond(SeasonState.is_admin, gameweek_admin_panel()),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": theme.FONT}, stylesheets=["/custom.css"])
@@ -626,3 +721,5 @@ app.add_page(setup_page, route="/setup", title="Room Setup",
              on_load=AppState.load_setup)
 app.add_page(room_page, route="/room", title="Auction Room",
              on_load=RoomState.on_load_room)
+app.add_page(standings_page, route="/standings", title="Standings",
+             on_load=SeasonState.on_load_standings)

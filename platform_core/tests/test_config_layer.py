@@ -19,9 +19,13 @@ def test_load_ipl_pool_has_teams():
                or p.team for p in players)
 
 
-def test_fifa_pool_empty_by_default():
-    # fifa_wc_2026_players.json ships as [] -> CSV upload path.
-    assert cl.load_player_pool(cl.FIFA_WC_2026) == []
+def test_fifa_pool_loads():
+    # fifa_wc_2026_players.json is now populated with WC squads.
+    pool = cl.load_player_pool(cl.FIFA_WC_2026)
+    assert len(pool) > 100
+    assert all(p.id and p.name for p in pool)
+    # players carry a country (team) and a position/role
+    assert any(p.team and p.team != "Unknown" for p in pool)
 
 
 def test_default_config_cricket_no_composition():
