@@ -36,6 +36,14 @@ def _topbar() -> rx.Component:
     return rx.hstack(
         rx.heading("🏏 Fantasy Auction", size="5", style={"color": theme.TEXT}),
         rx.spacer(),
+        # Connection indicator — Reflex sets is_hydrated false while disconnected.
+        rx.cond(
+            ~AppState.is_hydrated,
+            rx.hstack(rx.box(class_name="app-spinner",
+                             style={"width": "16px", "height": "16px", "border_width": "2px"}),
+                      rx.text("connecting…", style={"color": theme.MUTED, "font_size": "0.8rem"}),
+                      spacing="2", align="center"),
+        ),
         rx.cond(
             AppState.logged_in,
             rx.hstack(
@@ -177,7 +185,8 @@ def rooms_page() -> rx.Component:
     return theme.page_shell(
         _topbar(),
         theme.hero("Your rooms", "Create a new auction room or join one with a code + team PIN."),
-        rx.grid(create_room_card(), join_room_card(), columns="2", spacing="4", width="100%"),
+        rx.grid(create_room_card(), join_room_card(),
+                columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
         rx.box(height="2rem"),
         rx.heading("📋 Your rooms", size="5", style={"color": theme.TEXT}, margin_bottom="0.75rem"),
         rx.cond(
@@ -302,7 +311,7 @@ def setup_page() -> rx.Component:
                 _error(AppState.upload_msg),
                 width="100%",
             ),
-            columns="2", spacing="4", width="100%",
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%",
         ),
         rx.box(height="1.5rem"),
         rx.hstack(
@@ -359,11 +368,12 @@ def featured_card() -> rx.Component:
                 ),
                 width="100%", align="end",
             ),
-            # timer bar
+            # timer bar (pulses when under 10s)
             rx.box(
                 rx.box(style={"width": RoomState.timer_pct, "height": "100%",
                               "background": f"linear-gradient(90deg,{theme.PRIMARY},{theme.ACCENT})",
                               "transition": "width 0.35s linear"}),
+                class_name=rx.cond(RoomState.time_left <= 10, "timer-urgent", ""),
                 style={"width": "100%", "height": "8px", "background": "rgba(255,255,255,0.08)",
                        "border_radius": "999px", "overflow": "hidden", "margin_top": "0.5rem"},
             ),
@@ -495,7 +505,8 @@ def lobby_view() -> rx.Component:
                 style={"color": theme.MUTED, "font_size": "0.85rem"}, margin_y="0.5rem"),
         rx.cond(
             RoomState.lobby.length() > 0,
-            rx.grid(rx.foreach(RoomState.lobby, lobby_team_card), columns="3", spacing="3",
+            rx.grid(rx.foreach(RoomState.lobby, lobby_team_card),
+                    columns=rx.breakpoints(initial="1", sm="2", md="3"), spacing="3",
                     width="100%"),
             rx.text("No teams set up yet.", style={"color": theme.MUTED}),
         ),
@@ -553,6 +564,18 @@ def room_page() -> rx.Component:
         ),
         rx.cond(RoomState.message != "",
                 rx.callout(RoomState.message, color_scheme="amber", size="1", margin_y="0.5rem")),
+        # Animated SOLD banner (Phase 5)
+        rx.cond(
+            RoomState.flash_msg != "",
+            rx.box(
+                rx.text("🔨 " + RoomState.flash_msg,
+                        style={"color": "white", "font_weight": "800", "font_size": "1.1rem"}),
+                class_name="sold-banner",
+                style={"background": f"linear-gradient(90deg,{theme.SUCCESS},{theme.ACCENT})",
+                       "padding": "0.75rem 1.25rem", "border_radius": "12px",
+                       "text_align": "center", "margin": "0.5rem 0"},
+            ),
+        ),
         rx.box(height="1rem"),
         rx.cond(
             RoomState.is_idle,
@@ -585,7 +608,7 @@ def room_page() -> rx.Component:
                     ),
                     spacing="4", width="100%",
                 ),
-                columns="2", spacing="4", width="100%",
+                columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%",
             ),
         ),
     )
@@ -594,7 +617,7 @@ def room_page() -> rx.Component:
 # --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
-app = rx.App(theme=theme.theme, style={"font_family": theme.FONT})
+app = rx.App(style={"font_family": theme.FONT}, stylesheets=["/custom.css"])
 app.add_page(index, route="/", title="Fantasy Auction",
              on_load=AppState.redirect_if_logged_in)
 app.add_page(rooms_page, route="/rooms", title="Your Rooms",

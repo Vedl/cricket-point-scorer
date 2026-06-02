@@ -21,6 +21,26 @@ from auction_engine.models import STATUS_IDLE, STATUS_PAUSED, STATUS_RUNNING
 from .room_hub import RoomHub
 from .state import AppState
 
+# A short two-tone "sold" chime via the Web Audio API (no asset needed).
+SOLD_BEEP_JS = """
+try {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (Ctx) {
+    const ctx = new Ctx();
+    [880, 1320].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = f; o.type = 'triangle';
+      o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.12;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.start(t); o.stop(t + 0.2);
+    });
+  }
+} catch (e) {}
+"""
+
 
 def _build_view(engine, my_team: str, room: dict | None = None) -> dict:
     """Pure read of the engine into JSON-serialisable display data."""
@@ -119,6 +139,10 @@ class RoomState(rx.State):
     lobby: list[dict[str, str]] = []
     members_count: int = 0
     pool_count: int = 0
+    # sold flash (Phase 5 polish)
+    flash_msg: str = ""
+    _flash_ticks: int = 0
+    _seen_log_len: int = 0
 
     # admin: team selection to start an auction
     teams_available: list[dict[str, str]] = []
@@ -186,6 +210,10 @@ class RoomState(rx.State):
         )
         self.bid_as = self.my_team
         self.message = ""
+        self.flash_msg = ""
+        self._flash_ticks = 0
+        engine = RoomHub.engine(code)
+        self._seen_log_len = len(engine.bid_log) if engine else 0
         self._refresh_teams_available(code, room)
         self.watching = True
         if not self.loop_running:
@@ -222,6 +250,7 @@ class RoomState(rx.State):
                     my_team = self.my_team
                 # Resolve timer expiry under the hub lock (idempotent across clients).
                 engine = RoomHub.engine(code)
+                play_sold = False
                 if engine is not None:
                     if engine.pending_resolution(time.time()):
                         async with RoomHub.lock(code):
@@ -229,8 +258,25 @@ class RoomState(rx.State):
                                 engine.resolve(time.time())
                                 RoomHub.persist(code)
                     view = _build_view(engine, my_team, RoomHub.room(code))
+                    new_len = len(engine.bid_log)
+                    newest = engine.bid_log[-1] if engine.bid_log else None
                     async with self:
                         self._apply_view(view)
+                        if new_len > self._seen_log_len:
+                            self._seen_log_len = new_len
+                            if newest and newest.kind == "sold":
+                                self.flash_msg = (
+                                    f"SOLD · {newest.player_name} → "
+                                    f"{newest.participant_id} for {newest.amount}M"
+                                )
+                                self._flash_ticks = 9  # ~3s at 0.35s/tick
+                                play_sold = True
+                        if self._flash_ticks > 0:
+                            self._flash_ticks -= 1
+                            if self._flash_ticks == 0:
+                                self.flash_msg = ""
+                if play_sold:
+                    yield rx.call_script(SOLD_BEEP_JS)
                 await asyncio.sleep(0.35)
         finally:
             async with self:
