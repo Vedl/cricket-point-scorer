@@ -7,7 +7,26 @@ business rules live here.
 
 from __future__ import annotations
 
+import os
+
 import reflex as rx
+
+
+def _load_dotenv() -> None:
+    """Minimal .env loader (no extra dependency) so the backend picks up
+    Firebase config regardless of how it's launched."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if not os.path.exists(path):
+        return
+    for line in open(path):
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+_load_dotenv()
 
 from platform_core.auth import AuthError, log_in, sign_up
 from platform_core.config_layer import TOURNAMENTS

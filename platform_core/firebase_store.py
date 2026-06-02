@@ -50,7 +50,10 @@ class FirebaseStore:
             else os.environ.get("FIREBASE_DATABASE_URL", "")
         ).rstrip("/")
         self.secret = (
-            secret if secret is not None else os.environ.get("FIREBASE_SECRET", "")
+            secret
+            if secret is not None
+            else os.environ.get("FIREBASE_SECRET")
+            or os.environ.get("FIREBASE_SECRET_KEY", "")  # legacy env name
         )
         self.timeout = timeout
         self.use_remote = bool(self.database_url) and requests is not None

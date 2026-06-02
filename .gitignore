@@ -1,3 +1,7 @@
+.web
+.states
+assets/external/
+*.py[cod]
 # Python
 __pycache__/
 venv/
@@ -47,3 +51,7 @@ reflex_internal.db
 uploaded_files/
 *.db
 .env
+
+# Reflex runtime lock/log
+reflex.lock/
+reflex_run.log
