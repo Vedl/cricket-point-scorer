@@ -1,0 +1,184 @@
+"""Reflex state for trading + open market (Phase 9)."""
+
+from __future__ import annotations
+
+import reflex as rx
+
+from platform_core import market_ops as mo
+from season_engine.trading import TradeError
+
+from .state import AppState, repo
+
+
+def _summary(t: dict, *, incoming: bool) -> str:
+    gp = ", ".join(t["give_players"]) or "—"
+    rp = ", ".join(t["get_players"]) or "—"
+    if incoming:
+        return (f"{t['from']} sends [{gp}] +{t['give_cash']}M  ↔  wants your "
+                f"[{rp}] +{t['get_cash']}M")
+    return (f"To {t['to']}: you send [{gp}] +{t['give_cash']}M  for [{rp}] +{t['get_cash']}M")
+
+
+class TradeState(rx.State):
+    room_code: str = ""
+    room_name: str = ""
+    is_admin: bool = False
+    me: str = ""
+
+    my_players: list[str] = []
+    other_teams: list[str] = []
+    counterparty: str = ""
+    their_players: list[str] = []
+
+    give_player: str = ""
+    get_player: str = ""
+    give_cash: str = "0"
+    get_cash: str = "0"
+
+    incoming: list[dict[str, str]] = []
+    outgoing: list[dict[str, str]] = []
+
+    release_sel: str = ""
+    available: list[dict[str, str]] = []
+    bid_player: str = ""
+    bid_amount: str = ""
+
+    txns: list[dict[str, str]] = []
+    msg: str = ""
+
+    @rx.event
+    def set_field(self, name: str, value):
+        setattr(self, name, value)
+
+    def _load(self):
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = repo.load()
+        return code, doc, doc.get("rooms", {}).get(code)
+
+    @rx.event
+    async def on_load_trade(self):
+        app = await self.get_state(AppState)
+        if not app.auth_user:
+            return rx.redirect("/")
+        code, doc, room = self._load()
+        if room is None:
+            return rx.redirect("/rooms")
+        self.room_code = code
+        self.room_name = room.get("name", "")
+        self.is_admin = room.get("admin") == app.auth_user
+        self.me = next((p["name"] for p in room.get("participants", [])
+                        if p.get("user") == app.auth_user), "")
+        self.msg = ""
+        self._refresh(room)
+
+    def _refresh(self, room: dict):
+        by = mo.participants_by_name(room)
+        mine = by.get(self.me, {})
+        self.my_players = [e["name"] for e in mine.get("squad", [])]
+        self.other_teams = [n for n in by if n != self.me]
+        if self.counterparty and self.counterparty in by:
+            self.their_players = [e["name"] for e in by[self.counterparty].get("squad", [])]
+        else:
+            self.their_players = []
+        self.incoming = [{"id": t["id"], "text": _summary(t, incoming=True)}
+                         for t in mo.incoming_trades(room, self.me)]
+        self.outgoing = [{"id": t["id"], "text": _summary(t, incoming=False)}
+                         for t in mo.outgoing_trades(room, self.me)]
+        self.available = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
+                          for p in mo.available_players(room)]
+        self.txns = [{"text": self._txn_text(t)} for t in reversed(mo.transactions(room)[-15:])]
+
+    @staticmethod
+    def _txn_text(t: dict) -> str:
+        if t["type"] == "trade":
+            return (f"🔄 {t['from']} ↔ {t['to']}: [{', '.join(t['give_players']) or '—'}]"
+                    f"/+{t['give_cash']}M for [{', '.join(t['get_players']) or '—'}]/+{t['get_cash']}M")
+        if t["type"] == "release":
+            return f"🗑️ {t['participant']} released {t['player']}" + (" (refunded)" if t.get("refund") else "")
+        if t["type"] == "market_buy":
+            return f"🛒 {t['participant']} bought {t['player']} for {t['amount']}M"
+        return str(t)
+
+    @rx.event
+    def pick_counterparty(self, name: str):
+        self.counterparty = name
+        _, _, room = self._load()
+        if room:
+            self._refresh(room)
+
+    def _save_refresh(self, doc, room, ok_msg):
+        repo.save(doc)
+        self._refresh(room)
+        self.msg = ok_msg
+
+    @rx.event
+    def propose(self):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        gp = [self.give_player] if self.give_player else []
+        rp = [self.get_player] if self.get_player else []
+        try:
+            mo.propose_trade(room, self.me, self.counterparty, gp, rp,
+                             int(self.give_cash or 0), int(self.get_cash or 0))
+        except (TradeError, ValueError) as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        self._save_refresh(doc, room, "✅ Proposal sent.")
+
+    @rx.event
+    def accept(self, trade_id: str):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        try:
+            mo.accept_trade(room, trade_id)
+        except TradeError as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        self._save_refresh(doc, room, "✅ Trade completed.")
+
+    @rx.event
+    def reject(self, trade_id: str):
+        code, doc, room = self._load()
+        if room:
+            mo.reject_trade(room, trade_id)
+            self._save_refresh(doc, room, "Proposal rejected.")
+
+    @rx.event
+    def do_release(self):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room or not self.release_sel:
+            return
+        try:
+            mo.release(room, self.me, self.release_sel, refund=False)
+        except TradeError as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        self.release_sel = ""
+        self._save_refresh(doc, room, "🗑️ Player released to the market.")
+
+    @rx.event
+    def place_bid(self):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        try:
+            mo.place_market_bid(room, self.me, self.bid_player, int(self.bid_amount or 0))
+        except (TradeError, ValueError) as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        self._save_refresh(doc, room, f"✅ Bid placed on {self.bid_player}.")
+
+    @rx.event
+    def resolve(self, player_name: str):
+        code, doc, room = self._load()
+        if not room:
+            return
+        rec = mo.resolve_market(room, player_name)
+        self._save_refresh(doc, room,
+                           f"🛒 {rec['participant']} won {player_name}." if rec else "No valid bids.")

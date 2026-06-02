@@ -11,6 +11,7 @@ from . import theme
 from .state import AppState
 from .room_state import RoomState
 from .season_state import SeasonState
+from .trade_state import TradeState
 
 
 # --------------------------------------------------------------------------- #
@@ -561,6 +562,8 @@ def room_page() -> rx.Component:
             rx.spacer(),
             rx.link("📊 Standings", href="/standings?room=" + RoomState.room_code,
                     on_click=RoomState.stop_watching, style={"color": theme.ACCENT}),
+            rx.link("🤝 Trade", href="/trade?room=" + RoomState.room_code,
+                    on_click=RoomState.stop_watching, style={"color": theme.ACCENT}),
             rx.link("← Rooms", href="/rooms", on_click=RoomState.stop_watching,
                     style={"color": theme.MUTED}),
             width="100%", align="center", spacing="3", wrap="wrap",
@@ -710,6 +713,153 @@ def standings_page() -> rx.Component:
 
 
 # --------------------------------------------------------------------------- #
+# Trading + open market (Phase 9)
+# --------------------------------------------------------------------------- #
+def _proposal_row(t: rx.Var, *, incoming: bool) -> rx.Component:
+    actions = rx.cond(
+        incoming,
+        rx.hstack(
+            rx.button("Accept", size="1", color_scheme="green",
+                      on_click=TradeState.accept(t["id"])),
+            rx.button("Reject", size="1", variant="soft", color_scheme="red",
+                      on_click=TradeState.reject(t["id"])),
+            spacing="2",
+        ),
+        rx.badge("pending", color_scheme="amber"),
+    )
+    return rx.hstack(
+        rx.text(t["text"], style={"color": theme.TEXT, "font_size": "0.85rem"}),
+        rx.spacer(), actions,
+        width="100%", align="center",
+        style={"background": theme.SURFACE_2, "border": f"1px solid {theme.BORDER}",
+               "border_radius": "10px", "padding": "0.6rem 0.8rem"},
+    )
+
+
+def _market_row(p: rx.Var) -> rx.Component:
+    return rx.hstack(
+        rx.text(p["name"], style={"color": theme.TEXT}),
+        rx.text(p["team"], style={"color": theme.MUTED, "font_size": "0.8rem"}),
+        rx.spacer(),
+        rx.cond(TradeState.is_admin,
+                rx.button("Resolve", size="1", variant="soft",
+                          on_click=TradeState.resolve(p["name"]))),
+        width="100%", align="center",
+        style={"background": theme.SURFACE_2, "border": f"1px solid {theme.BORDER}",
+               "border_radius": "10px", "padding": "0.5rem 0.8rem"},
+    )
+
+
+def trade_page() -> rx.Component:
+    propose_card = theme.card(
+        rx.heading("🤝 Propose a trade", size="5", style={"color": theme.TEXT},
+                   margin_bottom="0.5rem"),
+        rx.grid(
+            _field("With", rx.select(TradeState.other_teams, value=TradeState.counterparty,
+                   placeholder="Team", on_change=TradeState.pick_counterparty, width="100%")),
+            _field("You give", rx.select(TradeState.my_players, value=TradeState.give_player,
+                   placeholder="(player)", on_change=TradeState.set_field("give_player"),
+                   width="100%")),
+            _field("You get", rx.select(TradeState.their_players, value=TradeState.get_player,
+                   placeholder="(player)", on_change=TradeState.set_field("get_player"),
+                   width="100%")),
+            _field("Cash you add", rx.input(value=TradeState.give_cash, type="number",
+                   on_change=TradeState.set_field("give_cash"), width="100%")),
+            _field("Cash you want", rx.input(value=TradeState.get_cash, type="number",
+                   on_change=TradeState.set_field("get_cash"), width="100%")),
+            columns=rx.breakpoints(initial="1", md="3"), spacing="3", width="100%",
+        ),
+        theme.primary_button("Send proposal", on_click=TradeState.propose, margin_top="0.5rem"),
+        _error(TradeState.msg),
+        width="100%",
+    )
+    return theme.page_shell(
+        _topbar(),
+        rx.hstack(
+            rx.heading(TradeState.room_name + " · Trade Center", size="6",
+                       style={"color": theme.TEXT}),
+            rx.spacer(),
+            rx.link("← Room", href="/room?room=" + TradeState.room_code,
+                    style={"color": theme.MUTED}),
+            width="100%", align="center",
+        ),
+        rx.box(height="1rem"),
+        propose_card,
+        rx.box(height="1rem"),
+        rx.grid(
+            theme.card(
+                rx.heading("📥 Incoming", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.cond(TradeState.incoming.length() > 0,
+                        rx.vstack(rx.foreach(TradeState.incoming,
+                                  lambda t: _proposal_row(t, incoming=True)),
+                                  spacing="2", width="100%"),
+                        rx.text("No incoming proposals.", style={"color": theme.MUTED})),
+                width="100%",
+            ),
+            theme.card(
+                rx.heading("📤 Outgoing", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.cond(TradeState.outgoing.length() > 0,
+                        rx.vstack(rx.foreach(TradeState.outgoing,
+                                  lambda t: _proposal_row(t, incoming=False)),
+                                  spacing="2", width="100%"),
+                        rx.text("No outgoing proposals.", style={"color": theme.MUTED})),
+                width="100%",
+            ),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%",
+        ),
+        rx.box(height="1rem"),
+        rx.grid(
+            theme.card(
+                rx.heading("🗑️ Release a player", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.hstack(
+                    rx.select(TradeState.my_players, value=TradeState.release_sel,
+                              placeholder="Your player", on_change=TradeState.set_field("release_sel")),
+                    rx.button("Release", variant="soft", color_scheme="red",
+                              on_click=TradeState.do_release),
+                    spacing="2",
+                ),
+                width="100%",
+            ),
+            theme.card(
+                rx.heading("🛒 Open market", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.hstack(
+                    rx.select(TradeState.available.foreach(lambda p: p["name"]),
+                              value=TradeState.bid_player, placeholder="Free agent",
+                              on_change=TradeState.set_field("bid_player")),
+                    rx.input(value=TradeState.bid_amount, type="number", placeholder="bid",
+                             on_change=TradeState.set_field("bid_amount"), width="90px"),
+                    rx.button("Bid", on_click=TradeState.place_bid, variant="soft"),
+                    spacing="2",
+                ),
+                rx.box(height="0.5rem"),
+                rx.cond(TradeState.available.length() > 0,
+                        rx.vstack(rx.foreach(TradeState.available, _market_row),
+                                  spacing="2", width="100%"),
+                        rx.text("No free agents.", style={"color": theme.MUTED})),
+                width="100%",
+            ),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%",
+        ),
+        rx.box(height="1rem"),
+        theme.card(
+            rx.heading("📜 Transactions", size="5", style={"color": theme.TEXT},
+                       margin_bottom="0.5rem"),
+            rx.cond(TradeState.txns.length() > 0,
+                    rx.vstack(rx.foreach(TradeState.txns,
+                              lambda t: rx.text(t["text"], style={"color": theme.MUTED,
+                                                "font_size": "0.85rem"})),
+                              spacing="1", width="100%", align="start"),
+                    rx.text("No transactions yet.", style={"color": theme.MUTED})),
+            width="100%",
+        ),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": theme.FONT}, stylesheets=["/custom.css"])
@@ -723,3 +873,5 @@ app.add_page(room_page, route="/room", title="Auction Room",
              on_load=RoomState.on_load_room)
 app.add_page(standings_page, route="/standings", title="Standings",
              on_load=SeasonState.on_load_standings)
+app.add_page(trade_page, route="/trade", title="Trade Center",
+             on_load=TradeState.on_load_trade)
