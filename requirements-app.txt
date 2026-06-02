@@ -3,3 +3,12 @@
 reflex==0.9.*
 requests
 pytest
+
+# Scoring + schedule scraping (ported season engine / Phase 7-8)
+pandas
+beautifulsoup4
+lxml
+cloudscraper
+curl_cffi
+tls-client
+scikit-learn
