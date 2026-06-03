@@ -29,19 +29,19 @@ def test_forced_ir_at_19():
     assert p["budget"] == 98     # 2M IR fee
 
 
-def test_voluntary_ir_is_charged():
+def test_ir_not_charged_below_19():
+    # IR is ignored for a small squad — no 2M fee.
     p = _p(100, [("a", 10), ("b", 20)], ir="a")
     lock_participant(p)
-    assert p["ir"] == "a"
-    assert p["budget"] == 98
+    assert p["budget"] == 100
 
 
-def test_cannot_afford_ir_releases_ir_player():
-    p = _p(1, [("a", 10), ("b", 20)], ir="a")
+def test_full_squad_cannot_afford_ir_releases_player():
+    players = [(f"p{i}", i + 1) for i in range(19)]  # 19 players
+    p = _p(1, players, ir="p0")                       # budget 1 < 2M fee
     released, _ = lock_participant(p)
     assert p["ir"] is None
-    assert all(e["name"] != "a" for e in p["squad"])
-    assert any(r["name"] == "a" for r in released)
+    assert any(r["name"] == "p0" for r in released)
     assert p["budget"] == 1
 
 

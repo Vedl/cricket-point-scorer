@@ -44,10 +44,10 @@ def test_add_team_and_claim_with_pin(repo):
     room = doc["rooms"][code]
     repo.add_team(room, "Bob's XI", pin="4321")
 
-    with pytest.raises(RepositoryError, match="Incorrect PIN"):
-        repo.claim_team(doc, code, "bob", "Bob's XI", "0000")
+    with pytest.raises(RepositoryError, match="No team with that PIN"):
+        repo.claim_team(doc, code, "bob", "0000")
 
-    part = repo.claim_team(doc, code, "bob", "Bob's XI", "4321")
+    part = repo.claim_team(doc, code, "bob", "4321")
     assert part["user"] == "bob"
     assert "bob" in room["members"]
     assert code in doc["users"]["bob"]["rooms_joined"]
@@ -58,9 +58,9 @@ def test_claim_team_already_claimed(repo):
     code = repo.create_room(doc, "alice", "L", "IPL 2026", admin_participating=False)
     room = doc["rooms"][code]
     repo.add_team(room, "Team A", pin="11")
-    repo.claim_team(doc, code, "bob", "Team A", "11")
+    repo.claim_team(doc, code, "bob", "11")
     with pytest.raises(RepositoryError, match="already been claimed"):
-        repo.claim_team(doc, code, "carol", "Team A", "11")
+        repo.claim_team(doc, code, "carol", "11")
 
 
 def test_participant_round_trip():

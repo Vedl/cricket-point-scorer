@@ -205,15 +205,13 @@ class AppState(rx.State):
         self.join_error = ""
         doc = repo.load()
         try:
-            repo.claim_team(
-                doc, self.join_code, self.auth_user, self.join_team, self.join_pin
-            )
+            repo.claim_team(doc, self.join_code, self.auth_user, self.join_pin)
         except RepositoryError as exc:
             self.join_error = str(exc)
             return
         repo.save(doc)
         code = self.join_code.strip().upper()
-        self.join_code = self.join_team = self.join_pin = ""
+        self.join_code = self.join_pin = ""
         return rx.redirect(f"/room?room={code}")
 
     # ------------------------------------------------------------------ #
@@ -272,6 +270,13 @@ class AppState(rx.State):
         for p in room.get("participants", []):
             if p["name"] == self.claim_choice:
                 p["user"] = self.auth_user
+        # Drop the auto-created admin-named placeholder team (e.g. "Admin FC") so it
+        # doesn't sit alongside the real CSV team the admin just claimed.
+        room["participants"] = [
+            p for p in room.get("participants", [])
+            if not (p["name"] == self.auth_user and p["name"] != self.claim_choice
+                    and not p.get("squad"))
+        ]
         repo.save(doc)
         self._refresh_teams(room)
         self.setup_msg = f"✅ You'll manage '{self.claim_choice}' all tournament."

@@ -71,15 +71,14 @@ def test_lock_snapshot_used_for_scoring():
     assert by["Alice"] == 80
 
 
-def test_voluntary_ir_excluded_from_scoring():
+def test_ir_ignored_below_19():
+    # A voluntary IR on a small (<19) squad does NOT count — the player still scores.
     room = _room()
     next(p for p in room["participants"] if p["name"] == "Alice")["ir"] = "Kohli"
-    so.lock_gameweek(room, "1")   # IR=Kohli set, charged 2M, excluded
+    so.lock_gameweek(room, "1")
     rows = so.compute_cumulative_standings(room)
     by = {r["participant"]: r["points"] for r in rows}
-    # Kohli benched in both GWs -> only Bumrah counts: GW1 30 + GW2 20 = 50
-    # (without IR it would be (50+30)+(10+20) = 110)
-    assert by["Alice"] == 50
+    assert by["Alice"] == 110   # (50+30)+(10+20) — Kohli counts
 
 
 def test_half_price_release_unlimited_before_gw1():
@@ -90,12 +89,11 @@ def test_half_price_release_unlimited_before_gw1():
     assert all(e["name"] != "Kohli" for e in a["squad"])
 
 
-def test_half_price_limited_after_gw1():
+def test_half_price_then_free_after_gw1():
     room = _room()
     room["gw1_locked"] = True
-    so.half_price_release(room, "Alice", "Kohli")
-    with pytest.raises(so.SeasonError):
-        so.half_price_release(room, "Alice", "Bumrah")   # 2nd in same GW blocked
+    assert so.half_price_release(room, "Alice", "Kohli") == 25   # first = half price
+    assert so.half_price_release(room, "Alice", "Bumrah") == 0   # second = free
 
 
 def test_set_ir_validates_ownership():

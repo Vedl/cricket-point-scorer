@@ -45,8 +45,9 @@ def lock_participant(p: dict, *, max_squad: int = MAX_SQUAD, ir_cost: int = IR_C
         notes.append(f"No IR set — most expensive ({ir}) placed in IR.")
     p["ir"] = ir
 
-    # 3. Charge the IR fee (2M) if an IR is in effect; if unaffordable, release them.
-    if p.get("ir"):
+    # 3. The IR fee (2M) only applies to a full squad (>= 19), where IR is real.
+    #    For smaller squads the IR is ignored entirely (no fee, counts in Best-11).
+    if p.get("ir") and len(squad) >= max_squad:
         if p.get("budget", 0) >= ir_cost:
             p["budget"] = p.get("budget", 0) - ir_cost
             notes.append(f"IR fee {ir_cost}M charged ({p['ir']} benched).")

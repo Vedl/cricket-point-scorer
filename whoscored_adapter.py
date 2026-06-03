@@ -8,7 +8,7 @@ import concurrent.futures
 import requests as std_requests
 from bs4 import BeautifulSoup
 import time
-import streamlit as st
+import os
 
 POS_MAP = {'GK':'GK','DR':'DEF','DC':'DEF','DL':'DEF','DMR':'DEF','DML':'DEF',
            'MC':'MID','DMC':'MID','AMC':'MID','MR':'MID','ML':'MID',
@@ -64,11 +64,7 @@ def get_whoscored_stats(ws_url):
     
     # Check for ScraperAPI key in Streamlit secrets to bypass Cloudflare on Streamlit Cloud
     if not m:
-        scraper_api_key = None
-        try:
-            scraper_api_key = st.secrets.get("SCRAPER_API_KEY")
-        except:
-            pass
+        scraper_api_key = os.environ.get("SCRAPER_API_KEY")
             
         if scraper_api_key:
             print("[WhoScoredAdapter] Using ScraperAPI to bypass Cloudflare...")

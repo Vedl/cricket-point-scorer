@@ -36,7 +36,7 @@ def compute_gameweek_standings(room: dict, gameweek: str) -> list[dict]:
     scores = room.get("gameweek_scores", {}).get(str(gameweek), {})
     return gameweek_standings(
         _participants_for_standings(room), scores,
-        is_football=_is_football(room), gameweek=gameweek, enforce_ir=True,
+        is_football=_is_football(room), gameweek=gameweek, enforce_ir=False,
     )
 
 
@@ -45,7 +45,7 @@ def compute_cumulative_standings(room: dict) -> list[dict]:
     squads_by_gw = room.get("gameweek_squads") or None
     return cumulative_standings(
         _participants_for_standings(room), all_scores,
-        is_football=_is_football(room), squads_by_gw=squads_by_gw, enforce_ir=True,
+        is_football=_is_football(room), squads_by_gw=squads_by_gw, enforce_ir=False,
     )
 
 
@@ -97,21 +97,27 @@ def set_ir(room: dict, participant: str, player_name) -> None:
 
 
 def half_price_release(room: dict, participant: str, player_name: str) -> int:
-    """Release a player for a half-price refund. Unlimited before GW1 lock; one
-    per gameweek afterwards. Returns the refund."""
+    """Release a player. Before the GW1 deadline: unlimited half-price refunds.
+    After GW1: the first release each gameweek is half-price; any further releases
+    that gameweek are FREE (no money back). Returns the refund."""
     by = {p["name"]: p for p in room.get("participants", [])}
     p = by.get(participant)
     if p is None:
         raise SeasonError("Unknown team.")
-    if room.get("gw1_locked") and p.get("half_releases_this_gw", 0) >= 1:
-        raise SeasonError("Only one half-price release per gameweek after GW1.")
     e = next((x for x in p.get("squad", []) if x["name"].lower() == player_name.lower()), None)
     if e is None:
         raise SeasonError(f"You don't own {player_name}.")
-    refund = e.get("buy_price", 0) // 2
+
+    if not room.get("gw1_locked"):
+        refund = e.get("buy_price", 0) // 2          # unlimited half-price pre-GW1
+    elif p.get("half_releases_this_gw", 0) < 1:
+        refund = e.get("buy_price", 0) // 2          # one half-price per GW
+        p["half_releases_this_gw"] = p.get("half_releases_this_gw", 0) + 1
+    else:
+        refund = 0                                    # further releases are free
+
     p["squad"].remove(e)
     p["budget"] = p.get("budget", 0) + refund
-    p["half_releases_this_gw"] = p.get("half_releases_this_gw", 0) + 1
     room.setdefault("transactions", []).append(
         {"type": "half_release", "participant": participant, "player": player_name, "refund": refund})
     return refund

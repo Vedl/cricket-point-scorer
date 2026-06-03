@@ -104,8 +104,12 @@ class TradeState(rx.State):
                     f"/+{t['give_cash']}M for [{', '.join(t['get_players']) or '—'}]/+{t['get_cash']}M")
         if t["type"] == "release":
             return f"🗑️ {t['participant']} released {t['player']}" + (" (refunded)" if t.get("refund") else "")
+        if t["type"] == "half_release":
+            r = t.get("refund", 0)
+            tail = f"for +{r}M (half price)" if r else "for free"
+            return f"🗑️ {t['participant']} released {t['player']} {tail}"
         if t["type"] == "market_buy":
-            return f"🛒 {t['participant']} bought {t['player']} for {t['amount']}M"
+            return f"🛒 {t['participant']} won {t['player']} for {t['amount']}M"
         return str(t)
 
     @rx.event

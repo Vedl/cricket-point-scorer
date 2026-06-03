@@ -16,16 +16,19 @@ class AdminState(rx.State):
     teams: list[str] = []
     loans: list[dict[str, str]] = []
 
-    # force add
+    # force add (with pool suggestions)
     fa_team: str = ""
     fa_player: str = ""
     fa_role: str = ""
     fa_team_name: str = ""
     fa_price: str = "0"
-    # force release
+    fa_suggestions: list[dict[str, str]] = []
+    _pool: list[dict] = []
+    # force release (players of the selected team)
     fr_team: str = ""
     fr_player: str = ""
     fr_refund: bool = False
+    fr_team_players: list[str] = []
     # budget / pin
     bud_team: str = ""
     bud_delta: str = "0"
@@ -67,6 +70,14 @@ class AdminState(rx.State):
 
     def _refresh(self, room):
         self.teams = [p["name"] for p in room.get("participants", [])]
+        if room.get("player_pool"):
+            self._pool = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
+                          for p in room["player_pool"]]
+        else:
+            from platform_core.config_layer import load_player_pool
+            self._pool = [{"name": p.name, "role": p.role, "team": p.team}
+                          for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
+        self._refresh_fr_players(room)
         self.loans = [{"id": l["id"],
                        "text": f"{l['player']}: {l['from']} → {l['to']}"
                                + (f" (ret GW{l['return_gameweek']})" if l.get("return_gameweek") else "")}
@@ -88,6 +99,41 @@ class AdminState(rx.State):
         repo.save(doc)
         self._refresh(room)
         self.msg = ok
+
+    def _refresh_fr_players(self, room):
+        by = {p["name"]: p for p in room.get("participants", [])}
+        p = by.get(self.fr_team, {})
+        self.fr_team_players = [e["name"] for e in p.get("squad", [])]
+
+    @rx.event
+    def pick_fr_team(self, name: str):
+        self.fr_team = name
+        self.fr_player = ""
+        code, doc, room = self._load()
+        if room:
+            self._refresh_fr_players(room)
+
+    @rx.event
+    def fa_type(self, value: str):
+        self.fa_player = value
+        v = value.strip().lower()
+        if len(v) < 2:
+            self.fa_suggestions = []
+            return
+        out = []
+        for p in self._pool:
+            if v in p["name"].lower():
+                out.append(p)
+                if len(out) >= 8:
+                    break
+        self.fa_suggestions = out
+
+    @rx.event
+    def pick_fa(self, name: str, role: str, team: str):
+        self.fa_player = name
+        self.fa_role = role
+        self.fa_team_name = team
+        self.fa_suggestions = []
 
     @rx.event
     def force_add(self):

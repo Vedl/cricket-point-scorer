@@ -328,17 +328,18 @@ class Repository:
             {"name": team_name, "budget": budget, "squad": [], "user": None, "pin": str(pin).strip()}
         )
 
-    def claim_team(self, doc: dict, code: str, user: str, team_name: str, pin: str) -> dict:
-        """Join a room by claiming a team with room code + team PIN."""
+    def claim_team(self, doc: dict, code: str, user: str, pin: str) -> dict:
+        """Join a room by room code + team PIN only — the PIN identifies the team."""
         room = self.get_room(doc, code)
-        part = next(
-            (p for p in room.get("participants", []) if p["name"].lower() == team_name.strip().lower()),
-            None,
-        )
-        if part is None:
-            raise RepositoryError(f"No team named '{team_name}' in this room.")
-        if str(part.get("pin") or "") != str(pin).strip():
-            raise RepositoryError("Incorrect PIN for that team.")
+        pin = str(pin).strip()
+        if not pin:
+            raise RepositoryError("Enter your team PIN.")
+        matches = [p for p in room.get("participants", []) if str(p.get("pin") or "") == pin]
+        if not matches:
+            raise RepositoryError("No team with that PIN in this room.")
+        if len(matches) > 1:
+            raise RepositoryError("That PIN matches more than one team — ask the admin to fix it.")
+        part = matches[0]
         if part.get("user") and part["user"] != user:
             raise RepositoryError("That team has already been claimed by someone else.")
         part["user"] = user
