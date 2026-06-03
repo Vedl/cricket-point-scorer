@@ -7,7 +7,7 @@ caller's job.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from season_engine.knockout import select_for_elimination
 from season_engine.standings import cumulative_standings, gameweek_standings
@@ -191,6 +191,54 @@ def set_deadline(room: dict, gameweek: str, iso: str) -> None:
 
 def deadlines(room: dict) -> dict:
     return room.get("gameweek_deadlines", {})
+
+
+def set_bidding_deadline(room: dict, iso: str) -> None:
+    """Admin sets the bidding deadline for the current gameweek; un-freezes the market."""
+    room["bidding_deadline"] = iso
+    room["bids_resolved"] = False
+    room["locked_for_deadline"] = False
+    room["bidding_open"] = True
+    room["trading_open"] = True
+    if int(room.get("current_gameweek", 0) or 0) < 1:
+        room["current_gameweek"] = 1
+
+
+def trading_open(room: dict, now: datetime) -> bool:
+    """Trading is allowed until the trading deadline (bidding deadline + 30m)."""
+    from . import bidding_ops as bo
+    dl = bo.bidding_deadline(room)
+    if dl is None:
+        return False
+    return now < dl + timedelta(minutes=30)
+
+
+def process_room_deadline(room: dict, now: datetime) -> list[str]:
+    """Drive the bidding/trading/lock timeline from the single bidding deadline.
+
+    At the deadline: award all standing bids. At deadline+30m: lock squads,
+    advance the gameweek, and freeze bidding+trading until the admin sets a new
+    deadline. Returns a list of human-readable events that happened.
+    """
+    from . import bidding_ops as bo
+    dl = bo.bidding_deadline(room)
+    if dl is None:
+        return []
+    events: list[str] = []
+    awarded = bo.resolve_deadline(room, now)
+    if awarded:
+        events.append(f"awarded {len(awarded)} open bids")
+    if now >= dl + timedelta(minutes=30) and not room.get("locked_for_deadline"):
+        gw = str(int(room.get("current_gameweek", 1) or 1))
+        lock_gameweek(room, gw)
+        advance_gameweek(room)
+        room["locked_for_deadline"] = True
+        room["bidding_open"] = False
+        room["trading_open"] = False
+        room["bidding_deadline"] = None      # frozen until admin sets the next one
+        room["bids_resolved"] = False
+        events.append(f"locked GW{gw}, started the next gameweek, froze the market")
+    return events
 
 
 def process_due_deadlines(room: dict, now: datetime) -> list[str]:

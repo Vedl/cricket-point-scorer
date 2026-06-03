@@ -26,6 +26,15 @@ class RoomState(rx.State):
     my_squad: list[dict[str, str]] = []
     my_ir: str = ""
     teams: list[dict[str, str]] = []
+    # detailed squads viewer
+    all_team_names: list[str] = []
+    view_team_sel: str = ""
+    view_squad: list[dict[str, str]] = []
+    view_budget: str = "0"
+    view_ir: str = ""
+    locked_gws: list[str] = []
+    view_locked_gw: str = ""
+    locked_rows: list[dict[str, str]] = []
     current_gameweek: str = "0"
     gw1_locked: bool = False
     next_deadline: str = ""
@@ -77,11 +86,57 @@ class RoomState(rx.State):
              "is_me": "yes" if p["name"] == self.my_team else "no"}
             for p in room.get("participants", [])
         ]
-        # nearest upcoming deadline
-        ds = sorted(room.get("gameweek_deadlines", {}).items())
-        locked = room.get("gameweek_squads", {})
-        self.next_deadline = next((f"GW{gw}: {iso[:16].replace('T', ' ')}"
-                                   for gw, iso in ds if gw not in locked), "")
+        # nearest upcoming deadline (the single bidding deadline)
+        bd = room.get("bidding_deadline")
+        self.next_deadline = bd[:16].replace("T", " ") if bd else ""
+
+        # squads viewer
+        self.all_team_names = [p["name"] for p in room.get("participants", [])]
+        if not self.view_team_sel or self.view_team_sel not in self.all_team_names:
+            self.view_team_sel = self.my_team or (self.all_team_names[0] if self.all_team_names else "")
+        self._compute_view(room)
+        self.locked_gws = sorted(room.get("gameweek_squads", {}).keys(), key=lambda g: (len(g), g))
+        if not self.view_locked_gw and self.locked_gws:
+            self.view_locked_gw = self.locked_gws[-1]
+        self._compute_locked(room)
+
+    def _compute_view(self, room: dict):
+        by = {p["name"]: p for p in room.get("participants", [])}
+        p = by.get(self.view_team_sel, {})
+        self.view_budget = str(p.get("budget", 0))
+        self.view_ir = p.get("ir") or ""
+        self.view_squad = [
+            {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
+             "price": str(e.get("buy_price", 0)),
+             "ir": "yes" if e["name"] == p.get("ir") else "no"}
+            for e in sorted(p.get("squad", []), key=lambda x: -x.get("buy_price", 0))
+        ]
+
+    def _compute_locked(self, room: dict):
+        snap = room.get("gameweek_squads", {}).get(self.view_locked_gw, {})
+        team = snap.get(self.view_team_sel) if isinstance(snap, dict) else None
+        rows = []
+        if isinstance(team, dict):
+            ir = team.get("ir")
+            for e in team.get("squad", []):
+                rows.append({"name": e["name"], "role": e.get("role", ""),
+                             "ir": "yes" if e["name"] == ir else "no"})
+        self.locked_rows = rows
+
+    @rx.event
+    def select_view_team(self, name: str):
+        self.view_team_sel = name
+        code, doc, room = self._load()
+        if room:
+            self._compute_view(room)
+            self._compute_locked(room)
+
+    @rx.event
+    def select_locked_gw(self, gw: str):
+        self.view_locked_gw = gw
+        code, doc, room = self._load()
+        if room:
+            self._compute_locked(room)
 
     @rx.event
     def set_ir(self, player: str):

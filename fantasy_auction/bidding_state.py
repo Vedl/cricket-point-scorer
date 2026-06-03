@@ -1,27 +1,25 @@
-"""Open-bidding state — 24h standing-bid market on unowned players."""
+"""Open-bidding state — deadline-driven, frozen until the admin sets a deadline."""
 
 from __future__ import annotations
 
 import asyncio
-import time
+from datetime import datetime
 
 import reflex as rx
 
 from platform_core import bidding_ops as bo
+from platform_core import season_ops as so
 from season_engine.open_bidding import BidError
 
 from .state import AppState, repo
 
-
-def _fmt_remaining(secs: int) -> str:
-    h = secs // 3600
-    m = (secs % 3600) // 60
-    s = secs % 60
-    if h:
-        return f"{h}h {m}m"
-    if m:
-        return f"{m}m {s}s"
-    return f"{s}s"
+_WINDOW_LABEL = {
+    "frozen": "🔒 Frozen — waiting for the admin to set a deadline",
+    "open": "🟢 Open — bid on new players or raise",
+    "no_new": "🟡 Closing soon — raise existing bids only (no new players)",
+    "raise_only": "🟠 Final window — raise existing bids in +5M steps only",
+    "closed": "🔴 Closed — bids being awarded",
+}
 
 
 class BiddingState(rx.State):
@@ -36,6 +34,9 @@ class BiddingState(rx.State):
     active: list[dict[str, str]] = []
     bid_player: str = ""
     bid_amount: str = ""
+    window: str = "frozen"
+    window_label: str = ""
+    deadline_str: str = ""
     msg: str = ""
 
     watching: bool = False
@@ -78,10 +79,13 @@ class BiddingState(rx.State):
         ]
         self.active = [
             {"player": b["player"], "team": b["team"], "high_bid": str(b["high_bid"]),
-             "high_bidder": b["high_bidder"], "remaining": _fmt_remaining(b["remaining"]),
-             "mine": "yes" if b["high_bidder"] == self.my_team else "no"}
-            for b in bo.active(room, time.time())
+             "high_bidder": b["high_bidder"], "mine": "yes" if b["high_bidder"] == self.my_team else "no"}
+            for b in bo.active(room)
         ]
+        self.window = bo.window_state(room, datetime.now())
+        self.window_label = _WINDOW_LABEL.get(self.window, "")
+        dl = bo.bidding_deadline(room)
+        self.deadline_str = dl.strftime("%a %d %b, %H:%M") if dl else ""
 
     @rx.event
     def do_search(self):
@@ -96,14 +100,14 @@ class BiddingState(rx.State):
         if not room:
             return
         try:
-            bo.place(room, self.my_team, self.bid_player, int(self.bid_amount or 0), time.time())
+            bo.place(room, self.my_team, self.bid_player, int(self.bid_amount or 0), datetime.now())
         except (BidError, ValueError) as exc:
             self.msg = f"⚠️ {exc}"
             return
         repo.save(doc)
         self.bid_amount = ""
         self._refresh(room)
-        self.msg = f"✅ Bid placed on {self.bid_player} — stands for 24h unless outbid."
+        self.msg = f"✅ Bid placed on {self.bid_player}."
 
     @rx.event
     def pick(self, player: str):
@@ -121,16 +125,14 @@ class BiddingState(rx.State):
                     if not self.watching or not self.room_code:
                         return
                     code = self.room_code
-                # resolve due bids + refresh (outside state lock for the network bit)
                 doc = repo.load()
                 room = doc.get("rooms", {}).get(code)
                 if room is not None:
-                    awarded = bo.resolve(room, time.time())
-                    if awarded:
+                    if so.process_room_deadline(room, datetime.now()):
                         repo.save(doc)
                     async with self:
                         self._refresh(room)
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(2.5)
         finally:
             async with self:
                 self.loop_running = False

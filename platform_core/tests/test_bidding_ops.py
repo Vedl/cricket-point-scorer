@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pytest
 
 from platform_core import bidding_ops as bo
@@ -5,8 +7,8 @@ from platform_core import season_ops as so
 from season_engine.open_bidding import BidError
 
 
-def _room():
-    return {
+def _room(deadline=None):
+    r = {
         "tournament_type": "FIFA World Cup 2026",
         "player_pool": [
             {"name": "Messi", "role": "FWD", "team": "Argentina"},
@@ -19,79 +21,86 @@ def _room():
             {"name": "B", "budget": 100, "squad": []},
         ],
     }
+    if deadline:
+        r["bidding_deadline"] = deadline.isoformat()
+    return r
 
 
-def test_owned_players_excluded_from_available():
-    room = _room()
-    names = {p["name"] for p in bo.available_players(room)}
-    assert "Messi" not in names          # owned via (CSV) auction
-    assert {"Mbappe", "Neuer"} <= names
+NOW = datetime(2026, 6, 3, 12, 0, 0)
 
 
-def test_place_bid_and_resolve_after_window():
-    room = _room()
-    bo.place(room, "B", "Mbappe", 20, now=1000.0, window=10)
-    # not yet due
-    assert bo.resolve(room, now=1005.0) == []
-    assert bo.active(room, now=1005.0)[0]["player"] == "Mbappe"
-    # window elapsed -> awarded
-    awarded = bo.resolve(room, now=1011.0)
-    assert awarded and awarded[0]["participant"] == "B"
+def test_owned_excluded_from_available():
+    names = {p["name"] for p in bo.available_players(_room())}
+    assert "Messi" not in names and {"Mbappe", "Neuer"} <= names
+
+
+def test_frozen_when_no_deadline():
+    with pytest.raises(BidError, match="frozen"):
+        bo.place(_room(), "B", "Mbappe", 10, NOW)
+
+
+def test_min_bid_5_and_place():
+    room = _room(deadline=NOW + timedelta(hours=3))
+    with pytest.raises(BidError, match="at least 5M"):
+        bo.place(room, "B", "Mbappe", 4, NOW)
+    bo.place(room, "B", "Mbappe", 5, NOW)
+    assert bo.active(room)[0]["high_bid"] == 5
+
+
+def test_increment_of_5_after_50():
+    room = _room(deadline=NOW + timedelta(hours=3))
+    bo.place(room, "B", "Mbappe", 50, NOW)
+    with pytest.raises(BidError, match="multiples of 5M"):
+        bo.place(room, "A", "Mbappe", 57, NOW)   # >= 55 min but not a multiple of 5
+    bo.place(room, "A", "Mbappe", 55, NOW)
+    assert bo.active(room)[0]["high_bid"] == 55
+
+
+def test_budget_reservation_across_bids():
+    room = _room(deadline=NOW + timedelta(hours=3))
+    room["participants"][1]["budget"] = 100
+    bo.place(room, "B", "Mbappe", 60, NOW)        # reserves 60
+    with pytest.raises(BidError, match="available budget"):
+        bo.place(room, "B", "Neuer", 50, NOW)     # 60+50 > 100
+    bo.place(room, "B", "Neuer", 40, NOW)         # 60+40 = 100 ok
+
+
+def test_no_new_players_in_final_hour():
+    room = _room(deadline=NOW + timedelta(minutes=45))   # inside T-60m window
+    with pytest.raises(BidError, match="no new players"):
+        bo.place(room, "B", "Mbappe", 10, NOW)
+
+
+def test_raise_only_in_final_30m():
+    dl = NOW + timedelta(minutes=20)
+    room = _room(deadline=dl)
+    # seed an existing bid (pretend placed earlier)
+    room["open_bids"] = {"Mbappe": {"high_bid": 20, "high_bidder": "B", "role": "FWD", "team": "France"}}
+    with pytest.raises(BidError, match="multiples of 5M"):
+        bo.place(room, "A", "Mbappe", 22, NOW)     # not +5
+    bo.place(room, "A", "Mbappe", 25, NOW)
+    assert bo.active(room)[0]["high_bid"] == 25
+
+
+def test_resolve_and_lock_timeline():
+    dl = NOW
+    room = _room(deadline=dl)
+    so.set_bidding_deadline(room, dl.isoformat())
+    room["open_bids"] = {"Mbappe": {"high_bid": 20, "high_bidder": "B", "role": "FWD", "team": "France"}}
+    # at the deadline -> bids awarded
+    events = so.process_room_deadline(room, dl)
+    assert any("awarded" in e for e in events)
     by = {p["name"]: p for p in room["participants"]}
     assert any(e["name"] == "Mbappe" for e in by["B"]["squad"])
-    assert by["B"]["budget"] == 80
-    assert bo.active(room, now=1011.0) == []   # bid cleared
+    # at +30m -> lock + advance + freeze
+    events2 = so.process_room_deadline(room, dl + timedelta(minutes=31))
+    assert any("locked" in e for e in events2)
+    assert room["bidding_deadline"] is None      # frozen
+    assert room["current_gameweek"] == 2
 
 
-def test_outbid_resets_window():
-    room = _room()
-    bo.place(room, "A", "Neuer", 10, now=1000.0, window=100)
-    bo.place(room, "B", "Neuer", 15, now=1050.0, window=100)  # higher -> resets to 1150
-    # at t=1120 (past A's original 1100 but not B's 1150) still active
-    assert bo.resolve(room, now=1120.0) == []
-    awarded = bo.resolve(room, now=1151.0)
-    assert awarded[0]["participant"] == "B" and awarded[0]["amount"] == 15
-
-
-def test_bid_must_beat_current():
-    room = _room()
-    bo.place(room, "A", "Neuer", 10, now=1000.0, window=100)
-    with pytest.raises(BidError):
-        bo.place(room, "B", "Neuer", 10, now=1001.0, window=100)  # not higher
-
-
-def test_bid_over_budget_rejected():
-    room = _room()
-    room["participants"][1]["budget"] = 5
-    with pytest.raises(BidError):
-        bo.place(room, "B", "Mbappe", 50, now=1000.0)
-
-
-def test_half_price_release_unlimited_before_gw1():
-    room = _room()
-    # A owns Messi (buy 30); release for half -> +15, and pre-GW1 unlimited
-    refund = so.half_price_release(room, "A", "Messi")
-    assert refund == 15
-    a = next(p for p in room["participants"] if p["name"] == "A")
-    assert a["budget"] == 115
-    assert all(e["name"] != "Messi" for e in a["squad"])
-    # Messi now available for open bidding again
-    assert "Messi" in {p["name"] for p in bo.available_players(room)}
-
-
-def test_half_price_limited_after_gw1():
-    room = _room()
-    room["gw1_locked"] = True
-    room["participants"][0]["squad"].append(
-        {"name": "X", "role": "FWD", "team": "Z", "buy_price": 20})
-    so.half_price_release(room, "A", "Messi")
-    with pytest.raises(so.SeasonError):
-        so.half_price_release(room, "A", "X")   # second in same GW blocked
-
-
-def test_set_ir_validates_ownership():
-    room = _room()
-    so.set_ir(room, "A", "Messi")
-    assert room["participants"][0]["ir"] == "Messi"
-    with pytest.raises(so.SeasonError):
-        so.set_ir(room, "A", "Ronaldo")
+def test_trading_open_window():
+    dl = NOW
+    assert so.trading_open(_room(), NOW) is False              # no deadline
+    assert so.trading_open(_room(deadline=dl), dl - timedelta(minutes=5)) is True
+    assert so.trading_open(_room(deadline=dl), dl + timedelta(minutes=31)) is False

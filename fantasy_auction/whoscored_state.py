@@ -17,6 +17,7 @@ class WhoScoredState(rx.State):
     error: str = ""
     results: list[dict[str, str]] = []
     count: int = 0
+    room_code: str = ""
 
     @rx.event
     def set_field(self, name: str, value):
@@ -27,6 +28,7 @@ class WhoScoredState(rx.State):
         app = await self.get_state(AppState)
         if not app.auth_user:
             return rx.redirect("/")
+        self.room_code = (self.router._page.params.get("room", "") or "").upper()
 
     @rx.event(background=True)
     async def run(self):

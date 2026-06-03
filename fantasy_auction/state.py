@@ -79,6 +79,7 @@ class AppState(rx.State):
     teams: list[dict[str, str]] = []
     new_team_name: str = ""
     new_team_pin: str = ""
+    claim_choice: str = ""
     setup_msg: str = ""
     upload_msg: str = ""
     pool_count: int = 0
@@ -250,6 +251,30 @@ class AppState(rx.State):
             }
             for p in room.get("participants", [])
         ]
+        self.team_names = [p["name"] for p in room.get("participants", [])]
+
+    team_names: list[str] = []
+
+    @rx.event
+    def claim_my_team(self):
+        """Admin picks which team (from the CSV) they'll manage all tournament."""
+        self.setup_msg = ""
+        if not self.claim_choice:
+            self.setup_msg = "Pick a team to manage."
+            return
+        doc = repo.load()
+        room = doc.get("rooms", {}).get(self.room_code)
+        if room is None:
+            return
+        for p in room.get("participants", []):
+            if p.get("user") == self.auth_user and p["name"] != self.claim_choice:
+                p["user"] = None  # release any previously-claimed team
+        for p in room.get("participants", []):
+            if p["name"] == self.claim_choice:
+                p["user"] = self.auth_user
+        repo.save(doc)
+        self._refresh_teams(room)
+        self.setup_msg = f"✅ You'll manage '{self.claim_choice}' all tournament."
 
     @rx.event
     def handle_add_team(self):

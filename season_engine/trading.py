@@ -62,8 +62,9 @@ def validate_trade(
     if to_size > max_squad:
         errors.append(f"{p_to['name']} would exceed the squad limit ({max_squad}).")
 
-    if not give_players and not get_players and not give_cash and not get_cash:
-        errors.append("A trade must move at least one player or some cash.")
+    # No donations: a trade must involve at least one player on either side.
+    if not give_players and not get_players:
+        errors.append("Trades must involve at least one player (no cash-only donations).")
     return errors
 
 

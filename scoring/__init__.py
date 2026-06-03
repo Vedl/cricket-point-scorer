@@ -28,10 +28,10 @@ def whoscored_points(url: str) -> list[dict]:
     for _, r in df.iterrows():
         name = str(r.get("Player", "") or "")
         pos = str(r.get("Position", "") or "")
-        key = (name, pos)
-        if not name or key in seen:
+        # One row per player (the match-position score; first occurrence).
+        if not name or name in seen:
             continue
-        seen.add(key)
+        seen.add(name)
         try:
             score = int(round(float(r.get("Score") or 0)))
         except (TypeError, ValueError):

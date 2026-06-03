@@ -35,18 +35,17 @@ def lock_participant(p: dict, *, max_squad: int = MAX_SQUAD, ir_cost: int = IR_C
             released.append(dropped)
             notes.append(f"Released cheapest: {dropped['name']} (over {max_squad}).")
 
-    # 2. Auto-assign IR if none set (or the set IR is no longer in the squad).
+    # 2. IR is mandatory only for a full squad (>= max_squad players). If the
+    #    squad is full and no valid IR is set, the most expensive player is benched.
     ir = p.get("ir")
-    if not ir or _entry(squad, ir) is None:
-        if squad:
-            ir = max(squad, key=lambda e: e.get("buy_price", 0))["name"]
-            p["ir"] = ir
-            notes.append(f"No IR set — most expensive ({ir}) placed in IR.")
-        else:
-            p["ir"] = None
-            ir = None
+    if _entry(squad, ir) is None:
+        ir = None  # stale / unset
+    if ir is None and len(squad) >= max_squad and squad:
+        ir = max(squad, key=lambda e: e.get("buy_price", 0))["name"]
+        notes.append(f"No IR set — most expensive ({ir}) placed in IR.")
+    p["ir"] = ir
 
-    # 3. Charge the IR fee; if unaffordable, release the IR player.
+    # 3. Charge the IR fee (2M) if an IR is in effect; if unaffordable, release them.
     if p.get("ir"):
         if p.get("budget", 0) >= ir_cost:
             p["budget"] = p.get("budget", 0) - ir_cost

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import reflex as rx
 
+from datetime import datetime
+
 from platform_core import market_ops as mo
+from platform_core import season_ops as so
 from season_engine.trading import TradeError
 
 from .state import AppState, repo
@@ -122,6 +125,9 @@ class TradeState(rx.State):
         self.msg = ""
         code, doc, room = self._load()
         if not room:
+            return
+        if not so.trading_open(room, datetime.now()):
+            self.msg = "⚠️ Trading is frozen — it opens once the admin sets a bidding deadline."
             return
         gp = [self.give_player] if self.give_player else []
         rp = [self.get_player] if self.get_player else []

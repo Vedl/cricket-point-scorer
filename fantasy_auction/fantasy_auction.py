@@ -86,15 +86,28 @@ def _navlink(label, href):
                    _hover={"color": T.TEXT, "background": T.SURFACE_2})
 
 
+def _copy_code(code):
+    return rx.box(
+        rx.hstack(rx.text("CODE", style={"color": T.MUTED, "font_size": "0.6rem",
+                          "letter_spacing": "1px"}),
+                  rx.text(code, style={"color": T.ACCENT, "font_family": T.MONO,
+                          "font_weight": "700", "font_size": "0.95rem", "letter_spacing": "1px"}),
+                  spacing="2", align="center"),
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER_Hi}",
+               "border_radius": "10px", "padding": "4px 12px"},
+    )
+
+
 def room_nav(code, is_admin):
     return T.card(
         rx.hstack(
+            _copy_code(code),
             _navlink("🏠 Hub", "/room?room=" + code),
             _navlink("👥 Squads", "/squads?room=" + code),
             _navlink("🔨 Bidding", "/bidding?room=" + code),
             _navlink("🤝 Trade", "/trade?room=" + code),
             _navlink("📊 Standings", "/standings?room=" + code),
-            _navlink("🧮 Calculator", "/calculator"),
+            _navlink("🧮 Calculator", "/calculator?room=" + code),
             rx.cond(is_admin, _navlink("🛠️ Admin", "/admin?room=" + code)),
             rx.spacer(),
             _navlink("← Rooms", "/rooms"),
@@ -314,6 +327,21 @@ def setup_page():
                 width="100%"),
             columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
         import_review_section(),
+        rx.box(height="1rem"),
+        rx.cond(
+            AppState.team_names.length() > 0,
+            T.card(
+                T.section_title("🧤 Pick the team you'll manage"),
+                rx.text("Your username needn't match a team name — choose which team (from the CSV) "
+                        "you manage for the whole tournament.",
+                        style={"color": T.MUTED, "font_size": "0.82rem"}, margin_y="0.4rem"),
+                rx.hstack(
+                    rx.select(AppState.team_names, value=AppState.claim_choice,
+                              placeholder="Select your team", on_change=AppState.set_field("claim_choice")),
+                    T.primary_button("Claim", on_click=AppState.claim_my_team),
+                    spacing="3"),
+                width="100%"),
+        ),
         rx.box(height="1.25rem"),
         rx.hstack(rx.link("← Back to rooms", href="/rooms", style={"color": T.MUTED}), rx.spacer(),
                   T.primary_button("Go to room →", on_click=AppState.go_to_room), width="100%"),
@@ -473,10 +501,65 @@ def room_page():
 # --------------------------------------------------------------------------- #
 # Squads (all teams, detailed)
 # --------------------------------------------------------------------------- #
+def _squad_view_row(p):
+    return rx.hstack(
+        rx.cond(p["ir"] == "yes", T.pill("IR", T.WARNING), rx.box(width="32px")),
+        rx.text(p["name"], style={"color": T.TEXT, "font_weight": "500"}),
+        rx.text(p["role"], style={"color": T.MUTED, "font_size": "0.8rem"}),
+        rx.text(p["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+        rx.spacer(),
+        rx.text(p["price"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
+                "font_size": "0.85rem"}),
+        width="100%", align="center", spacing="3",
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+               "border_radius": "10px", "padding": "0.45rem 0.7rem"},
+    )
+
+
 def squads_page():
     return room_shell(
         _topbar(), room_nav(RoomState.room_code, RoomState.is_admin),
-        T.hero("Squads", "Every team's budget and roster size. Open the Hub for your full squad."),
+        T.hero("Squads", "Inspect any team's full squad, budget and locked gameweek snapshots."),
+        rx.hstack(rx.text("View team:", style={"color": T.MUTED}),
+                  rx.select(RoomState.all_team_names, value=RoomState.view_team_sel,
+                            on_change=RoomState.select_view_team, width="240px"),
+                  rx.spacer(),
+                  T.pill("💰 " + RoomState.view_budget + "M", T.SUCCESS),
+                  width="100%", align="center"),
+        rx.box(height="1rem"),
+        rx.grid(
+            T.card(
+                rx.hstack(T.section_title("🦅 Current squad"), rx.spacer(),
+                          T.pill(RoomState.view_squad.length().to_string() + " players", T.PRIMARY),
+                          width="100%", align="center"),
+                rx.box(height="0.6rem"),
+                rx.cond(RoomState.view_squad.length() > 0,
+                        rx.vstack(rx.foreach(RoomState.view_squad, _squad_view_row), spacing="2",
+                                  width="100%"),
+                        rx.text("No players yet.", style={"color": T.MUTED})),
+                width="100%"),
+            T.card(
+                rx.hstack(T.section_title("🔒 Locked snapshot"), rx.spacer(),
+                          rx.select(RoomState.locked_gws, value=RoomState.view_locked_gw,
+                                    placeholder="GW", on_change=RoomState.select_locked_gw),
+                          width="100%", align="center"),
+                rx.box(height="0.6rem"),
+                rx.cond(RoomState.locked_rows.length() > 0,
+                        rx.vstack(rx.foreach(RoomState.locked_rows, lambda p: rx.hstack(
+                            rx.cond(p["ir"] == "yes", T.pill("IR", T.WARNING), rx.box(width="32px")),
+                            rx.text(p["name"], style={"color": T.TEXT}),
+                            rx.text(p["role"], style={"color": T.MUTED, "font_size": "0.8rem"}),
+                            width="100%", align="center", spacing="3",
+                            style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+                                   "border_radius": "10px", "padding": "0.4rem 0.7rem"})),
+                            spacing="2", width="100%"),
+                        rx.text("No locked snapshot for this team/gameweek yet.",
+                                style={"color": T.MUTED})),
+                width="100%"),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
+        rx.box(height="1.5rem"),
+        T.section_title("🌍 All teams at a glance"),
+        rx.box(height="0.6rem"),
         rx.grid(rx.foreach(RoomState.teams, team_overview_card),
                 columns=rx.breakpoints(initial="1", sm="2", md="3"), spacing="3", width="100%"),
     )
@@ -517,11 +600,19 @@ def active_bid_row(b):
 def bidding_page():
     return room_shell(
         _topbar(), room_nav(BiddingState.room_code, BiddingState.is_admin),
-        rx.hstack(T.hero("Open bidding", "Bid on any unsold player. A bid must stand 24h to win — "
-                         "any higher bid resets the clock."),
+        rx.hstack(T.hero("Open bidding", "Bid on any unowned player. Min 5M; +5M steps once a bid "
+                         "hits 50M. All bids award at the admin's deadline."),
                   rx.spacer(),
                   T.pill("💰 " + BiddingState.my_budget.to_string() + "M", T.SUCCESS),
                   width="100%", align="start"),
+        rx.hstack(
+            rx.box(BiddingState.window_label, style={"color": T.TEXT, "font_weight": "500"}),
+            rx.spacer(),
+            rx.cond(BiddingState.deadline_str != "",
+                    T.pill("⏰ " + BiddingState.deadline_str, T.WARNING)),
+            width="100%", align="center",
+            style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+                   "border_radius": "12px", "padding": "0.6rem 1rem", "margin_bottom": "0.6rem"}),
         _error(BiddingState.msg),
         rx.box(height="0.5rem"),
         T.card(
@@ -677,24 +768,31 @@ def gameweek_admin_panel():
                 "font_size": "0.8rem", "margin_top": "0.4rem"}),
         rx.text_area(value=SeasonState.scores_text, on_change=SeasonState.set_field("scores_text"),
                      placeholder="Virat Kohli, 72\nJasprit Bumrah, 45", rows="5", width="100%"),
-        rx.hstack(T.primary_button("💾 Save scores", on_click=SeasonState.save_scores),
-                  rx.button("🔒 Lock squads (GW)", on_click=SeasonState.lock_squads, variant="soft"),
+        rx.hstack(T.primary_button("💾 Save scores manually", on_click=SeasonState.save_scores),
+                  rx.button("🔒 Lock squads now", on_click=SeasonState.lock_squads, variant="soft"),
                   spacing="3", margin_top="0.5rem"),
         rx.divider(margin_y="0.7rem"),
-        rx.text("⏰ Deadlines auto-lock squads + start the next gameweek.",
+        T.section_title("🤖 Auto-score from WhoScored"),
+        rx.text("Paste this gameweek's WhoScored match links (one per line). Points are scraped "
+                "and awarded on each team's locked squad (IR excluded).",
+                style={"color": T.MUTED, "font_size": "0.8rem"}),
+        rx.text_area(value=SeasonState.score_links, on_change=SeasonState.set_field("score_links"),
+                     placeholder="https://www.whoscored.com/matches/…/live/…", rows="3", width="100%"),
+        rx.cond(SeasonState.scoring_running,
+                rx.button(rx.spinner(), "Scraping…", disabled=True),
+                T.primary_button("⚡ Auto-score GW", on_click=SeasonState.run_whoscored_scoring)),
+        rx.divider(margin_y="0.7rem"),
+        T.section_title("⏰ Bidding deadline (drives the gameweek)"),
+        rx.text("Set ONE deadline: new bids until −1h, raise-only (+5M) in the last 30m, bids "
+                "award at the deadline, trading until +30m, then squads auto-lock & the next "
+                "gameweek starts. Frozen until you set the next one.",
                 style={"color": T.MUTED, "font_size": "0.8rem"}),
         rx.hstack(
-            rx.input(value=SeasonState.deadline_gw, on_change=SeasonState.set_field("deadline_gw"),
-                     placeholder="GW", width="70px"),
-            rx.input(value=SeasonState.deadline_value, on_change=SeasonState.set_field("deadline_value"),
+            rx.input(value=SeasonState.bidding_deadline_value,
+                     on_change=SeasonState.set_field("bidding_deadline_value"),
                      type="datetime-local", width="220px"),
-            rx.button("Set deadline", on_click=SeasonState.save_deadline, variant="soft"),
+            T.primary_button("Set bidding deadline", on_click=SeasonState.save_bidding_deadline),
             spacing="3", align="center", margin_top="0.4rem", wrap="wrap"),
-        rx.cond(SeasonState.deadlines.length() > 0,
-                rx.vstack(rx.foreach(SeasonState.deadlines, lambda d: rx.text(
-                    "GW" + d["gw"] + " — " + d["when"] + " (" + d["status"] + ")",
-                    style={"color": T.MUTED, "font_size": "0.8rem"})), spacing="0",
-                    margin_top="0.3rem", align="start")),
         rx.divider(margin_y="0.7rem"),
         T.section_title("🏆 Knockout"),
         rx.text("Keep the top N for the selected gameweek; the rest are eliminated and their "
@@ -738,8 +836,9 @@ def standings_page():
                            rx.table.column_header_cell("Owner"))),
                            rx.table.body(rx.foreach(SeasonState.top_scorers, scorer_row)), width="100%"),
                        rx.text("No scores yet.", style={"color": T.MUTED})), width="100%"),
-        rx.box(height="1.25rem"),
-        rx.cond(SeasonState.is_admin, gameweek_admin_panel()),
+        rx.cond(SeasonState.is_admin,
+                rx.text("Gameweek admin (scores, deadlines, knockout) has moved to the 🛠️ Admin tab.",
+                        style={"color": T.MUTED, "font_size": "0.82rem", "margin_top": "1rem"})),
     )
 
 
@@ -829,6 +928,7 @@ def admin_page():
             rx.text("Reset keeps teams + PINs; clears squads, scores, auction state. Delete is permanent.",
                     style={"color": T.MUTED, "font_size": "0.8rem", "margin_top": "0.4rem"}),
             width="100%"),
+        rx.cond(AdminState.is_admin, gameweek_admin_panel()),
         _error(AdminState.msg), spacing="4", width="100%")
     return room_shell(_topbar(), room_nav(AdminState.room_code, AdminState.is_admin),
         T.hero(AdminState.room_name + " · Admin", ""),
@@ -852,7 +952,12 @@ def ws_row(r):
 def calculator_page():
     return T.page_shell(
         _topbar(),
-        rx.hstack(rx.link("← Rooms", href="/rooms", style={"color": T.MUTED}), width="100%"),
+        rx.hstack(
+            rx.cond(WhoScoredState.room_code != "",
+                    rx.link("← Back to room", href="/room?room=" + WhoScoredState.room_code,
+                            style={"color": T.ACCENT})),
+            rx.link("← Rooms", href="/rooms", style={"color": T.MUTED}),
+            spacing="4", width="100%"),
         rx.box(height="0.5rem"),
         T.hero("Match calculator", "Paste any WhoScored match link to compute fantasy points for "
                "every player in that match. Available to everyone."),
@@ -903,6 +1008,7 @@ app.add_page(bidding_page, route="/bidding", title="Open Bidding",
 app.add_page(trade_page, route="/trade", title="Trades", on_load=TradeState.on_load_trade)
 app.add_page(standings_page, route="/standings", title="Standings",
              on_load=[SeasonState.on_load_standings, RoomState.on_load_hub])
-app.add_page(admin_page, route="/admin", title="Admin", on_load=AdminState.on_load_admin)
+app.add_page(admin_page, route="/admin", title="Admin",
+             on_load=[AdminState.on_load_admin, SeasonState.on_load_standings, RoomState.on_load_hub])
 app.add_page(calculator_page, route="/calculator", title="Match Calculator",
              on_load=WhoScoredState.guard)

@@ -1,3 +1,5 @@
+import pytest
+
 from platform_core import season_ops as so
 
 
@@ -52,22 +54,56 @@ def test_lock_freezes_market_snapshots_and_boosts():
     assert "Alice" in room["gameweek_squads"]["1"]
     assert room["bidding_open"] is False
     assert first is True
-    # auto-IR'd the most expensive (Kohli) and charged 2M, then +100 GW1 boost
     alice = next(p for p in room["participants"] if p["name"] == "Alice")
-    assert alice["ir"] == "Kohli"
-    assert alice["budget"] == 50 - 2 + 100
+    # small squad (<19) -> no forced IR, no 2M fee; +100 GW1 boost
+    assert alice["ir"] is None
+    assert alice["budget"] == 50 + 100
 
 
-def test_lock_snapshot_used_for_scoring_with_ir():
+def test_lock_snapshot_used_for_scoring():
     room = _room()
-    so.lock_gameweek(room, "1")   # Alice IR = Kohli (excluded)
-    # Alice swaps her whole live squad afterwards
+    so.lock_gameweek(room, "1")
     next(p for p in room["participants"] if p["name"] == "Alice")["squad"] = [
         {"name": "Nobody", "role": "Batsman"}]
     rows = so.compute_cumulative_standings(room)
     by = {r["participant"]: r["points"] for r in rows}
-    # GW1 uses the locked snapshot with Kohli in IR -> only Bumrah (30) counts
-    assert by["Alice"] == 30
+    # GW1 uses the locked snapshot (Kohli 50 + Bumrah 30); no IR on a small squad
+    assert by["Alice"] == 80
+
+
+def test_voluntary_ir_excluded_from_scoring():
+    room = _room()
+    next(p for p in room["participants"] if p["name"] == "Alice")["ir"] = "Kohli"
+    so.lock_gameweek(room, "1")   # IR=Kohli set, charged 2M, excluded
+    rows = so.compute_cumulative_standings(room)
+    by = {r["participant"]: r["points"] for r in rows}
+    # Kohli benched in both GWs -> only Bumrah counts: GW1 30 + GW2 20 = 50
+    # (without IR it would be (50+30)+(10+20) = 110)
+    assert by["Alice"] == 50
+
+
+def test_half_price_release_unlimited_before_gw1():
+    room = _room()
+    refund = so.half_price_release(room, "Alice", "Kohli")   # buy 50 -> +25
+    a = next(p for p in room["participants"] if p["name"] == "Alice")
+    assert refund == 25 and a["budget"] == 75
+    assert all(e["name"] != "Kohli" for e in a["squad"])
+
+
+def test_half_price_limited_after_gw1():
+    room = _room()
+    room["gw1_locked"] = True
+    so.half_price_release(room, "Alice", "Kohli")
+    with pytest.raises(so.SeasonError):
+        so.half_price_release(room, "Alice", "Bumrah")   # 2nd in same GW blocked
+
+
+def test_set_ir_validates_ownership():
+    room = _room()
+    so.set_ir(room, "Alice", "Kohli")
+    assert next(p for p in room["participants"] if p["name"] == "Alice")["ir"] == "Kohli"
+    with pytest.raises(so.SeasonError):
+        so.set_ir(room, "Alice", "Ronaldo")
 
 
 def test_advance_gameweek():

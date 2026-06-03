@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import reflex as rx
 
+from platform_core import scoring_ops
 from platform_core import season_ops as so
 
 from .state import AppState, repo
@@ -34,6 +37,11 @@ class SeasonState(rx.State):
     deadline_gw: str = "1"
     deadline_value: str = ""        # ISO-ish datetime-local string
     deadlines: list[dict[str, str]] = []
+    bidding_deadline_value: str = ""
+    bidding_deadline_str: str = ""
+    # WhoScored auto-scoring
+    score_links: str = ""
+    scoring_running: bool = False
 
     @rx.event
     def set_field(self, name: str, value):
@@ -152,6 +160,58 @@ class SeasonState(rx.State):
         self._recompute(room)
         self.msg = (f"❌ Eliminated: {', '.join(losers)}" if losers
                     else "No active participants to eliminate.")
+
+    @rx.event
+    def save_bidding_deadline(self):
+        self.msg = ""
+        if not self.bidding_deadline_value:
+            self.msg = "⚠️ Pick a date & time for the bidding deadline."
+            return
+        code, doc, room = self._load_room()
+        if not room:
+            return
+        so.set_bidding_deadline(room, self.bidding_deadline_value)
+        repo.save(doc)
+        self.bidding_deadline_str = self.bidding_deadline_value.replace("T", " ")
+        self.msg = ("⏰ Deadline set. Bidding opens now; new players until −1h, raise-only "
+                    "(+5M) in the final 30m, bids award at the deadline, trading until +30m, "
+                    "then squads auto-lock and the next gameweek starts.")
+
+    @rx.event(background=True)
+    async def run_whoscored_scoring(self):
+        async with self:
+            if self.scoring_running:
+                return
+            self.scoring_running = True
+            self.msg = ""
+            gw = self.gw_input
+            links = scoring_ops.parse_links(self.score_links)
+            code = self.room_code
+        if not links:
+            async with self:
+                self.scoring_running = False
+                self.msg = "⚠️ Paste at least one WhoScored match link."
+            return
+        doc = repo.load()
+        room = doc.get("rooms", {}).get(code)
+        if room is None:
+            async with self:
+                self.scoring_running = False
+            return
+        totals, errors = await asyncio.to_thread(
+            scoring_ops.score_gameweek_from_links, room, gw, links)
+        if totals:
+            repo.save(doc)
+        async with self:
+            self.scoring_running = False
+            if totals:
+                self.selected_gw = str(gw)
+                self.gameweeks = so.gameweeks_with_scores(room)
+                self._recompute(room)
+                self.msg = (f"✅ Scored {len(totals)} players for GW{gw} from "
+                            f"{len(links)} match(es).")
+            if errors:
+                self.msg += "  ⚠️ " + " | ".join(errors[:2])
 
     @rx.event
     def save_deadline(self):

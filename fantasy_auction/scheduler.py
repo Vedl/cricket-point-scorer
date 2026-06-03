@@ -32,8 +32,13 @@ class SchedulerState(rx.State):
             try:
                 doc = repo.load()
                 changed = False
+                now = datetime.now()
                 for room in doc.get("rooms", {}).values():
-                    if isinstance(room, dict) and so.process_due_deadlines(room, datetime.now()):
+                    if not isinstance(room, dict):
+                        continue
+                    if so.process_room_deadline(room, now):
+                        changed = True
+                    if so.process_due_deadlines(room, now):
                         changed = True
                 if changed:
                     repo.save(doc)
