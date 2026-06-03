@@ -12,6 +12,7 @@ from .state import AppState
 from .room_state import RoomState
 from .season_state import SeasonState
 from .trade_state import TradeState
+from .admin_state import AdminState
 
 
 # --------------------------------------------------------------------------- #
@@ -564,6 +565,11 @@ def room_page() -> rx.Component:
                     on_click=RoomState.stop_watching, style={"color": theme.ACCENT}),
             rx.link("🤝 Trade", href="/trade?room=" + RoomState.room_code,
                     on_click=RoomState.stop_watching, style={"color": theme.ACCENT}),
+            rx.cond(
+                RoomState.is_admin,
+                rx.link("🛠️ Admin", href="/admin?room=" + RoomState.room_code,
+                        on_click=RoomState.stop_watching, style={"color": theme.ACCENT}),
+            ),
             rx.link("← Rooms", href="/rooms", on_click=RoomState.stop_watching,
                     style={"color": theme.MUTED}),
             width="100%", align="center", spacing="3", wrap="wrap",
@@ -893,6 +899,146 @@ def trade_page() -> rx.Component:
 
 
 # --------------------------------------------------------------------------- #
+# Admin panel (admin micro-features)
+# --------------------------------------------------------------------------- #
+def admin_page() -> rx.Component:
+    body = rx.vstack(
+        rx.grid(
+            theme.card(
+                rx.heading("➕ Force add player", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.select(AdminState.teams, value=AdminState.fa_team, placeholder="Team",
+                          on_change=AdminState.set_field("fa_team"), width="100%"),
+                rx.input(value=AdminState.fa_player, placeholder="Player name",
+                         on_change=AdminState.set_field("fa_player")),
+                rx.hstack(
+                    rx.input(value=AdminState.fa_role, placeholder="Role",
+                             on_change=AdminState.set_field("fa_role")),
+                    rx.input(value=AdminState.fa_team_name, placeholder="Real team",
+                             on_change=AdminState.set_field("fa_team_name")),
+                    rx.input(value=AdminState.fa_price, placeholder="Price", type="number",
+                             on_change=AdminState.set_field("fa_price"), width="90px"),
+                    spacing="2",
+                ),
+                theme.primary_button("Add", on_click=AdminState.force_add, margin_top="0.4rem"),
+                spacing="2", width="100%",
+            ),
+            theme.card(
+                rx.heading("🗑️ Force release player", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.select(AdminState.teams, value=AdminState.fr_team, placeholder="Team",
+                          on_change=AdminState.set_field("fr_team"), width="100%"),
+                rx.input(value=AdminState.fr_player, placeholder="Player name",
+                         on_change=AdminState.set_field("fr_player")),
+                rx.checkbox("Refund buy price", checked=AdminState.fr_refund,
+                            on_change=AdminState.set_field("fr_refund")),
+                rx.button("Release", on_click=AdminState.force_release, color_scheme="red",
+                          variant="soft", margin_top="0.4rem"),
+                spacing="2", width="100%",
+            ),
+            theme.card(
+                rx.heading("💰 Adjust budget", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.select(AdminState.teams, value=AdminState.bud_team, placeholder="Team",
+                          on_change=AdminState.set_field("bud_team"), width="100%"),
+                rx.input(value=AdminState.bud_delta, placeholder="+/- amount (M)", type="number",
+                         on_change=AdminState.set_field("bud_delta")),
+                rx.button("Apply", on_click=AdminState.adjust_budget, variant="soft",
+                          margin_top="0.4rem"),
+                spacing="2", width="100%",
+            ),
+            theme.card(
+                rx.heading("🔑 Reset team PIN", size="5", style={"color": theme.TEXT},
+                           margin_bottom="0.5rem"),
+                rx.select(AdminState.teams, value=AdminState.pin_team, placeholder="Team",
+                          on_change=AdminState.set_field("pin_team"), width="100%"),
+                rx.input(value=AdminState.pin_value, placeholder="New PIN",
+                         on_change=AdminState.set_field("pin_value")),
+                rx.button("Set PIN", on_click=AdminState.reset_pin, variant="soft",
+                          margin_top="0.4rem"),
+                spacing="2", width="100%",
+            ),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%",
+        ),
+        theme.card(
+            rx.heading("🔁 Loans", size="5", style={"color": theme.TEXT}, margin_bottom="0.5rem"),
+            rx.hstack(
+                rx.select(AdminState.teams, value=AdminState.loan_from, placeholder="From",
+                          on_change=AdminState.set_field("loan_from")),
+                rx.select(AdminState.teams, value=AdminState.loan_to, placeholder="To",
+                          on_change=AdminState.set_field("loan_to")),
+                rx.input(value=AdminState.loan_player, placeholder="Player",
+                         on_change=AdminState.set_field("loan_player")),
+                rx.input(value=AdminState.loan_gw, placeholder="Return GW", width="100px",
+                         on_change=AdminState.set_field("loan_gw")),
+                rx.button("Loan", on_click=AdminState.make_loan, variant="soft"),
+                spacing="2", wrap="wrap",
+            ),
+            rx.cond(
+                AdminState.loans.length() > 0,
+                rx.vstack(rx.foreach(AdminState.loans, lambda l: rx.hstack(
+                    rx.text(l["text"], style={"color": theme.MUTED, "font_size": "0.85rem"}),
+                    rx.spacer(),
+                    rx.button("Reverse", size="1", variant="soft",
+                              on_click=AdminState.undo_loan(l["id"])),
+                    width="100%", align="center")),
+                    spacing="2", width="100%", margin_top="0.5rem"),
+                rx.text("No active loans.", style={"color": theme.MUTED}, margin_top="0.4rem"),
+            ),
+            width="100%",
+        ),
+        theme.card(
+            rx.heading("📦 Backup / restore", size="5", style={"color": theme.TEXT},
+                       margin_bottom="0.5rem"),
+            rx.hstack(
+                rx.button("Export room JSON", on_click=AdminState.export_room, variant="soft"),
+                rx.button("Import (from box)", on_click=AdminState.import_room, variant="soft"),
+                spacing="3",
+            ),
+            rx.text_area(value=AdminState.export_text,
+                         on_change=AdminState.set_field("export_text"),
+                         placeholder="Exported JSON appears here; paste JSON to import.",
+                         rows="6", width="100%", margin_top="0.5rem"),
+            rx.text_area(value=AdminState.import_text,
+                         on_change=AdminState.set_field("import_text"),
+                         placeholder="Paste a room JSON here, then click Import.",
+                         rows="4", width="100%", margin_top="0.5rem"),
+            width="100%",
+        ),
+        theme.card(
+            rx.heading("⚠️ Danger zone", size="5", style={"color": theme.DANGER},
+                       margin_bottom="0.5rem"),
+            rx.hstack(
+                rx.button("♻️ Reset room data", on_click=AdminState.reset_room,
+                          color_scheme="amber", variant="soft"),
+                rx.button("🧨 Delete room", on_click=AdminState.delete_room,
+                          color_scheme="red"),
+                spacing="3",
+            ),
+            rx.text("Reset keeps teams + PINs but clears squads, scores and auction state. "
+                    "Delete is permanent.", style={"color": theme.MUTED, "font_size": "0.8rem"},
+                    margin_top="0.4rem"),
+            width="100%",
+        ),
+        _error(AdminState.msg),
+        spacing="4", width="100%",
+    )
+    return theme.page_shell(
+        _topbar(),
+        rx.hstack(
+            rx.heading(AdminState.room_name + " · Admin", size="6", style={"color": theme.TEXT}),
+            rx.spacer(),
+            rx.link("← Room", href="/room?room=" + AdminState.room_code,
+                    style={"color": theme.MUTED}),
+            width="100%", align="center",
+        ),
+        rx.box(height="1rem"),
+        rx.cond(AdminState.is_admin, body,
+                rx.callout("Only the room admin can access this page.", color_scheme="amber")),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": theme.FONT}, stylesheets=["/custom.css"])
@@ -908,3 +1054,5 @@ app.add_page(standings_page, route="/standings", title="Standings",
              on_load=SeasonState.on_load_standings)
 app.add_page(trade_page, route="/trade", title="Trade Center",
              on_load=TradeState.on_load_trade)
+app.add_page(admin_page, route="/admin", title="Admin",
+             on_load=AdminState.on_load_admin)
