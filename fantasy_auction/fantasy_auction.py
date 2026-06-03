@@ -319,6 +319,9 @@ def setup_page():
                   T.primary_button("Go to room →", on_click=AppState.go_to_room), width="100%"),
         width="100%", spacing="2",
     )
+    return T.page_shell(_topbar(),
+        rx.cond(AppState.is_admin, admin_view,
+                rx.callout("Only the room admin can access setup.", color_scheme="amber")))
 
 
 def _status_pill(status):
@@ -372,9 +375,6 @@ def import_review_section():
                 width="100%"),
         ),
     )
-    return T.page_shell(_topbar(),
-        rx.cond(AppState.is_admin, admin_view,
-                rx.callout("Only the room admin can access setup.", color_scheme="amber")))
 
 
 # --------------------------------------------------------------------------- #
