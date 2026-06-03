@@ -1,0 +1,196 @@
+"""Season operations over the room document (gameweek lifecycle + standings).
+
+Bridges the room schema (``participants``, ``gameweek_scores``, ``gameweek_squads``)
+to the pure ``season_engine`` algorithms. Pure dict operations — persistence is the
+caller's job.
+"""
+
+from __future__ import annotations
+
+from season_engine.knockout import select_for_elimination
+from season_engine.standings import cumulative_standings, gameweek_standings
+
+from .config_layer import SPORT_BY_TOURNAMENT
+
+
+def _is_football(room: dict) -> bool:
+    return SPORT_BY_TOURNAMENT.get(room.get("tournament_type", ""), "cricket") == "football"
+
+
+def _participants_for_standings(room: dict) -> list[dict]:
+    out = []
+    for p in room.get("participants", []):
+        out.append(
+            {
+                "name": p["name"],
+                "squad": [{"name": s["name"], "role": s.get("role", "")} for s in p.get("squad", [])],
+                "ir": p.get("ir"),
+            }
+        )
+    return out
+
+
+def compute_gameweek_standings(room: dict, gameweek: str) -> list[dict]:
+    scores = room.get("gameweek_scores", {}).get(str(gameweek), {})
+    return gameweek_standings(
+        _participants_for_standings(room), scores,
+        is_football=_is_football(room), gameweek=gameweek,
+    )
+
+
+def compute_cumulative_standings(room: dict) -> list[dict]:
+    all_scores = {str(k): v for k, v in room.get("gameweek_scores", {}).items()}
+    squads_by_gw = room.get("gameweek_squads") or None
+    return cumulative_standings(
+        _participants_for_standings(room), all_scores,
+        is_football=_is_football(room), squads_by_gw=squads_by_gw,
+    )
+
+
+def gameweeks_with_scores(room: dict) -> list[str]:
+    return sorted(room.get("gameweek_scores", {}).keys(), key=lambda g: (len(g), g))
+
+
+# --- lifecycle ----------------------------------------------------------- #
+def set_gameweek_scores(room: dict, gameweek: str, scores: dict[str, int]) -> None:
+    room.setdefault("gameweek_scores", {})[str(gameweek)] = scores
+
+
+def parse_scores_text(text: str) -> tuple[dict[str, int], list[str]]:
+    """Parse 'Player Name, score' lines into a score dict. Returns (scores, errors)."""
+    scores: dict[str, int] = {}
+    errors: list[str] = []
+    for i, line in enumerate(text.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        if "," not in line:
+            errors.append(f"Line {i}: expected 'Player, score'.")
+            continue
+        name, _, val = line.rpartition(",")
+        name = name.strip()
+        try:
+            scores[name] = int(round(float(val.strip())))
+        except ValueError:
+            errors.append(f"Line {i}: '{val.strip()}' is not a number.")
+    return scores, errors
+
+
+def lock_squads_for_gameweek(room: dict, gameweek: str) -> None:
+    """Snapshot every participant's current squad for a gameweek (freeze for scoring)."""
+    snap = {}
+    for p in room.get("participants", []):
+        snap[p["name"]] = {
+            "squad": [{"name": s["name"], "role": s.get("role", "")} for s in p.get("squad", [])],
+            "ir": p.get("ir"),
+        }
+    room.setdefault("gameweek_squads", {})[str(gameweek)] = snap
+    room["bidding_open"] = False
+    room["trading_open"] = False
+
+
+def advance_gameweek(room: dict) -> int:
+    cur = int(room.get("current_gameweek", 0) or 0)
+    room["current_gameweek"] = cur + 1
+    return room["current_gameweek"]
+
+
+# --- knockout ------------------------------------------------------------ #
+def eliminated_names(room: dict) -> set[str]:
+    return {p["name"] for p in room.get("participants", []) if p.get("is_eliminated")}
+
+
+def eliminate_for_gameweek(room: dict, gameweek: str, count: int = 1) -> list[str]:
+    """Eliminate the bottom ``count`` active participants by that gameweek's Best-11."""
+    standings = compute_gameweek_standings(room, gameweek)
+    losers = select_for_elimination(
+        standings, count=count, already_eliminated=eliminated_names(room)
+    )
+    by = {p["name"]: p for p in room.get("participants", [])}
+    for name in losers:
+        if name in by:
+            by[name]["is_eliminated"] = True
+    if losers:
+        room.setdefault("knockout_history", []).append(
+            {"gameweek": str(gameweek), "eliminated": losers}
+        )
+    return losers
+
+
+# Standard FIFA-style knockout cutoffs: round name -> teams kept after it.
+KNOCKOUT_ROUNDS = [
+    ("Round of 16", 8),
+    ("Quarter-final", 4),
+    ("Semi-final", 2),
+    ("Final", 1),
+]
+
+
+def eliminate_below_position(room: dict, gameweek: str, keep_top: int) -> tuple[list[str], list[str]]:
+    """Keep the top ``keep_top`` active teams for a gameweek; eliminate the rest.
+
+    Eliminated teams' players are released into the open-market pool so survivors
+    can bid on them in the next round (the FIFA WC knockout flow). Reversible.
+    Returns ``(eliminated_names, released_player_names)``.
+    """
+    standings = compute_gameweek_standings(room, gameweek)
+    already = eliminated_names(room)
+    active = [r for r in standings if r["participant"] not in already]
+    if len(active) <= keep_top:
+        return [], []
+
+    losers = [r["participant"] for r in active[keep_top:]]
+    by = {p["name"]: p for p in room.get("participants", [])}
+    pool = room.setdefault("unsold_players", [])
+    pool_names = {(p.get("name") if isinstance(p, dict) else p) for p in pool}
+
+    entries = []
+    released: list[str] = []
+    for name in losers:
+        p = by.get(name)
+        if not p:
+            continue
+        # Snapshot the squad so the round can be reversed.
+        squad_snapshot = [dict(e) for e in p.get("squad", [])]
+        entries.append({"name": name, "squad": squad_snapshot})
+        p["is_eliminated"] = True
+        for e in squad_snapshot:
+            if e["name"] not in pool_names:
+                pool.append({"name": e["name"], "role": e.get("role", ""), "team": e.get("team", "")})
+                pool_names.add(e["name"])
+                released.append(e["name"])
+        p["squad"] = []  # players are now free agents
+
+    room.setdefault("knockout_history", []).append({
+        "gameweek": str(gameweek), "keep_top": keep_top,
+        "eliminated": losers, "entries": entries, "released": released,
+    })
+    return losers, released
+
+
+def reverse_last_elimination(room: dict) -> list[str]:
+    """Undo the most recent knockout round.
+
+    Un-eliminates the teams, restores any released squads, and removes the
+    released players from the market pool.
+    """
+    history = room.get("knockout_history", [])
+    if not history:
+        return []
+    last = history.pop()
+    by = {p["name"]: p for p in room.get("participants", [])}
+    for name in last["eliminated"]:
+        if name in by:
+            by[name]["is_eliminated"] = False
+    # Restore squads (position-cutoff rounds snapshot them).
+    for entry in last.get("entries", []):
+        if entry["name"] in by:
+            by[entry["name"]]["squad"] = entry["squad"]
+    # Remove the released players from the market pool.
+    released = set(last.get("released", []))
+    if released:
+        room["unsold_players"] = [
+            p for p in room.get("unsold_players", [])
+            if (p.get("name") if isinstance(p, dict) else p) not in released
+        ]
+    return last["eliminated"]

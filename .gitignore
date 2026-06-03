@@ -1,3 +1,7 @@
+.web
+.states
+assets/external/
+*.py[cod]
 # Python
 __pycache__/
 venv/
@@ -36,3 +40,20 @@ group_stage.html
 openfootball_2026.json
 Arsenal_AtleticoMadrid_FinalPoints.csv
 ParisSG_BayernMunich_FinalPoints.csv
+
+# New Reflex app venv
+.venv/
+
+# Reflex build artifacts
+.web/
+.states/
+reflex_internal.db
+uploaded_files/
+*.db
+.env
+
+# Reflex runtime lock/log
+reflex.lock/
+reflex_run.log
+
+docker_build.log
