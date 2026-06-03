@@ -45,8 +45,12 @@ def card(*children, **props) -> rx.Component:
     return rx.box(*children, style=style, class_name=cls, **props)
 
 
-def page_shell(*children, **props) -> rx.Component:
-    """Full-height page with the ambient gradient-glow background."""
+def page_shell(*children, theme_class="app-bg", **props) -> rx.Component:
+    """Full-height page with the ambient gradient-glow background.
+
+    ``theme_class`` may be a per-tournament class (e.g. "app-bg theme-fifa") so the
+    room takes on the tournament's colours.
+    """
     return rx.box(
         rx.box(
             *children,
@@ -57,12 +61,13 @@ def page_shell(*children, **props) -> rx.Component:
             position="relative",
             z_index="1",
         ),
-        class_name="app-bg",
+        class_name=theme_class,
         style={"min_height": "100vh", "background": BG, "color": TEXT,
                "font_family": FONT, "position": "relative", "overflow_x": "hidden"},
         width="100%",
         **props,
     )
+
 
 
 def hero(title: str, subtitle: str = "") -> rx.Component:

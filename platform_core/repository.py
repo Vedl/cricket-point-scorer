@@ -202,6 +202,47 @@ def apply_roster_import(room: dict, result: ParseResult, *, budget: int = DEFAUL
 # --------------------------------------------------------------------------- #
 # Room creation / joining
 # --------------------------------------------------------------------------- #
+def _pool_role_team(room: dict) -> dict:
+    """name.lower() -> (role, team) from the room's pool / tournament."""
+    out = {}
+    if room.get("player_pool"):
+        for p in room["player_pool"]:
+            out[p["name"].lower()] = (p.get("role", "Unknown"), p.get("team", "Unknown"))
+    else:
+        for p in load_player_pool(room.get("tournament_type", "T20 World Cup")):
+            out[p.name.lower()] = (p.role, p.team)
+    return out
+
+
+def apply_reviewed_roster(room: dict, rows: list[dict], budgets: dict, *, budget_default: int = 0) -> int:
+    """Commit an admin-reviewed roster. Each row's ``matched`` is the canonical pool
+    name (so scoring works); role/team come from the pool, price from the CSV, and
+    budgets are taken verbatim from the CSV. Returns rows applied."""
+    rt = _pool_role_team(room)
+    by_name = {p["name"]: p for p in room.get("participants", [])}
+    for r in rows:
+        part = by_name.get(r["participant"])
+        if part is None:
+            part = {"name": r["participant"], "budget": budget_default, "squad": [],
+                    "user": None, "pin": None}
+            by_name[r["participant"]] = part
+        name = r["matched"]
+        if any(s["name"].lower() == name.lower() for s in part["squad"]):
+            continue
+        role, team = rt.get(name.lower(), (r.get("role", "Unknown"), r.get("team", "Unknown")))
+        part["squad"].append({"name": name, "role": role, "team": team,
+                              "buy_price": int(r.get("price", 0)), "acquired_via": "auction"})
+    for name in budgets:
+        if name not in by_name:
+            by_name[name] = {"name": name, "budget": budget_default, "squad": [],
+                             "user": None, "pin": None}
+    for name, part in by_name.items():
+        if name in budgets:
+            part["budget"] = budgets[name]
+    room["participants"] = list(by_name.values())
+    return len(rows)
+
+
 def generate_room_code(existing: Optional[set[str]] = None) -> str:
     existing = existing or set()
     while True:
@@ -213,8 +254,9 @@ def generate_room_code(existing: Optional[set[str]] = None) -> str:
 def _new_room(name: str, tournament_type: str, admin: str, admin_participating: bool) -> dict:
     participants = []
     if admin_participating:
+        # No initial budget — budgets come from the uploaded CSV.
         participants.append(
-            {"name": admin, "budget": DEFAULT_BUDGET, "squad": [], "user": admin, "pin": None}
+            {"name": admin, "budget": 0, "squad": [], "user": admin, "pin": None}
         )
     return {
         "name": name,
@@ -273,8 +315,8 @@ class Repository:
         user.setdefault("rooms_created", []).append(code)
         return code
 
-    def add_team(self, room: dict, team_name: str, pin: str, budget: int = DEFAULT_BUDGET) -> None:
-        """Admin creates a claimable team with a PIN."""
+    def add_team(self, room: dict, team_name: str, pin: str, budget: int = 0) -> None:
+        """Admin creates a claimable team with a PIN (budget comes from the CSV)."""
         team_name = team_name.strip()
         if not team_name:
             raise RepositoryError("Team name is required.")

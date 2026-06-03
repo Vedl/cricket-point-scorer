@@ -1,0 +1,161 @@
+Participant,Player,Role,Team,Price
+Galacticos,Antonio Sanabria,Forward,Paraguay,88
+Galacticos,Aníbal Godoy,Midfielder,Panama,25
+Galacticos,Ben Waine,Forward,New Zealand,55
+Galacticos,Paul Okon-Engstler,Midfielder,Australia,39
+Galacticos,Oscar Bobb,Midfielder,Norway,57
+Galacticos,Mohammad Ghorbani,Midfielder,IR Iran,41
+Galacticos,Abduvohid Nematov,Goalkeeper,Uzbekistan,90
+Galacticos,Ziyad Aljohani,Midfielder,Saudi Arabia,44
+Galacticos,Axel Witsel,Midfielder,Belgium,58
+Galacticos,Steve Kapuadi,Defender,Congo DR,11
+Galacticos,Mike Maignan,Goalkeeper,France,44
+Galacticos,Max Arfsten,Defender,USA,77
+Galacticos,Alexis Mac Allister,Midfielder,Argentina,50
+Galacticos,Aymen Dahmen,Goalkeeper,Tunisia,58
+Galacticos,Sebastian Tounekti,Midfielder,Tunisia,58
+Galacticos,BUDGET,,,205
+Samba Kings,Dayne St. Clair,Goalkeeper,Canada,7
+Samba Kings,Santiago Gimenez,Forward,Mexico,51
+Samba Kings,Ibrahim Sangaré,Midfielder,Côte D'Ivoire,87
+Samba Kings,Jackson Irvine,Midfielder,Australia,30
+Samba Kings,Adalberto Carrasquilla,Midfielder,Panama,55
+Samba Kings,Yannick Semedo,Midfielder,Cabo Verde,56
+Samba Kings,Ermedin Demirović,Forward,Bosnia And Herzegovina,31
+Samba Kings,Jakhongir Urozov,Defender,Uzbekistan,5
+Samba Kings,Lukas Provod,Midfielder,Czechia,60
+Samba Kings,Carl Sainte,Midfielder,Haiti,25
+Samba Kings,Giovanni Reyna,Midfielder,USA,59
+Samba Kings,Kai Trewin,Defender,Australia,19
+Samba Kings,Lawrence Shankland,Forward,Scotland,16
+Samba Kings,Unai Simón,Goalkeeper,Spain,56
+Samba Kings,Hayakawa Tomoki,Goalkeeper,Japan,78
+Samba Kings,BUDGET,,,365
+Desert Hawks,Ahmed Yahya,Defender,Iraq,51
+Desert Hawks,Hassan Kadish,Defender,Saudi Arabia,63
+Desert Hawks,Tommy Smith,Defender,New Zealand,25
+Desert Hawks,Mehdi Ghayedi,Forward,IR Iran,21
+Desert Hawks,Stopira,Defender,Cabo Verde,6
+Desert Hawks,Brian Rodríguez,Forward,Uruguay,11
+Desert Hawks,Jeanricner Bellegarde,Midfielder,Haiti,75
+Desert Hawks,Goto Keisuke,Forward,Japan,23
+Desert Hawks,Deveron Fonville,Defender,Curaçao,87
+Desert Hawks,Brandley Kuwas,Forward,Curaçao,55
+Desert Hawks,Sarpreet Singh,Midfielder,New Zealand,16
+Desert Hawks,Ardon Jashari,Midfielder,Switzerland,78
+Desert Hawks,Désiré Doué,Forward,France,84
+Desert Hawks,Frenkie de Jong,Midfielder,Netherlands,52
+Desert Hawks,Tomiyasu Takehiro,Defender,Japan,69
+Desert Hawks,BUDGET,,,284
+Nordic Nine,Guillermo Ochoa,Goalkeeper,Mexico,26
+Nordic Nine,Nathaniel Brown,Defender,Germany,23
+Nordic Nine,Ismael Díaz,Midfielder,Panama,49
+Nordic Nine,Waldemar Anton,Defender,Germany,41
+Nordic Nine,Yazeed Abulaila,Goalkeeper,Jordan,25
+Nordic Nine,Ederson,Goalkeeper,Brazil,71
+Nordic Nine,Yang Hyunjun,Midfielder,Korea Republic,26
+Nordic Nine,Johan Vásquez,Defender,Mexico,13
+Nordic Nine,Matej Kovar,Goalkeeper,Czechia,18
+Nordic Nine,Viktor Johansson,Goalkeeper,Sweden,54
+Nordic Nine,Ellyes Skhiri,Midfielder,Tunisia,67
+Nordic Nine,Josip Šutalo,Defender,Croatia,30
+Nordic Nine,Luis Mejía,Goalkeeper,Panama,43
+Nordic Nine,Angus Gunn,Goalkeeper,Scotland,21
+Nordic Nine,Guillermo Varela,Defender,Uruguay,10
+Nordic Nine,BUDGET,,,483
+Catenaccio FC,Ali Majrashi,Defender,Saudi Arabia,66
+Catenaccio FC,Santiago Arias,Defender,Colombia,45
+Catenaccio FC,Danley Jean Jacques,Midfielder,Haiti,11
+Catenaccio FC,Tomas Chory,Forward,Czechia,82
+Catenaccio FC,Pedri,Midfielder,Spain,86
+Catenaccio FC,Diogo Costa,Goalkeeper,Portugal,54
+Catenaccio FC,Musab Aljuwayr,Midfielder,Saudi Arabia,16
+Catenaccio FC,Kevin Rodríguez,Forward,Ecuador,84
+Catenaccio FC,Trezeguet,Forward,Egypt,25
+Catenaccio FC,Raul Rangel,Goalkeeper,Mexico,86
+Catenaccio FC,Michal Sadilek,Midfielder,Czechia,33
+Catenaccio FC,Ibrahima Konaté,Defender,France,84
+Catenaccio FC,Brenden Aaronson,Forward,USA,56
+Catenaccio FC,David Moller Wolfe,Defender,Norway,83
+Catenaccio FC,Brice Samba,Goalkeeper,France,30
+Catenaccio FC,BUDGET,,,159
+Tiki Taka XI,Redouane Halhal,Defender,Morocco,65
+Tiki Taka XI,Camilo Vargas,Goalkeeper,Colombia,28
+Tiki Taka XI,Andrej Kramarić,Forward,Croatia,77
+Tiki Taka XI,Douglas Santos,Defender,Brazil,32
+Tiki Taka XI,Moteb Alharbi,Defender,Saudi Arabia,10
+Tiki Taka XI,Moussa Niakhaté,Defender,Senegal,56
+Tiki Taka XI,Assane Diao,Forward,Senegal,71
+Tiki Taka XI,Lee Kangin,Midfielder,Korea Republic,25
+Tiki Taka XI,Louicius Deedson,Forward,Haiti,54
+Tiki Taka XI,Marko Farji,Forward,Iraq,50
+Tiki Taka XI,Rodrigo De Paul,Midfielder,Argentina,20
+Tiki Taka XI,Pedro Neto,Forward,Portugal,24
+Tiki Taka XI,Ugurcan Cakir,Goalkeeper,Türkiye,36
+Tiki Taka XI,Dylan Bronn,Defender,Tunisia,29
+Tiki Taka XI,Cho Guesung,Forward,Korea Republic,10
+Tiki Taka XI,BUDGET,,,413
+Three Lions,Marcio Rosa,Goalkeeper,Cabo Verde,76
+Three Lions,Jerome Opoku,Defender,Ghana,9
+Three Lions,Matthew Garbett,Midfielder,New Zealand,90
+Three Lions,Axel Tuanzebe,Defender,Congo DR,46
+Three Lions,Saleh Alshehri,Forward,Saudi Arabia,20
+Three Lions,Julian Ryerson,Forward,Norway,54
+Three Lions,Leandro Paredes,Midfielder,Argentina,81
+Three Lions,Francisco Conceição,Forward,Portugal,63
+Three Lions,Youri Tielemans,Midfielder,Belgium,75
+Three Lions,Yvon Mvogo,Goalkeeper,Switzerland,85
+Three Lions,Manuel Akanji,Defender,Switzerland,44
+Three Lions,Donyell Malen,Forward,Netherlands,88
+Three Lions,Gonzalo Montiel,Defender,Argentina,58
+Three Lions,Alex Paulsen,Goalkeeper,New Zealand,44
+Three Lions,Samet Akaydin,Defender,Türkiye,79
+Three Lions,BUDGET,,,88
+Les Bleus,Azizjon Ganiev,Midfielder,Uzbekistan,36
+Les Bleus,Malik Tillman,Midfielder,USA,59
+Les Bleus,Damián Bobadilla,Midfielder,Paraguay,54
+Les Bleus,Yoane Wissa,Forward,Congo DR,89
+Les Bleus,Reece James,Defender,England,52
+Les Bleus,Fabinho,Midfielder,Brazil,62
+Les Bleus,Vladimir Darida,Midfielder,Czechia,69
+Les Bleus,Mladen Jurkas,Goalkeeper,Bosnia And Herzegovina,61
+Les Bleus,Farès Chaïbi,Midfielder,Algeria,27
+Les Bleus,Petar Sučić,Midfielder,Croatia,7
+Les Bleus,Bukayo Saka,Forward,England,5
+Les Bleus,Auston Trusty,Defender,USA,84
+Les Bleus,Joan Garcia,Goalkeeper,Spain,67
+Les Bleus,Hassan Altambakti,Defender,Saudi Arabia,64
+Les Bleus,Liam Kelly,Goalkeeper,Scotland,35
+Les Bleus,BUDGET,,,229
+La Roja,Aaron Hickey,Defender,Scotland,62
+La Roja,Patrick Berg,Midfielder,Norway,84
+La Roja,Gonçalo Inácio,Defender,Portugal,63
+La Roja,Franck Kessié,Midfielder,Côte D'Ivoire,27
+La Roja,Hamza Abdelkarim,Forward,Egypt,65
+La Roja,Djed Spence,Defender,England,56
+La Roja,Evann Guessand,Forward,Côte D'Ivoire,18
+La Roja,Teun Koopmeiners,Midfielder,Netherlands,13
+La Roja,Jordy Alcívar,Midfielder,Ecuador,21
+La Roja,Fabián Ruiz,Midfielder,Spain,50
+La Roja,Gonzalo Plata,Forward,Ecuador,60
+La Roja,Gabriel Martinelli,Forward,Brazil,51
+La Roja,Dodi Lukebakio,Forward,Belgium,16
+La Roja,Jaroslav Zeleny,Defender,Czechia,61
+La Roja,Nicolas Seiwald,Midfielder,Austria,69
+La Roja,BUDGET,,,284
+Selecao Stars,Mohamed Toure,Forward,Australia,70
+Selecao Stars,Payam Niazmand,Goalkeeper,IR Iran,89
+Selecao Stars,Husam Abudahab,Defender,Jordan,10
+Selecao Stars,Achraf Abada,Defender,Algeria,10
+Selecao Stars,Antonio Ruediger,Defender,Germany,86
+Selecao Stars,Son Heungmin,Forward,Korea Republic,21
+Selecao Stars,N'Golo Kanté,Midfielder,France,15
+Selecao Stars,Carlens Arcus,Defender,Haiti,45
+Selecao Stars,Breel Embolo,Forward,Switzerland,70
+Selecao Stars,Mohamed Amine Ben Hmida,Defender,Tunisia,15
+Selecao Stars,Avazbek Ulmasaliyev,Defender,Uzbekistan,11
+Selecao Stars,Azzedine Ounahi,Midfielder,Morocco,69
+Selecao Stars,Roger Ibanez,Defender,Brazil,53
+Selecao Stars,Mory Diaw,Goalkeeper,Senegal,88
+Selecao Stars,Samukelo Kabini,Defender,South Africa,22
+Selecao Stars,BUDGET,,,326

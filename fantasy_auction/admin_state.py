@@ -122,6 +122,11 @@ class AdminState(rx.State):
         self._do(lambda room, doc: ao.reverse_loan(room, loan_id), "✅ Loan reversed.")
 
     @rx.event
+    def boost_all(self):
+        self._do(lambda room, doc: ao.boost_all(room, 100),
+                 "💸 +100M added to every team's budget.")
+
+    @rx.event
     def reset_room(self):
         self._do(lambda room, doc: ao.reset_room(room), "♻️ Room reset (teams kept).")
 

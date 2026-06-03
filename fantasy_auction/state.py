@@ -29,13 +29,14 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 from platform_core.auth import AuthError, log_in, sign_up
-from platform_core.config_layer import TOURNAMENTS
+from platform_core.config_layer import TOURNAMENTS, load_player_pool
 from platform_core.csv_import import parse_squad_csv
+from platform_core.csv_review import build_review
 from platform_core.repository import (
     Repository,
     RepositoryError,
     apply_pool_import,
-    apply_roster_import,
+    apply_reviewed_roster,
 )
 
 # One repository for the process; the store reads Firebase config from env and
@@ -46,6 +47,8 @@ repo = Repository()
 class AppState(rx.State):
     # --- session (persisted across reloads) ---
     auth_user: str = rx.LocalStorage("")
+    # The active room's tournament — drives per-room theming across pages.
+    active_tournament: str = rx.LocalStorage("")
 
     # --- auth form ---
     username: str = ""
@@ -79,6 +82,11 @@ class AppState(rx.State):
     setup_msg: str = ""
     upload_msg: str = ""
     pool_count: int = 0
+    # CSV review / staging (candidates parallel-indexed with import_rows)
+    import_rows: list[dict[str, str]] = []
+    import_candidates: list[list[str]] = []
+    import_budgets: list[dict[str, str]] = []
+    import_unmatched: int = 0
 
     tournaments: list[str] = list(TOURNAMENTS)
 
@@ -262,7 +270,10 @@ class AppState(rx.State):
 
     @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
+        """Parse the CSV and build a review table (no commit yet)."""
         self.upload_msg = ""
+        self.import_rows = []
+        self.import_budgets = []
         if not files:
             self.upload_msg = "No file selected."
             return
@@ -275,22 +286,73 @@ class AppState(rx.State):
         if not result.ok:
             self.upload_msg = "❌ " + " ".join(result.errors[:4])
             return
+
         doc = repo.load()
         room = doc.get("rooms", {}).get(self.room_code)
         if room is None:
             self.upload_msg = "Room not found."
             return
+
         if result.kind == "pool":
             added = apply_pool_import(room, result, extend=True)
+            repo.save(doc)
             self.pool_count = len(room.get("player_pool", []))
             self.upload_msg = f"✅ Added {added} players to the pool ({self.pool_count} total)."
+            return
+
+        # Roster: fuzzy-match each written name to the pool for admin review.
+        if room.get("player_pool"):
+            pool_names = [p["name"] for p in room["player_pool"]]
         else:
-            n = apply_roster_import(room, result)
-            self._refresh_teams(room)
-            self.upload_msg = f"✅ Imported {n} roster assignments."
-        if result.warnings:
-            self.upload_msg += f"  ({len(result.warnings)} warning(s) ignored.)"
+            pool_names = [p.name for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
+        reviewed = build_review(result.assignments, pool_names)
+        self.import_rows = [
+            {"participant": r["participant"], "written": r["written"], "matched": r["matched"],
+             "status": r["status"], "price": str(r["price"])}
+            for r in reviewed
+        ]
+        self.import_candidates = [r["candidates"] for r in reviewed]
+        self.import_budgets = [{"participant": k, "budget": str(v)} for k, v in result.budgets.items()]
+        self.import_unmatched = sum(1 for r in reviewed if r["status"] == "unmatched")
+        self.upload_msg = (f"Loaded {len(reviewed)} signings for review. Confirm the matches "
+                           f"below, then commit. ({self.import_unmatched} need attention.)")
+
+    @rx.event
+    def set_match(self, index: int, value: str):
+        rows = [dict(r) for r in self.import_rows]
+        if 0 <= index < len(rows):
+            rows[index]["matched"] = value
+            rows[index]["status"] = "confirmed"
+            self.import_rows = rows
+
+    @rx.event
+    def confirm_import(self):
+        if not self.import_rows:
+            self.upload_msg = "Nothing to import."
+            return
+        doc = repo.load()
+        room = doc.get("rooms", {}).get(self.room_code)
+        if room is None:
+            self.upload_msg = "Room not found."
+            return
+        rows = [{"participant": r["participant"], "matched": r["matched"],
+                 "price": int(r["price"])} for r in self.import_rows]
+        budgets = {b["participant"]: int(b["budget"]) for b in self.import_budgets}
+        n = apply_reviewed_roster(room, rows, budgets)
         repo.save(doc)
+        self._refresh_teams(room)
+        self.pool_count = len(room.get("player_pool", []) or [])
+        self.import_rows = []
+        self.import_candidates = []
+        self.import_budgets = []
+        self.upload_msg = f"✅ Committed {n} signings with confirmed names + CSV budgets."
+
+    @rx.event
+    def cancel_import(self):
+        self.import_rows = []
+        self.import_candidates = []
+        self.import_budgets = []
+        self.upload_msg = "Import cancelled."
 
     @rx.event
     def go_to_room(self):

@@ -51,6 +51,7 @@ class RoomState(rx.State):
         self.room_code = code
         self.room_name = room.get("name", "")
         self.tournament = room.get("tournament_type", "")
+        app.active_tournament = self.tournament   # drives per-room theming
         self.is_admin = room.get("admin") == app.auth_user
         self.my_team = next((p["name"] for p in room.get("participants", [])
                              if p.get("user") == app.auth_user), "")

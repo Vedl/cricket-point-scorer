@@ -56,6 +56,14 @@ def force_release(room, participant, player_name, *, refund=False):
         p["budget"] = p.get("budget", 0) + e.get("buy_price", 0)
 
 
+def boost_all(room, amount=100) -> int:
+    """Add ``amount`` (M) to every participant's budget. Returns count boosted."""
+    parts = room.get("participants", [])
+    for p in parts:
+        p["budget"] = p.get("budget", 0) + int(amount)
+    return len(parts)
+
+
 def adjust_budget(room, participant, delta):
     by = _by(room)
     p = by.get(participant)

@@ -100,3 +100,63 @@
 .app-bg ::-webkit-scrollbar { width: 10px; height: 10px; }
 .app-bg ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
 .app-bg ::-webkit-scrollbar-track { background: transparent; }
+
+/* ===== Per-tournament room themes ===== */
+/* FIFA World Cup 2026 — pitch green + gold */
+.theme-fifa.app-bg::before {
+  background:
+    radial-gradient(60vw 60vw at 12% -10%, rgba(16, 185, 129, 0.22), transparent 60%),
+    radial-gradient(50vw 50vw at 100% 0%, rgba(250, 204, 21, 0.16), transparent 55%),
+    radial-gradient(40vw 40vw at 50% 110%, rgba(16, 185, 129, 0.12), transparent 60%);
+}
+.theme-fifa .gradient-text {
+  background: linear-gradient(135deg, #d1fae5 0%, #10b981 45%, #facc15 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.theme-fifa .btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 60%, #facc15 100%) !important;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+.theme-fifa input:focus, .theme-fifa textarea:focus, .theme-fifa button[role="combobox"]:focus {
+  border-color: rgba(16,185,129,0.8) !important;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.22) !important;
+}
+
+/* IPL 2026 — royal blue + gold/orange */
+.theme-ipl.app-bg::before {
+  background:
+    radial-gradient(60vw 60vw at 12% -10%, rgba(37, 99, 235, 0.26), transparent 60%),
+    radial-gradient(50vw 50vw at 100% 0%, rgba(249, 115, 22, 0.18), transparent 55%),
+    radial-gradient(40vw 40vw at 50% 110%, rgba(234, 179, 8, 0.14), transparent 60%);
+}
+.theme-ipl .gradient-text {
+  background: linear-gradient(135deg, #bfdbfe 0%, #3b82f6 40%, #f59e0b 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.theme-ipl .btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #6366f1 55%, #f59e0b 100%) !important;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+}
+.theme-ipl input:focus, .theme-ipl textarea:focus, .theme-ipl button[role="combobox"]:focus {
+  border-color: rgba(59,130,246,0.85) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.22) !important;
+}
+
+/* T20 World Cup — teal / lime cricket */
+.theme-t20.app-bg::before {
+  background:
+    radial-gradient(60vw 60vw at 12% -10%, rgba(20, 184, 166, 0.22), transparent 60%),
+    radial-gradient(50vw 50vw at 100% 0%, rgba(132, 204, 22, 0.16), transparent 55%),
+    radial-gradient(40vw 40vw at 50% 110%, rgba(20, 184, 166, 0.12), transparent 60%);
+}
+.theme-t20 .gradient-text {
+  background: linear-gradient(135deg, #ccfbf1 0%, #14b8a6 45%, #84cc16 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.theme-t20 .btn-primary {
+  background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 60%, #84cc16 100%) !important;
+  box-shadow: 0 8px 24px rgba(20, 184, 166, 0.4);
+}
