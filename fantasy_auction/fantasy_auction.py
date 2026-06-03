@@ -993,21 +993,53 @@ def schedule_page():
                 rx.hstack(rx.text("Gameweek:", style={"color": T.MUTED}),
                           rx.select(ScheduleState.gw_options, value=ScheduleState.selected_gw,
                                     on_change=ScheduleState.select_gw, width="120px"),
-                          T.pill(ScheduleState.gw_name, T.ACCENT), spacing="3", align="center"),
+                          T.pill(ScheduleState.gw_name, T.ACCENT),
+                          rx.spacer(),
+                          rx.cond(
+                              ScheduleState.is_admin,
+                              rx.button(
+                                  rx.cond(ScheduleState.scoring_running,
+                                          rx.hstack(rx.spinner(size="2"), rx.text("Scoring…"),
+                                                    spacing="2", align="center"),
+                                          rx.text("⚡ Auto-score this gameweek")),
+                                  on_click=ScheduleState.auto_score,
+                                  disabled=ScheduleState.scoring_running,
+                                  style={"background": T.ACCENT, "color": "#04121f",
+                                         "font_weight": "600"})),
+                          spacing="3", align="center", width="100%"),
+                rx.cond(ScheduleState.msg != "",
+                        rx.callout(ScheduleState.msg, color_scheme="gray", width="100%")),
+                rx.cond(
+                    ScheduleState.is_admin,
+                    rx.text("Paste each match's WhoScored link below, then hit Auto-score to pull "
+                            "player points + nation-keeper points and update standings.",
+                            style={"color": T.MUTED, "font_size": "0.82rem"})),
                 rx.box(height="0.8rem"),
                 T.card(
                     rx.cond(
                         ScheduleState.matches.length() > 0,
-                        rx.vstack(rx.foreach(ScheduleState.matches, lambda mt: rx.hstack(
-                            rx.text(mt["teams"], style={"color": T.TEXT, "font_weight": "500"}),
-                            rx.spacer(),
-                            rx.text(mt["date"] + " · " + mt["time"],
-                                    style={"color": T.MUTED, "font_size": "0.82rem"}),
-                            rx.text(mt["venue"], style={"color": T.MUTED, "font_size": "0.78rem",
-                                    "min_width": "200px", "text_align": "right"}),
-                            width="100%", align="center", spacing="3",
+                        rx.vstack(rx.foreach(ScheduleState.matches, lambda mt: rx.vstack(
+                            rx.hstack(
+                                rx.text(mt["teams"], style={"color": T.TEXT, "font_weight": "500"}),
+                                rx.spacer(),
+                                rx.text(mt["date"] + " · " + mt["time"],
+                                        style={"color": T.MUTED, "font_size": "0.82rem"}),
+                                rx.text(mt["venue"], style={"color": T.MUTED, "font_size": "0.78rem",
+                                        "min_width": "200px", "text_align": "right"}),
+                                width="100%", align="center", spacing="3"),
+                            rx.cond(
+                                ScheduleState.is_admin,
+                                rx.input(
+                                    default_value=mt["url"], placeholder="WhoScored match link…",
+                                    on_blur=lambda v: ScheduleState.set_fixture_url(mt["idx"], v),
+                                    width="100%",
+                                    style={"background": T.SURFACE, "font_size": "0.8rem"}),
+                                rx.cond(mt["url"] != "",
+                                        rx.text("🔗 link set", style={"color": T.ACCENT,
+                                                "font_size": "0.72rem"}))),
+                            spacing="2", width="100%", align="start",
                             style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
-                                   "border_radius": "10px", "padding": "0.55rem 0.9rem"})),
+                                   "border_radius": "10px", "padding": "0.6rem 0.9rem"})),
                             spacing="2", width="100%"),
                         rx.text("No matches listed.", style={"color": T.MUTED})),
                     width="100%"),
