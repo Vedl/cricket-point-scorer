@@ -117,8 +117,63 @@ def eliminate_for_gameweek(room: dict, gameweek: str, count: int = 1) -> list[st
     return losers
 
 
+# Standard FIFA-style knockout cutoffs: round name -> teams kept after it.
+KNOCKOUT_ROUNDS = [
+    ("Round of 16", 8),
+    ("Quarter-final", 4),
+    ("Semi-final", 2),
+    ("Final", 1),
+]
+
+
+def eliminate_below_position(room: dict, gameweek: str, keep_top: int) -> tuple[list[str], list[str]]:
+    """Keep the top ``keep_top`` active teams for a gameweek; eliminate the rest.
+
+    Eliminated teams' players are released into the open-market pool so survivors
+    can bid on them in the next round (the FIFA WC knockout flow). Reversible.
+    Returns ``(eliminated_names, released_player_names)``.
+    """
+    standings = compute_gameweek_standings(room, gameweek)
+    already = eliminated_names(room)
+    active = [r for r in standings if r["participant"] not in already]
+    if len(active) <= keep_top:
+        return [], []
+
+    losers = [r["participant"] for r in active[keep_top:]]
+    by = {p["name"]: p for p in room.get("participants", [])}
+    pool = room.setdefault("unsold_players", [])
+    pool_names = {(p.get("name") if isinstance(p, dict) else p) for p in pool}
+
+    entries = []
+    released: list[str] = []
+    for name in losers:
+        p = by.get(name)
+        if not p:
+            continue
+        # Snapshot the squad so the round can be reversed.
+        squad_snapshot = [dict(e) for e in p.get("squad", [])]
+        entries.append({"name": name, "squad": squad_snapshot})
+        p["is_eliminated"] = True
+        for e in squad_snapshot:
+            if e["name"] not in pool_names:
+                pool.append({"name": e["name"], "role": e.get("role", ""), "team": e.get("team", "")})
+                pool_names.add(e["name"])
+                released.append(e["name"])
+        p["squad"] = []  # players are now free agents
+
+    room.setdefault("knockout_history", []).append({
+        "gameweek": str(gameweek), "keep_top": keep_top,
+        "eliminated": losers, "entries": entries, "released": released,
+    })
+    return losers, released
+
+
 def reverse_last_elimination(room: dict) -> list[str]:
-    """Undo the most recent knockout round (un-eliminate those participants)."""
+    """Undo the most recent knockout round.
+
+    Un-eliminates the teams, restores any released squads, and removes the
+    released players from the market pool.
+    """
     history = room.get("knockout_history", [])
     if not history:
         return []
@@ -127,4 +182,15 @@ def reverse_last_elimination(room: dict) -> list[str]:
     for name in last["eliminated"]:
         if name in by:
             by[name]["is_eliminated"] = False
+    # Restore squads (position-cutoff rounds snapshot them).
+    for entry in last.get("entries", []):
+        if entry["name"] in by:
+            by[entry["name"]]["squad"] = entry["squad"]
+    # Remove the released players from the market pool.
+    released = set(last.get("released", []))
+    if released:
+        room["unsold_players"] = [
+            p for p in room.get("unsold_players", [])
+            if (p.get("name") if isinstance(p, dict) else p) not in released
+        ]
     return last["eliminated"]

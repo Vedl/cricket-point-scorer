@@ -138,6 +138,25 @@ class SeasonState(rx.State):
                     else "No active participants to eliminate.")
 
     @rx.event
+    def run_knockout_round(self, keep_top: int):
+        """FIFA-style: keep top N, eliminate the rest, free their players to market."""
+        self.msg = ""
+        if not self.selected_gw:
+            self.msg = "⚠️ Select a gameweek with scores first."
+            return
+        code, doc, room = self._load_room()
+        if not room:
+            return
+        elim, released = so.eliminate_below_position(room, self.selected_gw, int(keep_top))
+        repo.save(doc)
+        self._recompute(room)
+        if elim:
+            self.msg = (f"❌ Eliminated {', '.join(elim)} · released {len(released)} "
+                        f"players to the open market for the next round.")
+        else:
+            self.msg = "No teams below the cutoff — nobody eliminated."
+
+    @rx.event
     def reverse_elimination(self):
         code, doc, room = self._load_room()
         if not room:

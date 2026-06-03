@@ -667,8 +667,22 @@ def gameweek_admin_panel() -> rx.Component:
         ),
         rx.divider(margin_y="0.75rem"),
         rx.heading("🏆 Knockout", size="4", style={"color": theme.TEXT}),
-        rx.text("Eliminate the lowest scorers for the selected gameweek (above).",
+        rx.text("FIFA WC rounds — keep the top N for the selected gameweek; teams below "
+                "are eliminated and their players freed to the open market for the next round.",
                 style={"color": theme.MUTED, "font_size": "0.8rem"}),
+        rx.hstack(
+            rx.button("R16 → keep 8", on_click=lambda: SeasonState.run_knockout_round(8),
+                      variant="soft", size="1"),
+            rx.button("QF → 4", on_click=lambda: SeasonState.run_knockout_round(4),
+                      variant="soft", size="1"),
+            rx.button("SF → 2", on_click=lambda: SeasonState.run_knockout_round(2),
+                      variant="soft", size="1"),
+            rx.button("Final → 1", on_click=lambda: SeasonState.run_knockout_round(1),
+                      variant="soft", size="1"),
+            spacing="2", margin_top="0.5rem", wrap="wrap",
+        ),
+        rx.text("Or eliminate the lowest scorers directly:",
+                style={"color": theme.MUTED, "font_size": "0.8rem"}, margin_top="0.5rem"),
         rx.hstack(
             rx.text("Bottom", style={"color": theme.MUTED}),
             rx.input(value=SeasonState.knockout_count,
