@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import reflex as rx
 
@@ -22,6 +22,20 @@ _WINDOW_LABEL = {
 }
 
 
+def _countdown(when, now) -> str:
+    secs = int((when - now).total_seconds())
+    if secs <= 0:
+        return "passed"
+    d, rest = divmod(secs, 86400)
+    h, rest = divmod(rest, 3600)
+    m, s = divmod(rest, 60)
+    if d:
+        return f"in {d}d {h}h {m}m"
+    if h:
+        return f"in {h}h {m}m {s}s"
+    return f"in {m}m {s}s"
+
+
 class BiddingState(rx.State):
     room_code: str = ""
     room_name: str = ""
@@ -37,6 +51,7 @@ class BiddingState(rx.State):
     window: str = "frozen"
     window_label: str = ""
     deadline_str: str = ""
+    milestones: list[dict[str, str]] = []
     msg: str = ""
 
     watching: bool = False
@@ -82,10 +97,20 @@ class BiddingState(rx.State):
              "high_bidder": b["high_bidder"], "mine": "yes" if b["high_bidder"] == self.my_team else "no"}
             for b in bo.active(room)
         ]
-        self.window = bo.window_state(room, datetime.now())
+        now = datetime.now()
+        self.window = bo.window_state(room, now)
         self.window_label = _WINDOW_LABEL.get(self.window, "")
         dl = bo.bidding_deadline(room)
         self.deadline_str = dl.strftime("%a %d %b, %H:%M") if dl else ""
+        if dl:
+            self.milestones = [
+                {"label": "🆕 New-player bids close", "left": _countdown(dl - timedelta(minutes=60), now)},
+                {"label": "5️⃣ +5M-only window starts", "left": _countdown(dl - timedelta(minutes=30), now)},
+                {"label": "🔨 Bidding closes (bids award)", "left": _countdown(dl, now)},
+                {"label": "🔒 Trading closes → squads lock + new GW", "left": _countdown(dl + timedelta(minutes=30), now)},
+            ]
+        else:
+            self.milestones = []
 
     @rx.event
     def do_search(self):

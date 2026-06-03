@@ -17,6 +17,7 @@ from .season_state import SeasonState
 from .admin_state import AdminState
 from .scheduler import SchedulerState
 from .whoscored_state import WhoScoredState
+from .schedule_state import ScheduleState
 
 T = theme
 
@@ -107,6 +108,7 @@ def room_nav(code, is_admin):
             _navlink("🔨 Bidding", "/bidding?room=" + code),
             _navlink("🤝 Trade", "/trade?room=" + code),
             _navlink("📊 Standings", "/standings?room=" + code),
+            _navlink("📅 Schedule", "/schedule?room=" + code),
             _navlink("🧮 Calculator", "/calculator?room=" + code),
             rx.cond(is_admin, _navlink("🛠️ Admin", "/admin?room=" + code)),
             rx.spacer(),
@@ -605,14 +607,26 @@ def bidding_page():
                   rx.spacer(),
                   T.pill("💰 " + BiddingState.my_budget.to_string() + "M", T.SUCCESS),
                   width="100%", align="start"),
-        rx.hstack(
-            rx.box(BiddingState.window_label, style={"color": T.TEXT, "font_weight": "500"}),
-            rx.spacer(),
-            rx.cond(BiddingState.deadline_str != "",
-                    T.pill("⏰ " + BiddingState.deadline_str, T.WARNING)),
-            width="100%", align="center",
-            style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
-                   "border_radius": "12px", "padding": "0.6rem 1rem", "margin_bottom": "0.6rem"}),
+        T.card(
+            rx.hstack(
+                rx.box(BiddingState.window_label, style={"color": T.TEXT, "font_weight": "500"}),
+                rx.spacer(),
+                rx.cond(BiddingState.deadline_str != "",
+                        T.pill("⏰ " + BiddingState.deadline_str, T.WARNING)),
+                width="100%", align="center"),
+            rx.cond(
+                BiddingState.milestones.length() > 0,
+                rx.vstack(
+                    rx.divider(margin_y="0.5rem"),
+                    rx.foreach(BiddingState.milestones, lambda m: rx.hstack(
+                        rx.text(m["label"], style={"color": T.MUTED, "font_size": "0.85rem"}),
+                        rx.spacer(),
+                        rx.text(m["left"], style={"color": T.ACCENT, "font_family": T.MONO,
+                                "font_size": "0.85rem"}),
+                        width="100%", align="center")),
+                    spacing="1", width="100%"),
+            ),
+            width="100%", style={"margin_bottom": "0.6rem"}),
         _error(BiddingState.msg),
         rx.box(height="0.5rem"),
         T.card(
@@ -947,6 +961,43 @@ def admin_page():
 
 
 # --------------------------------------------------------------------------- #
+# Schedule (fixtures by gameweek)
+# --------------------------------------------------------------------------- #
+def schedule_page():
+    return room_shell(
+        _topbar(), room_nav(ScheduleState.room_code, ScheduleState.is_admin),
+        T.hero(ScheduleState.room_name + " · Schedule", ""),
+        rx.cond(
+            ScheduleState.has_schedule,
+            rx.vstack(
+                rx.hstack(rx.text("Gameweek:", style={"color": T.MUTED}),
+                          rx.select(ScheduleState.gw_options, value=ScheduleState.selected_gw,
+                                    on_change=ScheduleState.select_gw, width="120px"),
+                          T.pill(ScheduleState.gw_name, T.ACCENT), spacing="3", align="center"),
+                rx.box(height="0.8rem"),
+                T.card(
+                    rx.cond(
+                        ScheduleState.matches.length() > 0,
+                        rx.vstack(rx.foreach(ScheduleState.matches, lambda mt: rx.hstack(
+                            rx.text(mt["teams"], style={"color": T.TEXT, "font_weight": "500"}),
+                            rx.spacer(),
+                            rx.text(mt["date"] + " · " + mt["time"],
+                                    style={"color": T.MUTED, "font_size": "0.82rem"}),
+                            rx.text(mt["venue"], style={"color": T.MUTED, "font_size": "0.78rem",
+                                    "min_width": "200px", "text_align": "right"}),
+                            width="100%", align="center", spacing="3",
+                            style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+                                   "border_radius": "10px", "padding": "0.55rem 0.9rem"})),
+                            spacing="2", width="100%"),
+                        rx.text("No matches listed.", style={"color": T.MUTED})),
+                    width="100%"),
+                width="100%", align="start"),
+            rx.callout("No schedule available for this tournament.", color_scheme="gray"),
+        ),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # WhoScored points calculator (all participants)
 # --------------------------------------------------------------------------- #
 def ws_row(r):
@@ -1022,3 +1073,5 @@ app.add_page(admin_page, route="/admin", title="Admin",
              on_load=[AdminState.on_load_admin, SeasonState.on_load_standings, RoomState.on_load_hub])
 app.add_page(calculator_page, route="/calculator", title="Match Calculator",
              on_load=WhoScoredState.guard)
+app.add_page(schedule_page, route="/schedule", title="Schedule",
+             on_load=ScheduleState.on_load_schedule)

@@ -122,6 +122,30 @@ def load_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[Pla
     return _dedupe_ids(players)
 
 
+def load_schedule(tournament_type: str, data_dir: str = DATA_DIR) -> list[dict]:
+    """Return the fixture list grouped by gameweek for a tournament (FIFA WC for now).
+
+    Each item: ``{"gw", "name", "matches": [{"teams","date","time","venue"}]}``.
+    """
+    if tournament_type == FIFA_WC_2026:
+        data = _read_json(data_dir, "fifa_wc_2026_schedule.json") or {}
+        gws = data.get("gameweeks", {})
+        out = []
+        for gw, info in sorted(gws.items(), key=lambda kv: (len(kv[0]), kv[0])):
+            matches = []
+            for m in info.get("matches", []):
+                teams = m.get("teams", [])
+                matches.append({
+                    "teams": " vs ".join(teams) if isinstance(teams, list) else str(teams),
+                    "date": m.get("date", ""), "time": m.get("time", ""),
+                    "venue": m.get("venue", ""),
+                })
+            out.append({"gw": str(gw), "name": info.get("name", f"Gameweek {gw}"),
+                        "matches": matches})
+        return out
+    return []
+
+
 def default_config(
     tournament_type: str,
     budget: int = DEFAULT_BUDGET,
