@@ -162,11 +162,15 @@ def apply_pool_import(room: dict, result: ParseResult, *, extend: bool = False) 
 def apply_roster_import(room: dict, result: ParseResult, *, budget: int = DEFAULT_BUDGET) -> int:
     """Assign players to participants from a parsed roster CSV (auto-creates teams).
 
-    Returns the number of assignments applied. Deducts each price from budget.
+    The CSV reflects squads *after* the live (Zoom) auction. If a remaining budget
+    is supplied per participant (a BUDGET row), it is used as the source of truth;
+    otherwise the budget falls back to ``budget - sum(prices)``. Acquired players
+    are marked so they're excluded from open bidding. Returns assignments applied.
     """
     if result.kind != "roster" or not result.ok:
         raise RepositoryError("CSV did not parse as a valid roster.")
     by_name = {p["name"]: p for p in room.get("participants", [])}
+    spent: dict[str, int] = {}
     for a in result.assignments:
         part = by_name.get(a.participant)
         if part is None:
@@ -175,9 +179,22 @@ def apply_roster_import(room: dict, result: ParseResult, *, budget: int = DEFAUL
         if any(s["name"].lower() == a.player.lower() for s in part["squad"]):
             continue
         part["squad"].append(
-            {"name": a.player, "role": a.role, "team": a.team, "buy_price": a.price}
+            {"name": a.player, "role": a.role, "team": a.team,
+             "buy_price": a.price, "acquired_via": "auction"}
         )
-        part["budget"] = part.get("budget", budget) - a.price
+        spent[a.participant] = spent.get(a.participant, 0) + a.price
+
+    # Ensure budget-only participants exist too.
+    for name in result.budgets:
+        if name not in by_name:
+            by_name[name] = {"name": name, "budget": budget, "squad": [], "user": None, "pin": None}
+
+    # Set remaining budget: explicit from CSV wins; else default - spent.
+    for name, part in by_name.items():
+        if name in result.budgets:
+            part["budget"] = result.budgets[name]
+        elif name in spent:
+            part["budget"] = budget - spent[name]
     room["participants"] = list(by_name.values())
     return len(result.assignments)
 

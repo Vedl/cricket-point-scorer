@@ -37,6 +37,7 @@ class TradeState(rx.State):
 
     incoming: list[dict[str, str]] = []
     outgoing: list[dict[str, str]] = []
+    awaiting: list[dict[str, str]] = []   # admin approval queue
 
     release_sel: str = ""
     available: list[dict[str, str]] = []
@@ -84,6 +85,11 @@ class TradeState(rx.State):
                          for t in mo.incoming_trades(room, self.me)]
         self.outgoing = [{"id": t["id"], "text": _summary(t, incoming=False)}
                          for t in mo.outgoing_trades(room, self.me)]
+        self.awaiting = [{"id": t["id"],
+                          "text": f"{t['from']} ↔ {t['to']}: "
+                                  f"[{', '.join(t['give_players']) or '—'}]+{t['give_cash']}M "
+                                  f"for [{', '.join(t['get_players']) or '—'}]+{t['get_cash']}M"}
+                         for t in mo.trades_awaiting_admin(room)] if self.is_admin else []
         self.available = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
                           for p in mo.available_players(room)]
         self.txns = [{"text": self._txn_text(t)} for t in reversed(mo.transactions(room)[-15:])]
@@ -138,7 +144,27 @@ class TradeState(rx.State):
         except TradeError as exc:
             self.msg = f"⚠️ {exc}"
             return
-        self._save_refresh(doc, room, "✅ Trade completed.")
+        self._save_refresh(doc, room, "✅ Accepted — sent to the admin for approval.")
+
+    @rx.event
+    def admin_approve(self, trade_id: str):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        try:
+            mo.admin_approve_trade(room, trade_id)
+        except TradeError as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        self._save_refresh(doc, room, "✅ Trade approved and applied.")
+
+    @rx.event
+    def admin_reject(self, trade_id: str):
+        code, doc, room = self._load()
+        if room:
+            mo.admin_reject_trade(room, trade_id)
+            self._save_refresh(doc, room, "Trade rejected by admin.")
 
     @rx.event
     def reject(self, trade_id: str):

@@ -57,21 +57,47 @@ def _find_trade(room, trade_id):
 
 
 def accept_trade(room, trade_id) -> dict:
+    """Counterparty accepts — the trade now awaits admin approval (not applied yet)."""
     t = _find_trade(room, trade_id)
     if t is None or t["status"] != "pending":
         raise TradeError("Trade not found or already resolved.")
+    # Validate it's still applicable before queuing for admin.
     by = participants_by_name(room)
-    rec = apply_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
-                      t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD)
-    t["status"] = "accepted"
-    _log(room, rec)
-    return rec
+    errors = validate_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
+                            t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD)
+    if errors:
+        raise TradeError(" ".join(errors))
+    t["status"] = "awaiting_admin"
+    return t
 
 
 def reject_trade(room, trade_id) -> None:
     t = _find_trade(room, trade_id)
     if t is not None:
         t["status"] = "rejected"
+
+
+def trades_awaiting_admin(room):
+    return [t for t in room.get("pending_trades", []) if t["status"] == "awaiting_admin"]
+
+
+def admin_approve_trade(room, trade_id) -> dict:
+    """Admin gives final approval — the trade is applied."""
+    t = _find_trade(room, trade_id)
+    if t is None or t["status"] != "awaiting_admin":
+        raise TradeError("Trade is not awaiting approval.")
+    by = participants_by_name(room)
+    rec = apply_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
+                      t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD)
+    t["status"] = "approved"
+    _log(room, rec)
+    return rec
+
+
+def admin_reject_trade(room, trade_id) -> None:
+    t = _find_trade(room, trade_id)
+    if t is not None and t["status"] == "awaiting_admin":
+        t["status"] = "admin_rejected"
 
 
 # --- releases + open market --------------------------------------------- #

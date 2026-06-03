@@ -29,6 +29,12 @@ class SeasonState(rx.State):
     eliminated: list[str] = []
     knockout_count: str = "1"
 
+    # top scorers + deadlines
+    top_scorers: list[dict[str, str]] = []
+    deadline_gw: str = "1"
+    deadline_value: str = ""        # ISO-ish datetime-local string
+    deadlines: list[dict[str, str]] = []
+
     @rx.event
     def set_field(self, name: str, value):
         setattr(self, name, value)
@@ -71,6 +77,16 @@ class SeasonState(rx.State):
             ]
         else:
             self.gw_standings = []
+        self.top_scorers = [
+            {"player": r["player"], "points": str(r["points"]), "owner": r["owner"]}
+            for r in so.top_player_scorers(room, limit=20)
+        ]
+        locked = room.get("gameweek_squads", {})
+        self.deadlines = [
+            {"gw": gw, "when": iso[:16].replace("T", " "),
+             "status": "locked" if gw in locked else "scheduled"}
+            for gw, iso in sorted(room.get("gameweek_deadlines", {}).items())
+        ]
 
     @rx.event
     def select_gw(self, gw: str):
@@ -136,6 +152,21 @@ class SeasonState(rx.State):
         self._recompute(room)
         self.msg = (f"❌ Eliminated: {', '.join(losers)}" if losers
                     else "No active participants to eliminate.")
+
+    @rx.event
+    def save_deadline(self):
+        self.msg = ""
+        if not self.deadline_value:
+            self.msg = "⚠️ Pick a date & time."
+            return
+        code, doc, room = self._load_room()
+        if not room:
+            return
+        so.set_deadline(room, self.deadline_gw, self.deadline_value)
+        repo.save(doc)
+        self._recompute(room)
+        self.msg = (f"⏰ GW{self.deadline_gw} deadline set — squads auto-lock & the next "
+                    f"gameweek starts then.")
 
     @rx.event
     def run_knockout_round(self, keep_top: int):

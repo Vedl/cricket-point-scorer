@@ -71,14 +71,17 @@ def select_best_11(
     is_football: bool = False,
     ir_player: Optional[str] = None,
     gameweek=None,
+    enforce_ir: bool = False,
 ) -> tuple[list[dict], list[str]]:
     """Return ``(best_team, warnings)``.
 
     ``squad`` is a list of ``{"name", "role"}``. ``player_scores`` maps name to a
     number, or to a ``{position: score}`` dict for dual-position players.
+
+    ``enforce_ir``: when True the IR player is always excluded; when False the
+    legacy rule applies (IR only counts once the squad reaches 19 players).
     """
-    # IR only applies when the squad is full-size (>= 19); else everyone counts.
-    if len(squad) < 19:
+    if not enforce_ir and len(squad) < 19:
         ir_player = None
     active_squad = [p for p in squad if p["name"] != ir_player]
 

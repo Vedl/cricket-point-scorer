@@ -7,6 +7,8 @@ caller's job.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from season_engine.knockout import select_for_elimination
 from season_engine.standings import cumulative_standings, gameweek_standings
 
@@ -34,7 +36,7 @@ def compute_gameweek_standings(room: dict, gameweek: str) -> list[dict]:
     scores = room.get("gameweek_scores", {}).get(str(gameweek), {})
     return gameweek_standings(
         _participants_for_standings(room), scores,
-        is_football=_is_football(room), gameweek=gameweek,
+        is_football=_is_football(room), gameweek=gameweek, enforce_ir=True,
     )
 
 
@@ -43,7 +45,7 @@ def compute_cumulative_standings(room: dict) -> list[dict]:
     squads_by_gw = room.get("gameweek_squads") or None
     return cumulative_standings(
         _participants_for_standings(room), all_scores,
-        is_football=_is_football(room), squads_by_gw=squads_by_gw,
+        is_football=_is_football(room), squads_by_gw=squads_by_gw, enforce_ir=True,
     )
 
 
@@ -76,8 +78,62 @@ def parse_scores_text(text: str) -> tuple[dict[str, int], list[str]]:
     return scores, errors
 
 
-def lock_squads_for_gameweek(room: dict, gameweek: str) -> None:
-    """Snapshot every participant's current squad for a gameweek (freeze for scoring)."""
+GW1_BOOST = 100
+
+
+class SeasonError(Exception):
+    """A season action failed (message is user-facing)."""
+
+
+def set_ir(room: dict, participant: str, player_name) -> None:
+    """A participant nominates their Injury Reserve player (or None to clear)."""
+    by = {p["name"]: p for p in room.get("participants", [])}
+    p = by.get(participant)
+    if p is None:
+        raise SeasonError("Unknown team.")
+    if player_name and not any(e["name"] == player_name for e in p.get("squad", [])):
+        raise SeasonError("That player isn't in your squad.")
+    p["ir"] = player_name or None
+
+
+def half_price_release(room: dict, participant: str, player_name: str) -> int:
+    """Release a player for a half-price refund. Unlimited before GW1 lock; one
+    per gameweek afterwards. Returns the refund."""
+    by = {p["name"]: p for p in room.get("participants", [])}
+    p = by.get(participant)
+    if p is None:
+        raise SeasonError("Unknown team.")
+    if room.get("gw1_locked") and p.get("half_releases_this_gw", 0) >= 1:
+        raise SeasonError("Only one half-price release per gameweek after GW1.")
+    e = next((x for x in p.get("squad", []) if x["name"].lower() == player_name.lower()), None)
+    if e is None:
+        raise SeasonError(f"You don't own {player_name}.")
+    refund = e.get("buy_price", 0) // 2
+    p["squad"].remove(e)
+    p["budget"] = p.get("budget", 0) + refund
+    p["half_releases_this_gw"] = p.get("half_releases_this_gw", 0) + 1
+    room.setdefault("transactions", []).append(
+        {"type": "half_release", "participant": participant, "player": player_name, "refund": refund})
+    return refund
+
+
+def lock_gameweek(room: dict, gameweek: str) -> tuple[dict, bool]:
+    """Lock squads for a gameweek: apply the IR + 19-cap pipeline per participant,
+    snapshot the squads, freeze the market, and (on the first ever lock) grant the
+    +100M boost. Returns ``(per_participant_notes, was_first_lock)``.
+    """
+    from season_engine.squad_lock import lock_participant
+
+    notes_all: dict[str, list[str]] = {}
+    for p in room.get("participants", []):
+        if p.get("is_eliminated"):
+            continue
+        _released, notes = lock_participant(p)
+        if notes:
+            notes_all[p["name"]] = notes
+        p["half_releases_this_gw"] = 0  # reset allowance for the new gameweek
+
+    # Snapshot AFTER the pipeline so scoring uses the locked squads + IR.
     snap = {}
     for p in room.get("participants", []):
         snap[p["name"]] = {
@@ -88,11 +144,72 @@ def lock_squads_for_gameweek(room: dict, gameweek: str) -> None:
     room["bidding_open"] = False
     room["trading_open"] = False
 
+    first = not room.get("gw1_locked")
+    if first:
+        room["gw1_locked"] = True
+        for p in room.get("participants", []):
+            p["budget"] = p.get("budget", 0) + GW1_BOOST
+    room["locked_gameweek"] = str(gameweek)
+    return notes_all, first
+
+
+# Backwards-compatible alias (simple callers).
+def lock_squads_for_gameweek(room: dict, gameweek: str) -> None:
+    lock_gameweek(room, gameweek)
+
 
 def advance_gameweek(room: dict) -> int:
     cur = int(room.get("current_gameweek", 0) or 0)
     room["current_gameweek"] = cur + 1
     return room["current_gameweek"]
+
+
+# --- top player scorers -------------------------------------------------- #
+def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
+    """Cumulative points per *player* across all gameweeks, with current owner."""
+    totals: dict[str, int] = {}
+    for scores in room.get("gameweek_scores", {}).values():
+        for player, pts in scores.items():
+            try:
+                totals[player] = totals.get(player, 0) + int(pts)
+            except (TypeError, ValueError):
+                pass
+    owner = {}
+    for p in room.get("participants", []):
+        for e in p.get("squad", []):
+            owner[e["name"].lower()] = p["name"]
+    rows = [{"player": n, "points": t, "owner": owner.get(n.lower(), "—")}
+            for n, t in totals.items()]
+    rows.sort(key=lambda r: r["points"], reverse=True)
+    return rows[:limit]
+
+
+# --- gameweek deadlines + automation ------------------------------------- #
+def set_deadline(room: dict, gameweek: str, iso: str) -> None:
+    room.setdefault("gameweek_deadlines", {})[str(gameweek)] = iso
+
+
+def deadlines(room: dict) -> dict:
+    return room.get("gameweek_deadlines", {})
+
+
+def process_due_deadlines(room: dict, now: datetime) -> list[str]:
+    """Auto-lock + advance any gameweek whose deadline has passed and which hasn't
+    been locked yet. Returns the gameweeks processed."""
+    processed: list[str] = []
+    locked = room.get("gameweek_squads", {})
+    for gw, iso in sorted(room.get("gameweek_deadlines", {}).items()):
+        if gw in locked:
+            continue
+        try:
+            dt = datetime.fromisoformat(iso)
+        except (ValueError, TypeError):
+            continue
+        if now >= dt:
+            lock_gameweek(room, gw)
+            advance_gameweek(room)
+            processed.append(gw)
+    return processed
 
 
 # --- knockout ------------------------------------------------------------ #

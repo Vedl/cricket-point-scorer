@@ -5,12 +5,12 @@ def _room():
     return {
         "tournament_type": "IPL 2026",
         "participants": [
-            {"name": "Alice", "squad": [
-                {"name": "Kohli", "role": "Batsman"},
-                {"name": "Bumrah", "role": "Bowler"},
+            {"name": "Alice", "budget": 50, "squad": [
+                {"name": "Kohli", "role": "Batsman", "buy_price": 50},
+                {"name": "Bumrah", "role": "Bowler", "buy_price": 30},
             ]},
-            {"name": "Bob", "squad": [
-                {"name": "Rohit", "role": "Batsman"},
+            {"name": "Bob", "budget": 50, "squad": [
+                {"name": "Rohit", "role": "Batsman", "buy_price": 40},
             ]},
         ],
         "gameweek_scores": {
@@ -23,7 +23,7 @@ def _room():
 def test_gameweek_standings():
     rows = so.compute_gameweek_standings(_room(), "1")
     by = {r["participant"]: r["points"] for r in rows}
-    assert by["Alice"] == 80   # 50 + 30
+    assert by["Alice"] == 80   # 50 + 30 (no IR set on the live squad)
     assert by["Bob"] == 40
     assert rows[0]["participant"] == "Alice"
 
@@ -45,23 +45,29 @@ def test_parse_scores_text():
     assert len(errors) == 2
 
 
-def test_lock_squads_snapshot_and_freezes_market():
+def test_lock_freezes_market_snapshots_and_boosts():
     room = _room()
     room["bidding_open"] = True
-    so.lock_squads_for_gameweek(room, "1")
+    notes, first = so.lock_gameweek(room, "1")
     assert "Alice" in room["gameweek_squads"]["1"]
     assert room["bidding_open"] is False
+    assert first is True
+    # auto-IR'd the most expensive (Kohli) and charged 2M, then +100 GW1 boost
+    alice = next(p for p in room["participants"] if p["name"] == "Alice")
+    assert alice["ir"] == "Kohli"
+    assert alice["budget"] == 50 - 2 + 100
 
 
-def test_lock_then_change_squad_uses_snapshot():
+def test_lock_snapshot_used_for_scoring_with_ir():
     room = _room()
-    so.lock_squads_for_gameweek(room, "1")
-    # Alice swaps her whole squad afterwards
-    room["participants"][0]["squad"] = [{"name": "Nobody", "role": "Batsman"}]
+    so.lock_gameweek(room, "1")   # Alice IR = Kohli (excluded)
+    # Alice swaps her whole live squad afterwards
+    next(p for p in room["participants"] if p["name"] == "Alice")["squad"] = [
+        {"name": "Nobody", "role": "Batsman"}]
     rows = so.compute_cumulative_standings(room)
     by = {r["participant"]: r["points"] for r in rows}
-    # GW1 used the locked snapshot (Kohli+Bumrah=80); GW2 uses current squad (Nobody=0)
-    assert by["Alice"] == 80
+    # GW1 uses the locked snapshot with Kohli in IR -> only Bumrah (30) counts
+    assert by["Alice"] == 30
 
 
 def test_advance_gameweek():

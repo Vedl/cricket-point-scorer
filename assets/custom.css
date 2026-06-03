@@ -1,42 +1,102 @@
-/* Subtle motion for the auction room. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
+/* ---- ambient gradient-glow background ---- */
+.app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60vw 60vw at 12% -10%, rgba(124, 92, 255, 0.20), transparent 60%),
+    radial-gradient(50vw 50vw at 100% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
+    radial-gradient(40vw 40vw at 50% 110%, rgba(124, 92, 255, 0.10), transparent 60%);
+}
+
+/* subtle dotted grid overlay */
+.app-bg::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(circle at 50% 30%, black, transparent 80%);
+}
+
+/* ---- glass cards lift on hover ---- */
+.glass-card {
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.glass-card:hover {
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+}
+
+/* ---- gradient text ---- */
+.gradient-text {
+  background: linear-gradient(135deg, #c4b5ff 0%, #7c5cff 40%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ---- primary button glow + lift ---- */
+.btn-primary {
+  box-shadow: 0 8px 24px rgba(124, 92, 255, 0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.btn-primary:hover { transform: translateY(-1px); filter: brightness(1.07);
+  box-shadow: 0 12px 32px rgba(124, 92, 255, 0.5); }
+.btn-primary:active { transform: translateY(0); }
+
+/* ---- inputs / selects: dark glass with focus ring ---- */
+.app-bg input, .app-bg textarea, .app-bg button[role="combobox"] {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: #f4f5fb !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.app-bg input:focus, .app-bg textarea:focus, .app-bg button[role="combobox"]:focus {
+  border-color: rgba(124,92,255,0.7) !important;
+  box-shadow: 0 0 0 3px rgba(124,92,255,0.22) !important;
+  outline: none !important;
+}
+
+/* ---- motion ---- */
 @keyframes sold-pop {
-  0%   { transform: scale(0.8); opacity: 0; }
-  15%  { transform: scale(1.04); opacity: 1; }
-  80%  { transform: scale(1); opacity: 1; }
+  0% { transform: scale(0.8); opacity: 0; }
+  15% { transform: scale(1.04); opacity: 1; }
+  80% { transform: scale(1); opacity: 1; }
   100% { transform: scale(1); opacity: 0; }
 }
+.sold-banner { animation: sold-pop 3s ease-out forwards;
+  box-shadow: 0 10px 40px rgba(52, 211, 153, 0.4); }
 
-@keyframes bid-flash {
-  0%   { background: rgba(0, 204, 255, 0.0); }
-  30%  { background: rgba(0, 204, 255, 0.18); }
-  100% { background: rgba(0, 204, 255, 0.0); }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+.glass-card { animation: rise 0.4s ease both; }
 
 @keyframes timer-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 84, 112, 0.0); }
-  50%      { box-shadow: 0 0 0 4px rgba(255, 84, 112, 0.25); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.0); }
+  50% { box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.3); }
 }
+.timer-urgent { animation: timer-pulse 1s ease-in-out infinite; border-radius: 999px; }
 
-.sold-banner {
-  animation: sold-pop 3s ease-out forwards;
-}
-
-.bid-flash {
-  animation: bid-flash 0.6s ease-out;
-}
-
-.timer-urgent {
-  animation: timer-pulse 1s ease-in-out infinite;
-  border-radius: 999px;
-}
-
-/* Spinner for the hydration / loading overlay. */
 @keyframes spin { to { transform: rotate(360deg); } }
 .app-spinner {
   width: 38px; height: 38px;
   border: 3px solid rgba(255,255,255,0.15);
-  border-top-color: #00CCFF;
+  border-top-color: #22d3ee;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
+/* nicer scrollbars */
+.app-bg ::-webkit-scrollbar { width: 10px; height: 10px; }
+.app-bg ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+.app-bg ::-webkit-scrollbar-track { background: transparent; }

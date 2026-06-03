@@ -42,11 +42,17 @@ class RosterAssignment:
     price: int = 0
 
 
+# In a roster CSV, a row whose player name is one of these sets the participant's
+# REMAINING budget (post-auction) rather than adding a squad player.
+BUDGET_KEYWORDS = {"budget", "remaining", "remaining_budget", "remaining budget", "balance"}
+
+
 @dataclass
 class ParseResult:
     kind: str = "unknown"                      # "pool" | "roster"
     players: list[PoolPlayer] = field(default_factory=list)
     assignments: list[RosterAssignment] = field(default_factory=list)
+    budgets: dict = field(default_factory=dict)  # participant -> remaining budget
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -159,6 +165,18 @@ def _parse_roster(reader, headers, result: ParseResult) -> None:
         if not player:
             result.errors.append(f"Row {i}: missing player for participant '{participant}'.")
             continue
+        price = _to_int(row.get(price_col, "")) if price_col else 0
+        if price is None:
+            result.errors.append(
+                f"Row {i}: value for '{player}' ({participant}) is not a number."
+            )
+            price = 0
+
+        # Budget row: sets the participant's remaining budget instead of a player.
+        if player.lower() in BUDGET_KEYWORDS:
+            result.budgets[participant] = price
+            continue
+
         key = (participant.lower(), player.lower())
         if key in seen:
             result.warnings.append(
@@ -166,13 +184,6 @@ def _parse_roster(reader, headers, result: ParseResult) -> None:
             )
             continue
         seen.add(key)
-
-        price = _to_int(row.get(price_col, "")) if price_col else 0
-        if price is None:
-            result.errors.append(
-                f"Row {i}: price for '{player}' ({participant}) is not a number."
-            )
-            price = 0
         result.assignments.append(
             RosterAssignment(
                 participant=participant,
@@ -182,5 +193,5 @@ def _parse_roster(reader, headers, result: ParseResult) -> None:
                 price=price,
             )
         )
-    if not result.assignments and not result.errors:
+    if not result.assignments and not result.budgets and not result.errors:
         result.errors.append("No assignment rows found.")

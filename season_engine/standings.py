@@ -22,10 +22,12 @@ def participant_gw_points(
     is_football: bool,
     gameweek=None,
     ir_player: Optional[str] = None,
+    enforce_ir: bool = False,
 ) -> tuple[int, list[dict], list[str]]:
     """Return ``(points, best_11, warnings)`` for one participant in one gameweek."""
     team, warnings = select_best_11(
-        squad, gw_scores, is_football=is_football, gameweek=gameweek, ir_player=ir_player
+        squad, gw_scores, is_football=is_football, gameweek=gameweek,
+        ir_player=ir_player, enforce_ir=enforce_ir,
     )
     return sum(p["score"] for p in team), team, warnings
 
@@ -36,6 +38,7 @@ def gameweek_standings(
     *,
     is_football: bool,
     gameweek=None,
+    enforce_ir: bool = False,
 ) -> list[dict]:
     """Ranked standings for a single gameweek.
 
@@ -46,7 +49,7 @@ def gameweek_standings(
     for p in participants:
         pts, team, warns = participant_gw_points(
             p.get("squad", []), gw_scores, is_football=is_football,
-            gameweek=gameweek, ir_player=p.get("ir"),
+            gameweek=gameweek, ir_player=p.get("ir"), enforce_ir=enforce_ir,
         )
         rows.append(
             {"participant": p["name"], "points": pts, "best_11": team, "warnings": warns}
@@ -61,6 +64,7 @@ def cumulative_standings(
     *,
     is_football: bool,
     squads_by_gw: Optional[dict] = None,
+    enforce_ir: bool = False,
 ) -> list[dict]:
     """Cumulative standings = sum of each participant's per-gameweek Best-11.
 
@@ -84,7 +88,8 @@ def cumulative_standings(
                     ir = snap.get("ir", ir)
             gw_participants.append({"name": p["name"], "squad": squad, "ir": ir})
 
-        for row in gameweek_standings(gw_participants, scores, is_football=is_football, gameweek=gw):
+        for row in gameweek_standings(gw_participants, scores, is_football=is_football,
+                                      gameweek=gw, enforce_ir=enforce_ir):
             totals[row["participant"]] += row["points"]
             breakdown[row["participant"]][str(gw)] = row["points"]
 

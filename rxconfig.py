@@ -18,7 +18,8 @@ _kwargs = dict(
     # Theme configured here (not on rx.App, which is deprecated in 0.9).
     plugins=[
         rx.plugins.RadixThemesPlugin(
-            theme=rx.theme(appearance="dark", accent_color="blue", radius="large"),
+            theme=rx.theme(appearance="dark", accent_color="violet", gray_color="slate",
+                           radius="large", scaling="100%"),
         ),
     ],
 )
