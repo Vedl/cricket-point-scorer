@@ -176,6 +176,8 @@ def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
     totals: dict[str, int] = {}
     for scores in room.get("gameweek_scores", {}).values():
         for player, pts in scores.items():
+            if isinstance(pts, dict):     # dual-position: count their best position
+                pts = max(pts.values()) if pts else 0
             try:
                 totals[player] = totals.get(player, 0) + int(pts)
             except (TypeError, ValueError):

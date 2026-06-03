@@ -859,8 +859,27 @@ def standings_page():
 # --------------------------------------------------------------------------- #
 # Admin micro-features
 # --------------------------------------------------------------------------- #
+def _admin_band(emoji, label, desc=""):
+    return rx.hstack(
+        rx.box(emoji, style={"font_size": "1.1rem"}),
+        rx.vstack(
+            rx.heading(label, style={"font_family": T.DISPLAY, "font_weight": "600",
+                       "font_size": "1.05rem", "color": T.TEXT, "letter_spacing": "-0.2px"}),
+            rx.cond(desc != "", rx.text(desc, style={"color": T.MUTED, "font_size": "0.8rem"})),
+            spacing="0", align="start"),
+        rx.spacer(),
+        width="100%", align="center", spacing="3",
+        style={"border_left": f"3px solid {T.ACCENT}", "padding": "0.4rem 0 0.4rem 0.8rem",
+               "margin": "0.6rem 0 0.2rem"},
+    )
+
+
 def admin_page():
     body = rx.vstack(
+        _admin_band("⚙️", "Gameweek control",
+                    "Scores, the bidding deadline that drives the whole gameweek, and knockouts."),
+        rx.cond(AdminState.is_admin, gameweek_admin_panel()),
+        _admin_band("👥", "Roster & access", "Force moves, budgets, PINs and the +100M boost."),
         rx.grid(
             T.card(T.section_title("➕ Force add"), rx.box(height="0.5rem"),
                 rx.select(AdminState.teams, value=AdminState.fa_team, placeholder="Team",
@@ -909,6 +928,7 @@ def admin_page():
                 rx.button("Set PIN", on_click=AdminState.reset_pin, variant="soft",
                           margin_top="0.4rem"), spacing="2", width="100%"),
             columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
+        _admin_band("🔁", "Loans", "Temporarily move a player between teams, with a return gameweek."),
         T.card(T.section_title("🔁 Loans"), rx.box(height="0.5rem"),
             rx.hstack(rx.select(AdminState.teams, value=AdminState.loan_from, placeholder="From",
                       on_change=AdminState.set_field("loan_from")),
@@ -928,6 +948,7 @@ def admin_page():
                         spacing="2", width="100%", margin_top="0.5rem"),
                     rx.text("No active loans.", style={"color": T.MUTED}, margin_top="0.4rem")),
             width="100%"),
+        _admin_band("📦", "Data & danger zone", "Export/import the room, reset or delete it."),
         T.card(T.section_title("📦 Backup / restore"), rx.box(height="0.5rem"),
             rx.hstack(rx.button("Export JSON", on_click=AdminState.export_room, variant="soft"),
                       rx.button("Import (from box)", on_click=AdminState.import_room, variant="soft"),
@@ -952,7 +973,6 @@ def admin_page():
             rx.text("Reset keeps teams + PINs; clears squads, scores, auction state. Delete is permanent.",
                     style={"color": T.MUTED, "font_size": "0.8rem", "margin_top": "0.4rem"}),
             width="100%"),
-        rx.cond(AdminState.is_admin, gameweek_admin_panel()),
         _error(AdminState.msg), spacing="4", width="100%")
     return room_shell(_topbar(), room_nav(AdminState.room_code, AdminState.is_admin),
         T.hero(AdminState.room_name + " · Admin", ""),

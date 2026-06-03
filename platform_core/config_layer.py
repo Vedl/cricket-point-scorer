@@ -94,17 +94,23 @@ def load_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[Pla
 
     if tournament_type == FIFA_WC_2026:
         data = _read_json(data_dir, "fifa_wc_2026_players.json") or []
-        players = [
-            Player(
-                id=_slug(p["name"]),
-                name=p["name"],
-                team=p.get("country", p.get("team", "Unknown")),
-                role=p.get("role", p.get("position", "Unknown")),
-                base_price=p.get("base_price", 0),
-            )
-            for p in data
-            if isinstance(p, dict) and p.get("name")
-        ]
+        players = []
+        keeper_countries = set()
+        for p in data:
+            if not (isinstance(p, dict) and p.get("name")):
+                continue
+            country = p.get("country", p.get("team", "Unknown"))
+            role = p.get("role", p.get("position", "Unknown"))
+            # Goalkeepers are bought per NATION ("Spain Keeper"), not individually.
+            if "gk" in role.lower() or "keeper" in role.lower() or "goalkeeper" in role.lower():
+                keeper_countries.add(country)
+                continue
+            players.append(Player(id=_slug(p["name"]), name=p["name"], team=country,
+                                  role=role, base_price=p.get("base_price", 0)))
+        for country in sorted(keeper_countries):
+            name = f"{country} Keeper"
+            players.append(Player(id=_slug(name), name=name, team=country,
+                                  role="Goalkeeper", base_price=0))
         return _dedupe_ids(players)
 
     # Default: T20 World Cup master database.
