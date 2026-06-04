@@ -6,6 +6,7 @@ FROM python:3.12-slim
 
 # Caddy binary (serves the static frontend + proxies the backend on one port).
 COPY --from=caddy:2-alpine /usr/bin/caddy /usr/local/bin/caddy
+RUN chmod 0755 /usr/local/bin/caddy
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -34,4 +35,4 @@ ENV API_URL=https://fantasy-sports-jqux.onrender.com \
 RUN reflex init && reflex export --frontend-only --no-zip
 
 EXPOSE 7860
-CMD ["./hf_start.sh"]
+CMD ["bash", "/app/hf_start.sh"]
