@@ -1203,6 +1203,40 @@ def calculator_page():
 # App
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
+
+
+def _serve_prebuilt_frontend(reflex_asgi):
+    """Make Reflex's OWN backend serve the pre-built static frontend.
+
+    On the cloud (Render 512MB) the runtime ``reflex run --env prod`` frontend compile
+    spikes ~700MB and OOM-kills the instance; Caddy/nginx to serve a pre-built frontend
+    is blocked by Render's sandbox. So we pre-build the frontend at image-build time and
+    run ``reflex run --backend-only`` (no compile, ~190MB) — and this wrapper serves
+    those static files directly from the backend ASGI app. Backend HTTP paths and ALL
+    websockets go to Reflex; everything else is served as static files."""
+    import os
+    static_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".web", "build", "client")
+    if not os.path.isdir(static_dir):
+        return reflex_asgi  # dev / not pre-built → use Reflex as-is
+    from starlette.staticfiles import StaticFiles
+    static = StaticFiles(directory=static_dir, html=True)
+    backend_prefixes = ("/_event", "/ping", "/_upload", "/_health", "/backend",
+                        "/sitemap", "/.well-known")
+
+    async def asgi(scope, receive, send):
+        if scope.get("type") == "http" and not scope.get("path", "/").startswith(backend_prefixes):
+            try:
+                await static(scope, receive, send)
+                return
+            except Exception:
+                pass  # fall back to Reflex (e.g. SPA route not found as a file)
+        await reflex_asgi(scope, receive, send)
+
+    return asgi
+
+
+app.api_transformer = _serve_prebuilt_frontend
 app.add_page(index, route="/", title="Fantasy Sports", on_load=AppState.redirect_if_logged_in)
 app.add_page(rooms_page, route="/rooms", title="Your Rooms",
              on_load=[AppState.load_rooms, SchedulerState.ensure_running])
