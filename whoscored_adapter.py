@@ -123,7 +123,7 @@ def get_whoscored_stats(ws_url):
     
     # Also check maxMinute as a fallback indicator
     max_minute = data.get('maxMinute', 90)
-    if max_minute > 95 and not has_extra_time:
+    if max_minute > 115 and not has_extra_time:
         has_extra_time = True
         match_duration = 120
     

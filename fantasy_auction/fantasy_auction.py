@@ -1045,6 +1045,39 @@ def admin_page():
             columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
         T.card(
             rx.hstack(
+                rx.vstack(T.section_title("🔑 Distribute PINs"),
+                          rx.text("Auto-generate a unique 4-digit PIN for every unclaimed team "
+                                  "(e.g. after CSV import). Share the list with participants so "
+                                  "they can join the room.",
+                                  style={"color": T.MUTED, "font_size": "0.82rem"}),
+                          spacing="1", align="start"),
+                rx.spacer(),
+                T.primary_button("Generate PINs", on_click=AdminState.distribute_pins),
+                width="100%", align="center", spacing="3"),
+            rx.cond(
+                AdminState.show_pins,
+                rx.vstack(
+                    rx.divider(margin_y="0.7rem"),
+                    rx.table.root(
+                        rx.table.header(rx.table.row(
+                            rx.table.column_header_cell("Team"),
+                            rx.table.column_header_cell("PIN"))),
+                        rx.table.body(rx.foreach(AdminState.pin_summary, lambda p: rx.table.row(
+                            rx.table.row_header_cell(p["name"]),
+                            rx.table.cell(rx.code(p["pin"]))))),
+                        width="100%"),
+                    rx.hstack(
+                        rx.button("Copy all", variant="soft", size="2",
+                                  on_click=rx.set_clipboard(
+                                      AdminState.pin_clipboard_text)),
+                        rx.button("Hide", variant="ghost", size="2", color_scheme="gray",
+                                  on_click=AdminState.hide_pins),
+                        spacing="3", margin_top="0.4rem"),
+                    spacing="2", width="100%"),
+            ),
+            width="100%"),
+        T.card(
+            rx.hstack(
                 rx.vstack(T.section_title("💰 Budget boost"),
                           rx.text("Give every team +100M (e.g. after Gameweek 1 squads lock).",
                                   style={"color": T.MUTED, "font_size": "0.82rem"}),

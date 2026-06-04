@@ -80,6 +80,35 @@ def reset_pin(room, participant, new_pin):
     p["pin"] = str(new_pin).strip()
 
 
+def distribute_pins(room) -> list[dict]:
+    """Auto-generate unique 4-digit PINs for every team that has no PIN.
+
+    Returns a list of ``{"name": ..., "pin": ...}`` for ALL participants so the
+    admin can share the complete list.
+    """
+    import random
+
+    existing_pins: set[str] = set()
+    for p in room.get("participants", []):
+        pin = str(p.get("pin") or "").strip()
+        if pin:
+            existing_pins.add(pin)
+
+    for p in room.get("participants", []):
+        pin = str(p.get("pin") or "").strip()
+        if not pin and not p.get("user"):
+            # Generate a unique 4-digit PIN
+            while True:
+                new_pin = f"{random.randint(0, 9999):04d}"
+                if new_pin not in existing_pins:
+                    break
+            p["pin"] = new_pin
+            existing_pins.add(new_pin)
+
+    return [{"name": p["name"], "pin": str(p.get("pin") or "—")}
+            for p in room.get("participants", [])]
+
+
 # --- loans --------------------------------------------------------------- #
 def loan_player(room, from_name, to_name, player_name, return_gameweek=""):
     by = _by(room)

@@ -42,6 +42,13 @@ class AdminState(rx.State):
     # backup
     export_text: str = ""
     import_text: str = ""
+    # PIN distribution
+    pin_summary: list[dict[str, str]] = []
+    show_pins: bool = False
+
+    @rx.var
+    def pin_clipboard_text(self) -> str:
+        return "\n".join(f"{p['name']} → PIN {p['pin']}" for p in self.pin_summary)
 
     msg: str = ""
 
@@ -156,6 +163,22 @@ class AdminState(rx.State):
     def reset_pin(self):
         self._do(lambda room, doc: ao.reset_pin(room, self.pin_team, self.pin_value),
                  f"✅ Reset PIN for {self.pin_team}.")
+
+    @rx.event
+    def distribute_pins(self):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        self.pin_summary = ao.distribute_pins(room)
+        repo.save(doc)
+        self._refresh(room)
+        self.show_pins = True
+        self.msg = f"✅ PINs generated for all unclaimed teams."
+
+    @rx.event
+    def hide_pins(self):
+        self.show_pins = False
 
     @rx.event
     def make_loan(self):
