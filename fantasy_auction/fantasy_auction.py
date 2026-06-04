@@ -39,7 +39,7 @@ def _error(msg):
 def _brand():
     return rx.hstack(
         rx.box("⚡", style={"font_size": "1.3rem"}),
-        rx.heading("AUCTArena", style={"font_family": T.DISPLAY, "font_weight": "700",
+        rx.heading("Fantasy Sports", style={"font_family": T.DISPLAY, "font_weight": "700",
                    "font_size": "1.25rem", "letter_spacing": "-0.5px", "color": T.TEXT}),
         spacing="2", align="center",
     )
@@ -163,7 +163,7 @@ def index():
         rx.center(
             rx.vstack(
                 rx.box("⚡", style={"font_size": "3rem", "margin_bottom": "0.5rem"}),
-                rx.heading("AUCTArena", class_name="gradient-text",
+                rx.heading("Fantasy Sports", class_name="gradient-text",
                            style={"font_family": T.DISPLAY, "font_size": "3.2rem",
                                   "font_weight": "700", "letter_spacing": "-1.5px"}),
                 rx.text("Run your fantasy auction league — squads, live open bidding, trades, "
@@ -1110,7 +1110,7 @@ def calculator_page():
 # App
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
-app.add_page(index, route="/", title="AUCTArena", on_load=AppState.redirect_if_logged_in)
+app.add_page(index, route="/", title="Fantasy Sports", on_load=AppState.redirect_if_logged_in)
 app.add_page(rooms_page, route="/rooms", title="Your Rooms",
              on_load=[AppState.load_rooms, SchedulerState.ensure_running])
 app.add_page(setup_page, route="/setup", title="Room Setup", on_load=AppState.load_setup)

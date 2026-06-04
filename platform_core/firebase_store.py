@@ -19,8 +19,10 @@ The document shape is the legacy one: ``{"users": {...}, "rooms": {...}}``.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
+import time
 from typing import Any, Optional
 
 try:  # requests is optional in pure-local mode
@@ -57,6 +59,14 @@ class FirebaseStore:
         )
         self.timeout = timeout
         self.use_remote = bool(self.database_url) and requests is not None
+        # Short in-memory snapshot cache. Rapid page navigations (and concurrent
+        # on_load handlers on a single backend worker) would otherwise each fire a
+        # Firebase read; under load some time out and fall back to a stale local
+        # file, making a live room look "missing" and bouncing the user out. A few
+        # seconds of caching keeps reads consistent and cheap (Blaze-friendly).
+        self._cache: Optional[dict] = None
+        self._cache_ts: float = 0.0
+        self._cache_ttl: float = float(os.environ.get("STORE_CACHE_TTL", "3"))
 
     @property
     def db_url(self) -> str:
@@ -106,16 +116,27 @@ class FirebaseStore:
     # Load / save
     # ------------------------------------------------------------------ #
     def load(self) -> dict:
-        """Load the document. Remote first (if configured), else local file."""
+        """Load the document. Serves a short-lived in-memory snapshot when fresh,
+        else remote (if configured), else the local file. Always returns a private
+        deep copy so callers can mutate-then-save without corrupting the cache."""
+        now = time.monotonic()
+        if self._cache is not None and (now - self._cache_ts) < self._cache_ttl:
+            return copy.deepcopy(self._cache)
         if self.use_remote:
             try:
                 resp = requests.get(self.db_url, timeout=self.timeout)
                 if resp.status_code == 200:
                     data = self._ensure_schema(self._normalize(resp.json()))
                     self._write_local(data)
+                    self._cache = copy.deepcopy(data)
+                    self._cache_ts = now
                     return data
             except Exception as exc:  # pragma: no cover - network
                 print(f"[FirebaseStore] remote load failed: {exc}")
+            # Remote failed: a recent in-memory snapshot is more trustworthy than a
+            # possibly-stale local file — prefer it so live rooms don't vanish.
+            if self._cache is not None:
+                return copy.deepcopy(self._cache)
         return self._load_local()
 
     def _load_local(self) -> dict:
@@ -142,6 +163,9 @@ class FirebaseStore:
         """Persist the whole document: local cache always, Firebase if configured."""
         data = self._ensure_schema(data)
         self._write_local(data)
+        # Write-through: refresh the snapshot so the next load reflects this save.
+        self._cache = copy.deepcopy(data)
+        self._cache_ts = time.monotonic()
         if self.use_remote:
             try:
                 resp = requests.put(
@@ -173,3 +197,5 @@ class FirebaseStore:
             except Exception as exc:  # pragma: no cover
                 print(f"[FirebaseStore] patch_room error: {exc}")
         self._write_local(data)
+        self._cache = copy.deepcopy(data)
+        self._cache_ts = time.monotonic()

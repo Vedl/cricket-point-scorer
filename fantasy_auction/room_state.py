@@ -52,11 +52,18 @@ class RoomState(rx.State):
     @rx.event
     async def on_load_hub(self):
         app = await self.get_state(AppState)
-        if not app.auth_user:
+        # Only bounce a logged-out user once LocalStorage has actually hydrated —
+        # redirecting before then kicks legitimate users out during rapid nav.
+        if app.is_hydrated and not app.auth_user:
             return rx.redirect("/")
         code, doc, room = self._load()
+        if not code:
+            return  # room param not ready yet — don't bounce to /rooms
         if room is None:
-            return rx.redirect("/rooms")
+            # Don't evict on a transient empty read; only when we're sure (hydrated).
+            if app.is_hydrated:
+                return rx.redirect("/rooms")
+            return
         self.room_code = code
         self.room_name = room.get("name", "")
         self.tournament = room.get("tournament_type", "")

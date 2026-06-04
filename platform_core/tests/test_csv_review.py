@@ -28,6 +28,21 @@ def test_unmatched():
     assert rows[0]["status"] == "unmatched"
 
 
+KEEPER_POOL = POOL + ["Spain Keeper", "Portugal Keeper", "France Keeper"]
+
+
+def test_nation_keeper_variants_all_map_exactly():
+    csv = ("Participant,Player,Price\n"
+           "A,Spain Keepers,40\n"
+           "B,Portugal GK,35\n"
+           "C,France Goalkeeper,30\n"
+           "D,Spain,25\n")
+    rows = build_review(parse_squad_csv(csv).assignments, KEEPER_POOL)
+    got = {r["matched"] for r in rows}
+    assert got == {"Spain Keeper", "Portugal Keeper", "France Keeper", "Spain Keeper"}
+    assert all(r["status"] == "exact" for r in rows)
+
+
 def test_apply_reviewed_roster_uses_canonical_and_csv_budget():
     room = {"tournament_type": "FIFA World Cup 2026",
             "player_pool": [{"name": "Thiago Silva", "role": "DEF", "team": "Brazil"}],
