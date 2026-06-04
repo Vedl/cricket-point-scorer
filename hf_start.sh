@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Startup for Hugging Face Spaces (Docker). HF exposes ONE port (7860); Reflex needs
-# two (frontend 3000 + backend 8000), so Caddy reverse-proxies both behind :7860.
+# Host-agnostic startup (Hugging Face Spaces OR Render). Reflex 0.9 prod serves the
+# frontend AND backend on ONE unified port.
 set -euo pipefail
 
-# HF Spaces injects SPACE_HOST, e.g. "username-fantasy-sports.hf.space".
-PUBLIC_URL="https://${SPACE_HOST:-localhost:7860}"
+# Port: HF expects 7860; Render injects $PORT.
+PORT="${PORT:-7860}"
+
+# Public URL (baked into the frontend as the websocket target):
+#   - Render sets RENDER_EXTERNAL_URL = full https URL
+#   - HF Spaces sets SPACE_HOST = host only (served on :443)
+if [ -n "${RENDER_EXTERNAL_URL:-}" ]; then
+  PUBLIC_URL="$RENDER_EXTERNAL_URL"
+elif [ -n "${SPACE_HOST:-}" ]; then
+  PUBLIC_URL="https://${SPACE_HOST}"
+else
+  PUBLIC_URL="http://localhost:${PORT}"
+fi
 export API_URL="$PUBLIC_URL"
 export DEPLOY_URL="$PUBLIC_URL"
 export CORS_ORIGINS="$PUBLIC_URL"
 export TZ="${TZ:-Asia/Kolkata}"
 
-echo "[hf_start] public URL: $PUBLIC_URL"
-
-# Build the compiled frontend now that the public backend URL is known (it gets baked
-# into the frontend's websocket target).
-echo "[hf_start] exporting frontend..."
-reflex export --frontend-only --no-zip
-
-# Backend (8000) + static frontend (3000); Caddy fronts both on 7860.
-echo "[hf_start] starting reflex (backend 8000 / frontend 3000)..."
-reflex run --env prod --backend-port 8000 --frontend-port 3000 &
-
-echo "[hf_start] starting caddy on :7860..."
-exec caddy run --config /app/Caddyfile --adapter caddyfile
+echo "[start] public URL: $PUBLIC_URL — unified Reflex on :$PORT"
+exec reflex run --env prod --backend-port "$PORT" --frontend-port "$PORT"
