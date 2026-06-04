@@ -19,6 +19,6 @@ jobs:
     steps:
       - name: Ping the Space
         run: |
-          URL="https://palmer2308-fantasy-football.hf.space/"
+          URL="https://fantasy-sports-jqux.onrender.com/"
           code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$URL" || echo 000)
           echo "$(date -u +%H:%M:%S) $URL -> $code"
