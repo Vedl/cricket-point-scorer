@@ -28,6 +28,21 @@ def _load_dotenv() -> None:
 
 _load_dotenv()
 
+
+def _set_timezone() -> None:
+    """Run the whole backend on the league's timezone (default IST) so naive
+    deadline inputs, ``datetime.now()`` comparisons and countdowns all agree.
+    Without this the cloud host runs in UTC and auto-locks fire hours off."""
+    import time
+    os.environ.setdefault("TZ", os.environ.get("APP_TZ", "Asia/Kolkata"))
+    try:
+        time.tzset()
+    except AttributeError:  # pragma: no cover - non-Unix
+        pass
+
+
+_set_timezone()
+
 from platform_core.auth import AuthError, log_in, sign_up
 from platform_core.config_layer import TOURNAMENTS, load_player_pool
 from platform_core.csv_import import parse_squad_csv

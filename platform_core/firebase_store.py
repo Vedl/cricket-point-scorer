@@ -22,6 +22,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import threading
 import time
 from typing import Any, Optional
 
@@ -67,6 +68,13 @@ class FirebaseStore:
         self._cache: Optional[dict] = None
         self._cache_ts: float = 0.0
         self._cache_ttl: float = float(os.environ.get("STORE_CACHE_TTL", "3"))
+        # Async write-behind: events update the local cache instantly and return;
+        # the (full-document) Firebase PUT is flushed on a background thread and
+        # coalesced, so a burst of actions never blocks the UI on the network.
+        self._pending: Optional[str] = None
+        self._writer_lock = threading.Lock()
+        self._writer_cv = threading.Condition(self._writer_lock)
+        self._writer_started = False
 
     @property
     def db_url(self) -> str:
@@ -167,10 +175,30 @@ class FirebaseStore:
         self._cache = copy.deepcopy(data)
         self._cache_ts = time.monotonic()
         if self.use_remote:
+            self._queue_remote(json.dumps(data))
+
+    # ------------------------------------------------------------------ #
+    # Async write-behind to Firebase (coalesced, non-blocking)
+    # ------------------------------------------------------------------ #
+    def _queue_remote(self, payload: str) -> None:
+        with self._writer_cv:
+            self._pending = payload  # keep only the latest — coalesce a burst
+            if not self._writer_started:
+                self._writer_started = True
+                threading.Thread(target=self._writer_loop, name="fb-writer",
+                                 daemon=True).start()
+            self._writer_cv.notify()
+
+    def _writer_loop(self) -> None:
+        while True:
+            with self._writer_cv:
+                while self._pending is None:
+                    self._writer_cv.wait()
+                payload = self._pending
+                self._pending = None
             try:
                 resp = requests.put(
-                    self.db_url,
-                    data=json.dumps(data),
+                    self.db_url, data=payload,
                     headers={"Content-Type": "application/json"},
                     timeout=self.timeout,
                 )
@@ -178,6 +206,15 @@ class FirebaseStore:
                     print(f"[FirebaseStore] remote save failed: {resp.status_code}")
             except Exception as exc:  # pragma: no cover
                 print(f"[FirebaseStore] remote save error: {exc}")
+
+    def flush(self, timeout: float = 5.0) -> None:
+        """Block until any pending remote write has been sent (for shutdown/tests)."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with self._writer_cv:
+                if self._pending is None:
+                    return
+            time.sleep(0.02)
 
     def patch_room(self, room_code: str, room: dict) -> None:
         """Write a single room node (cheaper Firebase PATCH; full local rewrite)."""

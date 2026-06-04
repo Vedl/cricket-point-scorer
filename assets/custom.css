@@ -41,6 +41,10 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  /* give descenders (g, y, p) room so background-clip:text doesn't crop them */
+  display: inline-block;
+  line-height: 1.18;
+  padding-bottom: 0.12em;
 }
 
 /* ---- primary button glow + lift ---- */
