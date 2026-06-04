@@ -465,7 +465,123 @@ def team_overview_card(t):
     )
 
 
+def _stat(label, value, color, sub=""):
+    return T.card(
+        rx.vstack(
+            rx.text(label, style={"color": T.MUTED, "font_size": "0.68rem",
+                    "letter_spacing": "1px", "text_transform": "uppercase"}),
+            rx.heading(value, style={"color": color, "font_family": T.DISPLAY,
+                       "font_size": "1.7rem", "font_weight": "700", "line_height": "1.1"}),
+            rx.cond(sub != "", rx.text(sub, style={"color": T.MUTED, "font_size": "0.72rem"})),
+            spacing="1", align="start"),
+        width="100%", style={"padding": "0.8rem 1rem"})
+
+
+def _hub_bid_row(b):
+    return rx.hstack(
+        rx.text("🔨", style={"font_size": "0.9rem"}),
+        rx.text(b["player"], style={"color": T.TEXT, "font_size": "0.85rem"}),
+        rx.spacer(),
+        rx.text(b["amount"] + "M", style={"color": T.WARNING, "font_weight": "600"}),
+        width="100%", align="center", spacing="2",
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+               "border_radius": "9px", "padding": "0.4rem 0.7rem"})
+
+
+def _hub_win_row(w):
+    return rx.hstack(
+        rx.text("🎉", style={"font_size": "0.9rem"}),
+        rx.text("You won " + w["player"], style={"color": T.TEXT, "font_size": "0.85rem"}),
+        rx.spacer(),
+        rx.text(w["amount"] + "M", style={"color": T.SUCCESS, "font_weight": "600"}),
+        width="100%", align="center", spacing="2",
+        style={"background": "rgba(34,197,94,0.08)", "border": "1px solid rgba(34,197,94,0.25)",
+               "border_radius": "9px", "padding": "0.4rem 0.7rem"})
+
+
+def _hub_trade_row(t):
+    return rx.vstack(
+        rx.text(t["text"], style={"color": T.TEXT, "font_size": "0.82rem"}),
+        rx.hstack(
+            rx.button("✓ Accept", on_click=RoomState.hub_accept_trade(t["id"]),
+                      size="1", color_scheme="green", variant="soft"),
+            rx.button("✕ Reject", on_click=RoomState.hub_reject_trade(t["id"]),
+                      size="1", color_scheme="red", variant="soft"),
+            rx.link("Open in Trade →", href="/trade?room=" + RoomState.room_code,
+                    style={"color": T.ACCENT, "font_size": "0.76rem"}),
+            spacing="2", align="center"),
+        spacing="2", width="100%", align="start",
+        style={"background": "rgba(124,92,255,0.07)", "border": "1px solid rgba(124,92,255,0.25)",
+               "border_radius": "10px", "padding": "0.55rem 0.8rem"})
+
+
 def room_page():
+    dashboard = rx.vstack(
+        # personal stat strip
+        rx.grid(
+            _stat("Your rank", RoomState.my_rank, T.ACCENT, RoomState.my_points + " pts"),
+            _stat("Budget", RoomState.my_budget.to_string() + "M", T.SUCCESS),
+            _stat("Bids held", RoomState.my_bids.length().to_string(),
+                  T.WARNING, RoomState.my_bids_total + "M committed"),
+            _stat("Trade offers", RoomState.hub_trades.length().to_string(), T.PRIMARY,
+                  "proposed to you"),
+            columns=rx.breakpoints(initial="2", md="4"), spacing="3", width="100%"),
+        rx.box(height="0.4rem"),
+        rx.grid(
+            # left column — my squad
+            T.card(
+                rx.hstack(T.section_title("⚽ " + RoomState.my_team), rx.spacer(),
+                          T.pill(RoomState.my_squad.length().to_string() + " players", T.PRIMARY),
+                          width="100%", align="center"),
+                rx.box(height="0.7rem"),
+                rx.cond(RoomState.my_squad.length() > 0,
+                        rx.vstack(rx.foreach(RoomState.my_squad, squad_row), spacing="1",
+                                  width="100%"),
+                        rx.text("No players yet — wait for the CSV upload or win some in bidding.",
+                                style={"color": T.MUTED})),
+                width="100%"),
+            # right column — activity
+            rx.vstack(
+                T.card(
+                    rx.hstack(T.section_title("🤝 Trades proposed to you"), rx.spacer(),
+                              rx.cond(RoomState.hub_trades.length() > 0,
+                                      T.pill(RoomState.hub_trades.length().to_string(), T.PRIMARY)),
+                              width="100%", align="center"),
+                    rx.box(height="0.5rem"),
+                    rx.cond(RoomState.hub_trades.length() > 0,
+                            rx.vstack(rx.foreach(RoomState.hub_trades, _hub_trade_row),
+                                      spacing="2", width="100%"),
+                            rx.text("No pending offers.", style={"color": T.MUTED,
+                                    "font_size": "0.85rem"})),
+                    width="100%"),
+                T.card(
+                    T.section_title("🎉 Won since your last visit"),
+                    rx.box(height="0.5rem"),
+                    rx.cond(RoomState.my_wins.length() > 0,
+                            rx.vstack(rx.foreach(RoomState.my_wins, _hub_win_row), spacing="2",
+                                      width="100%"),
+                            rx.text("Nothing new — bids award at the deadline.",
+                                    style={"color": T.MUTED, "font_size": "0.85rem"})),
+                    width="100%"),
+                T.card(
+                    rx.hstack(T.section_title("🔨 Bids you're leading"), rx.spacer(),
+                              rx.link("Bidding →", href="/bidding?room=" + RoomState.room_code,
+                                      style={"color": T.ACCENT, "font_size": "0.78rem"}),
+                              width="100%", align="center"),
+                    rx.box(height="0.5rem"),
+                    rx.cond(RoomState.my_bids.length() > 0,
+                            rx.vstack(rx.foreach(RoomState.my_bids, _hub_bid_row), spacing="2",
+                                      width="100%"),
+                            rx.text("You're not leading any open bids.", style={"color": T.MUTED,
+                                    "font_size": "0.85rem"})),
+                    width="100%"),
+                spacing="4", width="100%"),
+            columns=rx.breakpoints(initial="1", lg="2"), spacing="4", width="100%"),
+        rx.box(height="0.5rem"),
+        rx.text("Browse and compare every squad on the 👥 Squads tab.",
+                style={"color": T.MUTED, "font_size": "0.82rem"}),
+        spacing="4", width="100%")
+
     return room_shell(
         _topbar(), room_nav(RoomState.room_code, RoomState.is_admin),
         rx.hstack(
@@ -481,30 +597,7 @@ def room_page():
         _error(RoomState.msg),
         rx.cond(
             RoomState.my_team != "",
-            rx.grid(
-                T.card(
-                    rx.hstack(T.section_title("🏏 " + RoomState.my_team), rx.spacer(),
-                              rx.vstack(rx.text("BUDGET", style={"color": T.MUTED,
-                                        "font_size": "0.65rem", "letter_spacing": "1px"}),
-                                        rx.heading(RoomState.my_budget.to_string() + "M",
-                                        style={"color": T.SUCCESS, "font_family": T.DISPLAY,
-                                               "font_size": "1.6rem"}), spacing="0", align="end"),
-                              width="100%", align="center"),
-                    rx.box(height="0.8rem"),
-                    rx.cond(RoomState.my_squad.length() > 0,
-                            rx.vstack(rx.foreach(RoomState.my_squad, squad_row), spacing="1",
-                                      width="100%"),
-                            rx.text("No players yet — wait for the CSV upload or win some in bidding.",
-                                    style={"color": T.MUTED})),
-                    width="100%"),
-                T.card(
-                    T.section_title("🌍 All teams"),
-                    rx.box(height="0.8rem"),
-                    rx.vstack(rx.foreach(RoomState.teams, team_overview_card), spacing="2",
-                              width="100%"),
-                    width="100%"),
-                columns=rx.breakpoints(initial="1", lg="2"), spacing="4", width="100%",
-            ),
+            dashboard,
             T.card(
                 T.section_title("👀 Spectating"),
                 rx.text("You're the admin and not managing a team. Use the nav above to run the league.",
@@ -528,6 +621,13 @@ def _squad_view_row(p):
         rx.spacer(),
         rx.text(p["price"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
                 "font_size": "0.85rem"}),
+        # When browsing someone else's squad, offer to start a trade for this player.
+        rx.cond(
+            (RoomState.view_team_sel != RoomState.my_team) & (RoomState.my_team != ""),
+            rx.link("🤝 Trade", href="/trade?room=" + RoomState.room_code + "&with="
+                    + RoomState.view_team_sel + "&want=" + p["name"],
+                    style={"color": T.PRIMARY, "font_size": "0.76rem", "font_weight": "600",
+                           "white_space": "nowrap"})),
         width="100%", align="center", spacing="3",
         style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
                "border_radius": "10px", "padding": "0.45rem 0.7rem"},

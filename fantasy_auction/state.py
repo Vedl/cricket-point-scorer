@@ -145,6 +145,7 @@ class AppState(rx.State):
         except AuthError as exc:
             self.auth_error = str(exc)
             return
+        repo.save(doc)   # persist any transparent legacy→PBKDF2 hash upgrade
         self.auth_user = user
         self._clear_auth_form()
         return rx.redirect("/rooms")

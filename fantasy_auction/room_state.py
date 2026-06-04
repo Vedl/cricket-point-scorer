@@ -39,6 +39,13 @@ class RoomState(rx.State):
     gw1_locked: bool = False
     next_deadline: str = ""
     msg: str = ""
+    # --- personal dashboard (the "hub") ---
+    my_rank: str = "—"
+    my_points: str = "0"
+    my_bids: list[dict[str, str]] = []          # open bids I'm currently leading
+    my_bids_total: str = "0"
+    my_wins: list[dict[str, str]] = []          # open-bidding wins since my last visit
+    hub_trades: list[dict[str, str]] = []       # trades proposed TO me (pending)
 
     @rx.event
     def set_field(self, name: str, value):
@@ -71,11 +78,61 @@ class RoomState(rx.State):
         self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
         self.gw1_locked = bool(room.get("gw1_locked"))
         self._refresh(room)
+        if self._compute_dashboard(room):
+            repo.save(doc)   # persist "seen" marker only when new wins appeared
         # Click-through from a team card: ?team=NAME preselects that squad.
         team_param = self.router._page.params.get("team", "")
         if team_param and team_param in self.all_team_names:
             self.view_team_sel = team_param
             self._compute_view(room)
+
+    def _compute_dashboard(self, room: dict) -> bool:
+        """Populate the personal hub widgets. Returns True if the document was
+        mutated (the 'wins seen' marker advanced) and should be saved."""
+        from platform_core import market_ops as mo
+
+        me = self.my_team
+        # Open bids I'm currently leading.
+        ob = room.get("open_bids", {})
+        bids = [{"player": n, "amount": str(b.get("high_bid", 0))}
+                for n, b in ob.items() if b.get("high_bidder") == me]
+        bids.sort(key=lambda x: -int(x["amount"]))
+        self.my_bids = bids
+        self.my_bids_total = str(sum(int(b["amount"]) for b in bids))
+
+        # Trades proposed to me (I receive give_players, I give get_players).
+        self.hub_trades = [
+            {"id": t["id"],
+             "text": (f"{t['from']} → you receive [{', '.join(t['give_players']) or '—'}]"
+                      f"{(' +'+str(t['give_cash'])+'M') if t.get('give_cash') else ''}, "
+                      f"give [{', '.join(t['get_players']) or '—'}]"
+                      f"{(' +'+str(t['get_cash'])+'M') if t.get('get_cash') else ''}")}
+            for t in mo.incoming_trades(room, me)]
+
+        # Current standings rank.
+        try:
+            standings = so.compute_cumulative_standings(room)
+            names = [r["participant"] for r in standings]
+            if me in names:
+                i = names.index(me)
+                self.my_rank = f"{i + 1} / {len(names)}"
+                self.my_points = str(standings[i]["points"])
+            else:
+                self.my_rank, self.my_points = "—", "0"
+        except Exception:
+            self.my_rank, self.my_points = "—", "0"
+
+        # Open-bidding wins since my last hub visit.
+        my_buys = [t for t in room.get("transactions", [])
+                   if t.get("type") == "market_buy" and t.get("participant") == me]
+        me_p = next((p for p in room.get("participants", []) if p["name"] == me), None)
+        seen = (me_p or {}).get("seen_buys", 0)
+        self.my_wins = [{"player": t["player"], "amount": str(t.get("amount", 0))}
+                        for t in my_buys[seen:]]
+        if me_p is not None and len(my_buys) != seen:
+            me_p["seen_buys"] = len(my_buys)
+            return True
+        return False
 
     def _refresh(self, room: dict):
         by = {p["name"]: p for p in room.get("participants", [])}
@@ -189,6 +246,36 @@ class RoomState(rx.State):
         repo.save(doc)
         self._refresh(room)
         self.msg = "IR cleared."
+
+    @rx.event
+    def hub_accept_trade(self, trade_id: str):
+        from platform_core import market_ops as mo
+        from season_engine.trading import TradeError
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        try:
+            mo.accept_trade(room, trade_id)
+        except TradeError as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        repo.save(doc)
+        self._refresh(room)
+        self._compute_dashboard(room)
+        self.msg = "✅ Trade accepted — sent to the admin for approval."
+
+    @rx.event
+    def hub_reject_trade(self, trade_id: str):
+        from platform_core import market_ops as mo
+        code, doc, room = self._load()
+        if not room:
+            return
+        mo.reject_trade(room, trade_id)
+        repo.save(doc)
+        self._refresh(room)
+        self._compute_dashboard(room)
+        self.msg = "Trade rejected."
 
     @rx.event
     def half_release(self, player: str):

@@ -62,17 +62,29 @@ class TradeState(rx.State):
     @rx.event
     async def on_load_trade(self):
         app = await self.get_state(AppState)
-        if not app.auth_user:
-            return rx.redirect("/")
         code, doc, room = self._load()
+        if not code:
+            return
         if room is None:
-            return rx.redirect("/rooms")
+            if app.is_hydrated and app.auth_user:
+                return rx.redirect("/rooms")
+            return
         self.room_code = code
         self.room_name = room.get("name", "")
         self.is_admin = room.get("admin") == app.auth_user
         self.me = next((p["name"] for p in room.get("participants", [])
                         if p.get("user") == app.auth_user), "")
         self.msg = ""
+        # Pre-fill from a "🤝 Trade" click on another team's squad: ?with=TEAM&want=PLAYER
+        params = self.router._page.params
+        with_team = params.get("with", "")
+        want = params.get("want", "")
+        by = mo.participants_by_name(room)
+        if with_team and with_team in by and with_team != self.me:
+            self.counterparty = with_team
+            if want and any(e["name"] == want for e in by[with_team].get("squad", [])):
+                self.get_player = want
+                self.msg = f"Proposing a trade with {with_team} for {want} — add what you'll give."
         self._refresh(room)
 
     def _refresh(self, room: dict):

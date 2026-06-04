@@ -1,13 +1,15 @@
 import pytest
 
-from platform_core.auth import AuthError, hash_password, log_in, reset_password, sign_up
+from platform_core.auth import (
+    AuthError, hash_password, log_in, reset_password, sign_up, verify_password,
+)
 
 
 def test_sign_up_and_login():
     doc = {"users": {}, "rooms": {}}
     sign_up(doc, "alice", "secret", "secret")
     assert "alice" in doc["users"]
-    assert doc["users"]["alice"]["password_hash"] == hash_password("secret")
+    assert verify_password(doc["users"]["alice"]["password_hash"], "secret")
     assert log_in(doc, "alice", "secret") == "alice"
 
 
@@ -48,9 +50,28 @@ def test_reset_password_requires_room_membership():
     assert log_in(doc, "bob", "newpass") == "bob"
 
 
-def test_legacy_hash_compatibility():
-    # Existing accounts use plain sha256 — verify we match.
+def test_new_hashes_are_pbkdf2_and_verify():
+    from platform_core.auth import needs_rehash, verify_password
+    h = hash_password("hunter2")
+    assert h.startswith("pbkdf2_sha256$")
+    assert h != hash_password("hunter2")          # random salt → different each time
+    assert verify_password(h, "hunter2")
+    assert not verify_password(h, "wrong")
+    assert not needs_rehash(h)
+
+
+def test_legacy_sha256_login_still_works_and_migrates():
     import hashlib
 
-    expected = hashlib.sha256("hunter2".encode()).hexdigest()
-    assert hash_password("hunter2") == expected
+    from platform_core.auth import log_in, needs_rehash, verify_password
+    legacy = hashlib.sha256("hunter2".encode()).hexdigest()
+    doc = {"users": {"sam": {"password_hash": legacy, "rooms_created": [], "rooms_joined": []}},
+           "rooms": {}}
+    assert needs_rehash(legacy)
+    assert verify_password(legacy, "hunter2")
+    # login succeeds against the legacy hash...
+    assert log_in(doc, "sam", "hunter2") == "sam"
+    # ...and transparently upgrades the stored hash to PBKDF2.
+    upgraded = doc["users"]["sam"]["password_hash"]
+    assert upgraded.startswith("pbkdf2_sha256$")
+    assert verify_password(upgraded, "hunter2")
