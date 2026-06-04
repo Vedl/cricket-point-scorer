@@ -1,8 +1,21 @@
 import json
 import os
+import time
 import requests
 import streamlit as st
 import threading
+
+# Module-level cache shared across Streamlit reruns (the server process persists).
+# Streamlit re-runs the whole script on every interaction / st.rerun(), and some
+# pages auto-refresh via `time.sleep(1); st.rerun()` — without this, each rerun would
+# re-download the entire ~1 MB auction_data document (huge Firebase egress / cost).
+# Writes invalidate it; the explicit "Refresh" button (load_data_from_remote) bypasses.
+_LOAD_CACHE = {"data": None, "ts": 0.0}
+try:
+    _LOAD_TTL = float(os.environ.get("FIREBASE_GET_CACHE_TTL", "15"))
+except ValueError:
+    _LOAD_TTL = 15.0
+
 
 class StorageManager:
     """
@@ -81,7 +94,14 @@ class StorageManager:
         return data
     
     def load_data(self):
-        """Load data: Try Remote First (Source of Truth), Fallback to Local."""
+        """Load data: Try Remote First (Source of Truth), Fallback to Local.
+
+        Serves a short-lived in-memory cache to avoid re-downloading the whole
+        document on every Streamlit rerun (cost control)."""
+        # 0. Serve the recent in-memory snapshot if fresh (cuts Firebase egress).
+        if self.use_remote and _LOAD_CACHE["data"] is not None and \
+                (time.monotonic() - _LOAD_CACHE["ts"]) < _LOAD_TTL:
+            return json.loads(json.dumps(_LOAD_CACHE["data"]))
         # 1. Try Firebase (Source of Truth for Cloud)
         if self.use_remote:
             try:
@@ -90,17 +110,19 @@ class StorageManager:
                     data = response.json()
                     if data is None:
                         data = {}
-                    
+
                     # Normalize Firebase data (arrays back to dicts)
                     data = self._normalize_firebase_data(data)
                     data = self._ensure_schema(data)
-                    
+
                     # Cache locally
                     try:
                         with open(self.local_file_path, 'w') as f:
                             json.dump(data, f, indent=2)
                     except: pass
-                    
+
+                    _LOAD_CACHE["data"] = json.loads(json.dumps(data))
+                    _LOAD_CACHE["ts"] = time.monotonic()
                     return data
             except Exception as e:
                 print(f"Firebase Load Error: {e}")
@@ -137,7 +159,9 @@ class StorageManager:
                     with open(self.local_file_path, 'w') as f:
                         json.dump(data, f, indent=2)
                 except: pass
-                
+
+                _LOAD_CACHE["data"] = json.loads(json.dumps(data))
+                _LOAD_CACHE["ts"] = time.monotonic()
                 return data
         except Exception as e:
             print(f"Firebase Remote Load Error: {e}")
@@ -157,7 +181,11 @@ class StorageManager:
                 f.flush()
                 os.fsync(f.fileno())
             os.rename(tmp_file, self.local_file_path)
-            
+
+            # Write-through the in-memory cache so the next load reflects this save.
+            _LOAD_CACHE["data"] = json.loads(json_str)
+            _LOAD_CACHE["ts"] = time.monotonic()
+
             # 2. Save to Firebase (synchronous - MUST succeed for cloud)
             if self.use_remote:
                 print(f"[StorageManager] Saving to Firebase: {self.db_url[:60]}...")
