@@ -1073,8 +1073,8 @@ def calculator_page():
         rx.hstack(
             rx.cond(WhoScoredState.room_code != "",
                     rx.link("← Back to room", href="/room?room=" + WhoScoredState.room_code,
-                            style={"color": T.ACCENT})),
-            rx.link("← Rooms", href="/rooms", style={"color": T.MUTED}),
+                            style={"color": T.ACCENT}),
+                    rx.link("← Rooms", href="/rooms", style={"color": T.MUTED})),
             spacing="4", width="100%"),
         rx.box(height="0.5rem"),
         T.hero("Match calculator", "Paste any WhoScored match link to compute fantasy points for "

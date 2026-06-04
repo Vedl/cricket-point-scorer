@@ -75,6 +75,7 @@ class FirebaseStore:
         self._writer_lock = threading.Lock()
         self._writer_cv = threading.Condition(self._writer_lock)
         self._writer_started = False
+        self._refreshing = False
 
     @property
     def db_url(self) -> str:
@@ -124,12 +125,21 @@ class FirebaseStore:
     # Load / save
     # ------------------------------------------------------------------ #
     def load(self) -> dict:
-        """Load the document. Serves a short-lived in-memory snapshot when fresh,
-        else remote (if configured), else the local file. Always returns a private
-        deep copy so callers can mutate-then-save without corrupting the cache."""
-        now = time.monotonic()
-        if self._cache is not None and (now - self._cache_ts) < self._cache_ttl:
+        """Return the document WITHOUT ever blocking the async event loop after the
+        first warm-up.
+
+        The synchronous ``requests`` network call, if run inside a Reflex event
+        handler, blocks the asyncio loop; under concurrent clicks that starves the
+        websocket heartbeat → the client disconnects, re-hydrates, and the user is
+        bounced out of the room. So we serve the in-memory snapshot instantly and
+        refresh it on a background thread when stale (stale-while-revalidate). Only
+        the very first load (cold cache) blocks, to populate the snapshot. Always
+        returns a private deep copy so callers can mutate-then-save safely."""
+        if self._cache is not None:
+            if (time.monotonic() - self._cache_ts) >= self._cache_ttl and self._pending is None:
+                self._schedule_refresh()
             return copy.deepcopy(self._cache)
+        # Cold start: populate once (blocking is acceptable here — happens at boot).
         if self.use_remote:
             try:
                 resp = requests.get(self.db_url, timeout=self.timeout)
@@ -137,15 +147,38 @@ class FirebaseStore:
                     data = self._ensure_schema(self._normalize(resp.json()))
                     self._write_local(data)
                     self._cache = copy.deepcopy(data)
-                    self._cache_ts = now
+                    self._cache_ts = time.monotonic()
                     return data
             except Exception as exc:  # pragma: no cover - network
                 print(f"[FirebaseStore] remote load failed: {exc}")
-            # Remote failed: a recent in-memory snapshot is more trustworthy than a
-            # possibly-stale local file — prefer it so live rooms don't vanish.
-            if self._cache is not None:
-                return copy.deepcopy(self._cache)
-        return self._load_local()
+        local = self._load_local()
+        self._cache = copy.deepcopy(local)
+        self._cache_ts = time.monotonic()
+        return local
+
+    def _schedule_refresh(self) -> None:
+        """Kick off a single background refresh of the snapshot from Firebase."""
+        if not self.use_remote:
+            return
+        with self._writer_lock:
+            if self._refreshing:
+                return
+            self._refreshing = True
+        threading.Thread(target=self._refresh_once, name="fb-refresh", daemon=True).start()
+
+    def _refresh_once(self) -> None:
+        try:
+            resp = requests.get(self.db_url, timeout=self.timeout)
+            # Don't clobber the snapshot if a local write is queued/in-flight.
+            if resp.status_code == 200 and self._pending is None:
+                data = self._ensure_schema(self._normalize(resp.json()))
+                self._cache = copy.deepcopy(data)
+                self._cache_ts = time.monotonic()
+                self._write_local(data)
+        except Exception as exc:  # pragma: no cover - network
+            print(f"[FirebaseStore] background refresh failed: {exc}")
+        finally:
+            self._refreshing = False
 
     def _load_local(self) -> dict:
         if os.path.exists(self.local_file_path):
