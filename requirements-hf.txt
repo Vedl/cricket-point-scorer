@@ -1,12 +1,9 @@
-# Deps for the cloud deploy (Render — no abuse scanner, so the WhoScored scrapers are
-# fine here, unlike Hugging Face). The scrapers + scikit-learn load lazily (only when a
-# match is scored), so idle memory stays small.
+# Lean cloud deps (Render free = 512MB). The WhoScored scrapers + scikit-learn pushed
+# startup memory over 512MB (OOM), so they're temporarily out while we make the build
+# memory-fit. The core app (login, rooms, bidding, trades, standings, manual scoring)
+# runs at ~186MB. pandas stays (Reflex requires it).
 reflex==0.9.4
 requests
 pandas
 beautifulsoup4
 lxml
-scikit-learn
-cloudscraper
-curl_cffi
-tls-client
