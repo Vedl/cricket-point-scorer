@@ -71,6 +71,11 @@ class RoomState(rx.State):
         self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
         self.gw1_locked = bool(room.get("gw1_locked"))
         self._refresh(room)
+        # Click-through from a team card: ?team=NAME preselects that squad.
+        team_param = self.router._page.params.get("team", "")
+        if team_param and team_param in self.all_team_names:
+            self.view_team_sel = team_param
+            self._compute_view(room)
 
     def _refresh(self, room: dict):
         by = {p["name"]: p for p in room.get("participants", [])}
@@ -83,13 +88,31 @@ class RoomState(rx.State):
              "ir": "yes" if e["name"] == me.get("ir") else "no"}
             for e in sorted(me.get("squad", []), key=lambda x: -x.get("buy_price", 0))
         ]
-        self.teams = [
-            {"name": p["name"], "budget": str(p.get("budget", 0)),
-             "squad": str(len(p.get("squad", []))),
-             "status": "out" if p.get("is_eliminated") else "in",
-             "is_me": "yes" if p["name"] == self.my_team else "no"}
-            for p in room.get("participants", [])
-        ]
+        def _counts(sq):
+            c = {"GK": 0, "DEF": 0, "MID": 0, "FWD": 0}
+            for e in sq:
+                r = (e.get("role") or "").lower()
+                if "keeper" in r or r == "gk":
+                    c["GK"] += 1
+                elif "def" in r or "back" in r:
+                    c["DEF"] += 1
+                elif "mid" in r:
+                    c["MID"] += 1
+                else:
+                    c["FWD"] += 1
+            return c
+
+        self.teams = []
+        for p in room.get("participants", []):
+            sq = p.get("squad", [])
+            c = _counts(sq)
+            self.teams.append({
+                "name": p["name"], "budget": str(p.get("budget", 0)),
+                "squad": str(len(sq)),
+                "gk": str(c["GK"]), "def": str(c["DEF"]),
+                "mid": str(c["MID"]), "fwd": str(c["FWD"]),
+                "status": "out" if p.get("is_eliminated") else "in",
+                "is_me": "yes" if p["name"] == self.my_team else "no"})
         # nearest upcoming deadline (the single bidding deadline)
         bd = room.get("bidding_deadline")
         self.next_deadline = bd[:16].replace("T", " ") if bd else ""

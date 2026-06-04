@@ -431,21 +431,37 @@ def squad_row(p):
     )
 
 
+def _brk(label, val, color):
+    return rx.hstack(rx.text(label, style={"color": T.MUTED, "font_size": "0.7rem"}),
+                     rx.text(val, style={"color": color, "font_size": "0.78rem",
+                             "font_weight": "700"}), spacing="1", align="center")
+
+
 def team_overview_card(t):
-    return rx.hstack(
-        rx.vstack(
-            rx.hstack(rx.text(t["name"], style={"color": T.TEXT, "font_weight": "600"}),
-                      rx.cond(t["is_me"] == "yes", T.pill("YOU", T.PRIMARY)),
-                      rx.cond(t["status"] == "out", T.pill("OUT", T.DANGER)),
-                      spacing="2", align="center"),
-            rx.text("🦅 " + t["squad"] + " players", style={"color": T.MUTED, "font_size": "0.8rem"}),
-            spacing="1", align="start"),
-        rx.spacer(),
-        rx.heading(t["budget"] + "M", style={"color": T.ACCENT, "font_family": T.DISPLAY,
-                   "font_size": "1.3rem"}),
-        width="100%", align="center",
-        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
-               "border_radius": "12px", "padding": "0.8rem 1rem"},
+    # Whole card links to that team's full squad on the Squads page (click-through).
+    return rx.link(
+        rx.hstack(
+            rx.vstack(
+                rx.hstack(rx.text(t["name"], style={"color": T.TEXT, "font_weight": "600"}),
+                          rx.cond(t["is_me"] == "yes", T.pill("YOU", T.PRIMARY)),
+                          rx.cond(t["status"] == "out", T.pill("OUT", T.DANGER)),
+                          spacing="2", align="center"),
+                rx.hstack(
+                    rx.text("🦅 " + t["squad"], style={"color": T.MUTED, "font_size": "0.8rem"}),
+                    rx.text("·", style={"color": T.BORDER}),
+                    _brk("GK", t["gk"], T.WARNING), _brk("DEF", t["def"], T.SUCCESS),
+                    _brk("MID", t["mid"], T.PRIMARY), _brk("FWD", t["fwd"], T.ACCENT),
+                    spacing="2", align="center", wrap="wrap"),
+                spacing="1", align="start"),
+            rx.spacer(),
+            rx.heading(t["budget"] + "M", style={"color": T.ACCENT, "font_family": T.DISPLAY,
+                       "font_size": "1.3rem"}),
+            width="100%", align="center",
+            style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+                   "border_radius": "12px", "padding": "0.8rem 1rem"},
+            _hover={"border_color": T.ACCENT}),
+        href="/squads?room=" + RoomState.room_code + "&team=" + t["name"],
+        width="100%", style={"text_decoration": "none"},
     )
 
 
@@ -786,15 +802,18 @@ def gameweek_admin_panel():
                   rx.button("🔒 Lock squads now", on_click=SeasonState.lock_squads, variant="soft"),
                   spacing="3", margin_top="0.5rem"),
         rx.divider(margin_y="0.7rem"),
-        T.section_title("🤖 Auto-score from WhoScored"),
-        rx.text("Paste this gameweek's WhoScored match links (one per line). Points are scraped "
-                "and awarded on each team's locked squad (IR excluded).",
+        T.section_title("📊 Score this gameweek from WhoScored links"),
+        rx.text("Paste the WhoScored match links for the gameweek above — one per line. Points "
+                "(players + nation keepers, dual-position) are scraped and the standings for that "
+                "gameweek are computed on each team's locked squad (IR excluded).",
                 style={"color": T.MUTED, "font_size": "0.8rem"}),
         rx.text_area(value=SeasonState.score_links, on_change=SeasonState.set_field("score_links"),
-                     placeholder="https://www.whoscored.com/matches/…/live/…", rows="3", width="100%"),
+                     placeholder="https://www.whoscored.com/matches/…/live/…\nhttps://www.whoscored.com/matches/…/live/…",
+                     rows="4", width="100%"),
         rx.cond(SeasonState.scoring_running,
                 rx.button(rx.spinner(), "Scraping…", disabled=True),
-                T.primary_button("⚡ Auto-score GW", on_click=SeasonState.run_whoscored_scoring)),
+                T.primary_button("📊 Compute standings for this gameweek",
+                                 on_click=SeasonState.run_whoscored_scoring)),
         rx.divider(margin_y="0.7rem"),
         T.section_title("⏰ Bidding deadline (drives the gameweek)"),
         rx.text("Set ONE deadline: new bids until −1h, raise-only (+5M) in the last 30m, bids "
@@ -999,52 +1018,25 @@ def schedule_page():
                           rx.select(ScheduleState.gw_options, value=ScheduleState.selected_gw,
                                     on_change=ScheduleState.select_gw, width="120px"),
                           T.pill(ScheduleState.gw_name, T.ACCENT),
-                          rx.spacer(),
-                          rx.cond(
-                              ScheduleState.is_admin,
-                              rx.button(
-                                  rx.cond(ScheduleState.scoring_running,
-                                          rx.hstack(rx.spinner(size="2"), rx.text("Scoring…"),
-                                                    spacing="2", align="center"),
-                                          rx.text("⚡ Auto-score this gameweek")),
-                                  on_click=ScheduleState.auto_score,
-                                  disabled=ScheduleState.scoring_running,
-                                  style={"background": T.ACCENT, "color": "#04121f",
-                                         "font_weight": "600"})),
                           spacing="3", align="center", width="100%"),
-                rx.cond(ScheduleState.msg != "",
-                        rx.callout(ScheduleState.msg, color_scheme="gray", width="100%")),
                 rx.cond(
                     ScheduleState.is_admin,
-                    rx.text("Paste each match's WhoScored link below, then hit Auto-score to pull "
-                            "player points + nation-keeper points and update standings.",
-                            style={"color": T.MUTED, "font_size": "0.82rem"})),
+                    rx.text("To score a gameweek, paste its WhoScored match links in the 🛠️ Admin "
+                            "tab → Gameweek control.", style={"color": T.MUTED, "font_size": "0.82rem"})),
                 rx.box(height="0.8rem"),
                 T.card(
                     rx.cond(
                         ScheduleState.matches.length() > 0,
-                        rx.vstack(rx.foreach(ScheduleState.matches, lambda mt: rx.vstack(
-                            rx.hstack(
-                                rx.text(mt["teams"], style={"color": T.TEXT, "font_weight": "500"}),
-                                rx.spacer(),
-                                rx.text(mt["date"] + " · " + mt["time"],
-                                        style={"color": T.MUTED, "font_size": "0.82rem"}),
-                                rx.text(mt["venue"], style={"color": T.MUTED, "font_size": "0.78rem",
-                                        "min_width": "200px", "text_align": "right"}),
-                                width="100%", align="center", spacing="3"),
-                            rx.cond(
-                                ScheduleState.is_admin,
-                                rx.input(
-                                    default_value=mt["url"], placeholder="WhoScored match link…",
-                                    on_blur=lambda v: ScheduleState.set_fixture_url(mt["idx"], v),
-                                    width="100%",
-                                    style={"background": T.SURFACE, "font_size": "0.8rem"}),
-                                rx.cond(mt["url"] != "",
-                                        rx.text("🔗 link set", style={"color": T.ACCENT,
-                                                "font_size": "0.72rem"}))),
-                            spacing="2", width="100%", align="start",
+                        rx.vstack(rx.foreach(ScheduleState.matches, lambda mt: rx.hstack(
+                            rx.text(mt["teams"], style={"color": T.TEXT, "font_weight": "500"}),
+                            rx.spacer(),
+                            rx.text(mt["date"] + " · " + mt["time"],
+                                    style={"color": T.MUTED, "font_size": "0.82rem"}),
+                            rx.text(mt["venue"], style={"color": T.MUTED, "font_size": "0.78rem",
+                                    "min_width": "200px", "text_align": "right"}),
+                            width="100%", align="center", spacing="3",
                             style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
-                                   "border_radius": "10px", "padding": "0.6rem 0.9rem"})),
+                                   "border_radius": "10px", "padding": "0.55rem 0.9rem"})),
                             spacing="2", width="100%"),
                         rx.text("No matches listed.", style={"color": T.MUTED})),
                     width="100%"),
