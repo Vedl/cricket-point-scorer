@@ -1,11 +1,12 @@
-# Lean deps for the Hugging Face Spaces deploy.
-# Deliberately EXCLUDES the browser-impersonation scrapers (cloudscraper, curl_cffi,
-# tls_client) — HF's automated abuse scanner flags those libraries and pauses the
-# Space. They only powered WhoScored auto-scraping, which doesn't work from a cloud
-# IP anyway (datacenter IPs are bot-blocked), so nothing real is lost: admins can
-# still enter gameweek scores manually. pandas stays (Reflex itself requires it).
+# Deps for the cloud deploy (Render — no abuse scanner, so the WhoScored scrapers are
+# fine here, unlike Hugging Face). The scrapers + scikit-learn load lazily (only when a
+# match is scored), so idle memory stays small.
 reflex==0.9.*
 requests
 pandas
 beautifulsoup4
 lxml
+scikit-learn
+cloudscraper
+curl_cffi
+tls-client

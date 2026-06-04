@@ -25,6 +25,7 @@ class SeasonState(rx.State):
 
     # admin gameweek tools
     gw_input: str = "1"
+    gw_options: list[str] = [str(i) for i in range(1, 16)]   # dropdown: GW 1..15
     scores_text: str = ""
     msg: str = ""
 
