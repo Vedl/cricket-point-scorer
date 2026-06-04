@@ -1,0 +1,18 @@
+# Single-port reverse proxy for Hugging Face Spaces.
+# HF routes external traffic to :7860; we split it between the Reflex backend
+# (websocket events / health / uploads) and the compiled frontend.
+{
+	admin off
+	auto_https off
+}
+
+:7860 {
+	# Reflex backend endpoints (websocket upgrade handled automatically).
+	reverse_proxy /_event* localhost:8000
+	reverse_proxy /ping localhost:8000
+	reverse_proxy /_upload* localhost:8000
+	reverse_proxy /_health localhost:8000
+
+	# Everything else → the compiled frontend.
+	reverse_proxy localhost:3000
+}

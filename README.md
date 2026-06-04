@@ -1,3 +1,13 @@
+---
+title: Fantasy Sports
+emoji: ⚽
+colorFrom: indigo
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Fantasy Sports Platform 🏏⚽
 
 A full-stack fantasy sports platform supporting **IPL**, **T20 World Cup**, **UEFA Champions League**, and **FIFA World Cup 2026** — with live scoring, auction rooms, and multi-frontend delivery.
