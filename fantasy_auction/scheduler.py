@@ -62,7 +62,14 @@ def _loop() -> None:
 
 
 def start_scheduler() -> None:
-    """Idempotently start the single background scheduler thread."""
+    """Idempotently start the single background scheduler thread.
+
+    Disabled by default: its periodic full-document read + per-room processing is a
+    memory spike that can OOM the 512 MB free VM. Re-enable with SCHEDULER_ENABLED=1
+    once running on a host with more RAM. While off, admins lock gameweeks manually
+    from the Admin tab (the deadline timeline still drives bidding via on-page logic)."""
+    if os.environ.get("SCHEDULER_ENABLED", "false").strip().lower() not in ("1", "true", "yes", "on"):
+        return
     global _started
     with _guard:
         if _started:

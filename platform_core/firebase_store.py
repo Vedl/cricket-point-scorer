@@ -166,40 +166,19 @@ class FirebaseStore:
         return local
 
     def _sync_room_cache(self, data: dict) -> None:
-        """Keep the per-room cache coherent whenever the full doc is (re)loaded/saved."""
-        now = time.monotonic()
-        rooms = data.get("rooms", {})
-        if isinstance(rooms, dict):
-            for code, room in rooms.items():
-                self._room_cache[code] = (copy.deepcopy(room), now)
+        """Intentionally a no-op. Keeping a SECOND in-memory deep copy of every room
+        (on top of the full-document snapshot) roughly doubled memory and pushed the
+        512 MB free VM into OOM. ``load_room`` now serves from the single full-doc
+        snapshot instead, which is already cached + egress-cheap on hits."""
+        return
 
     def load_room(self, code: str) -> Optional[dict]:
-        """Read a SINGLE room node (cheap — ~20-50 KB vs the ~1 MB full doc).
+        """Return ONE room from the cached full-document snapshot (no second cache).
 
-        For hot polling paths (the bidding loop). Serves the per-room cache when
-        fresh; otherwise reads just ``/auction_data/rooms/{code}`` from Firebase.
-        Never blocks longer than one small request, and returns a private copy."""
-        code = (code or "").upper()
-        ce = self._room_cache.get(code)
-        if ce is not None and (time.monotonic() - ce[1]) < self._cache_ttl:
-            return copy.deepcopy(ce[0])
-        if self.use_remote:
-            try:
-                url = f"{self.database_url}/auction_data/rooms/{code}.json"
-                if self.secret:
-                    url += f"?auth={self.secret}"
-                resp = requests.get(url, timeout=self.timeout)
-                if resp.status_code == 200:
-                    room = self._normalize(resp.json())
-                    if room is not None:
-                        self._room_cache[code] = (copy.deepcopy(room), time.monotonic())
-                    return room
-            except Exception as exc:  # pragma: no cover - network
-                print(f"[FirebaseStore] room load failed: {exc}")
-            if ce is not None:
-                return copy.deepcopy(ce[0])
-        # Local fallback (or cold cache without remote).
-        return self.load().get("rooms", {}).get(code)
+        On a cache hit this is free (no Firebase read); on a miss ``load()`` does one
+        cached full read. This keeps egress low without a memory-doubling per-room
+        cache."""
+        return self.load().get("rooms", {}).get((code or "").upper())
 
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""
