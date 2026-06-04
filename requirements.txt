@@ -1,12 +1,13 @@
-fastapi
-uvicorn
+# Reflex Cloud build manifest for the AUCTArena app (Python 3.12).
+# reflex pulls fastapi/uvicorn/sqlmodel itself; the legacy Streamlit app is not deployed here.
+reflex==0.9.*
 requests
-beautifulsoup4
-streamlit
+
+# Scoring + schedule scraping (season engine, Phase 7-8)
 pandas
-sqlmodel
-scikit-learn
+beautifulsoup4
 lxml
-curl_cffi
+scikit-learn
 cloudscraper
+curl_cffi
 tls-client
