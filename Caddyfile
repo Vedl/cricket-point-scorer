@@ -1,0 +1,14 @@
+{
+	admin off
+	auto_https off
+}
+:{$PORT} {
+	# Reflex backend (websocket events / health / uploads) → backend-only server.
+	@backend path /_event* /ping /_upload* /_health
+	reverse_proxy @backend 127.0.0.1:8000
+
+	# Static SPA frontend (compiled at image-build time).
+	root * /app/.web/build/client
+	try_files {path} {path}.html {path}/index.html /index.html
+	file_server
+}

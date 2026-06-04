@@ -1,7 +1,9 @@
-# Pinned reflex==0.9.3: 0.9.4 OOMs on Render free (512MB) during the startup
-# frontend compile. Lean (no scrapers) is the proven-live config (~186MB).
 reflex==0.9.3
 requests
 pandas
 beautifulsoup4
 lxml
+scikit-learn
+cloudscraper
+curl_cffi
+tls-client
