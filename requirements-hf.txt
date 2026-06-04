@@ -1,8 +1,6 @@
-# Lean cloud deps (Render free = 512MB). The WhoScored scrapers + scikit-learn pushed
-# startup memory over 512MB (OOM), so they're temporarily out while we make the build
-# memory-fit. The core app (login, rooms, bidding, trades, standings, manual scoring)
-# runs at ~186MB. pandas stays (Reflex requires it).
-reflex==0.9.4
+# Pinned reflex==0.9.3: 0.9.4 OOMs on Render free (512MB) during the startup
+# frontend compile. Lean (no scrapers) is the proven-live config (~186MB).
+reflex==0.9.3
 requests
 pandas
 beautifulsoup4
