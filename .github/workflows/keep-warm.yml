@@ -1,39 +1,36 @@
 name: keep-warm
 
-# Pings the Reflex app every 5 minutes so the free-tier backend never goes idle/cold
-# (which causes the "Cannot connect to server: timeout … fly.dev/_event" outage).
-# This repo is PUBLIC, so GitHub Actions minutes are unlimited & free.
-# The /ping endpoint is a lightweight health check — it does NOT read Firebase, so
-# this keeps the app warm with ZERO Firebase download cost.
+# Keeps the Reflex app's free-tier backend from idling into an auto-stop (which causes
+# the "Cannot connect to server: timeout … fly.dev/_event" outage). The machine idles
+# out in ~1 minute, so we ping roughly every 30s.
+#
+# A scheduled run fires every 5 min, and EACH run keeps pinging for ~5.5 min, so
+# consecutive runs overlap and provide continuous ~30s coverage with no gap. The repo
+# is PUBLIC → GitHub Actions minutes are unlimited & free, and /ping does NOT read
+# Firebase → zero egress cost.
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes (GitHub's minimum interval)
-  workflow_dispatch: {}      # allow manual runs from the Actions tab
+    - cron: "*/5 * * * *"     # every 5 minutes (GitHub minimum)
+  workflow_dispatch: {}        # manual run from the Actions tab
 
-# Don't pile up runs if one is slow.
-concurrency:
-  group: keep-warm
-  cancel-in-progress: true
+# Allow overlapping runs (do NOT cancel) so there's no gap between scheduled fires.
+permissions:
+  contents: read
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 7
     steps:
-      - name: Wake the backend (retry until warm)
+      - name: Keep the backend warm (ping ~every 30s for ~5.5 min)
         run: |
           BACKEND="https://84cf352f-2b55-4eae-b443-241aa2337ee5.fly.dev/ping"
           FRONTEND="https://thegaffer-gold-panda.reflex.run/"
-          ok=0
-          for i in 1 2 3 4 5 6; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "$BACKEND" || echo 000)
-            echo "backend ping attempt $i -> $code"
-            if [ "$code" = "200" ]; then ok=1; break; fi
-            sleep 10
+          deadline=$(( $(date +%s) + 330 ))   # ~5.5 minutes
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$BACKEND" || echo 000)
+            echo "$(date -u +%H:%M:%S) backend -> $code"
+            curl -s -o /dev/null --max-time 20 "$FRONTEND" || true
+            sleep 30
           done
-          # Frontend is static and always up; ping it too as a freshness touch.
-          curl -s -o /dev/null --max-time 20 "$FRONTEND" || true
-          if [ "$ok" != "1" ]; then
-            echo "::warning::backend did not return 200 — it may be cold-starting or down"
-          fi
