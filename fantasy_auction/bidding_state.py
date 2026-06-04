@@ -150,14 +150,15 @@ class BiddingState(rx.State):
                     if not self.watching or not self.room_code:
                         return
                     code = self.room_code
-                doc = repo.load()
-                room = doc.get("rooms", {}).get(code)
+                # Cheap per-room read (~20-50 KB), served from the 20s cache most
+                # ticks, instead of the ~1 MB full doc — and NO write here (the
+                # server-side scheduler thread owns deadline processing/locking).
+                # This keeps Firebase egress tiny even if a tab is left open.
+                room = repo.load_room(code)
                 if room is not None:
-                    if so.process_room_deadline(room, datetime.now()):
-                        repo.save(doc)
                     async with self:
                         self._refresh(room)
-                await asyncio.sleep(2.5)
+                await asyncio.sleep(6)
         finally:
             async with self:
                 self.loop_running = False

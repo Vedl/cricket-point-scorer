@@ -67,7 +67,14 @@ class FirebaseStore:
         # seconds of caching keeps reads consistent and cheap (Blaze-friendly).
         self._cache: Optional[dict] = None
         self._cache_ts: float = 0.0
-        self._cache_ttl: float = float(os.environ.get("STORE_CACHE_TTL", "3"))
+        # TTL is the max staleness served from memory. Longer = far fewer Firebase
+        # downloads (egress $$). Writes are write-through so a process always sees its
+        # OWN changes instantly regardless of TTL; the TTL only delays seeing another
+        # writer's changes. 20s keeps egress low while staying fresh enough.
+        self._cache_ttl: float = float(os.environ.get("STORE_CACHE_TTL", "20"))
+        # Per-room snapshot cache for hot polling paths (load_room) — reads ONE room
+        # node (~20-50 KB) instead of the whole ~1 MB document.
+        self._room_cache: dict[str, tuple] = {}
         # Async write-behind: events update the local cache instantly and return;
         # the (full-document) Firebase PUT is flushed on a background thread and
         # coalesced, so a burst of actions never blocks the UI on the network.
@@ -148,13 +155,51 @@ class FirebaseStore:
                     self._write_local(data)
                     self._cache = copy.deepcopy(data)
                     self._cache_ts = time.monotonic()
+                    self._sync_room_cache(data)
                     return data
             except Exception as exc:  # pragma: no cover - network
                 print(f"[FirebaseStore] remote load failed: {exc}")
         local = self._load_local()
         self._cache = copy.deepcopy(local)
         self._cache_ts = time.monotonic()
+        self._sync_room_cache(local)
         return local
+
+    def _sync_room_cache(self, data: dict) -> None:
+        """Keep the per-room cache coherent whenever the full doc is (re)loaded/saved."""
+        now = time.monotonic()
+        rooms = data.get("rooms", {})
+        if isinstance(rooms, dict):
+            for code, room in rooms.items():
+                self._room_cache[code] = (copy.deepcopy(room), now)
+
+    def load_room(self, code: str) -> Optional[dict]:
+        """Read a SINGLE room node (cheap — ~20-50 KB vs the ~1 MB full doc).
+
+        For hot polling paths (the bidding loop). Serves the per-room cache when
+        fresh; otherwise reads just ``/auction_data/rooms/{code}`` from Firebase.
+        Never blocks longer than one small request, and returns a private copy."""
+        code = (code or "").upper()
+        ce = self._room_cache.get(code)
+        if ce is not None and (time.monotonic() - ce[1]) < self._cache_ttl:
+            return copy.deepcopy(ce[0])
+        if self.use_remote:
+            try:
+                url = f"{self.database_url}/auction_data/rooms/{code}.json"
+                if self.secret:
+                    url += f"?auth={self.secret}"
+                resp = requests.get(url, timeout=self.timeout)
+                if resp.status_code == 200:
+                    room = self._normalize(resp.json())
+                    if room is not None:
+                        self._room_cache[code] = (copy.deepcopy(room), time.monotonic())
+                    return room
+            except Exception as exc:  # pragma: no cover - network
+                print(f"[FirebaseStore] room load failed: {exc}")
+            if ce is not None:
+                return copy.deepcopy(ce[0])
+        # Local fallback (or cold cache without remote).
+        return self.load().get("rooms", {}).get(code)
 
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""
@@ -174,6 +219,7 @@ class FirebaseStore:
                 data = self._ensure_schema(self._normalize(resp.json()))
                 self._cache = copy.deepcopy(data)
                 self._cache_ts = time.monotonic()
+                self._sync_room_cache(data)
                 self._write_local(data)
         except Exception as exc:  # pragma: no cover - network
             print(f"[FirebaseStore] background refresh failed: {exc}")
@@ -207,6 +253,7 @@ class FirebaseStore:
         # Write-through: refresh the snapshot so the next load reflects this save.
         self._cache = copy.deepcopy(data)
         self._cache_ts = time.monotonic()
+        self._sync_room_cache(data)
         if self.use_remote:
             self._queue_remote(json.dumps(data))
 

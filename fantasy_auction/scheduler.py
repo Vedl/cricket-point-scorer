@@ -9,6 +9,7 @@ client-bound background task, which is cancelled when its client disconnects.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from datetime import datetime
@@ -38,13 +39,22 @@ def _tick() -> None:
         repo.save(doc)
 
 
+def _interval() -> int:
+    # Each tick reads the full document once (download egress). Deadlines are set
+    # hours ahead, so checking every ~2 min is plenty and keeps egress modest.
+    try:
+        return max(30, int(os.environ.get("SCHEDULER_INTERVAL_SECONDS", "120")))
+    except ValueError:
+        return 120
+
+
 def _loop() -> None:
     while True:
         try:
             _tick()
         except Exception as exc:  # pragma: no cover - background resilience
             print(f"[scheduler] {exc}")
-        time.sleep(60)
+        time.sleep(_interval())
 
 
 def start_scheduler() -> None:

@@ -98,16 +98,37 @@ def _normalize_firebase_data(data):
     return data
 
 
+# Short in-memory cache for full-document reads. Many endpoints call _firebase_get()
+# (each pulls the whole ~1 MB auction_data node = download egress $$). Serving a few
+# seconds from memory collapses bursts of reads into one. Writes invalidate it.
+_GET_CACHE: dict = {"data": None, "ts": 0.0}
+_GET_CACHE_TTL = float(os.environ.get("FIREBASE_GET_CACHE_TTL", "15"))
+
+
 def _firebase_get(path: str = "") -> dict:
-    """GET from Firebase.  `path` is optional sub-path under auction_data."""
+    """GET from Firebase.  `path` is optional sub-path under auction_data.
+
+    Full-document reads (path == "") are cached for a few seconds to cut egress."""
+    import time as _time
+    if path == "" and _GET_CACHE["data"] is not None and \
+            (_time.monotonic() - _GET_CACHE["ts"]) < _GET_CACHE_TTL:
+        return deepcopy(_GET_CACHE["data"])
     url = f"{FIREBASE_URL}/auction_data{path}.json"
     try:
         resp = http_requests.get(url, timeout=10)
         resp.raise_for_status()
-        data = resp.json() or {}
-        return _normalize_firebase_data(data)
+        data = _normalize_firebase_data(resp.json() or {})
+        if path == "":
+            _GET_CACHE["data"] = deepcopy(data)
+            _GET_CACHE["ts"] = _time.monotonic()
+        return data
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Firebase read failed: {e}")
+
+
+def _invalidate_get_cache() -> None:
+    _GET_CACHE["data"] = None
+    _GET_CACHE["ts"] = 0.0
 
 
 def _firebase_put(data, path: str = "") -> None:
@@ -121,6 +142,7 @@ def _firebase_put(data, path: str = "") -> None:
             timeout=15,
         )
         resp.raise_for_status()
+        _invalidate_get_cache()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Firebase write failed: {e}")
 
@@ -136,6 +158,7 @@ def _firebase_patch(data: dict, path: str = "") -> None:
             timeout=15,
         )
         resp.raise_for_status()
+        _invalidate_get_cache()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Firebase patch failed: {e}")
 
@@ -2015,13 +2038,18 @@ _automation_task: Optional[asyncio.Task] = None
 
 
 def _automation_enabled() -> bool:
-    val = os.environ.get("ADMIN_AUTOMATION_ENABLED", "true").strip().lower()
+    # Default OFF. This loop reads + REWRITES the whole auction_data document every
+    # cycle and performs deadline rollover/scoring — the SAME job the Reflex app's
+    # scheduler now does. Running both against the same Firebase DB double-processes
+    # and clobbers data, and the polling drives large download egress ($$). Only set
+    # ADMIN_AUTOMATION_ENABLED=true if THIS service is the single source of truth.
+    val = os.environ.get("ADMIN_AUTOMATION_ENABLED", "false").strip().lower()
     return val in {"1", "true", "yes", "on"}
 
 
 def _automation_interval_seconds() -> int:
     try:
-        return max(10, int(os.environ.get("ADMIN_AUTOMATION_INTERVAL_SECONDS", "60")))
+        return max(30, int(os.environ.get("ADMIN_AUTOMATION_INTERVAL_SECONDS", "120")))
     except ValueError:
         return 60
 

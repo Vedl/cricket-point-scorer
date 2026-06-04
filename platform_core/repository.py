@@ -289,6 +289,13 @@ class Repository:
     def load(self) -> dict:
         return self.store.load()
 
+    def load_room(self, code: str):
+        """Cheap single-room read for hot polling paths (avoids the ~1 MB full doc)."""
+        load_room = getattr(self.store, "load_room", None)
+        if callable(load_room):
+            return load_room(code)
+        return self.store.load().get("rooms", {}).get((code or "").upper())
+
     def save(self, doc: dict) -> None:
         self.store.save(doc)
 
