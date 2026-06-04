@@ -59,6 +59,24 @@ from platform_core.repository import (
 repo = Repository()
 
 
+def _prewarm_store() -> None:
+    """Warm the in-memory snapshot at startup on a background thread, so the FIRST
+    websocket connection never triggers a blocking cold Firebase read inside the
+    async event loop (which would stall connections / time out logins)."""
+    import threading
+
+    def _warm():
+        try:
+            repo.load()
+        except Exception as exc:  # pragma: no cover
+            print(f"[prewarm] {exc}")
+
+    threading.Thread(target=_warm, name="store-prewarm", daemon=True).start()
+
+
+_prewarm_store()
+
+
 class AppState(rx.State):
     # --- session (persisted across reloads) ---
     auth_user: str = rx.LocalStorage("")
