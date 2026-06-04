@@ -43,7 +43,7 @@ def _set_timezone() -> None:
 
 _set_timezone()
 
-from platform_core.auth import AuthError, log_in, sign_up
+from platform_core.auth import AuthError, log_in, reset_password, sign_up
 from platform_core.config_layer import TOURNAMENTS, load_player_pool
 from platform_core.csv_import import parse_squad_csv
 from platform_core.csv_review import build_review
@@ -75,6 +75,13 @@ class AppState(rx.State):
     password: str = ""
     confirm: str = ""
     auth_error: str = ""
+
+    # --- reset password form ---
+    reset_username: str = ""
+    reset_room_code: str = ""
+    reset_new_pw: str = ""
+    reset_confirm: str = ""
+    reset_msg: str = ""
 
     # --- create room form ---
     new_room_name: str = ""
@@ -159,6 +166,23 @@ class AppState(rx.State):
     def handle_logout(self):
         self.auth_user = ""
         return rx.redirect("/")
+
+    @rx.event
+    def handle_reset_password(self):
+        self.reset_msg = ""
+        if self.reset_new_pw != self.reset_confirm:
+            self.reset_msg = "Passwords do not match."
+            return
+        doc = repo.load()
+        try:
+            reset_password(doc, self.reset_username, self.reset_room_code, self.reset_new_pw)
+        except AuthError as exc:
+            self.reset_msg = str(exc)
+            return
+        repo.save(doc)
+        self.reset_msg = "✅ Password reset! You can now log in."
+        self.reset_username = self.reset_room_code = ""
+        self.reset_new_pw = self.reset_confirm = ""
 
     def _clear_auth_form(self):
         self.username = self.password = self.confirm = ""
