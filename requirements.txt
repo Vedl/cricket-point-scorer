@@ -1,9 +1,26 @@
-# Reflex Cloud build manifest for the AUCTArena app (Python 3.12).
-# reflex pulls fastapi/uvicorn/sqlmodel itself; the legacy Streamlit app is not deployed here.
-reflex==0.9.*
-requests
+# Shared dependency manifest. TWO deploy targets install this file:
+#   1. Reflex Cloud → runs the Reflex app `fantasy_auction` (reflex bundles its own
+#      starlette + granian server; it does NOT use fastapi/uvicorn).
+#   2. Render       → runs the FastAPI app `api_server.py` via
+#      `uvicorn api_server:app --host 0.0.0.0 --port $PORT`.
+#
+# fastapi 0.136+ is required on purpose: it depends on `starlette>=0.46` with no upper
+# cap, so it coexists with reflex's `starlette>=0.47` pin. Older fastapi (≤0.115) caps
+# starlette <0.42 and WOULD conflict with reflex in this shared environment.
 
-# Scoring + schedule scraping (season engine, Phase 7-8)
+# --- Reflex web app (Reflex Cloud) ---
+reflex==0.9.*
+
+# --- FastAPI HTTP API: api_server.py (Render) ---
+# uvicorn[standard] (not plain uvicorn): api_server.py is fully async (46 async
+# endpoints + asyncio background-automation loops), so the extras — uvloop, httptools,
+# websockets, watchfiles — are wanted.
+fastapi>=0.136,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.12,<3.0
+
+# --- shared: HTTP, scraping, scoring (used by both apps + the calculators) ---
+requests
 pandas
 beautifulsoup4
 lxml
