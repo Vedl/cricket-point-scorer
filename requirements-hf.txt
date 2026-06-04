@@ -1,7 +1,7 @@
 # Deps for the cloud deploy (Render — no abuse scanner, so the WhoScored scrapers are
 # fine here, unlike Hugging Face). The scrapers + scikit-learn load lazily (only when a
 # match is scored), so idle memory stays small.
-reflex==0.9.*
+reflex==0.9.4
 requests
 pandas
 beautifulsoup4
