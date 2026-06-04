@@ -49,6 +49,10 @@ def _interval() -> int:
 
 
 def _loop() -> None:
+    # Let the web server bind its port and become healthy BEFORE the first heavy tick
+    # (a full-doc read + processing every room). On the tiny single-CPU free VM, doing
+    # that work immediately at startup can delay the bind and trip fly's health check.
+    time.sleep(20)
     while True:
         try:
             _tick()

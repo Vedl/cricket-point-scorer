@@ -5,10 +5,11 @@ they are reused as-is (PLAN.md §4 "ported as-is"). This package re-exports a cl
 surface; heavy scraper deps are imported lazily so plain scoring needs only pandas.
 """
 
-from player_score_calculator import CricketScoreCalculator
-
 __all__ = ["CricketScoreCalculator", "football", "scrapers", "whoscored_points",
            "whoscored_player_scores"]
+# CricketScoreCalculator (which pulls pandas/numpy) is exposed lazily via __getattr__
+# below, so merely importing `scoring` does NOT load pandas at app startup — keeping
+# the backend's boot light/fast on the tiny free VM.
 
 _POS_CACHE: dict = {}
 
@@ -151,6 +152,9 @@ def whoscored_player_scores(url: str) -> dict:
 
 def __getattr__(name):
     # Lazy access to optional heavy modules.
+    if name == "CricketScoreCalculator":
+        from player_score_calculator import CricketScoreCalculator
+        return CricketScoreCalculator
     if name == "football":
         import football_score_calculator as football
         return football

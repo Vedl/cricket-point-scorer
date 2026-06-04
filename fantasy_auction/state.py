@@ -57,24 +57,11 @@ from platform_core.repository import (
 # One repository for the process; the store reads Firebase config from env and
 # falls back to a local JSON file when unset (see PLAN.md §6.6).
 repo = Repository()
-
-
-def _prewarm_store() -> None:
-    """Warm the in-memory snapshot at startup on a background thread, so the FIRST
-    websocket connection never triggers a blocking cold Firebase read inside the
-    async event loop (which would stall connections / time out logins)."""
-    import threading
-
-    def _warm():
-        try:
-            repo.load()
-        except Exception as exc:  # pragma: no cover
-            print(f"[prewarm] {exc}")
-
-    threading.Thread(target=_warm, name="store-prewarm", daemon=True).start()
-
-
-_prewarm_store()
+# NOTE: deliberately NO startup pre-warm here. Doing a blocking Firebase read +
+# deep-copying every room during import competes for the GIL on the tiny single-CPU
+# free VM and can delay the server from binding its port past fly's health-check
+# grace, causing a restart loop (the app never becomes reachable). The cache warms
+# lazily on the first request instead.
 
 
 class AppState(rx.State):
