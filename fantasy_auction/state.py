@@ -391,11 +391,7 @@ class AppState(rx.State):
              "status": r["status"], "price": str(r["price"])}
             for r in reviewed
         ]
-        pool_sorted = sorted(pool_names)
-        self.import_candidates = [
-            list(dict.fromkeys(r["candidates"] + pool_sorted))
-            for r in reviewed
-        ]
+        self.import_candidates = [r["candidates"] for r in reviewed]
         self.import_budgets = [{"participant": k, "budget": str(v)} for k, v in result.budgets.items()]
         self.import_unmatched = sum(1 for r in reviewed if r["status"] == "unmatched")
         self.upload_msg = (f"Loaded {len(reviewed)} signings for review. Confirm the matches "

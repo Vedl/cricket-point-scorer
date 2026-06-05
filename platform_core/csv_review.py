@@ -69,7 +69,7 @@ def build_review(assignments, pool_names: list[str]) -> list[dict]:
                          "matched": keeper, "candidates": [keeper],
                          "price": a.price, "status": "exact"})
             continue
-        candidates = difflib.get_close_matches(written, pool_names, n=8, cutoff=0.4)
+        candidates = difflib.get_close_matches(written, pool_names, n=25, cutoff=0.15)
         rows.append({
             "participant": a.participant, "written": written,
             "matched": candidates[0] if candidates else written,
