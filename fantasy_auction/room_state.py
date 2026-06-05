@@ -145,18 +145,24 @@ class RoomState(rx.State):
              "ir": "yes" if e["name"] == me.get("ir") else "no"}
             for e in sorted(me.get("squad", []), key=lambda x: -x.get("buy_price", 0))
         ]
+        from platform_core.season_ops import is_football
+        is_fb = is_football(room)
+        p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
+
         def _counts(sq):
-            c = {"GK": 0, "DEF": 0, "MID": 0, "FWD": 0}
+            c = {"p1": 0, "p2": 0, "p3": 0, "p4": 0}
             for e in sq:
                 r = (e.get("role") or "").lower()
-                if "keeper" in r or r == "gk":
-                    c["GK"] += 1
-                elif "def" in r or "back" in r:
-                    c["DEF"] += 1
-                elif "mid" in r:
-                    c["MID"] += 1
+                if is_fb:
+                    if "keeper" in r or r == "gk": c["p1"] += 1
+                    elif "def" in r or "back" in r: c["p2"] += 1
+                    elif "mid" in r: c["p3"] += 1
+                    else: c["p4"] += 1
                 else:
-                    c["FWD"] += 1
+                    if "keep" in r or "wk" in r: c["p4"] += 1
+                    elif "all" in r or "ar" in r: c["p3"] += 1
+                    elif "bowl" in r: c["p2"] += 1
+                    else: c["p1"] += 1
             return c
 
         self.teams = []
@@ -166,8 +172,9 @@ class RoomState(rx.State):
             self.teams.append({
                 "name": p["name"], "budget": str(p.get("budget", 0)),
                 "squad": str(len(sq)),
-                "gk": str(c["GK"]), "def": str(c["DEF"]),
-                "mid": str(c["MID"]), "fwd": str(c["FWD"]),
+                "p1_lbl": p1_lbl, "p2_lbl": p2_lbl, "p3_lbl": p3_lbl, "p4_lbl": p4_lbl,
+                "p1": str(c["p1"]), "p2": str(c["p2"]),
+                "p3": str(c["p3"]), "p4": str(c["p4"]),
                 "status": "out" if p.get("is_eliminated") else "in",
                 "is_me": "yes" if p["name"] == self.my_team else "no"})
         # nearest upcoming deadline (the single bidding deadline)

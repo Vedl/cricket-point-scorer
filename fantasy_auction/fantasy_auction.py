@@ -471,8 +471,8 @@ def team_overview_card(t):
                 rx.hstack(
                     rx.text("🦅 " + t["squad"], style={"color": T.MUTED, "font_size": "0.8rem"}),
                     rx.text("·", style={"color": T.BORDER}),
-                    _brk("GK", t["gk"], T.WARNING), _brk("DEF", t["def"], T.SUCCESS),
-                    _brk("MID", t["mid"], T.PRIMARY), _brk("FWD", t["fwd"], T.ACCENT),
+                    _brk(t["p1_lbl"], t["p1"], T.WARNING), _brk(t["p2_lbl"], t["p2"], T.SUCCESS),
+                    _brk(t["p3_lbl"], t["p3"], T.PRIMARY), _brk(t["p4_lbl"], t["p4"], T.ACCENT),
                     spacing="2", align="center", wrap="wrap"),
                 spacing="1", align="start"),
             rx.spacer(),
