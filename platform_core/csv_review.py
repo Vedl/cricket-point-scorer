@@ -43,6 +43,37 @@ def _keeper_match(written: str, by_full: dict, by_country: dict):
         return by_country[w]
     if w.endswith(" keeper") and w[: -len(" keeper")] in by_country:
         return by_country[w[: -len(" keeper")]]
+    # Famous keeper aliases
+    aliases = {
+        "neuer": "germany",
+        "manuel neuer": "germany",
+        "ter stegen": "germany",
+        "alisson": "brazil",
+        "ederson": "brazil",
+        "martinez": "argentina",
+        "emi martinez": "argentina",
+        "simon": "spain",
+        "unai simon": "spain",
+        "raya": "spain",
+        "david raya": "spain",
+        "pickford": "england",
+        "ramsdale": "england",
+        "maignan": "france",
+        "donnarumma": "italy",
+        "costa": "portugal",
+        "diogo costa": "portugal",
+        "courtois": "belgium",
+        "casteels": "belgium",
+        "verbruggen": "netherlands",
+        "sommer": "switzerland",
+        "oblak": "slovenia",
+        "livakovic": "croatia",
+        "szczesny": "poland",
+    }
+    
+    if w in aliases and aliases[w] in by_country:
+        return by_country[aliases[w]]
+        
     return None
 
 
