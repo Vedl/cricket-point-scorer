@@ -45,6 +45,7 @@ class AdminState(rx.State):
     # PIN distribution
     pin_summary: list[dict[str, str]] = []
     show_pins: bool = False
+    manual_boost_applied: bool = False
 
     @rx.var
     def pin_clipboard_text(self) -> str:
@@ -89,6 +90,7 @@ class AdminState(rx.State):
                        "text": f"{l['player']}: {l['from']} → {l['to']}"
                                + (f" (ret GW{l['return_gameweek']})" if l.get("return_gameweek") else "")}
                       for l in room.get("active_loans", [])]
+        self.manual_boost_applied = bool(room.get("manual_boost_applied", False))
 
     def _do(self, fn, ok):
         self.msg = ""

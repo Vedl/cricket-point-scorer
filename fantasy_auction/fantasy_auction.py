@@ -1105,7 +1105,11 @@ def admin_page():
                                   style={"color": T.MUTED, "font_size": "0.82rem"}),
                           spacing="1", align="start"),
                 rx.spacer(),
-                T.primary_button("+100M to everyone", on_click=AdminState.boost_all),
+                rx.cond(
+                    AdminState.manual_boost_applied,
+                    rx.text("✅ +100M Applied", size="2", color="green", weight="bold"),
+                    T.primary_button("+100M to everyone", on_click=AdminState.boost_all),
+                ),
                 width="100%", align="center", spacing="3"),
             width="100%"),
         _admin_band("🔁", "Loans", "Temporarily move a player between teams, with a return gameweek."),

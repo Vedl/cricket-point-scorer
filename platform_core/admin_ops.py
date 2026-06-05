@@ -61,6 +61,7 @@ def boost_all(room, amount=100) -> int:
     parts = room.get("participants", [])
     for p in parts:
         p["budget"] = p.get("budget", 0) + int(amount)
+    room["manual_boost_applied"] = True
     return len(parts)
 
 
