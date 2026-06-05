@@ -166,8 +166,33 @@ def lock_squads_for_gameweek(room: dict, gameweek: str) -> None:
 
 def advance_gameweek(room: dict) -> int:
     cur = int(room.get("current_gameweek", 0) or 0)
-    room["current_gameweek"] = cur + 1
-    return room["current_gameweek"]
+    new_gw = cur + 1
+    room["current_gameweek"] = new_gw
+    
+    # Auto-return expired loans
+    loans = room.get("active_loans", [])
+    returned = []
+    for l in loans:
+        try:
+            if int(l.get("return_gameweek", 999)) <= new_gw:
+                returned.append(l)
+        except (ValueError, TypeError):
+            pass
+            
+    if returned:
+        by = {p["name"]: p for p in room.get("participants", [])}
+        for loan in returned:
+            to_team = by.get(loan["to"])
+            from_team = by.get(loan["from"])
+            if to_team:
+                cur_p = next((p for p in to_team.get("squad", []) if (p.get("name") if isinstance(p, dict) else p) == loan["player"]), None)
+                if cur_p is not None:
+                    to_team["squad"].remove(cur_p)
+            if from_team:
+                from_team.setdefault("squad", []).append(loan["entry"])
+            loans.remove(loan)
+            
+    return new_gw
 
 
 # --- top player scorers -------------------------------------------------- #
