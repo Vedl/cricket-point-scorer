@@ -117,19 +117,56 @@ def select_best_11(
 
     best_team: list[dict] = []
     best_score = -1
-    for team in itertools.combinations(scored_players, 11):
-        names = [p["name"] for p in team]
-        if len(set(names)) < 11:  # no player twice (dual-position guard)
-            continue
-        counts = {k: 0 for k in valid_ranges}
-        total = 0
-        for p in team:
-            counts[p["category"]] += 1
-            total += p["score"]
-        if all(lo <= counts[r] <= hi for r, (lo, hi) in valid_ranges.items()):
-            if total > best_score:
-                best_score = total
-                best_team = list(team)
+
+    players_by_name = {}
+    for p in scored_players:
+        players_by_name.setdefault(p["name"], []).append(p)
+    
+    unique_names = list(players_by_name.keys())
+    max_scores = [max(p["score"] for p in players_by_name[n]) for n in unique_names]
+    
+    # Sort by max score descending for aggressive pruning
+    sorted_pairs = sorted(zip(unique_names, max_scores), key=lambda x: x[1], reverse=True)
+    unique_names = [x[0] for x in sorted_pairs]
+    max_scores = [x[1] for x in sorted_pairs]
+    
+    suffix_max_scores = [0] * (len(max_scores) + 1)
+    for i in range(len(max_scores)-1, -1, -1):
+        suffix_max_scores[i] = suffix_max_scores[i+1] + max_scores[i]
+
+    def dfs(idx, current_team, current_counts, current_score):
+        nonlocal best_score, best_team
+        
+        needed = 11 - len(current_team)
+        if needed == 0:
+            if all(lo <= current_counts[r] for r, (lo, _) in valid_ranges.items()):
+                if current_score > best_score:
+                    best_score = current_score
+                    best_team = list(current_team)
+            return
+            
+        if len(unique_names) - idx < needed:
+            return  # Not enough players left
+            
+        # Branch and bound pruning
+        if current_score + suffix_max_scores[idx] <= best_score:
+            return
+            
+        # Option 1: Include this player
+        name = unique_names[idx]
+        for p in players_by_name[name]:
+            cat = p["category"]
+            if current_counts[cat] < valid_ranges[cat][1]:
+                current_counts[cat] += 1
+                current_team.append(p)
+                dfs(idx + 1, current_team, current_counts, current_score + p["score"])
+                current_team.pop()
+                current_counts[cat] -= 1
+                
+        # Option 2: Skip this player
+        dfs(idx + 1, current_team, current_counts, current_score)
+
+    dfs(0, [], {k: 0 for k in valid_ranges}, 0)
 
     if best_team:
         return best_team, []
