@@ -102,12 +102,52 @@ def parse_squad_csv(text: str) -> ParseResult:
         result.kind = "pool"
         _parse_pool(reader, headers, result)
     else:
+        # Fallback to Visual Grid format
+        raw_rows = list(csv.reader(io.StringIO(text)))
+        if len(raw_rows) >= 3:
+            _parse_visual_grid(raw_rows, result)
+            if len(result.assignments) > 0 or len(result.budgets) > 0:
+                result.kind = "roster"
+                return result
+
         result.errors.append(
             "Header must contain a 'Player' column (pool format) or a "
             "'Participant' column (roster format). Found: "
             + ", ".join(reader.fieldnames)
         )
     return result
+
+def _parse_visual_grid(rows: list[list[str]], result: ParseResult) -> None:
+    participants = {}
+    header_row = rows[0]
+    for i, name in enumerate(header_row):
+        n = _norm(name)
+        if n:
+            participants[i] = n
+            
+    for i, row in enumerate(rows[2:]):
+        row_idx = i + 2
+        # Is this the "budget" row? Usually row 27 (0-indexed 26)
+        if row_idx == 26: 
+            for col_idx, p_name in participants.items():
+                if col_idx + 1 < len(row):
+                    b_str = _norm(row[col_idx + 1])
+                    if b_str:
+                        b_val = _to_int(b_str)
+                        if b_val is not None:
+                            result.budgets[p_name] = b_val
+            continue
+
+        for col_idx, p_name in participants.items():
+            if col_idx < len(row) and col_idx + 1 < len(row):
+                player = _norm(row[col_idx])
+                price_str = _norm(row[col_idx+1])
+                if player and price_str:
+                    price = _to_int(price_str)
+                    if price is not None:
+                        result.assignments.append(
+                            RosterAssignment(participant=p_name, player=player, price=price)
+                        )
 
 
 def _parse_pool(reader, headers, result: ParseResult) -> None:
