@@ -81,6 +81,57 @@ def reset_pin(room, participant, new_pin):
     p["pin"] = str(new_pin).strip()
 
 
+def rename_team(room: dict, old_name: str, new_name: str) -> None:
+    """Rename a participant and update all their historical and active references."""
+    new_name = new_name.strip()
+    if not new_name:
+        raise AdminError("Team name cannot be empty.")
+    if any(p["name"].lower() == new_name.lower() for p in room.get("participants", [])):
+        raise AdminError(f"A team named '{new_name}' already exists.")
+        
+    found = False
+    for p in room.get("participants", []):
+        if p["name"] == old_name:
+            p["name"] = new_name
+            found = True
+            break
+            
+    if not found:
+        raise AdminError(f"Team '{old_name}' not found.")
+        
+    for b in room.get("active_bids", []):
+        if b.get("highest_bidder") == old_name:
+            b["highest_bidder"] = new_name
+            
+    for t in room.get("pending_trades", []):
+        if t.get("proposer") == old_name:
+            t["proposer"] = new_name
+        if t.get("target_team") == old_name:
+            t["target_team"] = new_name
+            
+    for t in room.get("transactions", []):
+        if t.get("participant") == old_name:
+            t["participant"] = new_name
+            
+    for log in room.get("auction_log", []):
+        if log.get("buyer") == old_name:
+            log["buyer"] = new_name
+            
+    for gw, squads in room.get("gameweek_squads", {}).items():
+        if old_name in squads:
+            squads[new_name] = squads.pop(old_name)
+            
+    for gw, scores in room.get("gameweek_scores", {}).items():
+        if old_name in scores:
+            scores[new_name] = scores.pop(old_name)
+            
+    for l in room.get("active_loans", []):
+        if l.get("from") == old_name:
+            l["from"] = new_name
+        if l.get("to") == old_name:
+            l["to"] = new_name
+
+
 def distribute_pins(room) -> list[dict]:
     """Auto-generate unique 4-digit PINs for every team that has no PIN.
 

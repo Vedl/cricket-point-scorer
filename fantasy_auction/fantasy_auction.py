@@ -552,9 +552,26 @@ def room_page():
         rx.grid(
             # left column — my squad
             T.card(
-                rx.hstack(T.section_title("⚽ " + RoomState.my_team), rx.spacer(),
-                          T.pill(RoomState.my_squad.length().to_string() + " players", T.PRIMARY),
-                          width="100%", align="center"),
+                rx.hstack(
+                    T.section_title("⚽ " + RoomState.my_team), 
+                    rx.dialog.root(
+                        rx.dialog.trigger(rx.button(rx.icon("pencil-1", size=14), size="1", variant="ghost")),
+                        rx.dialog.content(
+                            rx.dialog.title("Rename Team"),
+                            rx.dialog.description("Pick a new name for your team. This will update all references to your team in the database."),
+                            rx.box(height="0.5rem"),
+                            rx.input(value=RoomState.rename_input, on_change=RoomState.set_field("rename_input"), placeholder="New team name"),
+                            _error(RoomState.rename_error),
+                            rx.box(height="1rem"),
+                            rx.hstack(
+                                rx.dialog.close(rx.button("Cancel", variant="soft", color_scheme="gray")),
+                                rx.button("Save", on_click=RoomState.handle_rename),
+                            )
+                        )
+                    ),
+                    rx.spacer(),
+                    T.pill(RoomState.my_squad.length().to_string() + " players", T.PRIMARY),
+                    width="100%", align="center"),
                 rx.box(height="0.7rem"),
                 rx.cond(RoomState.my_squad.length() > 0,
                         rx.vstack(rx.foreach(RoomState.my_squad, squad_row), spacing="1",

@@ -39,6 +39,8 @@ class RoomState(rx.State):
     gw1_locked: bool = False
     next_deadline: str = ""
     msg: str = ""
+    rename_input: str = ""
+    rename_error: str = ""
     # --- personal dashboard (the "hub") ---
     my_rank: str = "—"
     my_points: str = "0"
@@ -55,6 +57,24 @@ class RoomState(rx.State):
         code = (self.router._page.params.get("room", "") or "").upper()
         doc = repo.load()
         return code, doc, doc.get("rooms", {}).get(code)
+
+    @rx.event
+    def handle_rename(self):
+        code, doc, room = self._load()
+        if not room:
+            return
+        from platform_core.admin_ops import rename_team, AdminError
+        try:
+            rename_team(room, self.my_team, self.rename_input)
+            repo.save(doc)
+            self.rename_error = ""
+            self.my_team = self.rename_input.strip()
+            self.poll_room()
+            return rx.window_alert(f"Team successfully renamed to {self.my_team}!")
+        except AdminError as e:
+            self.rename_error = str(e)
+        except Exception as e:
+            self.rename_error = "An error occurred."
 
     @rx.event
     async def on_load_hub(self):

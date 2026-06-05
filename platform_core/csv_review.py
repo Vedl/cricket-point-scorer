@@ -100,7 +100,21 @@ def build_review(assignments, pool_names: list[str]) -> list[dict]:
                          "matched": keeper, "candidates": [keeper],
                          "price": a.price, "status": "exact"})
             continue
-        candidates = difflib.get_close_matches(written, pool_names, n=25, cutoff=0.15)
+            
+        from .config_layer import _slug
+        w_slug = _slug(written).replace("-", "")
+        slug_pool = [(_slug(n).replace("-", ""), n) for n in pool_names]
+        
+        # Try substring match on normalized names first
+        substring_matches = [n for s, n in slug_pool if w_slug and w_slug in s]
+        if substring_matches:
+            candidates = sorted(substring_matches, key=lambda x: len(x))
+        else:
+            # Fallback to fuzzy match on normalized names
+            fuzzy_slugs = difflib.get_close_matches(w_slug, [s for s, n in slug_pool], n=25, cutoff=0.15)
+            slug_to_name = {s: n for s, n in slug_pool}
+            candidates = [slug_to_name[s] for s in fuzzy_slugs]
+            
         rows.append({
             "participant": a.participant, "written": written,
             "matched": candidates[0] if candidates else written,
