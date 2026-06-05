@@ -145,8 +145,8 @@ class RoomState(rx.State):
              "ir": "yes" if e["name"] == me.get("ir") else "no"}
             for e in sorted(me.get("squad", []), key=lambda x: -x.get("buy_price", 0))
         ]
-        from platform_core.season_ops import is_football
-        is_fb = is_football(room)
+        from platform_core.season_ops import _is_football
+        is_fb = _is_football(room)
         p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
 
         def _counts(sq):
