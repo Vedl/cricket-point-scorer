@@ -142,10 +142,12 @@ class FirebaseStore:
         refresh it on a background thread when stale (stale-while-revalidate). Only
         the very first load (cold cache) blocks, to populate the snapshot. Always
         returns a private deep copy so callers can mutate-then-save safely."""
-        mtime = os.path.getmtime(self.local_file_path) if os.path.exists(self.local_file_path) else 0.0
+        st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
+        mtime = st.st_mtime if st else 0.0
+        ino = st.st_ino if st else 0
         
         if self._cache is not None:
-            if mtime <= getattr(self, "_cache_file_mtime", 0.0):
+            if mtime <= getattr(self, "_cache_file_mtime", 0.0) and ino == getattr(self, "_cache_file_ino", 0):
                 if (time.monotonic() - self._cache_ts) >= self._cache_ttl and self._pending is None:
                     self._schedule_refresh()
                 return copy.deepcopy(self._cache)
@@ -161,7 +163,9 @@ class FirebaseStore:
                     self._write_local(data)
                     self._cache = copy.deepcopy(data)
                     self._cache_ts = time.monotonic()
-                    self._cache_file_mtime = os.path.getmtime(self.local_file_path) if os.path.exists(self.local_file_path) else 0.0
+                    st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
+                    self._cache_file_mtime = st.st_mtime if st else 0.0
+                    self._cache_file_ino = st.st_ino if st else 0
                     self._sync_room_cache(data)
                     return data
             except Exception as exc:  # pragma: no cover - network
@@ -170,7 +174,9 @@ class FirebaseStore:
         local = self._load_local()
         self._cache = copy.deepcopy(local)
         self._cache_ts = time.monotonic()
-        self._cache_file_mtime = mtime
+        st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
+        self._cache_file_mtime = st.st_mtime if st else 0.0
+        self._cache_file_ino = st.st_ino if st else 0
         self._sync_room_cache(local)
         return local
 
@@ -231,7 +237,9 @@ class FirebaseStore:
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, self.local_file_path)
-            self._cache_file_mtime = os.path.getmtime(self.local_file_path)
+            st = os.stat(self.local_file_path)
+            self._cache_file_mtime = st.st_mtime
+            self._cache_file_ino = st.st_ino
         except Exception as exc:  # pragma: no cover
             print(f"[FirebaseStore] local write failed: {exc}")
 
