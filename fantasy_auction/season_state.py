@@ -22,6 +22,13 @@ class SeasonState(rx.State):
     gameweeks: list[str] = []
     selected_gw: str = ""
     gw_standings: list[dict[str, str]] = []
+    _gw_best11_cache: dict = {}
+    
+    # best 11 modal
+    show_best11_modal: bool = False
+    best11_team_name: str = ""
+    best11_players: list[dict[str, str]] = []
+    best11_total: str = ""
 
     # admin gameweek tools
     gw_input: str = "1"
@@ -79,11 +86,18 @@ class SeasonState(rx.State):
             for r in so.compute_cumulative_standings(room)
         ]
         if self.selected_gw:
+            standings = so.compute_gameweek_standings(room, self.selected_gw)
             self.gw_standings = [
                 {"participant": r["participant"], "points": str(r["points"]),
                  "warn": "⚠️" if r.get("warnings") else ""}
-                for r in so.compute_gameweek_standings(room, self.selected_gw)
+                for r in standings
             ]
+            self._gw_best11_cache = {
+                r["participant"]: [
+                    {"name": p["name"], "role": p.get("category", p.get("role", "")), "score": str(p["score"])}
+                    for p in r.get("best_11", [])
+                ] for r in standings
+            }
         else:
             self.gw_standings = []
         self.top_scorers = [
@@ -103,6 +117,20 @@ class SeasonState(rx.State):
         _, _, room = self._load_room()
         if room:
             self._recompute(room)
+
+    @rx.event
+    def open_best11(self, team_name: str):
+        self.best11_team_name = team_name
+        self.best11_players = self._gw_best11_cache.get(team_name, [])
+        for row in self.gw_standings:
+            if row["participant"] == team_name:
+                self.best11_total = row["points"]
+                break
+        self.show_best11_modal = True
+
+    @rx.event
+    def close_best11(self):
+        self.show_best11_modal = False
 
     @rx.event
     def save_scores(self):

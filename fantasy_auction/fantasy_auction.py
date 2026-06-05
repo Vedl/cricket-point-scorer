@@ -888,8 +888,14 @@ def trade_page():
 # --------------------------------------------------------------------------- #
 def _rank_table(rows, warn=False):
     def row(item):
-        cells = [rx.table.row_header_cell(item["participant"]),
-                 rx.table.cell(item["points"] + " pts")]
+        team_cell = rx.table.row_header_cell(
+            rx.cond(
+                warn,
+                rx.link(item["participant"], on_click=lambda: SeasonState.open_best11(item["participant"]), cursor="pointer", color=T.ACCENT),
+                rx.text(item["participant"])
+            )
+        )
+        cells = [team_cell, rx.table.cell(item["points"] + " pts")]
         if warn:
             cells.append(rx.table.cell(item["warn"]))
         return rx.table.row(*cells)
@@ -962,6 +968,44 @@ def gameweek_admin_panel():
         _error(SeasonState.msg), width="100%")
 
 
+def best11_modal():
+    def _player_row(p):
+        return rx.table.row(
+            rx.table.cell(p["name"]),
+            rx.table.cell(p["role"]),
+            rx.table.cell(p["score"] + " pts")
+        )
+
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title(SeasonState.best11_team_name + " · Best 11"),
+            rx.dialog.description("Gameweek " + SeasonState.selected_gw + " — Total: " + SeasonState.best11_total + " pts"),
+            rx.box(height="1rem"),
+            rx.table.root(
+                rx.table.header(
+                    rx.table.row(
+                        rx.table.column_header_cell("Player"),
+                        rx.table.column_header_cell("Pos"),
+                        rx.table.column_header_cell("Score"),
+                    )
+                ),
+                rx.table.body(rx.foreach(SeasonState.best11_players, _player_row)),
+                variant="surface", size="1"
+            ),
+            rx.box(height="1rem"),
+            rx.flex(
+                rx.dialog.close(
+                    rx.button("Close", variant="soft", color_scheme="gray", on_click=SeasonState.close_best11)
+                ),
+                justify="end",
+            ),
+            max_width="450px",
+        ),
+        open=SeasonState.show_best11_modal,
+        on_open_change=SeasonState.set_field("show_best11_modal")
+    )
+
+
 def standings_page():
     return room_shell(
         _topbar(), room_nav(SeasonState.room_code, SeasonState.is_admin),
@@ -990,6 +1034,7 @@ def standings_page():
         rx.cond(SeasonState.is_admin,
                 rx.text("Gameweek admin (scores, deadlines, knockout) has moved to the 🛠️ Admin tab.",
                         style={"color": T.MUTED, "font_size": "0.82rem", "margin_top": "1rem"})),
+        best11_modal()
     )
 
 
