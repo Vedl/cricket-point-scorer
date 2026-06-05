@@ -30,6 +30,19 @@ class AdminState(rx.State):
     fr_refund: bool = False
     fr_team_players: list[str] = []
     # budget / pin
+    boost_amount: str = ""
+    rename_old: str = ""
+    rename_new: str = ""
+    
+    # Reverse Release
+    rev_participant: str = ""
+    rev_player: str = ""
+    rev_buy: str = ""
+    rev_refund: str = ""
+    
+    # Edit Budget
+    edit_participant: str = ""
+    edit_delta: str = ""
     bud_team: str = ""
     bud_delta: str = "0"
     pin_team: str = ""
@@ -221,3 +234,16 @@ class AdminState(rx.State):
         ao.delete_room(doc, code)
         repo.save(doc)
         return rx.redirect("/rooms")
+
+    @rx.event
+    def do_reverse_release(self):
+        self._do(lambda room, doc: ao.reverse_release(
+            room, self.rev_participant, self.rev_player,
+            int(self.rev_buy or 0), int(self.rev_refund or 0)
+        ), "⏪ Release reversed.")
+
+    @rx.event
+    def do_edit_budget(self):
+        self._do(lambda room, doc: ao.adjust_budget(
+            room, self.edit_participant, int(self.edit_delta or 0)
+        ), "💰 Budget adjusted.")

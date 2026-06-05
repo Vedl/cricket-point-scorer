@@ -73,6 +73,31 @@ def adjust_budget(room, participant, delta):
     p["budget"] = p.get("budget", 0) + int(delta)
 
 
+def reverse_release(room: dict, participant: str, player_name: str, buy_price: int, refund_deducted: int) -> None:
+    by = _by(room)
+    p = by.get(participant)
+    if p is None:
+        raise AdminError(f"Unknown team {participant!r}.")
+        
+    # Remove from pool if they are there
+    pool = room.get("unsold_players", [])
+    for x in list(pool):
+        name = x.get("name") if isinstance(x, dict) else x
+        if name.lower() == player_name.lower():
+            pool.remove(x)
+            
+    # Add to squad
+    p.setdefault("squad", []).append({
+        "name": player_name,
+        "buy_price": int(buy_price),
+        "acquired_via": "reversed_release"
+    })
+    
+    # Deduct the refund that was wrongly given
+    p["budget"] = p.get("budget", 0) - int(refund_deducted)
+
+
+
 def reset_pin(room, participant, new_pin):
     by = _by(room)
     p = by.get(participant)

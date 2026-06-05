@@ -37,7 +37,7 @@ def reserved(open_bids: dict, participant: str, exclude_player: str = None) -> i
 
 
 def place_bid(participants_by_name: dict, open_bids: dict, player: dict, participant: str,
-              amount: int, *, raise_only: bool = False, max_squad: int = 30) -> None:
+              amount: int, expires_iso: str, *, raise_only: bool = False, max_squad: int = 30) -> None:
     p = participants_by_name.get(participant)
     if p is None:
         raise BidError(f"Unknown participant {participant!r}.")
@@ -65,14 +65,18 @@ def place_bid(participants_by_name: dict, open_bids: dict, player: dict, partici
         raise BidError(f"Bid exceeds your available budget ({available}M after outstanding bids).")
 
     open_bids[name] = {"high_bid": amount, "high_bidder": participant,
-                       "role": player.get("role", ""), "team": player.get("team", "")}
+                       "role": player.get("role", ""), "team": player.get("team", ""),
+                       "expires": expires_iso}
 
 
-def resolve_all(participants_by_name: dict, open_bids: dict, *, max_squad: int = 30) -> list[dict]:
-    """Award every standing bid to its high bidder (called at the deadline)."""
+def resolve_expired(participants_by_name: dict, open_bids: dict, now_iso: str, *, max_squad: int = 30) -> list[dict]:
+    """Award standing bids where the expiration time has been reached or passed."""
     awarded = []
     for name in list(open_bids.keys()):
         bid = open_bids[name]
+        if now_iso < bid.get("expires", now_iso):
+            continue  # not yet expired
+            
         p = participants_by_name.get(bid["high_bidder"])
         if p is not None and bid["high_bid"] <= p.get("budget", 0) and \
                 len(p.get("squad", [])) < max_squad:
@@ -88,6 +92,6 @@ def resolve_all(participants_by_name: dict, open_bids: dict, *, max_squad: int =
 
 def active_bids(open_bids: dict) -> list[dict]:
     out = [{"player": n, "high_bid": b["high_bid"], "high_bidder": b["high_bidder"],
-            "role": b.get("role", ""), "team": b.get("team", "")} for n, b in open_bids.items()]
+            "role": b.get("role", ""), "team": b.get("team", ""), "expires": b.get("expires", "")} for n, b in open_bids.items()]
     out.sort(key=lambda b: -b["high_bid"])
     return out

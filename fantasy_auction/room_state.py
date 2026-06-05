@@ -35,6 +35,7 @@ class RoomState(rx.State):
     locked_gws: list[str] = []
     view_locked_gw: str = ""
     locked_rows: list[dict[str, str]] = []
+    confirm_release_player: str = ""
     current_gameweek: str = "0"
     gw1_locked: bool = False
     next_deadline: str = ""
@@ -305,7 +306,12 @@ class RoomState(rx.State):
         self.msg = "Trade rejected."
 
     @rx.event
+    def set_confirm_release_player(self, player: str):
+        self.confirm_release_player = player
+
+    @rx.event
     def half_release(self, player: str):
+        self.confirm_release_player = ""
         self.msg = ""
         code, doc, room = self._load()
         if not room:

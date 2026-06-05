@@ -16,7 +16,7 @@ from season_engine.open_bidding import (
     BidError,
     active_bids,
     place_bid,
-    resolve_all,
+    resolve_expired,
 )
 
 from .config_layer import load_player_pool
@@ -103,8 +103,13 @@ def place(room, participant, player_name, amount, now: datetime) -> None:
     existing = any(k.lower() == player["name"].lower() for k in room.get("open_bids", {}))
     if st in ("no_new", "raise_only") and not existing:
         raise BidError("Bidding is closing — no new players, only raise existing bids.")
+    dl = bidding_deadline(room)
+    expiry = now + timedelta(hours=24)
+    if dl and dl < expiry:
+        expiry = dl
+        
     place_bid(_by(room), room.setdefault("open_bids", {}), player, participant, amount,
-              raise_only=(st == "raise_only"), max_squad=MAX_SQUAD)
+              expiry.isoformat(), raise_only=(st == "raise_only"), max_squad=MAX_SQUAD)
 
 
 def resolve_deadline(room, now: datetime) -> list[dict]:
@@ -112,8 +117,15 @@ def resolve_deadline(room, now: datetime) -> list[dict]:
     dl = bidding_deadline(room)
     if dl is None or now < dl or room.get("bids_resolved"):
         return []
-    awarded = resolve_all(_by(room), room.setdefault("open_bids", {}), max_squad=MAX_SQUAD)
+    awarded = resolve_expired(_by(room), room.setdefault("open_bids", {}), "9999-99-99", max_squad=MAX_SQUAD)
     room["bids_resolved"] = True
+    if awarded:
+        room.setdefault("transactions", []).extend(awarded)
+    return awarded
+
+def process_expired(room, now: datetime) -> list[dict]:
+    """Award bids that have reached their 24h individual expiration."""
+    awarded = resolve_expired(_by(room), room.setdefault("open_bids", {}), now.isoformat(), max_squad=MAX_SQUAD)
     if awarded:
         room.setdefault("transactions", []).extend(awarded)
     return awarded

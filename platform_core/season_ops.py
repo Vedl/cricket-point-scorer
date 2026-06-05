@@ -7,6 +7,7 @@ caller's job.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 
 from season_engine.knockout import select_for_elimination
@@ -109,9 +110,9 @@ def half_price_release(room: dict, participant: str, player_name: str) -> int:
         raise SeasonError(f"You don't own {player_name}.")
 
     if not room.get("gw1_locked"):
-        refund = e.get("buy_price", 0) // 2          # unlimited half-price pre-GW1
+        refund = math.ceil(e.get("buy_price", 0) / 2)  # unlimited half-price pre-GW1
     elif p.get("half_releases_this_gw", 0) < 1:
-        refund = e.get("buy_price", 0) // 2          # one half-price per GW
+        refund = math.ceil(e.get("buy_price", 0) / 2)  # one half-price per GW
         p["half_releases_this_gw"] = p.get("half_releases_this_gw", 0) + 1
     else:
         refund = 0                                    # further releases are free

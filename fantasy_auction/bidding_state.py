@@ -80,6 +80,9 @@ class BiddingState(rx.State):
         self.my_team = next((p["name"] for p in room.get("participants", [])
                              if p.get("user") == app.auth_user), "")
         self.msg = ""
+        awarded = bo.process_expired(room, datetime.now())
+        if awarded:
+            repo.save(doc)
         self._refresh(room)
         self.watching = True
         if not self.loop_running:
@@ -92,12 +95,22 @@ class BiddingState(rx.State):
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
             for p in bo.available_players(room, search=self.search, limit=50)
         ]
-        self.active = [
-            {"player": b["player"], "team": b["team"], "high_bid": str(b["high_bid"]),
-             "high_bidder": b["high_bidder"], "mine": "yes" if b["high_bidder"] == self.my_team else "no"}
-            for b in bo.active(room)
-        ]
         now = datetime.now()
+        
+        self.active = []
+        for b in bo.active(room):
+            expires_iso = b.get("expires", "")
+            time_left = ""
+            if expires_iso:
+                try:
+                    time_left = _countdown(datetime.fromisoformat(expires_iso), now)
+                except Exception:
+                    pass
+            self.active.append({
+                "player": b["player"], "team": b["team"], "high_bid": str(b["high_bid"]),
+                "high_bidder": b["high_bidder"], "expires": expires_iso, "time_left": time_left,
+                "mine": "yes" if b["high_bidder"] == self.my_team else "no"
+            })
         self.window = bo.window_state(room, now)
         self.window_label = _WINDOW_LABEL.get(self.window, "")
         dl = bo.bidding_deadline(room)
@@ -156,6 +169,16 @@ class BiddingState(rx.State):
                 # This keeps Firebase egress tiny even if a tab is left open.
                 room = repo.load_room(code)
                 if room is not None:
+                    now = datetime.now()
+                    now_iso = now.isoformat()
+                    has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
+                    if has_expired:
+                        _, doc, full_room = self._load()
+                        if full_room:
+                            if bo.process_expired(full_room, now):
+                                repo.save(doc)
+                            room = full_room
+                            
                     async with self:
                         self._refresh(room)
                 await asyncio.sleep(6)

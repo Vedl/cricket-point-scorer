@@ -63,3 +63,11 @@ reflex.lock/
 reflex_run.log
 
 docker_build.log
+.mcp.json
+*.zip
+test_*.py
+!platform_core/tests/test_*.py
+!season_engine/tests/test_*.py
+dump_db.py
+reflex.log
+test.txt

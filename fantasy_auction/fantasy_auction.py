@@ -445,8 +445,13 @@ def squad_row(p):
                           on_click=RoomState.clear_ir),
                 rx.button("IR", size="1", variant="ghost", color_scheme="amber",
                           on_click=RoomState.set_ir(p["name"]))),
-        rx.button("½ release", size="1", variant="ghost", color_scheme="red",
-                  on_click=RoomState.half_release(p["name"])),
+        rx.cond(
+            RoomState.confirm_release_player == p["name"],
+            rx.button("Confirm release", size="1", color_scheme="red",
+                      on_click=RoomState.half_release(p["name"])),
+            rx.button("½ release", size="1", variant="ghost", color_scheme="red",
+                      on_click=RoomState.set_confirm_release_player(p["name"]))
+        ),
         width="100%", align="center", spacing="3",
         style={"padding": "0.5rem 0.7rem", "border_radius": "10px",
                "background": rx.cond(p["ir"] == "yes", "rgba(251,191,36,0.07)", "transparent")},
@@ -745,7 +750,10 @@ def active_bid_row(b):
                   spacing="0", align="start"),
         rx.spacer(),
         rx.vstack(rx.text(b["high_bid"] + "M", style={"color": T.ACCENT, "font_family": T.MONO}),
-                  rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS), rx.box()),
+                  rx.hstack(
+                      rx.cond(b["time_left"] != "", rx.text("⏳ " + b["time_left"], style={"color": T.WARNING, "font_size": "0.78rem"})),
+                      rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS))
+                  ),
                   spacing="1", align="end"),
         width="100%", align="center",
         style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
@@ -1103,6 +1111,28 @@ def admin_page():
                           on_change=AdminState.set_field("fa_price"), width="90px"), spacing="2"),
                 T.primary_button("Add", on_click=AdminState.force_add, margin_top="0.4rem"),
                 spacing="2", width="100%"),
+            # Edit Budget & Reverse Release
+            T.card(T.section_title("💰 Edit Budget"), rx.box(height="0.5rem"),
+                rx.vstack(
+                    rx.select(AdminState.teams, placeholder="Select team", on_change=AdminState.set_edit_participant),
+                    rx.input(placeholder="Amount (+ or - M)", on_change=AdminState.set_edit_delta),
+                    rx.button("Adjust Budget", on_click=AdminState.do_edit_budget, color_scheme="blue", width="100%"),
+                    spacing="2", width="100%"
+                )
+            ),
+            
+            T.card(T.section_title("⏪ Reverse Release"), rx.box(height="0.5rem"),
+                rx.text("Undo an accidental release. Returns player to squad and deducts refund.", style={"color": T.MUTED, "font_size": "0.85rem", "margin_bottom": "0.5rem"}),
+                rx.vstack(
+                    rx.select(AdminState.teams, placeholder="Target team", on_change=AdminState.set_rev_participant),
+                    rx.input(placeholder="Player exact name", on_change=AdminState.set_rev_player),
+                    rx.input(placeholder="Original buy price (M)", on_change=AdminState.set_rev_buy),
+                    rx.input(placeholder="Refund given to deduct back (M)", on_change=AdminState.set_rev_refund),
+                    rx.button("Reverse Release", on_click=AdminState.do_reverse_release, color_scheme="orange", width="100%"),
+                    spacing="2", width="100%"
+                )
+            ),
+
             T.card(T.section_title("🗑️ Force release"), rx.box(height="0.5rem"),
                 rx.select(AdminState.teams, value=AdminState.fr_team, placeholder="Team",
                           on_change=AdminState.pick_fr_team, width="100%"),
