@@ -1293,25 +1293,7 @@ def _serve_prebuilt_frontend(reflex_asgi):
 
 app.api_transformer = _serve_prebuilt_frontend
 
-# lightweight diagnostic — curl https://.../backend/_health
-@app.api.get("/backend/_health")
-async def _health():
-    import time as _t
-    from starlette.responses import JSONResponse as _J
-    from fantasy_auction.state import repo
-    doc = repo.load()
-    users = list(doc.get("users", {}).keys())
-    rooms = list(doc.get("rooms", {}).keys())
-    s = repo.store
-    return _J({
-        "ok": len(users) > 0,
-        "firebase": s.use_remote,
-        "url": (s.database_url[:40] + "...") if s.database_url else "",
-        "users": len(users),
-        "rooms": len(rooms),
-        "sample": users[:5],
-        "cache_s": round(_t.monotonic() - s._cache_ts, 1) if s._cache is not None else None,
-    })
+
 app.add_page(index, route="/", title="Fantasy Sports", on_load=AppState.redirect_if_logged_in)
 app.add_page(rooms_page, route="/rooms", title="Your Rooms",
              on_load=[AppState.load_rooms, SchedulerState.ensure_running])
