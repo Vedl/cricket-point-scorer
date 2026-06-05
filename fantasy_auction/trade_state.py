@@ -152,10 +152,16 @@ class TradeState(rx.State):
             return
         gp = [self.give_player] if self.give_player else []
         rp = [self.get_player] if self.get_player else []
+        
+        loan_gw = ""
+        if self.is_loan:
+            cur_gw = int(room.get("current_gameweek", 1) or 1)
+            loan_gw = str(cur_gw + 1)
+            
         try:
             mo.propose_trade(room, self.me, self.counterparty, gp, rp,
                              int(self.give_cash or 0), int(self.get_cash or 0),
-                             is_loan=self.is_loan, loan_return_gw=self.loan_return_gw)
+                             is_loan=self.is_loan, loan_return_gw=loan_gw)
         except (TradeError, ValueError) as exc:
             self.msg = f"⚠️ {exc}"
             return
