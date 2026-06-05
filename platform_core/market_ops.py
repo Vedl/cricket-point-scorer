@@ -25,7 +25,7 @@ def _log(room: dict, rec: dict) -> None:
 
 # --- trades -------------------------------------------------------------- #
 def propose_trade(room, from_name, to_name, give_players, get_players,
-                  give_cash=0, get_cash=0) -> str:
+                  give_cash=0, get_cash=0, is_loan=False, loan_return_gw="") -> str:
     by = participants_by_name(room)
     if from_name not in by or to_name not in by:
         raise TradeError("Both participants must exist.")
@@ -40,6 +40,7 @@ def propose_trade(room, from_name, to_name, give_players, get_players,
         "id": tid, "from": from_name, "to": to_name,
         "give_players": list(give_players), "get_players": list(get_players),
         "give_cash": int(give_cash), "get_cash": int(get_cash), "status": "pending",
+        "is_loan": bool(is_loan), "loan_return_gw": str(loan_return_gw),
     })
     return tid
 
@@ -89,6 +90,30 @@ def admin_approve_trade(room, trade_id) -> dict:
     by = participants_by_name(room)
     rec = apply_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
                       t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD)
+                      
+    if t.get("is_loan"):
+        loans = room.setdefault("active_loans", [])
+        return_gw = t.get("loan_return_gw", "")
+        def _entry(participant, name):
+            return next((e for e in participant.get("squad", []) if e["name"].lower() == name.lower()), None)
+            
+        for p_name in t.get("give_players", []):
+            entry = _entry(by[t["to"]], p_name)
+            if entry:
+                entry["acquired_via"] = "loan"
+                loans.append({
+                    "id": uuid.uuid4().hex[:8], "from": t["from"], "to": t["to"],
+                    "player": p_name, "return_gameweek": str(return_gw), "entry": dict(entry)
+                })
+        for p_name in t.get("get_players", []):
+            entry = _entry(by[t["from"]], p_name)
+            if entry:
+                entry["acquired_via"] = "loan"
+                loans.append({
+                    "id": uuid.uuid4().hex[:8], "from": t["to"], "to": t["from"],
+                    "player": p_name, "return_gameweek": str(return_gw), "entry": dict(entry)
+                })
+                
     t["status"] = "approved"
     _log(room, rec)
     return rec

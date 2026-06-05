@@ -16,10 +16,11 @@ from .state import AppState, repo
 def _summary(t: dict, *, incoming: bool) -> str:
     gp = ", ".join(t["give_players"]) or "—"
     rp = ", ".join(t["get_players"]) or "—"
+    loan_sfx = f" (Loan till GW{t.get('loan_return_gw', '?')})" if t.get("is_loan") else ""
     if incoming:
         return (f"{t['from']} sends [{gp}] +{t['give_cash']}M  ↔  wants your "
-                f"[{rp}] +{t['get_cash']}M")
-    return (f"To {t['to']}: you send [{gp}] +{t['give_cash']}M  for [{rp}] +{t['get_cash']}M")
+                f"[{rp}] +{t['get_cash']}M{loan_sfx}")
+    return (f"To {t['to']}: you send [{gp}] +{t['give_cash']}M  for [{rp}] +{t['get_cash']}M{loan_sfx}")
 
 
 class TradeState(rx.State):
@@ -37,6 +38,9 @@ class TradeState(rx.State):
     get_player: str = ""
     give_cash: str = "0"
     get_cash: str = "0"
+    
+    is_loan: bool = False
+    loan_return_gw: str = ""
 
     incoming: list[dict[str, str]] = []
     outgoing: list[dict[str, str]] = []
@@ -103,7 +107,8 @@ class TradeState(rx.State):
         self.awaiting = [{"id": t["id"],
                           "text": f"{t['from']} ↔ {t['to']}: "
                                   f"[{', '.join(t['give_players']) or '—'}]+{t['give_cash']}M "
-                                  f"for [{', '.join(t['get_players']) or '—'}]+{t['get_cash']}M"}
+                                  f"for [{', '.join(t['get_players']) or '—'}]+{t['get_cash']}M" +
+                                  (f" (Loan till GW{t.get('loan_return_gw', '?')})" if t.get("is_loan") else "")}
                          for t in mo.trades_awaiting_admin(room)] if self.is_admin else []
         self.available = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
                           for p in mo.available_players(room)]
@@ -149,7 +154,8 @@ class TradeState(rx.State):
         rp = [self.get_player] if self.get_player else []
         try:
             mo.propose_trade(room, self.me, self.counterparty, gp, rp,
-                             int(self.give_cash or 0), int(self.get_cash or 0))
+                             int(self.give_cash or 0), int(self.get_cash or 0),
+                             is_loan=self.is_loan, loan_return_gw=self.loan_return_gw)
         except (TradeError, ValueError) as exc:
             self.msg = f"⚠️ {exc}"
             return

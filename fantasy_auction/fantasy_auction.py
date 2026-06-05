@@ -841,6 +841,14 @@ def trade_page():
                    on_change=TradeState.set_field("give_cash"), width="100%")),
             _field("Cash you want", rx.input(value=TradeState.get_cash, type="number",
                    on_change=TradeState.set_field("get_cash"), width="100%")),
+            _field("Is this a loan?", rx.checkbox(checked=TradeState.is_loan,
+                   on_change=TradeState.set_field("is_loan"), width="100%")),
+            rx.cond(
+                TradeState.is_loan,
+                _field("Return GW", rx.input(value=TradeState.loan_return_gw, type="number", placeholder="Gameweek",
+                       on_change=TradeState.set_field("loan_return_gw"), width="100%")),
+                rx.box()
+            ),
             columns=rx.breakpoints(initial="1", md="3"), spacing="3", width="100%"),
         T.primary_button("Send proposal", on_click=TradeState.propose, margin_top="0.6rem"),
         rx.text("All accepted trades require admin approval before they apply.",
