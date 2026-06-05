@@ -83,9 +83,13 @@ def cumulative_standings(
             ir = p.get("ir")
             if squads_by_gw and gw in squads_by_gw and p["name"] in squads_by_gw[gw]:
                 snap = squads_by_gw[gw][p["name"]]
-                squad = snap.get("squad", snap) if isinstance(snap, dict) else snap
                 if isinstance(snap, dict):
+                    squad = snap.get("squad", [])
                     ir = snap.get("ir", ir)
+                else:
+                    squad = snap
+                if not isinstance(squad, list):
+                    squad = []
             gw_participants.append({"name": p["name"], "squad": squad, "ir": ir})
 
         for row in gameweek_standings(gw_participants, scores, is_football=is_football,
