@@ -1114,8 +1114,8 @@ def admin_page():
             # Edit Budget & Reverse Release
             T.card(T.section_title("💰 Edit Budget"), rx.box(height="0.5rem"),
                 rx.vstack(
-                    rx.select(AdminState.teams, placeholder="Select team", on_change=AdminState.set_edit_participant),
-                    rx.input(placeholder="Amount (+ or - M)", on_change=AdminState.set_edit_delta),
+                    rx.select(AdminState.teams, placeholder="Select team", on_change=AdminState.set_field("edit_participant")),
+                    rx.input(placeholder="Amount (+ or - M)", on_change=AdminState.set_field("edit_delta")),
                     rx.button("Adjust Budget", on_click=AdminState.do_edit_budget, color_scheme="blue", width="100%"),
                     spacing="2", width="100%"
                 )
@@ -1124,10 +1124,10 @@ def admin_page():
             T.card(T.section_title("⏪ Reverse Release"), rx.box(height="0.5rem"),
                 rx.text("Undo an accidental release. Returns player to squad and deducts refund.", style={"color": T.MUTED, "font_size": "0.85rem", "margin_bottom": "0.5rem"}),
                 rx.vstack(
-                    rx.select(AdminState.teams, placeholder="Target team", on_change=AdminState.set_rev_participant),
-                    rx.input(placeholder="Player exact name", on_change=AdminState.set_rev_player),
-                    rx.input(placeholder="Original buy price (M)", on_change=AdminState.set_rev_buy),
-                    rx.input(placeholder="Refund given to deduct back (M)", on_change=AdminState.set_rev_refund),
+                    rx.select(AdminState.teams, placeholder="Target team", on_change=AdminState.set_field("rev_participant")),
+                    rx.input(placeholder="Player exact name", on_change=AdminState.set_field("rev_player")),
+                    rx.input(placeholder="Original buy price (M)", on_change=AdminState.set_field("rev_buy")),
+                    rx.input(placeholder="Refund given to deduct back (M)", on_change=AdminState.set_field("rev_refund")),
                     rx.button("Reverse Release", on_click=AdminState.do_reverse_release, color_scheme="orange", width="100%"),
                     spacing="2", width="100%"
                 )
