@@ -211,6 +211,13 @@ class FirebaseStore:
             # Don't clobber the snapshot if a local write is queued/in-flight.
             if resp.status_code == 200 and self._pending is None:
                 data = self._ensure_schema(self._normalize(resp.json()))
+                
+                # Prevent clobbering local data with stale Firebase data due to multi-worker race conditions
+                local_v = self._cache.get("_v", 0) if self._cache else 0
+                remote_v = data.get("_v", 0)
+                if remote_v < local_v:
+                    return  # Firebase returned stale data (a PUT from another worker is likely in flight)
+
                 self._cache = copy.deepcopy(data)
                 self._cache_ts = time.monotonic()
                 self._sync_room_cache(data)
@@ -246,6 +253,7 @@ class FirebaseStore:
     def save(self, data: dict) -> None:
         """Persist the whole document: local cache always, Firebase if configured."""
         data = self._ensure_schema(data)
+        data["_v"] = int(time.time() * 1000)  # Add timestamp to prevent stale remote clobbering
         self._write_local(data)
         # Write-through: refresh the snapshot so the next load reflects this save.
         self._cache = copy.deepcopy(data)
