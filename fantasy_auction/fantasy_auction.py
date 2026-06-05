@@ -1125,9 +1125,10 @@ def admin_page():
                 rx.text("Undo an accidental release. Returns player to squad and deducts refund.", style={"color": T.MUTED, "font_size": "0.85rem", "margin_bottom": "0.5rem"}),
                 rx.vstack(
                     rx.select(AdminState.teams, placeholder="Target team", on_change=AdminState.set_field("rev_participant")),
-                    rx.input(placeholder="Player exact name", on_change=AdminState.set_field("rev_player")),
-                    rx.input(placeholder="Original buy price (M)", on_change=AdminState.set_field("rev_buy")),
-                    rx.input(placeholder="Refund given to deduct back (M)", on_change=AdminState.set_field("rev_refund")),
+                    rx.select(AdminState.rev_player_options, placeholder="Select released player", 
+                              value=AdminState.rev_player, on_change=AdminState.pick_rev_player),
+                    rx.input(placeholder="Original buy price (M)", value=AdminState.rev_buy, on_change=AdminState.set_field("rev_buy")),
+                    rx.input(placeholder="Refund given to deduct back (M)", value=AdminState.rev_refund, on_change=AdminState.set_field("rev_refund")),
                     rx.button("Reverse Release", on_click=AdminState.do_reverse_release, color_scheme="orange", width="100%"),
                     spacing="2", width="100%"
                 )

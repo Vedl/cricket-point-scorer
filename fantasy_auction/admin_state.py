@@ -235,6 +235,43 @@ class AdminState(rx.State):
         repo.save(doc)
         return rx.redirect("/rooms")
 
+    @rx.var(cache=True)
+    def rev_player_options(self) -> list[str]:
+        code, doc, room = self._load()
+        if not room or not self.rev_participant:
+            return []
+        opts = []
+        for t in room.get("transactions", []):
+            if t.get("type") in ("release", "half_release") and t.get("participant") == self.rev_participant:
+                opts.append(t["player"])
+        return list(dict.fromkeys(opts))
+
+    @rx.event
+    def pick_rev_player(self, player_name: str):
+        self.rev_player = player_name
+        code, doc, room = self._load()
+        if not room:
+            return
+            
+        refund = 0
+        for t in reversed(room.get("transactions", [])):
+            if t.get("type") in ("release", "half_release") and t.get("participant") == self.rev_participant and t.get("player") == player_name:
+                refund = t.get("refund", 0)
+                break
+                
+        buy_price = 0
+        for t in room.get("transactions", []):
+            if t.get("type") in ("market_buy", "auction_buy", "trade") and t.get("player") == player_name and t.get("participant", t.get("to")) == self.rev_participant:
+                buy_price = t.get("amount", t.get("price", 0))
+                
+        if buy_price == 0:
+            for log in room.get("auction_log", []):
+                if log.get("player") == player_name and log.get("winner") == self.rev_participant:
+                    buy_price = log.get("price", 0)
+                    
+        self.rev_refund = str(refund)
+        self.rev_buy = str(buy_price)
+
     @rx.event
     def do_reverse_release(self):
         self._do(lambda room, doc: ao.reverse_release(
