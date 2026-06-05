@@ -65,7 +65,8 @@ class ScheduleState(rx.State):
         sched = _schedule(self.tournament)
         g = next((x for x in sched if x["gw"] == self.selected_gw), None)
         self.gw_name = g["name"] if g else ""
-        urls = room.get("fixture_urls", {}).get(self.selected_gw, {}) if room else {}
+        urls_raw = room.get("fixture_urls", {}).get(self.selected_gw, {}) if room else {}
+        urls = {str(i): v for i, v in enumerate(urls_raw)} if isinstance(urls_raw, list) else urls_raw
         self.matches = [
             {"teams": mt["teams"], "date": mt["date"], "time": mt["time"], "venue": mt["venue"],
              "idx": str(i), "url": urls.get(str(i), "")}
@@ -102,7 +103,8 @@ class ScheduleState(rx.State):
             async with self:
                 self.scoring_running = False
             return
-        links = [u for u in room.get("fixture_urls", {}).get(gw, {}).values() if u]
+        urls_raw = room.get("fixture_urls", {}).get(gw, {})
+        links = [u for u in urls_raw if u] if isinstance(urls_raw, list) else [u for u in urls_raw.values() if u]
         if not links:
             async with self:
                 self.scoring_running = False
