@@ -3463,6 +3463,7 @@ async def trade_admin_action(req: TradeAdminRequest):
             fail_reason = "Buyer insufficient funds"
         else:
             sender["squad"].remove(p_obj)
+            p_obj["buy_price"] = t_price
             receiver["squad"].append(p_obj)
             sender["budget"] = float(sender.get("budget", 0)) + t_price
             receiver["budget"] = float(receiver.get("budget", 0)) - t_price
@@ -3477,6 +3478,7 @@ async def trade_admin_action(req: TradeAdminRequest):
             fail_reason = "Buyer insufficient funds"
         else:
             receiver["squad"].remove(p_obj)
+            p_obj["buy_price"] = t_price
             sender["squad"].append(p_obj)
             receiver["budget"] = float(receiver.get("budget", 0)) + t_price
             sender["budget"] = float(sender.get("budget", 0)) - t_price
