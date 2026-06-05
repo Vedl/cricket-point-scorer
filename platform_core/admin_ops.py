@@ -134,6 +134,10 @@ def rename_team(room: dict, old_name: str, new_name: str) -> None:
         if b.get("highest_bidder") == old_name:
             b["highest_bidder"] = new_name
             
+    for b in room.get("open_bids", {}).values():
+        if b.get("high_bidder") == old_name:
+            b["high_bidder"] = new_name
+            
     for t in room.get("pending_trades", []):
         if t.get("proposer") == old_name:
             t["proposer"] = new_name

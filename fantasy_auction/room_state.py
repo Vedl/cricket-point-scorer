@@ -70,7 +70,7 @@ class RoomState(rx.State):
             repo.save(doc)
             self.rename_error = ""
             self.my_team = self.rename_input.strip()
-            self.poll_room()
+            self._refresh(room)
             return rx.window_alert(f"Team successfully renamed to {self.my_team}!")
         except AdminError as e:
             self.rename_error = str(e)
