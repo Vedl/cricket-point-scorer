@@ -120,7 +120,7 @@ def half_price_release(room: dict, participant: str, player_name: str) -> int:
     p["squad"].remove(e)
     p["budget"] = p.get("budget", 0) + refund
     room.setdefault("transactions", []).append(
-        {"type": "half_release", "participant": participant, "player": player_name, "refund": refund})
+        {"ts": datetime.now().isoformat(), "type": "half_release", "participant": participant, "player": player_name, "refund": refund})
     return refund
 
 

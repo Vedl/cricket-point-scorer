@@ -8,6 +8,7 @@ functions. Pure dict ops; persistence is the caller's job.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from season_engine.market import release_player, resolve_sealed_bids
 from season_engine.trading import TradeError, apply_trade, validate_trade
@@ -20,6 +21,7 @@ def participants_by_name(room: dict) -> dict[str, dict]:
 
 
 def _log(room: dict, rec: dict) -> None:
+    rec["ts"] = datetime.now().isoformat()
     room.setdefault("transactions", []).append(rec)
 
 

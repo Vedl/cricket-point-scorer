@@ -112,7 +112,7 @@ class TradeState(rx.State):
                          for t in mo.trades_awaiting_admin(room)] if self.is_admin else []
         self.available = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
                           for p in mo.available_players(room)]
-        self.txns = [{"text": self._txn_text(t)} for t in reversed(mo.transactions(room)[-15:])]
+        self.txns = [{"text": self._txn_text(t), "ts": t.get("ts", "")} for t in reversed(mo.transactions(room)[-15:])]
 
     @staticmethod
     def _txn_text(t: dict) -> str:

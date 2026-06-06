@@ -114,3 +114,12 @@ def stat(label: str, value, accent=ACCENT) -> rx.Component:
                                  "font_weight": "700"}),
         style={"padding": "1rem 1.25rem"},
     )
+
+class Countdown(rx.Component):
+    """Wrapper for react-countdown to provide a live-ticking timer."""
+    library = "react-countdown"
+    tag = "Countdown"
+    is_default = True
+    date: rx.Var[str]
+
+countdown = Countdown.create

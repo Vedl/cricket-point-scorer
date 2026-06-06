@@ -26,14 +26,7 @@ def _countdown(when, now) -> str:
     secs = int((when - now).total_seconds())
     if secs <= 0:
         return "passed"
-    d, rest = divmod(secs, 86400)
-    h, rest = divmod(rest, 3600)
-    m, s = divmod(rest, 60)
-    if d:
-        return f"in {d}d {h}h {m}m"
-    if h:
-        return f"in {h}h {m}m {s}s"
-    return f"in {m}m {s}s"
+    return when.isoformat()
 
 
 class BiddingState(rx.State):
@@ -52,6 +45,7 @@ class BiddingState(rx.State):
     window_label: str = ""
     deadline_str: str = ""
     milestones: list[dict[str, str]] = []
+    all_available_player_names: list[str] = []
     msg: str = ""
 
     watching: bool = False
@@ -95,6 +89,7 @@ class BiddingState(rx.State):
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
             for p in bo.available_players(room, search=self.search, limit=50)
         ]
+        self.all_available_player_names = [p["name"] for p in bo.available_players(room, limit=1000)]
         now = datetime.now()
         
         self.active = []

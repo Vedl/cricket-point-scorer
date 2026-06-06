@@ -742,23 +742,7 @@ def available_row(p):
     )
 
 
-def active_bid_row(b):
-    return rx.hstack(
-        rx.vstack(rx.text(b["player"], style={"color": T.TEXT, "font_weight": "500"}),
-                  rx.text(b["high_bidder"] + " · " + b["team"],
-                          style={"color": T.MUTED, "font_size": "0.78rem"}),
-                  spacing="0", align="start"),
-        rx.spacer(),
-        rx.vstack(rx.text(b["high_bid"] + "M", style={"color": T.ACCENT, "font_family": T.MONO}),
-                  rx.hstack(
-                      rx.cond(b["time_left"] != "", rx.text("⏳ " + b["time_left"], style={"color": T.WARNING, "font_size": "0.78rem"})),
-                      rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS))
-                  ),
-                  spacing="1", align="end"),
-        width="100%", align="center",
-        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
-               "border_radius": "10px", "padding": "0.55rem 0.8rem"},
-    )
+# active_bid_row has been removed in favor of a data table.
 
 
 def bidding_page():
@@ -783,8 +767,11 @@ def bidding_page():
                     rx.foreach(BiddingState.milestones, lambda m: rx.hstack(
                         rx.text(m["label"], style={"color": T.MUTED, "font_size": "0.85rem"}),
                         rx.spacer(),
-                        rx.text(m["left"], style={"color": T.ACCENT, "font_family": T.MONO,
-                                "font_size": "0.85rem"}),
+                        rx.cond(
+                            m["left"] == "passed",
+                            rx.text("passed", style={"color": T.MUTED, "font_family": T.MONO, "font_size": "0.85rem"}),
+                            rx.text(T.countdown(date=m["left"]), style={"color": T.ACCENT, "font_family": T.MONO, "font_size": "0.85rem"})
+                        ),
                         width="100%", align="center")),
                     spacing="1", width="100%"),
             ),
@@ -793,8 +780,15 @@ def bidding_page():
         rx.box(height="0.5rem"),
         T.card(
             rx.hstack(
-                rx.input(value=BiddingState.bid_player, on_change=BiddingState.set_field("bid_player"),
-                         placeholder="Player to bid on", width="40%"),
+                rx.box(
+                    rx.input(value=BiddingState.bid_player, on_change=BiddingState.set_field("bid_player"),
+                             placeholder="Player to bid on", width="100%", id="bid_player_input", list="available-players"),
+                    rx.el.datalist(
+                        rx.foreach(BiddingState.all_available_player_names, lambda p: rx.el.option(value=p)),
+                        id="available-players"
+                    ),
+                    width="40%"
+                ),
                 rx.input(value=BiddingState.bid_amount, on_change=BiddingState.set_field("bid_amount"),
                          placeholder="Amount (M)", type="number", width="120px"),
                 T.primary_button("Place bid", on_click=BiddingState.place_bid),
@@ -818,8 +812,39 @@ def bidding_page():
                 T.section_title("⏳ Active bids"),
                 rx.box(height="0.7rem"),
                 rx.cond(BiddingState.active.length() > 0,
-                        rx.vstack(rx.foreach(BiddingState.active, active_bid_row), spacing="2",
-                                  width="100%"),
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Player"),
+                                    rx.table.column_header_cell("Highest Bid"),
+                                    rx.table.column_header_cell("Time Left"),
+                                )
+                            ),
+                            rx.table.body(
+                                rx.foreach(BiddingState.active, lambda b: rx.table.row(
+                                    rx.table.row_header_cell(
+                                        rx.vstack(rx.text(b["player"], style={"color": T.TEXT, "font_weight": "500"}),
+                                                  rx.text(b["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+                                                  spacing="0", align="start")
+                                    ),
+                                    rx.table.cell(
+                                        rx.vstack(rx.text(b["high_bid"] + "M", style={"color": T.ACCENT, "font_family": T.MONO, "font_weight": "bold"}),
+                                                  rx.hstack(rx.text(b["high_bidder"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+                                                            rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS)),
+                                                            spacing="1"),
+                                                  spacing="0", align="start")
+                                    ),
+                                    rx.table.cell(
+                                        rx.cond(
+                                            b["time_left"] == "passed",
+                                            rx.text("passed", style={"color": T.DANGER, "font_size": "0.85rem"}),
+                                            rx.hstack(rx.text("⏳", size="1"), rx.text(T.countdown(date=b["time_left"]), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"}))
+                                        )
+                                    )
+                                ))
+                            ),
+                            width="100%", variant="surface", size="1"
+                        ),
                         rx.text("No active bids yet.", style={"color": T.MUTED})),
                 width="100%"),
             columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
@@ -902,8 +927,10 @@ def trade_page():
         T.card(T.section_title("📜 Transactions"), rx.box(height="0.6rem"),
                rx.cond(TradeState.txns.length() > 0,
                        rx.vstack(rx.foreach(TradeState.txns,
-                                 lambda e: rx.text(e["text"], style={"color": T.MUTED,
-                                           "font_size": "0.83rem"})), spacing="1", width="100%",
+                                 lambda e: rx.hstack(
+                                     rx.cond(e["ts"] != "", rx.text(rx.moment(date=e["ts"], format="DD MMM HH:mm"), style={"color": T.PRIMARY, "font_size": "0.75rem", "font_family": T.MONO, "width": "90px"})),
+                                     rx.text(e["text"], style={"color": T.MUTED, "font_size": "0.83rem"})
+                                 )), spacing="1", width="100%",
                                  align="start"),
                        rx.text("No transactions yet.", style={"color": T.MUTED})), width="100%"),
     )
@@ -1087,7 +1114,7 @@ def admin_page():
         _admin_band("⚙️", "Gameweek control",
                     "Scores, the bidding deadline that drives the whole gameweek, and knockouts."),
         rx.cond(AdminState.is_admin, gameweek_admin_panel()),
-        _admin_band("👥", "Roster & access", "Force moves, budgets, PINs and the +100M boost."),
+        _admin_band("👥", "Roster Control", "Force moves, editing budgets, and reversing releases."),
         rx.grid(
             T.card(T.section_title("➕ Force add"), rx.box(height="0.5rem"),
                 rx.select(AdminState.teams, value=AdminState.fa_team, placeholder="Team",
@@ -1144,13 +1171,10 @@ def admin_page():
                             on_change=AdminState.set_field("fr_refund")),
                 rx.button("Release", on_click=AdminState.force_release, color_scheme="red",
                           variant="soft", margin_top="0.4rem"), spacing="2", width="100%"),
-            T.card(T.section_title("💰 Adjust budget"), rx.box(height="0.5rem"),
-                rx.select(AdminState.teams, value=AdminState.bud_team, placeholder="Team",
-                          on_change=AdminState.set_field("bud_team"), width="100%"),
-                rx.input(value=AdminState.bud_delta, placeholder="+/- M", type="number",
-                         on_change=AdminState.set_field("bud_delta")),
-                rx.button("Apply", on_click=AdminState.adjust_budget, variant="soft",
-                          margin_top="0.4rem"), spacing="2", width="100%"),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
+
+        _admin_band("🔑", "Access & Economy", "Team PINs and the overall budget boosts."),
+        rx.grid(
             T.card(T.section_title("🔑 Reset PIN"), rx.box(height="0.5rem"),
                 rx.select(AdminState.teams, value=AdminState.pin_team, placeholder="Team",
                           on_change=AdminState.set_field("pin_team"), width="100%"),
@@ -1158,54 +1182,47 @@ def admin_page():
                          on_change=AdminState.set_field("pin_value")),
                 rx.button("Set PIN", on_click=AdminState.reset_pin, variant="soft",
                           margin_top="0.4rem"), spacing="2", width="100%"),
-            columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
-        T.card(
-            rx.hstack(
+            T.card(
                 rx.vstack(T.section_title("🔑 Distribute PINs"),
                           rx.text("Auto-generate a unique 4-digit PIN for every unclaimed team "
-                                  "(e.g. after CSV import). Share the list with participants so "
-                                  "they can join the room.",
+                                  "(e.g. after CSV import).",
                                   style={"color": T.MUTED, "font_size": "0.82rem"}),
-                          spacing="1", align="start"),
-                rx.spacer(),
-                T.primary_button("Generate PINs", on_click=AdminState.distribute_pins),
-                width="100%", align="center", spacing="3"),
-            rx.cond(
-                AdminState.show_pins,
-                rx.vstack(
-                    rx.divider(margin_y="0.7rem"),
-                    rx.table.root(
-                        rx.table.header(rx.table.row(
-                            rx.table.column_header_cell("Team"),
-                            rx.table.column_header_cell("PIN"))),
-                        rx.table.body(rx.foreach(AdminState.pin_summary, lambda p: rx.table.row(
-                            rx.table.row_header_cell(p["name"]),
-                            rx.table.cell(rx.code(p["pin"]))))),
-                        width="100%"),
-                    rx.hstack(
-                        rx.button("Copy all", variant="soft", size="2",
-                                  on_click=rx.set_clipboard(
-                                      AdminState.pin_clipboard_text)),
-                        rx.button("Hide", variant="ghost", size="2", color_scheme="gray",
-                                  on_click=AdminState.hide_pins),
-                        spacing="3", margin_top="0.4rem"),
-                    spacing="2", width="100%"),
-            ),
-            width="100%"),
-        T.card(
-            rx.hstack(
+                          T.primary_button("Generate PINs", on_click=AdminState.distribute_pins),
+                          spacing="2", align="start"),
+                rx.cond(
+                    AdminState.show_pins,
+                    rx.vstack(
+                        rx.divider(margin_y="0.7rem"),
+                        rx.table.root(
+                            rx.table.header(rx.table.row(
+                                rx.table.column_header_cell("Team"),
+                                rx.table.column_header_cell("PIN"))),
+                            rx.table.body(rx.foreach(AdminState.pin_summary, lambda p: rx.table.row(
+                                rx.table.row_header_cell(p["name"]),
+                                rx.table.cell(rx.code(p["pin"]))))),
+                            width="100%"),
+                        rx.hstack(
+                            rx.button("Copy all", variant="soft", size="2",
+                                      on_click=rx.set_clipboard(
+                                          AdminState.pin_clipboard_text)),
+                            rx.button("Hide", variant="ghost", size="2", color_scheme="gray",
+                                      on_click=AdminState.hide_pins),
+                            spacing="3", margin_top="0.4rem"),
+                        spacing="2", width="100%"),
+                ),
+                width="100%"),
+            T.card(
                 rx.vstack(T.section_title("💰 Budget boost"),
                           rx.text("Give every team +100M (e.g. after Gameweek 1 squads lock).",
                                   style={"color": T.MUTED, "font_size": "0.82rem"}),
-                          spacing="1", align="start"),
-                rx.spacer(),
-                rx.cond(
-                    AdminState.manual_boost_applied,
-                    rx.text("✅ +100M Applied", size="2", color="green", weight="bold"),
-                    T.primary_button("+100M to everyone", on_click=AdminState.boost_all),
-                ),
-                width="100%", align="center", spacing="3"),
-            width="100%"),
+                          rx.cond(
+                              AdminState.manual_boost_applied,
+                              rx.text("✅ +100M Applied", size="2", color="green", weight="bold"),
+                              T.primary_button("+100M to everyone", on_click=AdminState.boost_all),
+                          ),
+                          spacing="2", align="start"),
+                width="100%"),
+            columns=rx.breakpoints(initial="1", md="3"), spacing="4", width="100%"),
         _admin_band("🔁", "Loans", "Temporarily move a player between teams, with a return gameweek."),
         T.card(T.section_title("🔁 Loans"), rx.box(height="0.5rem"),
             rx.hstack(rx.select(AdminState.teams, value=AdminState.loan_from, placeholder="From",

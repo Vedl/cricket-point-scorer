@@ -84,7 +84,7 @@ def resolve_expired(participants_by_name: dict, open_bids: dict, now_iso: str, *
                                "team": bid.get("team", ""), "buy_price": bid["high_bid"],
                                "acquired_via": "market"})
             p["budget"] = p.get("budget", 0) - bid["high_bid"]
-            awarded.append({"type": "market_buy", "participant": p["name"],
+            awarded.append({"ts": now_iso, "type": "market_buy", "participant": p["name"],
                             "player": name, "amount": bid["high_bid"]})
         del open_bids[name]
     return awarded
