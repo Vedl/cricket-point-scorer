@@ -266,7 +266,7 @@ class AdminState(rx.State):
                 
         if buy_price == 0:
             for log in room.get("auction_log", []):
-                if log.get("player") == player_name and log.get("winner") == self.rev_participant:
+                if log.get("player") == player_name and log.get("buyer") == self.rev_participant:
                     buy_price = log.get("price", 0)
                     
         self.rev_refund = str(refund)

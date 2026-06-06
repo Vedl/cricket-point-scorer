@@ -86,9 +86,9 @@ def reverse_release(room: dict, participant: str, player_name: str, buy_price: i
         if name.lower() == player_name.lower():
             pool.remove(x)
             
-    from platform_core.config_layer import load_player_pool
+    from platform_core.config_layer import load_player_pool, _slug
     pool_all = load_player_pool(room.get("tournament_type", "T20 World Cup"))
-    p_info = next((p for p in pool_all if p.name.lower() == player_name.lower()), None)
+    p_info = next((p for p in pool_all if _slug(p.name) == _slug(player_name)), None)
     
     # Add to squad
     p.setdefault("squad", []).append({
