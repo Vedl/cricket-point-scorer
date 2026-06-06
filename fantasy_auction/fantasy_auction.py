@@ -784,7 +784,7 @@ def bidding_page():
                     rx.input(value=BiddingState.bid_player, on_change=BiddingState.set_field("bid_player"),
                              placeholder="Player to bid on", width="100%", id="bid_player_input", list="available-players"),
                     rx.el.datalist(
-                        rx.foreach(BiddingState.all_available_player_names, lambda p: rx.el.option(value=p)),
+                        rx.foreach(BiddingState.all_available_players, lambda p: rx.el.option(p["role"] + " · " + p["team"], value=p["name"])),
                         id="available-players"
                     ),
                     width="40%"
@@ -824,7 +824,7 @@ def bidding_page():
                                 rx.foreach(BiddingState.active, lambda b: rx.table.row(
                                     rx.table.row_header_cell(
                                         rx.vstack(rx.text(b["player"], style={"color": T.TEXT, "font_weight": "500"}),
-                                                  rx.text(b["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+                                                  rx.text(b["role"] + " · " + b["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
                                                   spacing="0", align="start")
                                     ),
                                     rx.table.cell(

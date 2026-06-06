@@ -45,7 +45,7 @@ class BiddingState(rx.State):
     window_label: str = ""
     deadline_str: str = ""
     milestones: list[dict[str, str]] = []
-    all_available_player_names: list[str] = []
+    all_available_players: list[dict[str, str]] = []
     msg: str = ""
 
     watching: bool = False
@@ -89,7 +89,10 @@ class BiddingState(rx.State):
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
             for p in bo.available_players(room, search=self.search, limit=50)
         ]
-        self.all_available_player_names = [p["name"] for p in bo.available_players(room, limit=1000)]
+        self.all_available_players = [
+            {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")} 
+            for p in bo.available_players(room, limit=1000)
+        ]
         now = datetime.now()
         
         self.active = []
@@ -102,7 +105,7 @@ class BiddingState(rx.State):
                 except Exception:
                     pass
             self.active.append({
-                "player": b["player"], "team": b["team"], "high_bid": str(b["high_bid"]),
+                "player": b["player"], "team": b["team"], "role": b.get("role", ""), "high_bid": str(b["high_bid"]),
                 "high_bidder": b["high_bidder"], "expires": expires_iso, "time_left": time_left,
                 "mine": "yes" if b["high_bidder"] == self.my_team else "no"
             })
