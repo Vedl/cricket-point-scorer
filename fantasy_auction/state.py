@@ -170,7 +170,49 @@ class AppState(rx.State):
     @rx.event
     def handle_logout(self):
         self.auth_user = ""
+        self.logged_in = False
         return rx.redirect("/")
+
+    @rx.event
+    async def force_refresh(self):
+        path = self.router.page.path
+        if "/bidding" in path:
+            from fantasy_auction.bidding_state import BiddingState
+            b = await self.get_state(BiddingState)
+            await b.on_load_bidding()
+        elif "/trade" in path:
+            from fantasy_auction.trade_state import TradeState
+            t = await self.get_state(TradeState)
+            await t.on_load_trade()
+        elif "/schedule" in path:
+            from fantasy_auction.schedule_state import ScheduleState
+            sc = await self.get_state(ScheduleState)
+            await sc.on_load_schedule()
+        elif "/standings" in path:
+            from fantasy_auction.season_state import SeasonState
+            s = await self.get_state(SeasonState)
+            await s.on_load_standings()
+            from fantasy_auction.room_state import RoomState
+            rs = await self.get_state(RoomState)
+            await rs.on_load_hub()
+        elif "/admin" in path:
+            from fantasy_auction.admin_state import AdminState
+            a = await self.get_state(AdminState)
+            await a.on_load_admin()
+            from fantasy_auction.season_state import SeasonState
+            s = await self.get_state(SeasonState)
+            await s.on_load_standings()
+            from fantasy_auction.room_state import RoomState
+            rs = await self.get_state(RoomState)
+            await rs.on_load_hub()
+        elif "/room" in path or "/squads" in path:
+            from fantasy_auction.room_state import RoomState
+            rs = await self.get_state(RoomState)
+            await rs.on_load_hub()
+        elif "/rooms" in path:
+            await self.load_rooms()
+        elif "/setup" in path:
+            await self.load_setup()
 
     @rx.event
     def handle_reset_password(self):

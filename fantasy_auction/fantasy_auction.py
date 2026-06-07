@@ -58,6 +58,7 @@ def _topbar():
                 rx.hstack(
                     rx.box(AppState.auth_user, style={"color": T.ACCENT, "font_weight": "600",
                            "font_size": "0.9rem"}),
+                    rx.button(rx.icon("refresh-cw", size=14), "Refresh", on_click=AppState.force_refresh, variant="soft", size="2", color_scheme="blue"),
                     rx.button("Logout", on_click=AppState.handle_logout, variant="soft",
                               size="2", color_scheme="gray"),
                     align="center", spacing="3")),
