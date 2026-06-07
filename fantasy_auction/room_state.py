@@ -44,6 +44,7 @@ class RoomState(rx.State):
     msg: str = ""
     rename_input: str = ""
     rename_error: str = ""
+    squad_sort_by: str = "Price"
     # --- personal dashboard (the "hub") ---
     my_rank: str = "—"
     my_points: str = "0"
@@ -51,6 +52,14 @@ class RoomState(rx.State):
     my_bids_total: str = "0"
     my_wins: list[dict[str, str]] = []          # open-bidding wins since my last visit
     hub_trades: list[dict[str, str]] = []       # trades proposed TO me (pending)
+
+    @rx.event
+    def select_sort_by(self, val: str):
+        self.squad_sort_by = val
+        code, doc, room = self._load()
+        if room:
+            self._refresh(room)
+            self._compute_view(room)
 
     @rx.event
     def set_field(self, name: str, value):
@@ -162,14 +171,36 @@ class RoomState(rx.State):
         me = by.get(self.my_team, {})
         self.my_budget = me.get("budget", 0)
         self.my_ir = me.get("ir") or ""
+        
+        from platform_core.season_ops import _is_football
+        is_fb = _is_football(room)
+        
+        def get_pos_weight(role_str):
+            r = (role_str or "").lower()
+            if is_fb:
+                if "keeper" in r or r == "gk": return 1
+                if "def" in r or "back" in r: return 2
+                if "mid" in r: return 3
+                return 4
+            else:
+                if "keep" in r or "wk" in r: return 1
+                if "bat" in r: return 2
+                if "all" in r or "ar" in r: return 3
+                if "bowl" in r: return 4
+                return 5
+
+        squad_data = me.get("squad", [])
+        if self.squad_sort_by == "Position":
+            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -x.get("buy_price", 0)))
+        else:
+            sorted_squad = sorted(squad_data, key=lambda x: -x.get("buy_price", 0))
+
         self.my_squad = [
             {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
              "ir": "yes" if e["name"] == me.get("ir") else "no"}
-            for e in sorted(me.get("squad", []), key=lambda x: -x.get("buy_price", 0))
+            for e in sorted_squad
         ]
-        from platform_core.season_ops import _is_football
-        is_fb = _is_football(room)
         p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
 
         def _counts(sq):
@@ -219,11 +250,35 @@ class RoomState(rx.State):
         p = by.get(self.view_team_sel, {})
         self.view_budget = str(p.get("budget", 0))
         self.view_ir = p.get("ir") or ""
+        
+        from platform_core.season_ops import _is_football
+        is_fb = _is_football(room)
+        
+        def get_pos_weight(role_str):
+            r = (role_str or "").lower()
+            if is_fb:
+                if "keeper" in r or r == "gk": return 1
+                if "def" in r or "back" in r: return 2
+                if "mid" in r: return 3
+                return 4
+            else:
+                if "keep" in r or "wk" in r: return 1
+                if "bat" in r: return 2
+                if "all" in r or "ar" in r: return 3
+                if "bowl" in r: return 4
+                return 5
+
+        squad_data = p.get("squad", [])
+        if self.squad_sort_by == "Position":
+            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -x.get("buy_price", 0)))
+        else:
+            sorted_squad = sorted(squad_data, key=lambda x: -x.get("buy_price", 0))
+
         self.view_squad = [
             {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
              "ir": "yes" if e["name"] == p.get("ir") else "no"}
-            for e in sorted(p.get("squad", []), key=lambda x: -x.get("buy_price", 0))
+            for e in sorted_squad
         ]
 
     def _compute_locked(self, room: dict):

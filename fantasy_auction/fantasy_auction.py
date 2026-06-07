@@ -575,8 +575,9 @@ def room_page():
                         )
                     ),
                     rx.spacer(),
+                    rx.select(["Price", "Position"], value=RoomState.squad_sort_by, on_change=RoomState.select_sort_by, width="110px", variant="soft"),
                     T.pill(RoomState.my_squad.length().to_string() + " players", T.PRIMARY),
-                    width="100%", align="center"),
+                    width="100%", align="center", spacing="2"),
                 rx.box(height="0.7rem"),
                 rx.cond(RoomState.my_squad.length() > 0,
                         rx.vstack(rx.foreach(RoomState.my_squad, squad_row), spacing="1",
@@ -704,8 +705,11 @@ def squads_page():
                   rx.select(RoomState.all_team_names, value=RoomState.view_team_sel,
                             on_change=RoomState.select_view_team, width="240px"),
                   rx.spacer(),
+                  rx.text("Sort by:", style={"color": T.MUTED}),
+                  rx.select(["Price", "Position"], value=RoomState.squad_sort_by,
+                            on_change=RoomState.select_sort_by, width="110px", variant="soft"),
                   T.pill("💰 " + RoomState.view_budget + "M", T.SUCCESS),
-                  width="100%", align="center"),
+                  width="100%", align="center", spacing="2"),
         rx.box(height="1rem"),
         rx.grid(
             T.card(
