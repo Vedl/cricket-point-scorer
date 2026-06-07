@@ -345,34 +345,65 @@ def get_best_11(squad, player_scores, ir_player=None, gameweek=None):
                 'BWL': (3, 4)
             }
     
-    best_team = []
-    best_score = -1
-    
-    # Brute force check unique combinations
-    for team in itertools.combinations(scored_players, 11):
-        # Enforce unique player names (prevent playing same player in two positions)
-        player_names_in_team = [p['name'] for p in team]
-        if len(set(player_names_in_team)) < 11:
-            continue
+    # DP logic for fast optimal team selection
+    players_by_name = {}
+    for p in scored_players:
+        n = p['name']
+        if n not in players_by_name:
+            players_by_name[n] = {'name': n, 'options': []}
+        players_by_name[n]['options'].append(p)
+
+    unique_players = list(players_by_name.values())
+    unique_players.sort(key=lambda x: max(opt['score'] for opt in x['options']), reverse=True)
+
+    role_keys = list(valid_ranges.keys())
+    role_idx = {k: i for i, k in enumerate(role_keys)}
+    memo = {}
+
+    def dp(idx, counts):
+        picked = sum(counts)
+        if picked == 11:
+            valid = True
+            for i, k in enumerate(role_keys):
+                min_v, max_v = valid_ranges[k]
+                if not (min_v <= counts[i] <= max_v):
+                    valid = False
+                    break
+            return (0, []) if valid else (-float('inf'), [])
+
+        if idx == len(unique_players):
+            return (-float('inf'), [])
+
+        state = (idx, counts)
+        if state in memo:
+            return memo[state]
+
+        best_score, best_team = dp(idx + 1, counts)
+
+        for opt in unique_players[idx]['options']:
+            cat = opt['category']
+            if cat not in role_idx:
+                continue
+            r_i = role_idx[cat]
             
-        counts = {k: 0 for k in valid_ranges}
-        current_score = 0
-        for p in team:
-            counts[p['category']] += 1
-            current_score += p['score']
-        
-        is_valid = True
-        for role, (min_v, max_v) in valid_ranges.items():
-            if not (min_v <= counts[role] <= max_v):
-                is_valid = False
-                break
-        
-        if is_valid:
-            if current_score > best_score:
-                best_score = current_score
-                best_team = list(team)
-    
-    if best_team:
+            new_counts = list(counts)
+            new_counts[r_i] += 1
+            
+            if new_counts[r_i] > valid_ranges[role_keys[r_i]][1]:
+                continue
+
+            score, team = dp(idx + 1, tuple(new_counts))
+            if score != -float('inf'):
+                total_score = score + opt['score']
+                if total_score > best_score:
+                    best_score = total_score
+                    best_team = [opt] + team
+
+        memo[state] = (best_score, best_team)
+        return memo[state]
+
+    best_score, best_team = dp(0, tuple([0] * len(role_keys)))
+    if best_score != -float('inf') and best_team:
         return best_team, []
     else:
         # Greedy fill: respect role minimums, pad unfilled mandatory slots with 0

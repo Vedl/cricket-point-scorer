@@ -84,18 +84,27 @@ class BiddingState(rx.State):
 
     def _refresh(self, room: dict):
         by = {p["name"]: p for p in room.get("participants", [])}
-        self.my_budget = by.get(self.my_team, {}).get("budget", 0)
-        self.available = [
+        new_my_budget = by.get(self.my_team, {}).get("budget", 0)
+        if self.my_budget != new_my_budget:
+            self.my_budget = new_my_budget
+            
+        new_available = [
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
             for p in bo.available_players(room, search=self.search, limit=50)
         ]
-        self.all_available_players = [
+        if self.available != new_available:
+            self.available = new_available
+            
+        new_all_available = [
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")} 
             for p in bo.available_players(room, limit=1000)
         ]
+        if self.all_available_players != new_all_available:
+            self.all_available_players = new_all_available
+            
         now = datetime.now()
         
-        self.active = []
+        new_active = []
         for b in bo.active(room):
             expires_iso = b.get("expires", "")
             time_left = ""
@@ -104,24 +113,36 @@ class BiddingState(rx.State):
                     time_left = _countdown(datetime.fromisoformat(expires_iso), now)
                 except Exception:
                     pass
-            self.active.append({
+            new_active.append({
                 "player": b["player"], "team": b["team"], "role": b.get("role", ""), "high_bid": str(b["high_bid"]),
                 "high_bidder": b["high_bidder"], "expires": expires_iso, "time_left": time_left,
                 "mine": "yes" if b["high_bidder"] == self.my_team else "no"
             })
-        self.window = bo.window_state(room, now)
-        self.window_label = _WINDOW_LABEL.get(self.window, "")
+        if self.active != new_active:
+            self.active = new_active
+            
+        new_window = bo.window_state(room, now)
+        if self.window != new_window:
+            self.window = new_window
+            self.window_label = _WINDOW_LABEL.get(self.window, "")
+            
         dl = bo.bidding_deadline(room)
-        self.deadline_str = dl.strftime("%a %d %b, %H:%M") if dl else ""
+        new_deadline_str = dl.strftime("%a %d %b, %H:%M") if dl else ""
+        if self.deadline_str != new_deadline_str:
+            self.deadline_str = new_deadline_str
+            
         if dl:
-            self.milestones = [
+            new_milestones = [
                 {"label": "🆕 New-player bids close", "left": _countdown(dl - timedelta(minutes=60), now)},
                 {"label": "5️⃣ +5M-only window starts", "left": _countdown(dl - timedelta(minutes=30), now)},
                 {"label": "🔨 Bidding closes (bids award)", "left": _countdown(dl, now)},
                 {"label": "🔒 Trading closes → squads lock + new GW", "left": _countdown(dl + timedelta(minutes=30), now)},
             ]
         else:
-            self.milestones = []
+            new_milestones = []
+            
+        if self.milestones != new_milestones:
+            self.milestones = new_milestones
 
     @rx.event
     def do_search(self):
