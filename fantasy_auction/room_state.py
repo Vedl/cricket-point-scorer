@@ -32,6 +32,8 @@ class RoomState(rx.State):
     view_squad: list[dict[str, str]] = []
     view_budget: str = "0"
     view_ir: str = ""
+    squads_search: str = ""
+    squads_search_results: list[dict[str, str]] = []
     locked_gws: list[str] = []
     view_locked_gw: str = ""
     locked_rows: list[dict[str, str]] = []
@@ -242,6 +244,25 @@ class RoomState(rx.State):
         if room:
             self._compute_view(room)
             self._compute_locked(room)
+
+    @rx.event
+    def do_squads_search(self):
+        code, doc, room = self._load()
+        if not room: return
+        query = self.squads_search.lower().strip()
+        results = []
+        if query:
+            for p in room.get("participants", []):
+                for e in p.get("squad", []):
+                    if query in e.get("name", "").lower():
+                        results.append({
+                            "name": e["name"],
+                            "role": e.get("role", ""),
+                            "team": p["name"],
+                            "price": str(e.get("buy_price", 0)),
+                            "ir": "yes" if e["name"] == p.get("ir") else "no"
+                        })
+        self.squads_search_results = results
 
     @rx.event
     def select_locked_gw(self, gw: str):

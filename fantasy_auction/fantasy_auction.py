@@ -682,6 +682,24 @@ def squads_page():
     return room_shell(
         _topbar(), room_nav(RoomState.room_code, RoomState.is_admin),
         T.hero("Squads", "Inspect any team's full squad, budget and locked gameweek snapshots."),
+        T.card(
+            rx.hstack(
+                rx.text("🔍", style={"font_size": "1.2rem"}),
+                rx.input(value=RoomState.squads_search, on_change=RoomState.set_field("squads_search"),
+                         placeholder="Search for a player across all squads...", width="100%"),
+                T.primary_button("Search", on_click=RoomState.do_squads_search),
+                width="100%", align="center", spacing="3"
+            ),
+            rx.cond(
+                RoomState.squads_search_results.length() > 0,
+                rx.vstack(
+                    rx.divider(margin_y="0.5rem"),
+                    rx.foreach(RoomState.squads_search_results, _squad_view_row),
+                    spacing="2", width="100%"
+                )
+            ),
+            width="100%", style={"margin_bottom": "1.5rem"}
+        ),
         rx.hstack(rx.text("View team:", style={"color": T.MUTED}),
                   rx.select(RoomState.all_team_names, value=RoomState.view_team_sel,
                             on_change=RoomState.select_view_team, width="240px"),
@@ -733,7 +751,7 @@ def squads_page():
 def available_row(p):
     return rx.hstack(
         rx.text(p["name"], style={"color": T.TEXT, "font_weight": "500"}),
-        rx.text(p["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+        rx.text(p["role"] + " · " + p["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
         rx.spacer(),
         rx.button("Bid", size="1", variant="soft", on_click=BiddingState.pick(p["name"])),
         width="100%", align="center",
