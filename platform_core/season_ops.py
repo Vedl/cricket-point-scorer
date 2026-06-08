@@ -285,6 +285,8 @@ def process_due_deadlines(room: dict, now: datetime) -> list[str]:
             continue
         try:
             dt = datetime.fromisoformat(iso)
+            if dt.tzinfo is not None:
+                dt = dt.astimezone().replace(tzinfo=None)
         except (ValueError, TypeError):
             continue
         if now >= dt:

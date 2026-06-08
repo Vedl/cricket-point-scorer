@@ -116,7 +116,10 @@ class BiddingState(rx.State):
             time_left = ""
             if expires_iso:
                 try:
-                    time_left = _countdown(datetime.fromisoformat(expires_iso), now)
+                    exp_dt = datetime.fromisoformat(expires_iso)
+                    if exp_dt.tzinfo is not None:
+                        exp_dt = exp_dt.astimezone().replace(tzinfo=None)
+                    time_left = _countdown(exp_dt, now)
                 except Exception:
                     pass
             new_active.append({

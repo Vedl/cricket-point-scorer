@@ -71,7 +71,10 @@ def bidding_deadline(room) -> datetime | None:
     if not iso:
         return None
     try:
-        return datetime.fromisoformat(iso)
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+        return dt
     except (ValueError, TypeError):
         return None
 
