@@ -1397,6 +1397,21 @@ def calculator_page():
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
 
+@app.api.get("/diagnostic/{code}")
+def diagnostic(code: str):
+    from .state import repo
+    doc = repo.load()
+    room = doc.get("rooms", {}).get(code.upper())
+    if not room:
+        return {"error": f"room {code} not found"}
+    return {
+        "open_bids": room.get("open_bids"),
+        "participants": [
+            {"name": p["name"], "budget": p.get("budget"), "squad_size": len(p.get("squad", []))}
+            for p in room.get("participants", [])
+        ]
+    }
+
 
 def _serve_prebuilt_frontend(reflex_asgi):
     """Make Reflex's OWN backend serve the pre-built static frontend.
