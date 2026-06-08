@@ -1397,20 +1397,24 @@ def calculator_page():
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
 
-@app._api.get("/backend/diagnostic/{code}")
-def diagnostic(code: str):
+from starlette.responses import JSONResponse
+
+def diagnostic(request):
+    code = request.path_params.get("code", "").upper()
     from .state import repo
     doc = repo.load()
-    room = doc.get("rooms", {}).get(code.upper())
+    room = doc.get("rooms", {}).get(code)
     if not room:
-        return {"error": f"room {code} not found"}
-    return {
+        return JSONResponse({"error": f"room {code} not found"})
+    return JSONResponse({
         "open_bids": room.get("open_bids"),
         "participants": [
             {"name": p["name"], "budget": p.get("budget"), "squad_size": len(p.get("squad", []))}
             for p in room.get("participants", [])
         ]
-    }
+    })
+
+app._api.add_route("/backend/diagnostic/{code}", diagnostic, methods=["GET"])
 
 
 def _serve_prebuilt_frontend(reflex_asgi):
