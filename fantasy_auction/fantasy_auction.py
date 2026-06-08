@@ -1397,7 +1397,7 @@ def calculator_page():
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
 
-@app.api.get("/diagnostic/{code}")
+@app.api.get("/backend/diagnostic/{code}")
 def diagnostic(code: str):
     from .state import repo
     doc = repo.load()
