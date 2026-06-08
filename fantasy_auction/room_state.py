@@ -190,15 +190,24 @@ class RoomState(rx.State):
                 return 5
 
         squad_data = me.get("squad", [])
+        if isinstance(squad_data, dict):
+            squad_data = list(squad_data.values())
+
+        def safe_price(p):
+            try:
+                return float(p.get("buy_price", 0))
+            except (ValueError, TypeError):
+                return 0
+
         if self.squad_sort_by == "Position":
-            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -x.get("buy_price", 0)))
+            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -safe_price(x)))
         else:
-            sorted_squad = sorted(squad_data, key=lambda x: -x.get("buy_price", 0))
+            sorted_squad = sorted(squad_data, key=lambda x: -safe_price(x))
 
         self.my_squad = [
-            {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
+            {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
-             "ir": "yes" if e["name"] == me.get("ir") else "no"}
+             "ir": "yes" if e.get("name") == me.get("ir") else "no"}
             for e in sorted_squad
         ]
         p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
@@ -269,15 +278,24 @@ class RoomState(rx.State):
                 return 5
 
         squad_data = p.get("squad", [])
+        if isinstance(squad_data, dict):
+            squad_data = list(squad_data.values())
+
+        def safe_price_view(pl):
+            try:
+                return float(pl.get("buy_price", 0))
+            except (ValueError, TypeError):
+                return 0
+
         if self.squad_sort_by == "Position":
-            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -x.get("buy_price", 0)))
+            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -safe_price_view(x)))
         else:
-            sorted_squad = sorted(squad_data, key=lambda x: -x.get("buy_price", 0))
+            sorted_squad = sorted(squad_data, key=lambda x: -safe_price_view(x))
 
         self.view_squad = [
-            {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
+            {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
-             "ir": "yes" if e["name"] == p.get("ir") else "no"}
+             "ir": "yes" if e.get("name") == p.get("ir") else "no"}
             for e in sorted_squad
         ]
 

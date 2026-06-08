@@ -114,9 +114,9 @@ class BiddingState(rx.State):
                 except Exception:
                     pass
             new_active.append({
-                "player": b["player"], "team": b["team"], "role": b.get("role", ""), "high_bid": str(b["high_bid"]),
-                "high_bidder": b["high_bidder"], "expires": expires_iso, "time_left": time_left,
-                "mine": "yes" if b["high_bidder"] == self.my_team else "no"
+                "player": b.get("player", "Unknown"), "team": b.get("team", ""), "role": b.get("role", ""), "high_bid": str(b.get("high_bid", 0)),
+                "high_bidder": b.get("high_bidder", ""), "expires": expires_iso, "time_left": time_left,
+                "mine": "yes" if b.get("high_bidder") == self.my_team else "no"
             })
         if self.active != new_active:
             self.active = new_active
