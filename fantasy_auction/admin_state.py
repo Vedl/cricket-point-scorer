@@ -7,7 +7,7 @@ import reflex as rx
 
 from platform_core import admin_ops as ao
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 
 class AdminState(rx.State):
@@ -85,7 +85,9 @@ class AdminState(rx.State):
             await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if not code:
             return
         if room is None:

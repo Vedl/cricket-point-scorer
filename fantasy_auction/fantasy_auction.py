@@ -1443,8 +1443,16 @@ def _serve_prebuilt_frontend(reflex_asgi):
     backend_prefixes = ("/_event", "/ping", "/_upload", "/_health", "/backend",
                         "/sitemap", "/.well-known")
 
+    def _is_backend_path(path: str) -> bool:
+        return path == "/_event" or path.startswith(backend_prefixes)
+
     async def asgi(scope, receive, send):
-        if scope.get("type") == "http" and not scope.get("path", "/").startswith(backend_prefixes):
+        path = scope.get("path", "/")
+        # Never serve static files for Reflex backend / Socket.IO paths (HTTP or WS).
+        if scope.get("type") in ("http", "websocket") and _is_backend_path(path):
+            await reflex_asgi(scope, receive, send)
+            return
+        if scope.get("type") == "http":
             try:
                 await static(scope, receive, send)
                 return

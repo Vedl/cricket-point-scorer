@@ -10,11 +10,15 @@ import reflex as rx
 _api_url = os.environ.get("API_URL")
 _deploy_url = os.environ.get("DEPLOY_URL")
 _cors = os.environ.get("CORS_ORIGINS")
-
-
+# Polling survives reverse proxies (Render/Cloudflare) that drop WebSocket Upgrade
+# headers; override with REFLEX_TRANSPORT=websocket for local dev if preferred.
+_transport = os.environ.get("REFLEX_TRANSPORT", "polling")
+if _transport not in ("websocket", "polling"):
+    _transport = "polling"
 
 _kwargs = dict(
     app_name="fantasy_auction",
+    transport=_transport,
     # SQLite is unused — Firebase is the datastore (PLAN.md §6.6). Reflex still
     # wants a db_url for its internal bookkeeping; keep a throwaway local file.
     db_url="sqlite:///reflex_internal.db",

@@ -57,6 +57,31 @@ def test_propose_invalid_raises():
         mo.propose_trade(room, "A", "B", ["Ghost"], ["Rohit"])
 
 
+def test_incoming_trades_normalizes_legacy_singular_keys():
+    room = {
+        "pending_trades": [{
+            "id": "abc", "from": "A", "to": "B", "status": "pending",
+            "give_player": "Kohli", "get_player": "Rohit",
+            "give_cash": 5, "get_cash": 0,
+        }],
+    }
+    trades = mo.incoming_trades(room, "B")
+    assert trades[0]["give_players"] == ["Kohli"]
+    assert trades[0]["get_players"] == ["Rohit"]
+
+
+def test_incoming_trades_missing_player_lists_default_empty():
+    room = {
+        "pending_trades": [{
+            "id": "cash", "from": "A", "to": "B", "status": "pending",
+            "give_cash": 10, "get_cash": 0,
+        }],
+    }
+    trades = mo.incoming_trades(room, "B")
+    assert trades[0]["give_players"] == []
+    assert trades[0]["get_players"] == []
+
+
 def test_release_to_pool_and_refund():
     room = _room()
     mo.release(room, "A", "Kohli", refund=True)

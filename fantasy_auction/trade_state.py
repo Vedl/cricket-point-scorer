@@ -11,17 +11,18 @@ from platform_core import market_ops as mo
 from platform_core import season_ops as so
 from season_engine.trading import TradeError
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 
 def _summary(t: dict, *, incoming: bool) -> str:
-    gp = ", ".join(t["give_players"]) or "—"
-    rp = ", ".join(t["get_players"]) or "—"
+    gp = ", ".join(t.get("give_players") or []) or "—"
+    rp = ", ".join(t.get("get_players") or []) or "—"
     loan_sfx = f" (Loan till GW{t.get('loan_return_gw', '?')})" if t.get("is_loan") else ""
     if incoming:
-        return (f"{t['from']} sends [{gp}] +{t['give_cash']}M  ↔  wants your "
-                f"[{rp}] +{t['get_cash']}M{loan_sfx}")
-    return (f"To {t['to']}: you send [{gp}] +{t['give_cash']}M  for [{rp}] +{t['get_cash']}M{loan_sfx}")
+        return (f"{t.get('from', '?')} sends [{gp}] +{t.get('give_cash', 0)}M  ↔  wants your "
+                f"[{rp}] +{t.get('get_cash', 0)}M{loan_sfx}")
+    return (f"To {t.get('to', '?')}: you send [{gp}] +{t.get('give_cash', 0)}M  "
+            f"for [{rp}] +{t.get('get_cash', 0)}M{loan_sfx}")
 
 
 class TradeState(rx.State):
@@ -71,7 +72,9 @@ class TradeState(rx.State):
             if app.is_hydrated:
                 break
             await asyncio.sleep(0.05)
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if not code:
             return
         if room is None:
@@ -91,7 +94,7 @@ class TradeState(rx.State):
         by = mo.participants_by_name(room)
         if with_team and with_team in by and with_team != self.me:
             self.counterparty = with_team
-            if want and any(e["name"] == want for e in by[with_team].get("squad", [])):
+            if want and any(e["name"] == want for e in (by[with_team].get("squad") or [])):
                 self.get_player = want
                 self.msg = f"Proposing a trade with {with_team} for {want} — add what you'll give."
         self._refresh(room)
@@ -109,10 +112,12 @@ class TradeState(rx.State):
                          for t in mo.incoming_trades(room, self.me)]
         self.outgoing = [{"id": t["id"], "text": _summary(t, incoming=False)}
                          for t in mo.outgoing_trades(room, self.me)]
-        self.awaiting = [{"id": t["id"],
-                          "text": f"{t['from']} ↔ {t['to']}: "
-                                  f"[{', '.join(t['give_players']) or '—'}]+{t['give_cash']}M "
-                                  f"for [{', '.join(t['get_players']) or '—'}]+{t['get_cash']}M" +
+        self.awaiting = [{"id": t.get("id", ""),
+                          "text": f"{t.get('from', '?')} ↔ {t.get('to', '?')}: "
+                                  f"[{', '.join(t.get('give_players') or []) or '—'}]"
+                                  f"+{t.get('give_cash', 0)}M "
+                                  f"for [{', '.join(t.get('get_players') or []) or '—'}]"
+                                  f"+{t.get('get_cash', 0)}M" +
                                   (f" (Loan till GW{t.get('loan_return_gw', '?')})" if t.get("is_loan") else "")}
                          for t in mo.trades_awaiting_admin(room)] if self.is_admin else []
         self.available = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
@@ -122,8 +127,11 @@ class TradeState(rx.State):
     @staticmethod
     def _txn_text(t: dict) -> str:
         if t["type"] == "trade":
-            return (f"🔄 {t['from']} ↔ {t['to']}: [{', '.join(t['give_players']) or '—'}]"
-                    f"/+{t['give_cash']}M for [{', '.join(t['get_players']) or '—'}]/+{t['get_cash']}M")
+            return (f"🔄 {t.get('from', '?')} ↔ {t.get('to', '?')}: "
+                    f"[{', '.join(t.get('give_players') or []) or '—'}]"
+                    f"/+{t.get('give_cash', 0)}M for "
+                    f"[{', '.join(t.get('get_players') or []) or '—'}]"
+                    f"/+{t.get('get_cash', 0)}M")
         if t["type"] == "release":
             return f"🗑️ {t['participant']} released {t['player']}" + (" (refunded)" if t.get("refund") else "")
         if t["type"] == "half_release":

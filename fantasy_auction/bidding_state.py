@@ -11,7 +11,7 @@ from platform_core import bidding_ops as bo
 from platform_core import season_ops as so
 from season_engine.open_bidding import BidError
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 _WINDOW_LABEL = {
     "frozen": "🔒 Frozen — waiting for the admin to set a deadline",
@@ -69,7 +69,9 @@ class BiddingState(rx.State):
             await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if not code:
             return
         if room is None:
@@ -195,13 +197,14 @@ class BiddingState(rx.State):
                 # ticks, instead of the ~1 MB full doc — and NO write here (the
                 # server-side scheduler thread owns deadline processing/locking).
                 # This keeps Firebase egress tiny even if a tab is left open.
-                room = repo.load_room(code)
+                room = await asyncio.to_thread(repo.load_room, code)
                 if room is not None:
                     now = datetime.now()
                     now_iso = now.isoformat()
                     has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
                     if has_expired:
-                        _, doc, full_room = self._load()
+                        doc = await aload()
+                        full_room = doc.get("rooms", {}).get(code)
                         if full_room:
                             if bo.process_expired(full_room, now):
                                 repo.save(doc)

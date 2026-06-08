@@ -35,6 +35,15 @@ DEFAULT_DATA_FILE = "auction_data.json"
 EMPTY_DOC: dict[str, Any] = {"users": {}, "rooms": {}}
 
 
+def warm_cache(store: Optional["FirebaseStore"] = None) -> dict:
+    """Populate the in-memory snapshot before the web server accepts traffic.
+
+    Called from ``hf_start.sh`` on Render so the first websocket hydrate never
+    blocks the asyncio loop on a cold Firebase download."""
+    store = store or FirebaseStore()
+    return store.load()
+
+
 class FirebaseStore:
     def __init__(
         self,
@@ -190,10 +199,14 @@ class FirebaseStore:
     def load_room(self, code: str) -> Optional[dict]:
         """Return ONE room from the cached full-document snapshot (no second cache).
 
-        On a cache hit this is free (no Firebase read); on a miss ``load()`` does one
-        cached full read. This keeps egress low without a memory-doubling per-room
-        cache."""
-        return self.load().get("rooms", {}).get((code or "").upper())
+        On a cache hit this copies only the room node (~tens of KB), not the whole
+        ~1 MB document — important for the bidding live_loop polling every few sec
+        on a 512 MB VM."""
+        code = (code or "").upper()
+        if self._cache is not None:
+            room = self._cache.get("rooms", {}).get(code)
+            return copy.deepcopy(room) if isinstance(room, dict) else None
+        return self.load().get("rooms", {}).get(code)
 
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""

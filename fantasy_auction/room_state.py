@@ -13,7 +13,7 @@ import reflex as rx
 from platform_core import season_ops as so
 from platform_core.season_ops import SeasonError
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 
 class RoomState(rx.State):
@@ -96,7 +96,9 @@ class RoomState(rx.State):
             if app.is_hydrated:
                 break
             await asyncio.sleep(0.05)
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if not code:
             return  # room param not ready yet — don't bounce
         if room is None:
@@ -137,11 +139,11 @@ class RoomState(rx.State):
 
         # Trades proposed to me (I receive give_players, I give get_players).
         self.hub_trades = [
-            {"id": t["id"],
-             "text": (f"{t['from']} → you receive [{', '.join(t['give_players']) or '—'}]"
-                      f"{(' +'+str(t['give_cash'])+'M') if t.get('give_cash') else ''}, "
-                      f"give [{', '.join(t['get_players']) or '—'}]"
-                      f"{(' +'+str(t['get_cash'])+'M') if t.get('get_cash') else ''}")}
+            {"id": t.get("id", ""),
+             "text": (f"{t.get('from', '?')} → you receive [{', '.join(t.get('give_players') or []) or '—'}]"
+                      f"{(' +'+str(t.get('give_cash', 0))+'M') if t.get('give_cash') else ''}, "
+                      f"give [{', '.join(t.get('get_players') or []) or '—'}]"
+                      f"{(' +'+str(t.get('get_cash', 0))+'M') if t.get('get_cash') else ''}")}
             for t in mo.incoming_trades(room, me)]
 
         # Current standings rank.

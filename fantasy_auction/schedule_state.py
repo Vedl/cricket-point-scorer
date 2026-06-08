@@ -9,7 +9,7 @@ import reflex as rx
 from platform_core import scoring_ops
 from platform_core.config_layer import load_schedule
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 _CACHE: dict[str, list[dict]] = {}
 
@@ -51,7 +51,9 @@ class ScheduleState(rx.State):
             await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if not code:
             return
         if room is None:

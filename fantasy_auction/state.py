@@ -63,11 +63,16 @@ from platform_core.repository import (
 # One repository for the process; the store reads Firebase config from env and
 # falls back to a local JSON file when unset (see PLAN.md §6.6).
 repo = Repository()
-# NOTE: deliberately NO startup pre-warm here. Doing a blocking Firebase read +
-# deep-copying every room during import competes for the GIL on the tiny single-CPU
-# free VM and can delay the server from binding its port past fly's health-check
-# grace, causing a restart loop (the app never becomes reachable). The cache warms
-# lazily on the first request instead.
+# Cache warm happens in hf_start.sh (before reflex binds its port), not at import
+# time — see firebase_store.warm_cache().
+
+
+async def aload() -> dict:
+    """Non-blocking ``repo.load()`` for async event handlers.
+
+    A synchronous Firebase/JSON read inside a Reflex handler blocks the asyncio
+    loop and can drop the websocket heartbeat, leaving users on "connecting…"."""
+    return await asyncio.to_thread(repo.load)
 
 
 class AppState(rx.State):
@@ -258,7 +263,7 @@ class AppState(rx.State):
             await asyncio.sleep(0.05)
         if not self.auth_user:
             return rx.redirect("/")
-        doc = repo.load()
+        doc = await aload()
         user = doc.get("users", {}).get(self.auth_user, {})
         codes = list(
             dict.fromkeys(user.get("rooms_created", []) + user.get("rooms_joined", []))
@@ -328,7 +333,7 @@ class AppState(rx.State):
         code = self._room_code_from_url()
         if not code:
             return
-        doc = repo.load()
+        doc = await aload()
         room = doc.get("rooms", {}).get(code)
         if not room:
             return rx.redirect("/rooms")
