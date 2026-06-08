@@ -70,6 +70,8 @@ class SeasonState(rx.State):
         if not app.auth_user:
             return rx.redirect("/")
         code, doc, room = self._load_room()
+        if not code:
+            return
         if room is None:
             return rx.redirect("/rooms")
         self.room_code = code

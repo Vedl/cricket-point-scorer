@@ -326,6 +326,8 @@ class AppState(rx.State):
         if not self.auth_user:
             return rx.redirect("/")
         code = self._room_code_from_url()
+        if not code:
+            return
         doc = repo.load()
         room = doc.get("rooms", {}).get(code)
         if not room:

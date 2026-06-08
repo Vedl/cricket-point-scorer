@@ -70,6 +70,8 @@ class BiddingState(rx.State):
         if not app.auth_user:
             return rx.redirect("/")
         code, doc, room = self._load()
+        if not code:
+            return
         if room is None:
             return rx.redirect("/rooms")
         self.room_code = code
