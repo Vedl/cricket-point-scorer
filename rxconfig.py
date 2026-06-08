@@ -11,17 +11,7 @@ _api_url = os.environ.get("API_URL")
 _deploy_url = os.environ.get("DEPLOY_URL")
 _cors = os.environ.get("CORS_ORIGINS")
 
-if os.environ.get("RENDER"):
-    render_url = os.environ.get("RENDER_EXTERNAL_URL")
-    if render_url:
-        _api_url = _api_url or render_url
-        _deploy_url = _deploy_url or render_url
 
-if _api_url and _api_url.startswith("http://") and "onrender.com" in _api_url:
-    _api_url = _api_url.replace("http://", "https://")
-
-if _deploy_url and _deploy_url.startswith("http://") and "onrender.com" in _deploy_url:
-    _deploy_url = _deploy_url.replace("http://", "https://")
 
 _kwargs = dict(
     app_name="fantasy_auction",
