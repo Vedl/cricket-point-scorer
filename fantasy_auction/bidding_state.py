@@ -26,7 +26,7 @@ def _countdown(when, now) -> str:
     secs = int((when - now).total_seconds())
     if secs <= 0:
         return "passed"
-    return when.isoformat()
+    return when.astimezone().isoformat()
 
 
 class BiddingState(rx.State):

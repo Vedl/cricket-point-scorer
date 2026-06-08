@@ -192,7 +192,7 @@ class RoomState(rx.State):
                 if "bowl" in r: return 4
                 return 5
 
-        squad_data = me.get("squad", [])
+        squad_data = me.get("squad") or []
         if isinstance(squad_data, dict):
             squad_data = list(squad_data.values())
 
@@ -233,7 +233,7 @@ class RoomState(rx.State):
 
         self.teams = []
         for p in room.get("participants", []):
-            sq = p.get("squad", [])
+            sq = p.get("squad") or []
             c = _counts(sq)
             self.teams.append({
                 "name": p["name"], "budget": str(p.get("budget", 0)),
@@ -280,7 +280,7 @@ class RoomState(rx.State):
                 if "bowl" in r: return 4
                 return 5
 
-        squad_data = p.get("squad", [])
+        squad_data = p.get("squad") or []
         if isinstance(squad_data, dict):
             squad_data = list(squad_data.values())
 
@@ -308,7 +308,7 @@ class RoomState(rx.State):
         rows = []
         if isinstance(team, dict):
             ir = team.get("ir")
-            for e in team.get("squad", []):
+            for e in (team.get("squad") or []):
                 rows.append({"name": e["name"], "role": e.get("role", ""),
                              "ir": "yes" if e["name"] == ir else "no"})
         self.locked_rows = rows
@@ -329,7 +329,7 @@ class RoomState(rx.State):
         results = []
         if query:
             for p in room.get("participants", []):
-                for e in p.get("squad", []):
+                for e in (p.get("squad") or []):
                     if query in e.get("name", "").lower():
                         results.append({
                             "name": e["name"],
