@@ -348,7 +348,7 @@ class AppState(rx.State):
                 "pin": str(p.get("pin") or "—"),
                 "claimed": p.get("user") or "unclaimed",
                 "budget": str(p.get("budget", 0)),
-                "squad": str(len(p.get("squad", []))),
+                "squad": str(len(p.get("squad") or [])),
             }
             for p in room.get("participants", [])
         ]
