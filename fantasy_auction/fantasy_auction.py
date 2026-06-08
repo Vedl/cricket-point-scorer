@@ -861,7 +861,14 @@ def bidding_page():
                                         rx.cond(
                                             b["time_left"] == "passed",
                                             rx.text("passed", style={"color": T.DANGER, "font_size": "0.85rem"}),
-                                            rx.hstack(rx.text("⏳", size="1"), rx.text(T.countdown(date=rx.cond(b["time_left"] == "passed", "2026-06-08T00:00:00", b["time_left"])), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"}))
+                                            rx.cond(
+                                                b["time_left"] == "",
+                                                rx.text("—", style={"color": T.MUTED, "font_size": "0.85rem"}),
+                                                rx.hstack(
+                                                    rx.text("⏳", size="1"), 
+                                                    rx.text(T.countdown(date=rx.cond(b["time_left"] == "passed", "2099-12-31T23:59:59", rx.cond(b["time_left"] == "", "2099-12-31T23:59:59", b["time_left"]))), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"})
+                                                )
+                                            )
                                         )
                                     )
                                 ))
