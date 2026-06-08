@@ -107,7 +107,7 @@ def place(room, participant, player_name, amount, now: datetime) -> None:
     if st in ("no_new", "raise_only") and not existing:
         raise BidError("Bidding is closing — no new players, only raise existing bids.")
     dl = bidding_deadline(room)
-    expiry = now + timedelta(hours=3)
+    expiry = now + timedelta(hours=24)
     if dl and dl < expiry:
         expiry = dl
         
