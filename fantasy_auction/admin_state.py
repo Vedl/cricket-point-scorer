@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import reflex as rx
 
 from platform_core import admin_ops as ao
@@ -78,6 +79,10 @@ class AdminState(rx.State):
     @rx.event
     async def on_load_admin(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
         code, doc, room = self._load()

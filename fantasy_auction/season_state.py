@@ -63,6 +63,10 @@ class SeasonState(rx.State):
     @rx.event
     async def on_load_standings(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
         code, doc, room = self._load_room()

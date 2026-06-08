@@ -7,6 +7,7 @@ half-price releases.
 
 from __future__ import annotations
 
+import asyncio
 import reflex as rx
 
 from platform_core import season_ops as so
@@ -91,13 +92,15 @@ class RoomState(rx.State):
     @rx.event
     async def on_load_hub(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         code, doc, room = self._load()
         if not code:
             return  # room param not ready yet — don't bounce
         if room is None:
-            # Only treat as a real "missing room" once we're fully hydrated AND the
-            # user is known — never evict on a transient hydration/reconnect race.
-            if app.is_hydrated and app.auth_user:
+            if app.auth_user:
                 return rx.redirect("/rooms")
             return
         self.room_code = code

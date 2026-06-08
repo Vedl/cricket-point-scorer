@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import reflex as rx
 
 from datetime import datetime
@@ -66,11 +67,15 @@ class TradeState(rx.State):
     @rx.event
     async def on_load_trade(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         code, doc, room = self._load()
         if not code:
             return
         if room is None:
-            if app.is_hydrated and app.auth_user:
+            if app.auth_user:
                 return rx.redirect("/rooms")
             return
         self.room_code = code

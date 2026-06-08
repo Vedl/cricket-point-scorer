@@ -7,6 +7,7 @@ business rules live here.
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import reflex as rx
@@ -250,7 +251,11 @@ class AppState(rx.State):
     # Dashboard
     # ------------------------------------------------------------------ #
     @rx.event
-    def load_rooms(self):
+    async def load_rooms(self):
+        for _ in range(100):
+            if self.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not self.auth_user:
             return rx.redirect("/")
         doc = repo.load()
@@ -313,7 +318,11 @@ class AppState(rx.State):
         return (self.router._page.params.get("room", "") or "").upper()
 
     @rx.event
-    def load_setup(self):
+    async def load_setup(self):
+        for _ in range(100):
+            if self.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not self.auth_user:
             return rx.redirect("/")
         code = self._room_code_from_url()
