@@ -34,6 +34,13 @@ except Exception:  # pragma: no cover
 DEFAULT_DATA_FILE = "auction_data.json"
 EMPTY_DOC: dict[str, Any] = {"users": {}, "rooms": {}}
 
+# Append-only logs that otherwise grow forever. They are capped on every save so the
+# whole document — and therefore every read, deep-copy and Firebase upload — stays
+# bounded. Unbounded growth here is the slow-burn cause of memory creep over a season.
+# (bid_log is intentionally NOT pruned: it is auction-engine state, not display history.)
+PRUNE_LOG_KEYS = ("transactions", "auction_log")
+DEFAULT_LOG_CAP = 1000
+
 
 def warm_cache(store: Optional["FirebaseStore"] = None) -> dict:
     """Populate the in-memory snapshot before the web server accepts traffic.
@@ -87,11 +94,19 @@ class FirebaseStore:
         # Async write-behind: events update the local cache instantly and return;
         # the (full-document) Firebase PUT is flushed on a background thread and
         # coalesced, so a burst of actions never blocks the UI on the network.
-        self._pending: Optional[str] = None
+        # ``_pending`` holds the latest full document waiting to be flushed (a burst of
+        # saves coalesces into the newest one). ``_last_written`` is our snapshot of what
+        # Firebase currently holds, used to send only the rooms that actually changed.
+        self._pending: Optional[dict] = None
+        self._last_written: Optional[dict] = None
         self._writer_lock = threading.Lock()
         self._writer_cv = threading.Condition(self._writer_lock)
         self._writer_started = False
         self._refreshing = False
+        try:
+            self._log_cap = max(50, int(os.environ.get("STORE_LOG_CAP", str(DEFAULT_LOG_CAP))))
+        except (TypeError, ValueError):
+            self._log_cap = DEFAULT_LOG_CAP
 
     @property
     def db_url(self) -> str:
@@ -140,27 +155,30 @@ class FirebaseStore:
     # ------------------------------------------------------------------ #
     # Load / save
     # ------------------------------------------------------------------ #
-    def load(self) -> dict:
-        """Return the document WITHOUT ever blocking the async event loop after the
-        first warm-up.
+    def _snapshot(self) -> dict:
+        """Return the SHARED in-memory document snapshot WITHOUT copying it.
+
+        Handles cache freshness (stale-while-revalidate) but does NOT deep-copy, so
+        it is cheap enough to call on hot paths. Callers MUST treat the result as
+        read-only and never mutate it — use :meth:`load` / :meth:`load_room` to get a
+        private, mutable copy.
 
         The synchronous ``requests`` network call, if run inside a Reflex event
         handler, blocks the asyncio loop; under concurrent clicks that starves the
         websocket heartbeat → the client disconnects, re-hydrates, and the user is
         bounced out of the room. So we serve the in-memory snapshot instantly and
-        refresh it on a background thread when stale (stale-while-revalidate). Only
-        the very first load (cold cache) blocks, to populate the snapshot. Always
-        returns a private deep copy so callers can mutate-then-save safely."""
+        refresh it on a background thread when stale. Only the very first load (cold
+        cache) blocks, to populate the snapshot."""
         st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
         mtime = st.st_mtime if st else 0.0
         ino = st.st_ino if st else 0
-        
+
         if self._cache is not None:
             if mtime <= getattr(self, "_cache_file_mtime", 0.0) and ino == getattr(self, "_cache_file_ino", 0):
                 if (time.monotonic() - self._cache_ts) >= self._cache_ttl and self._pending is None:
                     self._schedule_refresh()
-                return copy.deepcopy(self._cache)
-            # Another worker wrote to the file! We must reload local file.
+                return self._cache
+            # Another worker wrote to the file! We must reload the local file.
 
         # Cold start (or another worker wrote to the file).
         if self._cache is None and self.use_remote and not os.path.exists(self.local_file_path):
@@ -170,43 +188,43 @@ class FirebaseStore:
                 if resp.status_code == 200:
                     data = self._ensure_schema(self._normalize(resp.json()))
                     self._write_local(data)
-                    self._cache = copy.deepcopy(data)
+                    self._cache = data
                     self._cache_ts = time.monotonic()
                     st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
                     self._cache_file_mtime = st.st_mtime if st else 0.0
                     self._cache_file_ino = st.st_ino if st else 0
-                    self._sync_room_cache(data)
-                    return data
+                    return self._cache
             except Exception as exc:  # pragma: no cover - network
                 print(f"[FirebaseStore] remote load failed: {exc}")
-                
+
         local = self._load_local()
-        self._cache = copy.deepcopy(local)
+        self._cache = local
         self._cache_ts = time.monotonic()
         st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
         self._cache_file_mtime = st.st_mtime if st else 0.0
         self._cache_file_ino = st.st_ino if st else 0
-        self._sync_room_cache(local)
-        return local
+        return self._cache
 
-    def _sync_room_cache(self, data: dict) -> None:
-        """Intentionally a no-op. Keeping a SECOND in-memory deep copy of every room
-        (on top of the full-document snapshot) roughly doubled memory and pushed the
-        512 MB free VM into OOM. ``load_room`` now serves from the single full-doc
-        snapshot instead, which is already cached + egress-cheap on hits."""
-        return
+    def load(self) -> dict:
+        """Return a PRIVATE deep copy of the full document (safe to mutate-then-save).
+
+        Most callers go through ``load`` to read-modify-write the whole document.
+        The deep copy isolates the caller's mutations from the shared snapshot until
+        they call :meth:`save`."""
+        return copy.deepcopy(self._snapshot())
 
     def load_room(self, code: str) -> Optional[dict]:
-        """Return ONE room from the cached full-document snapshot (no second cache).
+        """Return a private deep copy of ONE room — the cheap hot-path read.
 
-        On a cache hit this copies only the room node (~tens of KB), not the whole
-        ~1 MB document — important for the bidding live_loop polling every few sec
-        on a 512 MB VM."""
-        code = (code or "").upper()
-        if self._cache is not None:
-            room = self._cache.get("rooms", {}).get(code)
-            return copy.deepcopy(room) if isinstance(room, dict) else None
-        return self.load().get("rooms", {}).get(code)
+        Polling paths (the per-client bidding ``live_loop``, page on-loads) only ever
+        need a single room, so we deep-copy just that ~20-50 KB node instead of the
+        whole ~1 MB+ document. Going through ``_snapshot()`` also keeps the cache fresh
+        (stale-while-revalidate). On a 512 MB single-CPU box this is the difference
+        between the event loop keeping up and OOM/heartbeat starvation: it avoids
+        copying every other room, N times every few seconds, for every connected tab.
+        Returns an independent copy so callers can mutate it safely."""
+        room = self._snapshot().get("rooms", {}).get((code or "").upper())
+        return copy.deepcopy(room) if isinstance(room, dict) else None
 
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""
@@ -231,9 +249,8 @@ class FirebaseStore:
                 if remote_v < local_v:
                     return  # Firebase returned stale data (a PUT from another worker is likely in flight)
 
-                self._cache = copy.deepcopy(data)
+                self._cache = data
                 self._cache_ts = time.monotonic()
-                self._sync_room_cache(data)
                 self._write_local(data)
         except Exception as exc:  # pragma: no cover - network
             print(f"[FirebaseStore] background refresh failed: {exc}")
@@ -254,8 +271,11 @@ class FirebaseStore:
             tmp = self.local_file_path + ".tmp"
             with open(tmp, "w") as f:
                 f.write(json.dumps(data, indent=2))
-                f.flush()
-                os.fsync(f.fileno())
+            # Atomic publish via rename. We deliberately DON'T fsync here: this file
+            # is only a warm-restart cache (Firebase is the source of truth), and a
+            # synchronous fsync of the whole ~1 MB+ document on every save would stall
+            # the asyncio event loop inside the calling event handler (place_bid, admin
+            # ops…), causing the hangs we're fixing. os.replace still gives atomicity.
             os.replace(tmp, self.local_file_path)
             st = os.stat(self.local_file_path)
             self._cache_file_mtime = st.st_mtime
@@ -263,45 +283,99 @@ class FirebaseStore:
         except Exception as exc:  # pragma: no cover
             print(f"[FirebaseStore] local write failed: {exc}")
 
+    def _prune(self, data: dict) -> dict:
+        """Cap append-only logs per room so the document can't grow without bound."""
+        cap = self._log_cap
+        for room in data.get("rooms", {}).values():
+            if not isinstance(room, dict):
+                continue
+            for key in PRUNE_LOG_KEYS:
+                seq = room.get(key)
+                if isinstance(seq, list) and len(seq) > cap:
+                    room[key] = seq[-cap:]  # keep the most recent entries
+        return data
+
     def save(self, data: dict) -> None:
         """Persist the whole document: local cache always, Firebase if configured."""
         data = self._ensure_schema(data)
+        self._prune(data)
         data["_v"] = int(time.time() * 1000)  # Add timestamp to prevent stale remote clobbering
         self._write_local(data)
         # Write-through: refresh the snapshot so the next load reflects this save.
+        # Deep-copy so the caller (who still holds ``data``) can keep mutating its
+        # object without corrupting the shared cache.
         self._cache = copy.deepcopy(data)
         self._cache_ts = time.monotonic()
-        self._sync_room_cache(data)
         if self.use_remote:
-            self._queue_remote(json.dumps(data))
+            # Hand the isolated cache copy to the writer (caller may keep mutating ``data``).
+            self._queue_remote(self._cache)
 
     # ------------------------------------------------------------------ #
-    # Async write-behind to Firebase (coalesced, non-blocking)
+    # Async write-behind to Firebase (coalesced, non-blocking, per-room)
     # ------------------------------------------------------------------ #
-    def _queue_remote(self, payload: str) -> None:
+    def _queue_remote(self, doc: dict) -> None:
         with self._writer_cv:
-            self._pending = payload  # keep only the latest — coalesce a burst
+            self._pending = doc  # keep only the latest — coalesce a burst
             if not self._writer_started:
                 self._writer_started = True
                 threading.Thread(target=self._writer_loop, name="fb-writer",
                                  daemon=True).start()
             self._writer_cv.notify()
 
+    @staticmethod
+    def _canon(obj: Any) -> str:
+        return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+    def _flush_remote(self, doc: dict) -> bool:
+        """Push ``doc`` to Firebase, sending only what changed since the last write.
+
+        With a known baseline we issue a single multi-location PATCH containing just the
+        rooms that changed (``rooms/<code>``), deletions (``rooms/<code>: null``) and the
+        users node if it changed — instead of re-uploading the whole ~1 MB+ document on
+        every bid. Falls back to a full PUT when there is no baseline (cold start /
+        after a restart) or when essentially everything changed."""
+        baseline = self._last_written
+        if baseline is None:
+            resp = requests.put(self.db_url, data=json.dumps(doc),
+                                headers={"Content-Type": "application/json"},
+                                timeout=self.timeout)
+            return resp.status_code == 200
+
+        old_rooms = baseline.get("rooms", {})
+        new_rooms = doc.get("rooms", {})
+        update: dict[str, Any] = {}
+        for code, room in new_rooms.items():
+            if code not in old_rooms or self._canon(old_rooms[code]) != self._canon(room):
+                update[f"rooms/{code}"] = room
+        for code in old_rooms:
+            if code not in new_rooms:
+                update[f"rooms/{code}"] = None  # Firebase deletes keys written as null
+        if self._canon(baseline.get("users", {})) != self._canon(doc.get("users", {})):
+            update["users"] = doc.get("users", {})
+        update["_v"] = doc.get("_v", int(time.time() * 1000))
+
+        # Top-level keys are only users/rooms/_v, all covered above, so a multi-location
+        # PATCH keeps Firebase exactly in sync with our document while sending only the
+        # rooms that actually changed.
+        resp = requests.patch(self.db_url, data=json.dumps(update),
+                              headers={"Content-Type": "application/json"},
+                              timeout=self.timeout)
+        return resp.status_code == 200
+
     def _writer_loop(self) -> None:
         while True:
             with self._writer_cv:
                 while self._pending is None:
                     self._writer_cv.wait()
-                payload = self._pending
+                doc = self._pending
                 self._pending = None
             try:
-                resp = requests.put(
-                    self.db_url, data=payload,
-                    headers={"Content-Type": "application/json"},
-                    timeout=self.timeout,
-                )
-                if resp.status_code != 200:  # pragma: no cover
-                    print(f"[FirebaseStore] remote save failed: {resp.status_code}")
+                if self._flush_remote(doc):
+                    # Only advance the baseline on success, so a failed write is
+                    # automatically re-included in the next save's diff.
+                    self._last_written = doc
+                else:  # pragma: no cover - network
+                    print("[FirebaseStore] remote save failed")
             except Exception as exc:  # pragma: no cover
                 print(f"[FirebaseStore] remote save error: {exc}")
 

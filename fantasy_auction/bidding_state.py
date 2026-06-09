@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time as _time
 from datetime import datetime, timedelta
 
 import reflex as rx
@@ -20,6 +21,25 @@ _WINDOW_LABEL = {
     "raise_only": "🟠 Final window — raise existing bids in +5M steps only",
     "closed": "🔴 Closed — bids being awarded",
 }
+
+
+# Process-wide guard against an "expired-bid thundering herd": every connected
+# client's live_loop ticks independently, and when a popular bid expires they would
+# ALL do the expensive full-document load + process + save at the same instant — a
+# write storm that spikes memory/CPU on the tiny free VM exactly when an auction is
+# busiest. We coalesce that heavy work to at most once per room per cooldown window;
+# other coroutines skip it (the awarded result is visible to them on the next read).
+# The check-and-set is atomic under asyncio (no await between get and set).
+_last_expire_process: dict[str, float] = {}
+_EXPIRE_COOLDOWN = 5.0
+
+
+def _claim_expire_processing(code: str) -> bool:
+    now = _time.monotonic()
+    if now - _last_expire_process.get(code, 0.0) >= _EXPIRE_COOLDOWN:
+        _last_expire_process[code] = now
+        return True
+    return False
 
 
 def _countdown(when, now) -> str:
@@ -90,26 +110,35 @@ class BiddingState(rx.State):
         if not self.loop_running:
             return BiddingState.live_loop
 
-    def _refresh(self, room: dict):
+    def _refresh(self, room: dict, *, full: bool = True):
+        """Recompute view state from ``room``.
+
+        ``full`` rebuilds the big autocomplete datalist (up to 1000 players). The
+        per-client ``live_loop`` ticks every few seconds for every connected tab, so
+        it passes ``full=False``: rebuilding and diffing a 1000-row list on every tick
+        across all clients was a major CPU drain on the single-CPU free VM (it starved
+        the event loop → hangs). The datalist only changes when players are acquired/
+        released, so it's refreshed on load and on user actions (search/bid) instead."""
         by = {p["name"]: p for p in room.get("participants", [])}
         new_my_budget = by.get(self.my_team, {}).get("budget", 0)
         if self.my_budget != new_my_budget:
             self.my_budget = new_my_budget
-            
+
         new_available = [
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
             for p in bo.available_players(room, search=self.search, limit=50)
         ]
         if self.available != new_available:
             self.available = new_available
-            
-        new_all_available = [
-            {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")} 
-            for p in bo.available_players(room, limit=1000)
-        ]
-        if self.all_available_players != new_all_available:
-            self.all_available_players = new_all_available
-            
+
+        if full:
+            new_all_available = [
+                {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
+                for p in bo.available_players(room, limit=1000)
+            ]
+            if self.all_available_players != new_all_available:
+                self.all_available_players = new_all_available
+
         now = datetime.now()
         
         new_active = []
@@ -202,7 +231,9 @@ class BiddingState(rx.State):
                     now = datetime.now()
                     now_iso = now.isoformat()
                     has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
-                    if has_expired:
+                    # Only ONE client coroutine does the heavy full-doc award per
+                    # cooldown window; the rest keep rendering from the cheap read.
+                    if has_expired and _claim_expire_processing(code):
                         doc = await aload()
                         full_room = doc.get("rooms", {}).get(code)
                         if full_room:
@@ -211,7 +242,8 @@ class BiddingState(rx.State):
                             room = full_room
                             
                     async with self:
-                        self._refresh(room)
+                        # Skip the heavy 1000-row datalist rebuild on every tick.
+                        self._refresh(room, full=False)
                 await asyncio.sleep(6)
         finally:
             async with self:
