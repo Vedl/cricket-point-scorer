@@ -34,6 +34,13 @@ except Exception:  # pragma: no cover
 DEFAULT_DATA_FILE = "auction_data.json"
 EMPTY_DOC: dict[str, Any] = {"users": {}, "rooms": {}}
 
+# Append-only logs that otherwise grow forever. They are capped on every save so the
+# whole document — and therefore every read, deep-copy and Firebase upload — stays
+# bounded. Unbounded growth here is the slow-burn cause of memory creep over a season.
+# (bid_log is intentionally NOT pruned: it is auction-engine state, not display history.)
+PRUNE_LOG_KEYS = ("transactions", "auction_log")
+DEFAULT_LOG_CAP = 1000
+
 
 class FirebaseStore:
     def __init__(
@@ -78,11 +85,19 @@ class FirebaseStore:
         # Async write-behind: events update the local cache instantly and return;
         # the (full-document) Firebase PUT is flushed on a background thread and
         # coalesced, so a burst of actions never blocks the UI on the network.
-        self._pending: Optional[str] = None
+        # ``_pending`` holds the latest full document waiting to be flushed (a burst of
+        # saves coalesces into the newest one). ``_last_written`` is our snapshot of what
+        # Firebase currently holds, used to send only the rooms that actually changed.
+        self._pending: Optional[dict] = None
+        self._last_written: Optional[dict] = None
         self._writer_lock = threading.Lock()
         self._writer_cv = threading.Condition(self._writer_lock)
         self._writer_started = False
         self._refreshing = False
+        try:
+            self._log_cap = max(50, int(os.environ.get("STORE_LOG_CAP", str(DEFAULT_LOG_CAP))))
+        except (TypeError, ValueError):
+            self._log_cap = DEFAULT_LOG_CAP
 
     @property
     def db_url(self) -> str:
@@ -258,9 +273,22 @@ class FirebaseStore:
         except Exception as exc:  # pragma: no cover
             print(f"[FirebaseStore] local write failed: {exc}")
 
+    def _prune(self, data: dict) -> dict:
+        """Cap append-only logs per room so the document can't grow without bound."""
+        cap = self._log_cap
+        for room in data.get("rooms", {}).values():
+            if not isinstance(room, dict):
+                continue
+            for key in PRUNE_LOG_KEYS:
+                seq = room.get(key)
+                if isinstance(seq, list) and len(seq) > cap:
+                    room[key] = seq[-cap:]  # keep the most recent entries
+        return data
+
     def save(self, data: dict) -> None:
         """Persist the whole document: local cache always, Firebase if configured."""
         data = self._ensure_schema(data)
+        self._prune(data)
         data["_v"] = int(time.time() * 1000)  # Add timestamp to prevent stale remote clobbering
         self._write_local(data)
         # Write-through: refresh the snapshot so the next load reflects this save.
@@ -269,35 +297,75 @@ class FirebaseStore:
         self._cache = copy.deepcopy(data)
         self._cache_ts = time.monotonic()
         if self.use_remote:
-            self._queue_remote(json.dumps(data))
+            # Hand the isolated cache copy to the writer (caller may keep mutating ``data``).
+            self._queue_remote(self._cache)
 
     # ------------------------------------------------------------------ #
-    # Async write-behind to Firebase (coalesced, non-blocking)
+    # Async write-behind to Firebase (coalesced, non-blocking, per-room)
     # ------------------------------------------------------------------ #
-    def _queue_remote(self, payload: str) -> None:
+    def _queue_remote(self, doc: dict) -> None:
         with self._writer_cv:
-            self._pending = payload  # keep only the latest — coalesce a burst
+            self._pending = doc  # keep only the latest — coalesce a burst
             if not self._writer_started:
                 self._writer_started = True
                 threading.Thread(target=self._writer_loop, name="fb-writer",
                                  daemon=True).start()
             self._writer_cv.notify()
 
+    @staticmethod
+    def _canon(obj: Any) -> str:
+        return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+    def _flush_remote(self, doc: dict) -> bool:
+        """Push ``doc`` to Firebase, sending only what changed since the last write.
+
+        With a known baseline we issue a single multi-location PATCH containing just the
+        rooms that changed (``rooms/<code>``), deletions (``rooms/<code>: null``) and the
+        users node if it changed — instead of re-uploading the whole ~1 MB+ document on
+        every bid. Falls back to a full PUT when there is no baseline (cold start /
+        after a restart) or when essentially everything changed."""
+        baseline = self._last_written
+        if baseline is None:
+            resp = requests.put(self.db_url, data=json.dumps(doc),
+                                headers={"Content-Type": "application/json"},
+                                timeout=self.timeout)
+            return resp.status_code == 200
+
+        old_rooms = baseline.get("rooms", {})
+        new_rooms = doc.get("rooms", {})
+        update: dict[str, Any] = {}
+        for code, room in new_rooms.items():
+            if code not in old_rooms or self._canon(old_rooms[code]) != self._canon(room):
+                update[f"rooms/{code}"] = room
+        for code in old_rooms:
+            if code not in new_rooms:
+                update[f"rooms/{code}"] = None  # Firebase deletes keys written as null
+        if self._canon(baseline.get("users", {})) != self._canon(doc.get("users", {})):
+            update["users"] = doc.get("users", {})
+        update["_v"] = doc.get("_v", int(time.time() * 1000))
+
+        # Top-level keys are only users/rooms/_v, all covered above, so a multi-location
+        # PATCH keeps Firebase exactly in sync with our document while sending only the
+        # rooms that actually changed.
+        resp = requests.patch(self.db_url, data=json.dumps(update),
+                              headers={"Content-Type": "application/json"},
+                              timeout=self.timeout)
+        return resp.status_code == 200
+
     def _writer_loop(self) -> None:
         while True:
             with self._writer_cv:
                 while self._pending is None:
                     self._writer_cv.wait()
-                payload = self._pending
+                doc = self._pending
                 self._pending = None
             try:
-                resp = requests.put(
-                    self.db_url, data=payload,
-                    headers={"Content-Type": "application/json"},
-                    timeout=self.timeout,
-                )
-                if resp.status_code != 200:  # pragma: no cover
-                    print(f"[FirebaseStore] remote save failed: {resp.status_code}")
+                if self._flush_remote(doc):
+                    # Only advance the baseline on success, so a failed write is
+                    # automatically re-included in the next save's diff.
+                    self._last_written = doc
+                else:  # pragma: no cover - network
+                    print("[FirebaseStore] remote save failed")
             except Exception as exc:  # pragma: no cover
                 print(f"[FirebaseStore] remote save error: {exc}")
 
