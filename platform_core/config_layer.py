@@ -62,19 +62,48 @@ def _dedupe_ids(players: list[Player]) -> list[Player]:
     return players
 
 
+# Bundled data files (player pools, schedules) are baked into the image and never
+# written at runtime, so reading + parsing them is cached for the process lifetime.
+# Before this, every call re-opened and re-parsed the file — and because it ran
+# synchronously inside the per-client bidding refresh on the single asyncio worker,
+# it blocked the event loop on every poll for every participant. That starved the
+# Socket.IO connection (the endless "connecting…" + extreme lag users reported).
+_JSON_CACHE: dict = {}
+_POOL_CACHE: dict = {}
+
+
 def _read_json(data_dir: str, filename: str):
+    key = (data_dir, filename)
+    if key in _JSON_CACHE:
+        return _JSON_CACHE[key]
     path = os.path.join(data_dir, filename)
+    data = None
     if os.path.exists(path):
         try:
             with open(path, "r") as f:
-                return json.load(f)
+                data = json.load(f)
         except Exception as exc:  # pragma: no cover
             print(f"[config_layer] failed to read {filename}: {exc}")
-    return None
+    _JSON_CACHE[key] = data
+    return data
 
 
 def load_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[Player]:
-    """Return the normalised player pool for a tournament (may be empty)."""
+    """Return the normalised player pool for a tournament (cached; may be empty).
+
+    The built pool is memoised per (tournament, data_dir). Callers get a shallow copy
+    so they can't corrupt the cached list; the Player objects are read-only to all
+    callers (the auction engine builds its own roster entries separately)."""
+    key = (tournament_type, data_dir)
+    cached = _POOL_CACHE.get(key)
+    if cached is None:
+        cached = _build_player_pool(tournament_type, data_dir)
+        _POOL_CACHE[key] = cached
+    return list(cached)
+
+
+def _build_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[Player]:
+    """Construct the player pool from the bundled data file (uncached)."""
     if tournament_type == IPL_2026:
         data = _read_json(data_dir, "ipl_2026_squads.json") or {}
         players: list[Player] = []
