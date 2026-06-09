@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime
 
 from .config_layer import DEFAULT_BUDGET
 
@@ -44,6 +45,15 @@ def force_add_player(room, participant, player_name, role="", team="", price=0):
 
 
 def force_release(room, participant, player_name, *, refund=False):
+    """Release a player from a team's squad.
+
+    With ``refund=True`` the team is credited the FULL price it paid for the player
+    ("release for full price"). The player leaves the squad, which automatically makes
+    them available again in open bidding (availability = pool minus owned players).
+
+    The release is logged as a transaction so it shows up in history and can be undone
+    via reverse-release.
+    """
     by = _by(room)
     p = by.get(participant)
     if p is None:
@@ -51,9 +61,19 @@ def force_release(room, participant, player_name, *, refund=False):
     e = _entry(p, player_name)
     if e is None:
         raise AdminError(f"{participant} doesn't have {player_name}.")
+    buy_price = int(e.get("buy_price", 0) or 0)
     p["squad"].remove(e)
-    if refund:
-        p["budget"] = p.get("budget", 0) + e.get("buy_price", 0)
+    refund_amount = buy_price if refund else 0
+    if refund_amount:
+        p["budget"] = p.get("budget", 0) + refund_amount
+    room.setdefault("transactions", []).append({
+        "type": "release",
+        "participant": participant,
+        "player": player_name,
+        "buy_price": buy_price,
+        "refund": refund_amount,
+        "ts": datetime.now().isoformat(),
+    })
 
 
 def boost_all(room, amount=100) -> int:

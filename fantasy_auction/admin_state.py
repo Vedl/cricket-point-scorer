@@ -170,6 +170,13 @@ class AdminState(rx.State):
             f"✅ Released {self.fr_player} from {self.fr_team}.")
 
     @rx.event
+    def release_full_price(self):
+        """Release the selected player and refund the team the FULL price they paid."""
+        self._do(lambda room, doc: ao.force_release(
+            room, self.fr_team, self.fr_player, refund=True),
+            f"✅ Released {self.fr_player} for full price — refund credited to {self.fr_team}.")
+
+    @rx.event
     def adjust_budget(self):
         self._do(lambda room, doc: ao.adjust_budget(room, self.bud_team, int(self.bud_delta)),
                  f"✅ Adjusted {self.bud_team}'s budget.")
@@ -254,15 +261,18 @@ class AdminState(rx.State):
             return
             
         refund = 0
+        buy_price = 0
         for t in reversed(room.get("transactions", [])):
             if t.get("type") in ("release", "half_release") and t.get("participant") == self.rev_participant and t.get("player") == player_name:
                 refund = t.get("refund", 0)
+                # Releases now record the price paid — use it directly when present.
+                buy_price = t.get("buy_price", 0)
                 break
-                
-        buy_price = 0
-        for t in room.get("transactions", []):
-            if t.get("type") in ("market_buy", "auction_buy", "trade") and t.get("player") == player_name and t.get("participant", t.get("to")) == self.rev_participant:
-                buy_price = t.get("amount", t.get("price", 0))
+
+        if buy_price == 0:
+            for t in room.get("transactions", []):
+                if t.get("type") in ("market_buy", "auction_buy", "trade") and t.get("player") == player_name and t.get("participant", t.get("to")) == self.rev_participant:
+                    buy_price = t.get("amount", t.get("price", 0))
                 
         if buy_price == 0:
             for log in room.get("auction_log", []):

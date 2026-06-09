@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time as _time
 from datetime import datetime, timedelta
 
 import reflex as rx
@@ -20,6 +21,25 @@ _WINDOW_LABEL = {
     "raise_only": "🟠 Final window — raise existing bids in +5M steps only",
     "closed": "🔴 Closed — bids being awarded",
 }
+
+
+# Process-wide guard against an "expired-bid thundering herd": every connected
+# client's live_loop ticks independently, and when a popular bid expires they would
+# ALL do the expensive full-document load + process + save at the same instant — a
+# write storm that spikes memory/CPU on the tiny free VM exactly when an auction is
+# busiest. We coalesce that heavy work to at most once per room per cooldown window;
+# other coroutines skip it (the awarded result is visible to them on the next read).
+# The check-and-set is atomic under asyncio (no await between get and set).
+_last_expire_process: dict[str, float] = {}
+_EXPIRE_COOLDOWN = 5.0
+
+
+def _claim_expire_processing(code: str) -> bool:
+    now = _time.monotonic()
+    if now - _last_expire_process.get(code, 0.0) >= _EXPIRE_COOLDOWN:
+        _last_expire_process[code] = now
+        return True
+    return False
 
 
 def _countdown(when, now) -> str:
@@ -200,7 +220,9 @@ class BiddingState(rx.State):
                     now = datetime.now()
                     now_iso = now.isoformat()
                     has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
-                    if has_expired:
+                    # Only ONE client coroutine does the heavy full-doc award per
+                    # cooldown window; the rest keep rendering from the cheap read.
+                    if has_expired and _claim_expire_processing(code):
                         _, doc, full_room = self._load()
                         if full_room:
                             if bo.process_expired(full_room, now):

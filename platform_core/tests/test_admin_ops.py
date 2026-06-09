@@ -28,6 +28,34 @@ def test_force_add_and_release():
     assert by["B"]["squad"] == []
 
 
+def test_force_release_full_price_refunds_buy_price_and_logs():
+    room = _room()  # A owns Kohli at buy_price 40, budget 100
+    ao.force_release(room, "A", "Kohli", refund=True)
+    by = {p["name"]: p for p in room["participants"]}
+    assert by["A"]["budget"] == 140                     # full price refunded
+    assert all(e["name"] != "Kohli" for e in by["A"]["squad"])
+    rel = [t for t in room["transactions"] if t["type"] == "release"]
+    assert len(rel) == 1
+    assert rel[0]["participant"] == "A"
+    assert rel[0]["player"] == "Kohli"
+    assert rel[0]["refund"] == 40 and rel[0]["buy_price"] == 40
+
+
+def test_force_release_without_refund_still_logs_zero_refund():
+    room = _room()
+    ao.force_release(room, "A", "Kohli", refund=False)
+    by = {p["name"]: p for p in room["participants"]}
+    assert by["A"]["budget"] == 100                     # no refund
+    rel = [t for t in room["transactions"] if t["type"] == "release"]
+    assert len(rel) == 1 and rel[0]["refund"] == 0 and rel[0]["buy_price"] == 40
+
+
+def test_force_release_unknown_player_rejected():
+    room = _room()
+    with pytest.raises(ao.AdminError):
+        ao.force_release(room, "A", "Nobody", refund=True)
+
+
 def test_force_add_duplicate_rejected():
     room = _room()
     with pytest.raises(ao.AdminError):

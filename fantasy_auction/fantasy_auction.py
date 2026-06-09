@@ -1192,8 +1192,16 @@ def admin_page():
                           on_change=AdminState.set_field("fr_player"), width="100%"),
                 rx.checkbox("Refund buy price", checked=AdminState.fr_refund,
                             on_change=AdminState.set_field("fr_refund")),
-                rx.button("Release", on_click=AdminState.force_release, color_scheme="red",
-                          variant="soft", margin_top="0.4rem"), spacing="2", width="100%"),
+                rx.hstack(
+                    rx.button("Release", on_click=AdminState.force_release, color_scheme="red",
+                              variant="soft"),
+                    rx.button("Release for full price", on_click=AdminState.release_full_price,
+                              color_scheme="green", variant="soft"),
+                    spacing="2", margin_top="0.4rem", width="100%"),
+                rx.text("“Release for full price” returns the player to the pool and refunds "
+                        "the team the full amount they paid.",
+                        style={"color": T.MUTED, "font_size": "0.78rem"}),
+                spacing="2", width="100%"),
             columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
 
         _admin_band("🔑", "Access & Economy", "Team PINs and the overall budget boosts."),
