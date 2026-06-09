@@ -50,6 +50,10 @@ class SeasonState(rx.State):
     # WhoScored auto-scoring
     score_links: str = ""
     scoring_running: bool = False
+    # Self-healing refresh (see RoomState.watching): repopulate standings after a
+    # reconnect / free-tier restart instead of staying blank.
+    watching: bool = False
+    loop_running: bool = False
 
     @rx.event
     def set_field(self, name: str, value):
@@ -63,27 +67,69 @@ class SeasonState(rx.State):
     @rx.event
     async def on_load_standings(self):
         app = await self.get_state(AppState)
-        for _ in range(100):
-            if app.is_hydrated:
+        # Break as soon as inputs are ready (usually instant). Don't wait on
+        # is_hydrated — it's set only after on_load finishes, so waiting on it just
+        # burned ~5s per load. See RoomState.on_load_hub for the full explanation.
+        code = ""
+        for _ in range(60):
+            code = (self.router._page.params.get("room", "") or "").upper()
+            if code and app.auth_user:
                 break
             await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code = (self.router._page.params.get("room", "") or "").upper()
-        doc = await aload()
-        room = doc.get("rooms", {}).get(code)
         if not code:
             return
-        if room is None:
-            return rx.redirect("/rooms")
-        self.room_code = code
-        self.room_name = room.get("name", "")
-        self.is_admin = room.get("admin") == app.auth_user
-        self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
-        self.gameweeks = so.gameweeks_with_scores(room)
-        if not self.selected_gw and self.gameweeks:
-            self.selected_gw = self.gameweeks[-1]
-        self._recompute(room)
+        try:
+            doc = await aload()
+            room = doc.get("rooms", {}).get(code)
+            if room is None:
+                return rx.redirect("/rooms")
+            self.room_code = code
+            self.room_name = room.get("name", "")
+            self.is_admin = room.get("admin") == app.auth_user
+            self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
+            self.gameweeks = so.gameweeks_with_scores(room)
+            if not self.selected_gw and self.gameweeks:
+                self.selected_gw = self.gameweeks[-1]
+            self._recompute(room)
+        except Exception as exc:
+            print(f"[on_load_standings] {exc}")
+        self.watching = True
+        if not self.loop_running:
+            return SeasonState.standings_loop
+
+    @rx.event(background=True)
+    async def standings_loop(self):
+        """Repopulate standings periodically so the table comes back after a reconnect
+        or free-tier restart (the page has no other live updater)."""
+        async with self:
+            if self.loop_running:
+                return
+            self.loop_running = True
+        try:
+            while True:
+                async with self:
+                    if not self.watching or not self.room_code:
+                        return
+                    code = self.room_code
+                try:
+                    room = await asyncio.to_thread(repo.load_room, code)
+                    if room is not None:
+                        async with self:
+                            self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
+                            self.gameweeks = so.gameweeks_with_scores(room)
+                            self._recompute(room)
+                except Exception as exc:
+                    print(f"[standings_loop] tick failed, continuing: {exc}")
+                await asyncio.sleep(12)
+        finally:
+            async with self:
+                self.loop_running = False
+
+    @rx.event
+    def stop_watching(self):
+        self.watching = False
 
     def _recompute(self, room: dict):
         self.eliminated = sorted(so.eliminated_names(room))

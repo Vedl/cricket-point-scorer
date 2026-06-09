@@ -26,8 +26,8 @@ class WhoScoredState(rx.State):
     @rx.event
     async def guard(self):
         app = await self.get_state(AppState)
-        for _ in range(100):
-            if app.is_hydrated:
+        for _ in range(60):  # break as soon as auth is ready; don't wait on is_hydrated
+            if app.auth_user:
                 break
             await asyncio.sleep(0.05)
         if not app.auth_user:
