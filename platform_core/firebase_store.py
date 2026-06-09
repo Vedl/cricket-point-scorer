@@ -131,27 +131,30 @@ class FirebaseStore:
     # ------------------------------------------------------------------ #
     # Load / save
     # ------------------------------------------------------------------ #
-    def load(self) -> dict:
-        """Return the document WITHOUT ever blocking the async event loop after the
-        first warm-up.
+    def _snapshot(self) -> dict:
+        """Return the SHARED in-memory document snapshot WITHOUT copying it.
+
+        Handles cache freshness (stale-while-revalidate) but does NOT deep-copy, so
+        it is cheap enough to call on hot paths. Callers MUST treat the result as
+        read-only and never mutate it — use :meth:`load` / :meth:`load_room` to get a
+        private, mutable copy.
 
         The synchronous ``requests`` network call, if run inside a Reflex event
         handler, blocks the asyncio loop; under concurrent clicks that starves the
         websocket heartbeat → the client disconnects, re-hydrates, and the user is
         bounced out of the room. So we serve the in-memory snapshot instantly and
-        refresh it on a background thread when stale (stale-while-revalidate). Only
-        the very first load (cold cache) blocks, to populate the snapshot. Always
-        returns a private deep copy so callers can mutate-then-save safely."""
+        refresh it on a background thread when stale. Only the very first load (cold
+        cache) blocks, to populate the snapshot."""
         st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
         mtime = st.st_mtime if st else 0.0
         ino = st.st_ino if st else 0
-        
+
         if self._cache is not None:
             if mtime <= getattr(self, "_cache_file_mtime", 0.0) and ino == getattr(self, "_cache_file_ino", 0):
                 if (time.monotonic() - self._cache_ts) >= self._cache_ttl and self._pending is None:
                     self._schedule_refresh()
-                return copy.deepcopy(self._cache)
-            # Another worker wrote to the file! We must reload local file.
+                return self._cache
+            # Another worker wrote to the file! We must reload the local file.
 
         # Cold start (or another worker wrote to the file).
         if self._cache is None and self.use_remote and not os.path.exists(self.local_file_path):
@@ -161,39 +164,42 @@ class FirebaseStore:
                 if resp.status_code == 200:
                     data = self._ensure_schema(self._normalize(resp.json()))
                     self._write_local(data)
-                    self._cache = copy.deepcopy(data)
+                    self._cache = data
                     self._cache_ts = time.monotonic()
                     st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
                     self._cache_file_mtime = st.st_mtime if st else 0.0
                     self._cache_file_ino = st.st_ino if st else 0
-                    self._sync_room_cache(data)
-                    return data
+                    return self._cache
             except Exception as exc:  # pragma: no cover - network
                 print(f"[FirebaseStore] remote load failed: {exc}")
-                
+
         local = self._load_local()
-        self._cache = copy.deepcopy(local)
+        self._cache = local
         self._cache_ts = time.monotonic()
         st = os.stat(self.local_file_path) if os.path.exists(self.local_file_path) else None
         self._cache_file_mtime = st.st_mtime if st else 0.0
         self._cache_file_ino = st.st_ino if st else 0
-        self._sync_room_cache(local)
-        return local
+        return self._cache
 
-    def _sync_room_cache(self, data: dict) -> None:
-        """Intentionally a no-op. Keeping a SECOND in-memory deep copy of every room
-        (on top of the full-document snapshot) roughly doubled memory and pushed the
-        512 MB free VM into OOM. ``load_room`` now serves from the single full-doc
-        snapshot instead, which is already cached + egress-cheap on hits."""
-        return
+    def load(self) -> dict:
+        """Return a PRIVATE deep copy of the full document (safe to mutate-then-save).
+
+        Most callers go through ``load`` to read-modify-write the whole document.
+        The deep copy isolates the caller's mutations from the shared snapshot until
+        they call :meth:`save`."""
+        return copy.deepcopy(self._snapshot())
 
     def load_room(self, code: str) -> Optional[dict]:
-        """Return ONE room from the cached full-document snapshot (no second cache).
+        """Return a private deep copy of ONE room — the cheap hot-path read.
 
-        On a cache hit this is free (no Firebase read); on a miss ``load()`` does one
-        cached full read. This keeps egress low without a memory-doubling per-room
-        cache."""
-        return self.load().get("rooms", {}).get((code or "").upper())
+        Polling paths (the per-client bidding ``live_loop``, page on-loads) only ever
+        need a single room, so we deep-copy just that ~20-50 KB node instead of the
+        whole ~1 MB+ document. On a 512 MB single-CPU box this is the difference
+        between the event loop keeping up and OOM/heartbeat starvation: it avoids
+        copying every other room, N times every few seconds, for every connected tab.
+        Returns an independent copy so callers can mutate it safely."""
+        room = self._snapshot().get("rooms", {}).get((code or "").upper())
+        return copy.deepcopy(room) if room is not None else None
 
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""
@@ -218,9 +224,8 @@ class FirebaseStore:
                 if remote_v < local_v:
                     return  # Firebase returned stale data (a PUT from another worker is likely in flight)
 
-                self._cache = copy.deepcopy(data)
+                self._cache = data
                 self._cache_ts = time.monotonic()
-                self._sync_room_cache(data)
                 self._write_local(data)
         except Exception as exc:  # pragma: no cover - network
             print(f"[FirebaseStore] background refresh failed: {exc}")
@@ -241,8 +246,11 @@ class FirebaseStore:
             tmp = self.local_file_path + ".tmp"
             with open(tmp, "w") as f:
                 f.write(json.dumps(data, indent=2))
-                f.flush()
-                os.fsync(f.fileno())
+            # Atomic publish via rename. We deliberately DON'T fsync here: this file
+            # is only a warm-restart cache (Firebase is the source of truth), and a
+            # synchronous fsync of the whole ~1 MB+ document on every save would stall
+            # the asyncio event loop inside the calling event handler (place_bid, admin
+            # ops…), causing the hangs we're fixing. os.replace still gives atomicity.
             os.replace(tmp, self.local_file_path)
             st = os.stat(self.local_file_path)
             self._cache_file_mtime = st.st_mtime
@@ -256,9 +264,10 @@ class FirebaseStore:
         data["_v"] = int(time.time() * 1000)  # Add timestamp to prevent stale remote clobbering
         self._write_local(data)
         # Write-through: refresh the snapshot so the next load reflects this save.
+        # Deep-copy so the caller (who still holds ``data``) can keep mutating its
+        # object without corrupting the shared cache.
         self._cache = copy.deepcopy(data)
         self._cache_ts = time.monotonic()
-        self._sync_room_cache(data)
         if self.use_remote:
             self._queue_remote(json.dumps(data))
 

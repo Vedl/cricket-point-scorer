@@ -82,26 +82,35 @@ class BiddingState(rx.State):
         if not self.loop_running:
             return BiddingState.live_loop
 
-    def _refresh(self, room: dict):
+    def _refresh(self, room: dict, *, full: bool = True):
+        """Recompute view state from ``room``.
+
+        ``full`` rebuilds the big autocomplete datalist (up to 1000 players). The
+        per-client ``live_loop`` ticks every few seconds for every connected tab, so
+        it passes ``full=False``: rebuilding and diffing a 1000-row list on every tick
+        across all clients was a major CPU drain on the single-CPU free VM (it starved
+        the event loop → hangs). The datalist only changes when players are acquired/
+        released, so it's refreshed on load and on user actions (search/bid) instead."""
         by = {p["name"]: p for p in room.get("participants", [])}
         new_my_budget = by.get(self.my_team, {}).get("budget", 0)
         if self.my_budget != new_my_budget:
             self.my_budget = new_my_budget
-            
+
         new_available = [
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
             for p in bo.available_players(room, search=self.search, limit=50)
         ]
         if self.available != new_available:
             self.available = new_available
-            
-        new_all_available = [
-            {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")} 
-            for p in bo.available_players(room, limit=1000)
-        ]
-        if self.all_available_players != new_all_available:
-            self.all_available_players = new_all_available
-            
+
+        if full:
+            new_all_available = [
+                {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
+                for p in bo.available_players(room, limit=1000)
+            ]
+            if self.all_available_players != new_all_available:
+                self.all_available_players = new_all_available
+
         now = datetime.now()
         
         new_active = []
@@ -199,7 +208,8 @@ class BiddingState(rx.State):
                             room = full_room
                             
                     async with self:
-                        self._refresh(room)
+                        # Skip the heavy 1000-row datalist rebuild on every tick.
+                        self._refresh(room, full=False)
                 await asyncio.sleep(6)
         finally:
             async with self:
