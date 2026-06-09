@@ -29,6 +29,7 @@ class TradeState(rx.State):
     room_code: str = ""
     room_name: str = ""
     is_admin: bool = False
+    is_spectator: bool = False
     me: str = ""
 
     my_players: list[str] = []
@@ -68,8 +69,8 @@ class TradeState(rx.State):
     @rx.event
     async def on_load_trade(self):
         app = await self.get_state(AppState)
-        for _ in range(60):  # break as soon as inputs are ready; don't wait on is_hydrated
-            if (self.router._page.params.get("room", "") or "") and app.auth_user:
+        for _ in range(60):
+            if (self.router._page.params.get("room", "") or "") and (app.auth_user or app.is_hydrated):
                 break
             await asyncio.sleep(0.05)
         code = (self.router._page.params.get("room", "") or "").upper()
@@ -77,15 +78,18 @@ class TradeState(rx.State):
         room = doc.get("rooms", {}).get(code)
         if not code:
             return
+        spectator = app.grant_spectator_if_valid(
+            code, room, self.router._page.params.get("spectate", "") or "")
+        if not app.auth_user and not spectator:
+            return rx.redirect("/")
         if room is None:
-            if app.auth_user:
-                return rx.redirect("/rooms")
-            return
+            return rx.redirect("/rooms") if app.auth_user else rx.redirect("/")
         self.room_code = code
         self.room_name = room.get("name", "")
-        self.is_admin = room.get("admin") == app.auth_user
-        self.me = next((p["name"] for p in room.get("participants", [])
-                        if p.get("user") == app.auth_user), "")
+        self.is_admin = (not spectator) and room.get("admin") == app.auth_user
+        self.is_spectator = spectator
+        self.me = "" if spectator else next(
+            (p["name"] for p in room.get("participants", []) if p.get("user") == app.auth_user), "")
         self.msg = ""
         # Pre-fill from a "🤝 Trade" click on another team's squad: ?with=TEAM&want=PLAYER
         params = self.router._page.params
@@ -157,6 +161,8 @@ class TradeState(rx.State):
     @rx.event
     def propose(self):
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -183,6 +189,8 @@ class TradeState(rx.State):
     @rx.event
     def accept(self, trade_id: str):
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -215,6 +223,8 @@ class TradeState(rx.State):
 
     @rx.event
     def reject(self, trade_id: str):
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if room:
             mo.reject_trade(room, trade_id)
@@ -223,6 +233,8 @@ class TradeState(rx.State):
     @rx.event
     def do_release(self):
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room or not self.release_sel:
             return
@@ -237,6 +249,8 @@ class TradeState(rx.State):
     @rx.event
     def place_bid(self):
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -249,6 +263,8 @@ class TradeState(rx.State):
 
     @rx.event
     def resolve(self, player_name: str):
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return

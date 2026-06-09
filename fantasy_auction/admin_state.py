@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import secrets
+
 import reflex as rx
 
 from platform_core import admin_ops as ao
@@ -60,6 +63,8 @@ class AdminState(rx.State):
     pin_summary: list[dict[str, str]] = []
     show_pins: bool = False
     manual_boost_applied: bool = False
+    # spectator (read-only guest) link
+    spectator_link: str = ""
 
     @rx.var
     def pin_clipboard_text(self) -> str:
@@ -96,7 +101,52 @@ class AdminState(rx.State):
         self.room_name = room.get("name", "")
         self.is_admin = room.get("admin") == app.auth_user
         self.msg = ""
+        self.spectator_link = self._spectator_url(code, room.get("spectator_token", ""))
         self._refresh(room)
+
+    def _spectator_url(self, code: str, token: str) -> str:
+        if not token:
+            return ""
+        base = (os.environ.get("DEPLOY_URL") or os.environ.get("API_URL") or "").rstrip("/")
+        return f"{base}/room?room={code}&spectate={token}"
+
+    @rx.event
+    def create_spectator_link(self):
+        """Create the read-only spectator link (reuses the existing token if present)."""
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        token = room.get("spectator_token") or secrets.token_urlsafe(9)
+        room["spectator_token"] = token
+        repo.save(doc)
+        self.spectator_link = self._spectator_url(code, token)
+        self.msg = "✅ Spectator link ready — anyone with it can watch this room read-only."
+
+    @rx.event
+    def regenerate_spectator_link(self):
+        """Issue a fresh token; any previously shared link stops working."""
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        token = secrets.token_urlsafe(9)
+        room["spectator_token"] = token
+        repo.save(doc)
+        self.spectator_link = self._spectator_url(code, token)
+        self.msg = "✅ New spectator link generated — the old link no longer works."
+
+    @rx.event
+    def disable_spectator_link(self):
+        """Revoke spectator access entirely."""
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        room["spectator_token"] = ""
+        repo.save(doc)
+        self.spectator_link = ""
+        self.msg = "Spectator link disabled — existing spectators lose access."
 
     def _refresh(self, room):
         self.teams = [p["name"] for p in room.get("participants", [])]

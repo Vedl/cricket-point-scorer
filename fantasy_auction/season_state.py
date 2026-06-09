@@ -73,10 +73,10 @@ class SeasonState(rx.State):
         code = ""
         for _ in range(60):
             code = (self.router._page.params.get("room", "") or "").upper()
-            if code and app.auth_user:
+            if code and (app.auth_user or app.is_hydrated):
                 break
             await asyncio.sleep(0.05)
-        if not app.auth_user:
+        if not app.auth_user and not app.spectating:
             return rx.redirect("/")
         if not code:
             return
@@ -84,7 +84,7 @@ class SeasonState(rx.State):
             doc = await aload()
             room = doc.get("rooms", {}).get(code)
             if room is None:
-                return rx.redirect("/rooms")
+                return rx.redirect("/rooms") if app.auth_user else rx.redirect("/")
             self.room_code = code
             self.room_name = room.get("name", "")
             self.is_admin = room.get("admin") == app.auth_user

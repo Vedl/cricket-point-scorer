@@ -26,11 +26,11 @@ class WhoScoredState(rx.State):
     @rx.event
     async def guard(self):
         app = await self.get_state(AppState)
-        for _ in range(60):  # break as soon as auth is ready; don't wait on is_hydrated
-            if app.auth_user:
+        for _ in range(60):  # allow either a member or a hydrated spectator session
+            if app.auth_user or app.is_hydrated:
                 break
             await asyncio.sleep(0.05)
-        if not app.auth_user:
+        if not app.auth_user and not app.spectating:
             return rx.redirect("/")
         self.room_code = (self.router._page.params.get("room", "") or "").upper()
 

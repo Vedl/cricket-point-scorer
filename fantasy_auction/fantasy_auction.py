@@ -62,6 +62,12 @@ def _topbar():
                     rx.button("Logout", on_click=AppState.handle_logout, variant="soft",
                               size="2", color_scheme="gray"),
                     align="center", spacing="3")),
+        rx.cond(AppState.spectating & ~AppState.logged_in,
+                rx.hstack(
+                    T.pill("👁️ Spectating · read-only", T.WARNING),
+                    rx.button("Exit", on_click=AppState.exit_spectator, variant="soft",
+                              size="2", color_scheme="gray"),
+                    align="center", spacing="3")),
         width="100%", align="center", margin_bottom="1.75rem",
     )
 
@@ -646,8 +652,12 @@ def room_page():
             dashboard,
             T.card(
                 T.section_title("👀 Spectating"),
-                rx.text("You're the admin and not managing a team. Use the nav above to run the league.",
-                        style={"color": T.MUTED}),
+                rx.cond(
+                    RoomState.is_spectator,
+                    rx.text("Read-only view — browse every team below, and any tab in the nav above. "
+                            "You can also use the 🧮 Calculator.", style={"color": T.MUTED}),
+                    rx.text("You're not managing a team. Use the nav above to run the league.",
+                            style={"color": T.MUTED})),
                 rx.box(height="0.8rem"),
                 rx.vstack(rx.foreach(RoomState.teams, team_overview_card), spacing="2", width="100%"),
                 width="100%"),
@@ -801,22 +811,27 @@ def bidding_page():
             width="100%", style={"margin_bottom": "0.6rem"}),
         _error(BiddingState.msg),
         rx.box(height="0.5rem"),
-        T.card(
-            rx.hstack(
-                rx.box(
-                    rx.input(value=BiddingState.bid_player, on_change=BiddingState.set_field("bid_player"),
-                             placeholder="Player to bid on", width="100%", id="bid_player_input", list="available-players"),
-                    rx.el.datalist(
-                        rx.foreach(BiddingState.all_available_players, lambda p: rx.el.option(p["role"] + " · " + p["team"], value=p["name"])),
-                        id="available-players"
+        rx.cond(
+            ~BiddingState.is_spectator,
+            T.card(
+                rx.hstack(
+                    rx.box(
+                        rx.input(value=BiddingState.bid_player, on_change=BiddingState.set_field("bid_player"),
+                                 placeholder="Player to bid on", width="100%", id="bid_player_input", list="available-players"),
+                        rx.el.datalist(
+                            rx.foreach(BiddingState.all_available_players, lambda p: rx.el.option(p["role"] + " · " + p["team"], value=p["name"])),
+                            id="available-players"
+                        ),
+                        width="40%"
                     ),
-                    width="40%"
-                ),
-                rx.input(value=BiddingState.bid_amount, on_change=BiddingState.set_field("bid_amount"),
-                         placeholder="Amount (M)", type="number", width="120px"),
-                T.primary_button("Place bid", on_click=BiddingState.place_bid),
-                spacing="3", width="100%", wrap="wrap"),
-            width="100%"),
+                    rx.input(value=BiddingState.bid_amount, on_change=BiddingState.set_field("bid_amount"),
+                             placeholder="Amount (M)", type="number", width="120px"),
+                    T.primary_button("Place bid", on_click=BiddingState.place_bid),
+                    spacing="3", width="100%", wrap="wrap"),
+                width="100%"),
+            T.card(rx.text("👁️ Spectating — you can watch the bids but not place any.",
+                           style={"color": T.MUTED}), width="100%"),
+        ),
         rx.box(height="1rem"),
         rx.grid(
             T.card(
@@ -920,8 +935,10 @@ def trade_page():
                    on_change=TradeState.set_field("give_cash"), width="100%")),
             _field("Cash you want", rx.input(value=TradeState.get_cash, type="number",
                    on_change=TradeState.set_field("get_cash"), width="100%")),
-            _field("Is this a loan?", rx.checkbox("1-Gameweek Loan", checked=TradeState.is_loan,
-                   on_change=TradeState.set_field("is_loan"), width="100%")),
+            _field("Is this a loan?",
+                   rx.checkbox("1-gameweek loan", checked=TradeState.is_loan,
+                               on_change=TradeState.set_field("is_loan"), size="2",
+                               style={"white_space": "nowrap", "margin_top": "0.4rem"})),
             columns=rx.breakpoints(initial="1", md="3"), spacing="3", width="100%"),
         T.primary_button("Send proposal", on_click=TradeState.propose, margin_top="0.6rem"),
         rx.text("All accepted trades require admin approval before they apply.",
@@ -930,7 +947,12 @@ def trade_page():
     return room_shell(
         _topbar(), room_nav(TradeState.room_code, TradeState.is_admin),
         T.hero(TradeState.room_name + " · Trades", ""),
-        propose,
+        rx.cond(
+            ~TradeState.is_spectator,
+            propose,
+            T.card(rx.text("👁️ Spectating — you can see proposed and completed trades but "
+                           "can't make any.", style={"color": T.MUTED}), width="100%"),
+        ),
         rx.box(height="1rem"),
         rx.grid(
             T.card(T.section_title("📥 Incoming"), rx.box(height="0.6rem"),
@@ -1211,10 +1233,10 @@ def admin_page():
                           on_change=AdminState.set_field("fr_player"), width="100%", size="2")),
                 rx.checkbox("Refund buy price", checked=AdminState.fr_refund,
                             on_change=AdminState.set_field("fr_refund"), margin_top="0.2rem"),
-                rx.hstack(
+                rx.vstack(
                     rx.button("🗑️ Release", on_click=AdminState.force_release, color_scheme="red",
                               variant="soft", size="2", width="100%"),
-                    rx.button("Release for full price", on_click=AdminState.release_full_price,
+                    rx.button("💰 Release for full price", on_click=AdminState.release_full_price,
                               color_scheme="green", variant="soft", size="2", width="100%"),
                     spacing="2", width="100%", margin_top="0.6rem"),
                 rx.text("“Release for full price” returns the player to the pool and refunds "
@@ -1273,6 +1295,35 @@ def admin_page():
                           spacing="2", align="start"),
                 width="100%"),
             columns=rx.breakpoints(initial="1", md="3"), spacing="4", width="100%"),
+        _admin_band("👁️", "Spectator link",
+                    "Invite friends to watch this room read-only — no account needed."),
+        T.card(T.section_title("👁️ Spectator link"), rx.box(height="0.5rem"),
+            rx.text("Anyone with this link can watch the auction, open bids, trades, squads and "
+                    "standings, and use the calculator — but cannot bid, trade, or change anything. "
+                    "They don't need an account.",
+                    style={"color": T.MUTED, "font_size": "0.82rem"}),
+            rx.cond(
+                AdminState.spectator_link != "",
+                rx.vstack(
+                    rx.box(rx.text(AdminState.spectator_link,
+                                   style={"color": T.ACCENT, "font_family": T.MONO,
+                                          "font_size": "0.8rem", "word_break": "break-all"}),
+                           style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+                                  "border_radius": "10px", "padding": "0.55rem 0.7rem",
+                                  "width": "100%", "margin_top": "0.5rem"}),
+                    rx.hstack(
+                        rx.button("📋 Copy link", variant="soft", size="2",
+                                  on_click=rx.set_clipboard(AdminState.spectator_link)),
+                        rx.button("♻️ Regenerate", variant="soft", size="2", color_scheme="amber",
+                                  on_click=AdminState.regenerate_spectator_link),
+                        rx.button("Disable", variant="soft", size="2", color_scheme="red",
+                                  on_click=AdminState.disable_spectator_link),
+                        spacing="2", wrap="wrap"),
+                    spacing="2", width="100%", align="start"),
+                T.primary_button("Create spectator link", on_click=AdminState.create_spectator_link,
+                                 margin_top="0.6rem"),
+            ),
+            width="100%"),
         _admin_band("🔁", "Loans", "Temporarily move a player between teams, with a return gameweek."),
         T.card(T.section_title("🔁 Loans"), rx.box(height="0.5rem"),
             rx.hstack(rx.select(AdminState.teams, value=AdminState.loan_from, placeholder="From",

@@ -21,6 +21,7 @@ class RoomState(rx.State):
     room_name: str = ""
     tournament: str = ""
     is_admin: bool = False
+    is_spectator: bool = False
     my_team: str = ""
 
     my_budget: int = 0
@@ -80,6 +81,8 @@ class RoomState(rx.State):
 
     @rx.event
     def handle_rename(self):
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -126,6 +129,9 @@ class RoomState(rx.State):
             self.is_admin = room.get("admin") == app.auth_user
             self.my_team = next((p["name"] for p in room.get("participants", [])
                                  if p.get("user") == app.auth_user), "")
+            spectator = app.grant_spectator_if_valid(
+                code, room, self.router._page.params.get("spectate", "") or "")
+            self.is_spectator = spectator and not self.is_admin and self.my_team == ""
             self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
             self.gw1_locked = bool(room.get("gw1_locked"))
             self._refresh(room)
@@ -408,6 +414,8 @@ class RoomState(rx.State):
     @rx.event
     def set_ir(self, player: str):
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -422,6 +430,8 @@ class RoomState(rx.State):
 
     @rx.event
     def clear_ir(self):
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -435,6 +445,8 @@ class RoomState(rx.State):
         from platform_core import market_ops as mo
         from season_engine.trading import TradeError
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -451,6 +463,8 @@ class RoomState(rx.State):
     @rx.event
     def hub_reject_trade(self, trade_id: str):
         from platform_core import market_ops as mo
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return
@@ -468,6 +482,8 @@ class RoomState(rx.State):
     def half_release(self, player: str):
         self.confirm_release_player = ""
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return

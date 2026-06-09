@@ -81,6 +81,14 @@ class AppState(rx.State):
     # The active room's tournament — drives per-room theming across pages.
     active_tournament: str = rx.LocalStorage("")
 
+    # --- spectator session (read-only guests invited via an admin link) ---
+    # A spectator opens /room?room=CODE&spectate=TOKEN; the token is validated against
+    # the room and remembered so they can browse every view tab read-only. Logged-in
+    # members/admins are never spectators.
+    spectator_token: str = rx.LocalStorage("")
+    spectator_room: str = rx.LocalStorage("")
+    spectating: bool = rx.LocalStorage(False)
+
     # --- auth form ---
     username: str = ""
     password: str = ""
@@ -135,6 +143,40 @@ class AppState(rx.State):
     @rx.var
     def logged_in(self) -> bool:
         return self.auth_user != ""
+
+    # ------------------------------------------------------------------ #
+    # Spectator access (read-only guests)
+    # ------------------------------------------------------------------ #
+    def grant_spectator_if_valid(self, code: str, room: Optional[dict], spectate_param: str) -> bool:
+        """Return True if this session is a valid read-only spectator for ``code``.
+
+        Honours a ``?spectate=TOKEN`` URL param (granting + persisting the token) and a
+        previously granted token kept in LocalStorage. Revoking the room's token (admin)
+        invalidates any stored spectator session. Mutates the persisted spectator vars
+        as a side effect, so call it from an event handler (e.g. a page on_load)."""
+        code = (code or "").upper()
+        tok = (room or {}).get("spectator_token") or ""
+        if not tok:
+            if self.spectator_room == code:           # token was revoked → drop session
+                self.spectator_token = ""
+                self.spectating = False
+            return False
+        if spectate_param and spectate_param == tok:  # arriving via a fresh invite link
+            self.spectator_token = tok
+            self.spectator_room = code
+            self.spectating = True
+            return True
+        ok = self.spectator_token == tok and self.spectator_room == code
+        if ok:
+            self.spectating = True
+        return ok
+
+    @rx.event
+    def exit_spectator(self):
+        self.spectator_token = ""
+        self.spectator_room = ""
+        self.spectating = False
+        return rx.redirect("/")
 
     # Generic explicit setter (replaces the deprecated implicit `set_*` setters).
     # Bind with e.g. on_change=AppState.set_field("username").

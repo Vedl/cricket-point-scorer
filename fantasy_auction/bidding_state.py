@@ -67,6 +67,7 @@ class BiddingState(rx.State):
     room_code: str = ""
     room_name: str = ""
     is_admin: bool = False
+    is_spectator: bool = False
     my_team: str = ""
     my_budget: int = 0
 
@@ -103,22 +104,27 @@ class BiddingState(rx.State):
         code = ""
         for _ in range(60):
             code = (self.router._page.params.get("room", "") or "").upper()
-            if code and app.auth_user:
+            # Wait until either a logged-in member OR a hydrated spectator session is
+            # observable, so a guest arriving via an invite link isn't bounced.
+            if code and (app.auth_user or app.is_hydrated):
                 break
             await asyncio.sleep(0.05)
-        if not app.auth_user:
-            return rx.redirect("/")
         if not code:
             return
         doc = await aload()
         room = doc.get("rooms", {}).get(code)
+        spectator = app.grant_spectator_if_valid(
+            code, room, self.router._page.params.get("spectate", "") or "")
+        if not app.auth_user and not spectator:
+            return rx.redirect("/")
         if room is None:
-            return rx.redirect("/rooms")
+            return rx.redirect("/rooms") if app.auth_user else rx.redirect("/")
         self.room_code = code
         self.room_name = room.get("name", "")
-        self.is_admin = room.get("admin") == app.auth_user
-        self.my_team = next((p["name"] for p in room.get("participants", [])
-                             if p.get("user") == app.auth_user), "")
+        self.is_admin = (not spectator) and room.get("admin") == app.auth_user
+        self.is_spectator = spectator
+        self.my_team = "" if spectator else next(
+            (p["name"] for p in room.get("participants", []) if p.get("user") == app.auth_user), "")
         self.msg = ""
         # Awarding + the first refresh are guarded so a single malformed bid/date can't
         # abort the whole load (Reflex discards a handler's state update on exception,
@@ -221,6 +227,8 @@ class BiddingState(rx.State):
     @rx.event
     def place_bid(self):
         self.msg = ""
+        if self.is_spectator:
+            return
         code, doc, room = self._load()
         if not room:
             return

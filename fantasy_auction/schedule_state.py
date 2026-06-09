@@ -45,11 +45,11 @@ class ScheduleState(rx.State):
     @rx.event
     async def on_load_schedule(self):
         app = await self.get_state(AppState)
-        for _ in range(60):  # break as soon as auth is ready; don't wait on is_hydrated
-            if app.auth_user:
+        for _ in range(60):  # allow either a member or a hydrated spectator session
+            if app.auth_user or app.is_hydrated:
                 break
             await asyncio.sleep(0.05)
-        if not app.auth_user:
+        if not app.auth_user and not app.spectating:
             return rx.redirect("/")
         code = (self.router._page.params.get("room", "") or "").upper()
         doc = await aload()
@@ -57,7 +57,7 @@ class ScheduleState(rx.State):
         if not code:
             return
         if room is None:
-            return rx.redirect("/rooms")
+            return rx.redirect("/rooms") if app.auth_user else rx.redirect("/")
         self.room_code = code
         self.room_name = room.get("name", "")
         self.tournament = room.get("tournament_type", "")
