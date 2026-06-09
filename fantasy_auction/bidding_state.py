@@ -43,9 +43,23 @@ def _claim_expire_processing(code: str) -> bool:
 
 
 def _countdown(when, now) -> str:
-    secs = int((when - now).total_seconds())
+    # Coerce both sides to naive-local before subtracting. A stored deadline parsed as
+    # timezone-AWARE minus a naive datetime.now() raises TypeError ("can't subtract
+    # offset-naive and offset-aware datetimes") — the timezone crash that kept blanking
+    # the bidding view for some users. Normalising here makes the math impossible to
+    # throw regardless of how the timestamp was stored.
+    try:
+        if getattr(when, "tzinfo", None) is not None:
+            when = when.astimezone().replace(tzinfo=None)
+        if getattr(now, "tzinfo", None) is not None:
+            now = now.astimezone().replace(tzinfo=None)
+        secs = int((when - now).total_seconds())
+    except Exception:
+        return ""
     if secs <= 0:
         return "passed"
+    # Emit an aware ISO (local offset) so the client's react-countdown parses an exact
+    # instant rather than guessing the browser's timezone.
     return when.astimezone().isoformat()
 
 
@@ -102,10 +116,20 @@ class BiddingState(rx.State):
         self.my_team = next((p["name"] for p in room.get("participants", [])
                              if p.get("user") == app.auth_user), "")
         self.msg = ""
-        awarded = bo.process_expired(room, datetime.now())
-        if awarded:
-            repo.save(doc)
-        self._refresh(room)
+        # Awarding + the first refresh are guarded so a single malformed bid/date can't
+        # abort the whole load (Reflex discards a handler's state update on exception,
+        # which would leave the participant staring at an empty page). Worst case the
+        # first paint is sparse and the resilient live_loop fills it in seconds later.
+        try:
+            awarded = bo.process_expired(room, datetime.now())
+            if awarded:
+                repo.save(doc)
+        except Exception as exc:
+            print(f"[on_load_bidding] award skipped: {exc}")
+        try:
+            self._refresh(room)
+        except Exception as exc:
+            print(f"[on_load_bidding] initial refresh failed: {exc}")
         self.watching = True
         if not self.loop_running:
             return BiddingState.live_loop
@@ -222,28 +246,34 @@ class BiddingState(rx.State):
                     if not self.watching or not self.room_code:
                         return
                     code = self.room_code
-                # Cheap per-room read (~20-50 KB), served from the 20s cache most
-                # ticks, instead of the ~1 MB full doc — and NO write here (the
-                # server-side scheduler thread owns deadline processing/locking).
-                # This keeps Firebase egress tiny even if a tab is left open.
-                room = await asyncio.to_thread(repo.load_room, code)
-                if room is not None:
-                    now = datetime.now()
-                    now_iso = now.isoformat()
-                    has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
-                    # Only ONE client coroutine does the heavy full-doc award per
-                    # cooldown window; the rest keep rendering from the cheap read.
-                    if has_expired and _claim_expire_processing(code):
-                        doc = await aload()
-                        full_room = doc.get("rooms", {}).get(code)
-                        if full_room:
-                            if bo.process_expired(full_room, now):
-                                repo.save(doc)
-                            room = full_room
-                            
-                    async with self:
-                        # Skip the heavy 1000-row datalist rebuild on every tick.
-                        self._refresh(room, full=False)
+                # Each tick is wrapped so a single bad read/refresh (a malformed bid,
+                # a date edge case, a transient Firebase hiccup) can NEVER kill the
+                # loop. Before this, one exception ended the task and that participant
+                # was frozen — seeing the page but no further live updates — while
+                # others kept updating. That's the "some see it, some don't" symptom.
+                try:
+                    # Cheap per-room read (~20-50 KB), served from the 20s cache most
+                    # ticks, instead of the ~1 MB full doc.
+                    room = await asyncio.to_thread(repo.load_room, code)
+                    if room is not None:
+                        now = datetime.now()
+                        now_iso = now.isoformat()
+                        has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
+                        # Only ONE client coroutine does the heavy full-doc award per
+                        # cooldown window; the rest keep rendering from the cheap read.
+                        if has_expired and _claim_expire_processing(code):
+                            doc = await aload()
+                            full_room = doc.get("rooms", {}).get(code)
+                            if full_room:
+                                if bo.process_expired(full_room, now):
+                                    repo.save(doc)
+                                room = full_room
+
+                        async with self:
+                            # Skip the heavy 1000-row datalist rebuild on every tick.
+                            self._refresh(room, full=False)
+                except Exception as exc:  # keep the live updater alive no matter what
+                    print(f"[bidding live_loop] tick failed, continuing: {exc}")
                 await asyncio.sleep(6)
         finally:
             async with self:
