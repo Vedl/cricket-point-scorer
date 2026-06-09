@@ -97,17 +97,21 @@ class BiddingState(rx.State):
     @rx.event
     async def on_load_bidding(self):
         app = await self.get_state(AppState)
-        for _ in range(100):
-            if app.is_hydrated:
+        # Break as soon as inputs are ready (usually instant). Don't wait on
+        # is_hydrated — it's set only after on_load finishes, so a foreground handler
+        # can never observe it flip; the old loop just burned ~5s on every load.
+        code = ""
+        for _ in range(60):
+            code = (self.router._page.params.get("room", "") or "").upper()
+            if code and app.auth_user:
                 break
             await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code = (self.router._page.params.get("room", "") or "").upper()
-        doc = await aload()
-        room = doc.get("rooms", {}).get(code)
         if not code:
             return
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if room is None:
             return rx.redirect("/rooms")
         self.room_code = code

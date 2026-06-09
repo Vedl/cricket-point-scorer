@@ -54,6 +54,13 @@ class RoomState(rx.State):
     my_wins: list[dict[str, str]] = []          # open-bidding wins since my last visit
     hub_trades: list[dict[str, str]] = []       # trades proposed TO me (pending)
 
+    # Self-healing refresh: the hub/squads/standings pages have no live updater, so
+    # after a free-tier spin-down/restart a reconnecting client kept its emptied state
+    # forever (on_load doesn't re-fire on reconnect). watching/loop_running drive a
+    # light background loop that re-fetches the room so the data always comes back.
+    watching: bool = False
+    loop_running: bool = False
+
     @rx.event
     def select_sort_by(self, val: str):
         self.squad_sort_by = val
@@ -92,36 +99,85 @@ class RoomState(rx.State):
     @rx.event
     async def on_load_hub(self):
         app = await self.get_state(AppState)
-        for _ in range(100):
-            if app.is_hydrated:
+        # Break as soon as the room code (URL param) is available — usually instantly.
+        # We deliberately do NOT wait on app.is_hydrated: it is set only AFTER on_load
+        # finishes, so a foreground handler can never observe it flip — the old wait
+        # just burned ~5s on every page load (the "insane lag"). Any auth-derived field
+        # that isn't ready yet is filled in by the self-healing loop moments later.
+        code = ""
+        for _ in range(60):
+            code = (self.router._page.params.get("room", "") or "").upper()
+            if code:
                 break
             await asyncio.sleep(0.05)
-        code = (self.router._page.params.get("room", "") or "").upper()
-        doc = await aload()
-        room = doc.get("rooms", {}).get(code)
         if not code:
-            return  # room param not ready yet — don't bounce
-        if room is None:
-            if app.auth_user:
-                return rx.redirect("/rooms")
-            return
-        self.room_code = code
-        self.room_name = room.get("name", "")
-        self.tournament = room.get("tournament_type", "")
-        app.active_tournament = self.tournament   # drives per-room theming
-        self.is_admin = room.get("admin") == app.auth_user
-        self.my_team = next((p["name"] for p in room.get("participants", [])
-                             if p.get("user") == app.auth_user), "")
-        self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
-        self.gw1_locked = bool(room.get("gw1_locked"))
-        self._refresh(room)
-        if self._compute_dashboard(room):
-            repo.save(doc)   # persist "seen" marker only when new wins appeared
-        # Click-through from a team card: ?team=NAME preselects that squad.
-        team_param = self.router._page.params.get("team", "")
-        if team_param and team_param in self.all_team_names:
-            self.view_team_sel = team_param
-            self._compute_view(room)
+            return  # genuinely no room in the URL — don't bounce
+        try:
+            doc = await aload()
+            room = doc.get("rooms", {}).get(code)
+            if room is None:
+                if app.auth_user:
+                    return rx.redirect("/rooms")
+                return
+            self.room_code = code
+            self.room_name = room.get("name", "")
+            self.tournament = room.get("tournament_type", "")
+            app.active_tournament = self.tournament   # drives per-room theming
+            self.is_admin = room.get("admin") == app.auth_user
+            self.my_team = next((p["name"] for p in room.get("participants", [])
+                                 if p.get("user") == app.auth_user), "")
+            self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
+            self.gw1_locked = bool(room.get("gw1_locked"))
+            self._refresh(room)
+            if self._compute_dashboard(room):
+                repo.save(doc)   # persist "seen" marker only when new wins appeared
+            # Click-through from a team card: ?team=NAME preselects that squad.
+            team_param = self.router._page.params.get("team", "")
+            if team_param and team_param in self.all_team_names:
+                self.view_team_sel = team_param
+                self._compute_view(room)
+        except Exception as exc:
+            # Never leave the participant on a blank page; the self-healing loop retries.
+            print(f"[on_load_hub] {exc}")
+        # Keep the page's data alive across reconnects/restarts (see watching docstring).
+        self.watching = True
+        if not self.loop_running:
+            return RoomState.hub_loop
+
+    @rx.event(background=True)
+    async def hub_loop(self):
+        """Re-fetch the room every few seconds so the hub/squads view repopulates
+        itself after a reconnect or a free-tier restart — and stays roughly live —
+        instead of being stuck on whatever (possibly empty) state it loaded with."""
+        async with self:
+            if self.loop_running:
+                return
+            self.loop_running = True
+        try:
+            while True:
+                async with self:
+                    if not self.watching or not self.room_code:
+                        return
+                    code = self.room_code
+                try:
+                    room = await asyncio.to_thread(repo.load_room, code)
+                    if room is not None:
+                        async with self:
+                            self._refresh(room)
+                            try:
+                                self._compute_dashboard(room)   # display only, no save
+                            except Exception as exc:
+                                print(f"[hub_loop] dashboard: {exc}")
+                except Exception as exc:
+                    print(f"[hub_loop] tick failed, continuing: {exc}")
+                await asyncio.sleep(10)
+        finally:
+            async with self:
+                self.loop_running = False
+
+    @rx.event
+    def stop_watching(self):
+        self.watching = False
 
     def _compute_dashboard(self, room: dict) -> bool:
         """Populate the personal hub widgets. Returns True if the document was

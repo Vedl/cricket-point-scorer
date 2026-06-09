@@ -68,8 +68,8 @@ class TradeState(rx.State):
     @rx.event
     async def on_load_trade(self):
         app = await self.get_state(AppState)
-        for _ in range(100):
-            if app.is_hydrated:
+        for _ in range(60):  # break as soon as inputs are ready; don't wait on is_hydrated
+            if (self.router._page.params.get("room", "") or "") and app.auth_user:
                 break
             await asyncio.sleep(0.05)
         code = (self.router._page.params.get("room", "") or "").upper()

@@ -257,8 +257,8 @@ class AppState(rx.State):
     # ------------------------------------------------------------------ #
     @rx.event
     async def load_rooms(self):
-        for _ in range(100):
-            if self.is_hydrated:
+        for _ in range(60):  # break as soon as auth is ready; don't wait on is_hydrated
+            if self.auth_user:
                 break
             await asyncio.sleep(0.05)
         if not self.auth_user:
@@ -324,8 +324,8 @@ class AppState(rx.State):
 
     @rx.event
     async def load_setup(self):
-        for _ in range(100):
-            if self.is_hydrated:
+        for _ in range(60):  # break as soon as auth is ready; don't wait on is_hydrated
+            if self.auth_user:
                 break
             await asyncio.sleep(0.05)
         if not self.auth_user:
