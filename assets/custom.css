@@ -68,6 +68,14 @@
   box-shadow: 0 0 0 3px rgba(124,92,255,0.22) !important;
   outline: none !important;
 }
+/* refined, consistent form controls across every page (incl. Admin) */
+.app-bg input, .app-bg textarea, .app-bg button[role="combobox"] {
+  border-radius: 11px !important;
+}
+.app-bg input::placeholder, .app-bg textarea::placeholder {
+  color: rgba(154, 160, 184, 0.7) !important;
+}
+.app-bg button[role="combobox"]:hover { border-color: rgba(255,255,255,0.2) !important; }
 
 /* ---- motion ---- */
 @keyframes sold-pop {

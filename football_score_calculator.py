@@ -556,75 +556,77 @@ def calc_all_players_fbref(fbref_url):
 # ENTRY POINT — WHOSCORED-BASED SCORING
 # ============================================================
 
-def calc_all_players_whoscored(ws_url):
-    """Calculate fantasy scores for all players in a match using WhoScored data."""
+def calc_all_players_whoscored(ws_url, registered_positions=None):
+    """Calculate fantasy scores for all players in a match using WhoScored data.
+
+    ``registered_positions`` maps player name -> registered role (e.g. "Defender").
+    When omitted it is loaded from ``fifa_wc_2026_players.json``. It is the source of
+    truth for HOW a player is scored (see the registered-position rule below); tests
+    pass it explicitly.
+    """
     import whoscored_adapter
     import json
     from pathlib import Path
-    
+
     # Removed try-catch to allow exception to bubble up
     df_players = whoscored_adapter.get_whoscored_stats(ws_url)
-        
+
     if df_players.empty:
         return pd.DataFrame(columns=["Player", "Team", "Position", "Score", "minutes_played"])
-        
-    # Load registered squad positions
-    players_file = Path(__file__).parent / "fifa_wc_2026_players.json"
-    registered_positions = {}
-    if players_file.exists():
-        try:
-            with open(players_file, "r") as f:
-                players_data = json.load(f)
-            for p in players_data:
-                if isinstance(p, dict) and "name" in p:
-                    registered_positions[p["name"]] = p.get("role", "")
-        except Exception as e:
-            print(f"[FootballScorer] Error loading players database: {e}")
 
-    def map_role_to_pos(role_str):
-        role_str = (role_str or "").lower()
-        if 'gk' in role_str or 'goalkeeper' in role_str: return 'GK'
-        if 'def' in role_str or 'back' in role_str or role_str in ['cb', 'lb', 'rb', 'df']: return 'DEF'
-        if 'mid' in role_str or role_str in ['cm', 'dm', 'am', 'mf']: return 'MID'
-        if 'fwd' in role_str or 'forward' in role_str or 'striker' in role_str or 'winger' in role_str or role_str in ['fw', 'cf', 'lw', 'rw', 'st']: return 'FWD'
-        return None
+    # Load registered squad positions (unless the caller supplied them).
+    if registered_positions is None:
+        players_file = Path(__file__).parent / "fifa_wc_2026_players.json"
+        registered_positions = {}
+        if players_file.exists():
+            try:
+                with open(players_file, "r") as f:
+                    players_data = json.load(f)
+                for p in players_data:
+                    if isinstance(p, dict) and "name" in p:
+                        registered_positions[p["name"]] = p.get("role", "")
+            except Exception as e:
+                print(f"[FootballScorer] Error loading players database: {e}")
+
+    from scoring.positions import map_role_to_pos, position_score_map
 
     scores = []
-    
+
     for index, row in df_players.iterrows():
         name = row['Unnamed: 0_level_0_Player']
         pos_match = row['Pos']
-        
+
         # We wrap in DF because score_calc_wrapper expects it
         df_row = pd.DataFrame([row])
-        
+
         minutes_played = row['minutes_played']
         if minutes_played == 0:
             continue
-            
+
         t_score = row['goals_scored']
         t_conc = row['goals_conceded']
-        
-        # 1. Calculate for match position
-        try:
-            score_match = score_calc_wrapper(pos_match, df_row, t_score, t_conc)
-        except Exception as e:
-            print(f"[FootballScorer] Error calculating match score for {name} ({pos_match}): {e}")
-            score_match = 0
-            
-        scores.append([name, score_match, pos_match])
-        
-        # 2. Calculate for registered squad position (if different)
-        role_reg = registered_positions.get(name, "")
-        pos_reg = map_role_to_pos(role_reg)
-        if pos_reg and pos_reg != pos_match:
+
+        pos_reg = map_role_to_pos(registered_positions.get(name, ""))
+
+        # KEY RULE: a player's POINTS are always computed from their REGISTERED
+        # position; the position they actually played only adds an extra ELIGIBLE
+        # Best-11 slot carrying that SAME registered-position score. (Kimmich, a
+        # listed DEF playing MID, earns his defender points but may fill a MID slot.)
+        # Players not in the squad DB fall back to scoring at their played position.
+        def _score_for(pos, _df=df_row, _ts=t_score, _tc=t_conc, _name=name):
             try:
-                score_reg = score_calc_wrapper(pos_reg, df_row, t_score, t_conc)
-                scores.append([name, score_reg, pos_reg])
-                print(f"[FootballScorer] Dual position calculated for {name}: Match={pos_match} ({score_match} pts), Reg={pos_reg} ({score_reg} pts)")
+                return score_calc_wrapper(pos, _df, _ts, _tc)
             except Exception as e:
-                print(f"[FootballScorer] Error calculating reg score for {name} ({pos_reg}): {e}")
-        
+                print(f"[FootballScorer] Error scoring {_name} as {pos}: {e}")
+                return 0
+
+        pos_scores = position_score_map(pos_reg, pos_match, _score_for)
+        for pos, sc in pos_scores.items():
+            scores.append([name, sc, pos])
+        if pos_reg and pos_match and pos_match != pos_reg:
+            print(f"[FootballScorer] {name}: scored as registered {pos_reg} "
+                  f"({pos_scores.get(pos_reg)} pts), also eligible at played {pos_match}")
+
     if not scores:
         return pd.DataFrame(columns=["Player", "Team", "Position", "Score", "minutes_played"])
 

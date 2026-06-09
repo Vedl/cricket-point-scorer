@@ -68,6 +68,7 @@ docker_build.log
 test_*.py
 !platform_core/tests/test_*.py
 !season_engine/tests/test_*.py
+!scoring/tests/test_*.py
 dump_db.py
 reflex.log
 test.txt

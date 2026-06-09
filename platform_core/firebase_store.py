@@ -113,6 +113,30 @@ class FirebaseStore:
         base = f"{self.database_url}/auction_data.json"
         return f"{base}?auth={self.secret}" if self.secret else base
 
+    @property
+    def version_url(self) -> str:
+        """URL of the document's root version stamp ONLY (a single integer, ~13 bytes).
+
+        Reading this instead of the whole document is the core egress saver: a refresh
+        first asks "has anything changed?" by downloading ~13 bytes, and only pays for
+        the full ~700 KB download when the answer is yes."""
+        base = f"{self.database_url}/auction_data/_v.json"
+        return f"{base}?auth={self.secret}" if self.secret else base
+
+    def _fetch_version(self) -> Optional[int]:
+        """Return the remote root ``_v`` stamp, or None if unavailable/legacy doc."""
+        try:
+            resp = requests.get(self.version_url, timeout=self.timeout)
+            if resp.status_code == 200:
+                v = resp.json()
+                if isinstance(v, bool):  # JSON true/false would coerce to 1/0
+                    return None
+                if isinstance(v, (int, float)):
+                    return int(v)
+        except Exception as exc:  # pragma: no cover - network
+            print(f"[FirebaseStore] version probe failed: {exc}")
+        return None
+
     # ------------------------------------------------------------------ #
     # Normalisation (Firebase turns dicts with numeric keys into sparse lists)
     # ------------------------------------------------------------------ #
@@ -238,6 +262,20 @@ class FirebaseStore:
 
     def _refresh_once(self) -> None:
         try:
+            # Cheap change-probe FIRST: download only the ~13-byte root version stamp.
+            # If it matches what we already hold, the document is unchanged and we skip
+            # the expensive full GET entirely — this is what slashes Firebase egress
+            # (most refresh ticks find nothing changed). Only fall through to the full
+            # download when the version moved forward or the doc is legacy (no _v).
+            cached_v = self._cache.get("_v", 0) if self._cache else 0
+            if cached_v:
+                remote_v = self._fetch_version()
+                if remote_v is not None and remote_v <= cached_v:
+                    # Unchanged (==) or stale/in-flight remote (<): nothing to pull.
+                    self._cache_ts = time.monotonic()
+                    return
+            if self._pending is not None:
+                return  # a local write is queued — don't overwrite it with a read
             resp = requests.get(self.db_url, timeout=self.timeout)
             # Don't clobber the snapshot if a local write is queued/in-flight.
             if resp.status_code == 200 and self._pending is None:
@@ -392,14 +430,25 @@ class FirebaseStore:
         """Write a single room node (cheaper Firebase PATCH; full local rewrite)."""
         data = self.load()
         data.setdefault("rooms", {})[room_code] = room
+        # Bump the root version stamp so the cheap _v probe (other workers' refresh)
+        # still detects this change even though we only PUT one room node — keeps the
+        # egress optimisation correct under a hypothetical multi-worker deploy.
+        new_v = int(time.time() * 1000)
+        data["_v"] = new_v
         if self.use_remote:
             try:
-                url = f"{self.database_url}/auction_data/rooms/{room_code}.json"
-                if self.secret:
-                    url += f"?auth={self.secret}"
+                base = f"{self.database_url}/auction_data/rooms/{room_code}.json"
                 requests.put(
-                    url,
+                    base + (f"?auth={self.secret}" if self.secret else ""),
                     data=json.dumps(room),
+                    headers={"Content-Type": "application/json"},
+                    timeout=self.timeout,
+                )
+                # Patch the root _v in the same shape save() uses, so probes compare like-for-like.
+                root = f"{self.database_url}/auction_data.json"
+                requests.patch(
+                    root + (f"?auth={self.secret}" if self.secret else ""),
+                    data=json.dumps({"_v": new_v}),
                     headers={"Content-Type": "application/json"},
                     timeout=self.timeout,
                 )

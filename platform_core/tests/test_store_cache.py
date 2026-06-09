@@ -217,3 +217,103 @@ def test_save_write_behind_full_put_then_patch(monkeypatch):
     assert fake.calls[1][0] == "patch"                     # then only the diff
     body = json.loads(fake.calls[1][2])
     assert "rooms/AB" in body and "rooms/CD" not in body
+
+
+# --------------------------------------------------------------------------- #
+# The version-probe egress saver (remote mode, network mocked)
+# --------------------------------------------------------------------------- #
+class _ProbeResp:
+    def __init__(self, status, payload):
+        self.status_code = status
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class _ProbeRequests:
+    """Records every GET and answers the _v probe vs the full-doc download."""
+
+    def __init__(self, version=None, full_doc=None):
+        self.version = version
+        self.full_doc = full_doc
+        self.get_urls: list[str] = []
+
+    def get(self, url, timeout=None, **kw):
+        self.get_urls.append(url)
+        if "/_v.json" in url:
+            return _ProbeResp(200, self.version)
+        return _ProbeResp(200, self.full_doc)
+
+    def put(self, *a, **kw):
+        return _ProbeResp(200, None)
+
+    @property
+    def version_probes(self):
+        return [u for u in self.get_urls if "/_v.json" in u]
+
+    @property
+    def full_downloads(self):
+        return [u for u in self.get_urls if "/_v.json" not in u]
+
+
+def _probe_store(monkeypatch, fake, *, cached_v):
+    monkeypatch.setattr(fs, "requests", fake)
+    s = FirebaseStore(local_file_path=tempfile.mktemp(suffix=".json"),
+                      database_url="https://fake.firebaseio.com")
+    assert s.use_remote is True
+    s._cache = {"users": {}, "rooms": {"AB": {"name": "v1"}}, "_v": cached_v}
+    s._cache_ts = 0.0  # force "stale" so a refresh is warranted
+    return s
+
+
+def test_refresh_probes_version_and_skips_full_download_when_unchanged(monkeypatch):
+    fake = _ProbeRequests(version=100, full_doc={"_v": 999, "rooms": {"AB": {"name": "SHOULD_NOT_LOAD"}}})
+    s = _probe_store(monkeypatch, fake, cached_v=100)
+    s._refresh_once()
+    # Only the tiny probe was fetched; the ~700 KB document was NOT downloaded.
+    assert len(fake.version_probes) == 1
+    assert fake.full_downloads == []
+    assert s._cache["rooms"]["AB"]["name"] == "v1"  # cache untouched
+
+
+def test_refresh_downloads_full_doc_only_when_version_advances(monkeypatch):
+    fake = _ProbeRequests(version=200, full_doc={"_v": 200, "users": {}, "rooms": {"AB": {"name": "v2"}}})
+    s = _probe_store(monkeypatch, fake, cached_v=100)
+    s._refresh_once()
+    assert len(fake.version_probes) == 1
+    assert len(fake.full_downloads) == 1            # paid for the download exactly once
+    assert s._cache["rooms"]["AB"]["name"] == "v2"  # snapshot updated
+
+
+def test_refresh_does_not_clobber_with_stale_remote(monkeypatch):
+    # Remote is BEHIND our cache (another worker's write in flight). Must not download.
+    fake = _ProbeRequests(version=100, full_doc={"_v": 100, "rooms": {"AB": {"name": "OLD"}}})
+    s = _probe_store(monkeypatch, fake, cached_v=500)
+    s._refresh_once()
+    assert fake.full_downloads == []
+    assert s._cache["rooms"]["AB"]["name"] == "v1"
+
+
+def test_refresh_falls_back_to_full_download_for_legacy_doc_without_version(monkeypatch):
+    # Cache has no _v (legacy) -> can't probe -> must download to stay correct.
+    fake = _ProbeRequests(version=None, full_doc={"users": {}, "rooms": {"AB": {"name": "v3"}}})
+    monkeypatch.setattr(fs, "requests", fake)
+    s = FirebaseStore(local_file_path=tempfile.mktemp(suffix=".json"),
+                      database_url="https://fake.firebaseio.com")
+    s._cache = {"users": {}, "rooms": {"AB": {"name": "v1"}}}  # no _v
+    s._cache_ts = 0.0
+    s._refresh_once()
+    assert len(fake.full_downloads) == 1
+    assert s._cache["rooms"]["AB"]["name"] == "v3"
+
+
+def test_fetch_version_parses_int_and_rejects_garbage(monkeypatch):
+    s = FirebaseStore(local_file_path=tempfile.mktemp(suffix=".json"),
+                      database_url="https://fake.firebaseio.com")
+    monkeypatch.setattr(fs, "requests", _ProbeRequests(version=1780925643871))
+    assert s._fetch_version() == 1780925643871
+    monkeypatch.setattr(fs, "requests", _ProbeRequests(version="not-a-number"))
+    assert s._fetch_version() is None
+    monkeypatch.setattr(fs, "requests", _ProbeRequests(version=True))
+    assert s._fetch_version() is None  # JSON booleans must not coerce to 1

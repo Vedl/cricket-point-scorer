@@ -26,20 +26,12 @@ def _json_pos_map() -> dict:
         data = json.load(open(path))
     except Exception:
         data = []
+    from scoring.positions import map_role_to_pos
+
     for p in data:
         if not isinstance(p, dict):
             continue
-        role = (p.get("role") or p.get("position") or "").lower()
-        if "gk" in role or "keeper" in role:
-            pos = "GK"
-        elif "def" in role or "back" in role:
-            pos = "DEF"
-        elif "mid" in role:
-            pos = "MID"
-        elif "fwd" in role or "forward" in role or "strik" in role or "wing" in role:
-            pos = "FWD"
-        else:
-            pos = None
+        pos = map_role_to_pos(p.get("role") or p.get("position") or "")
         if pos and p.get("name"):
             _POS_CACHE[p["name"]] = pos
     return _POS_CACHE
