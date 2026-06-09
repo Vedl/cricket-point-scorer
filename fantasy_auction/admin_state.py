@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import reflex as rx
 
 from platform_core import admin_ops as ao
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 
 class AdminState(rx.State):
@@ -78,9 +79,17 @@ class AdminState(rx.State):
     @rx.event
     async def on_load_admin(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
+        if not code:
+            return
         if room is None:
             return rx.redirect("/rooms")
         self.room_code = code

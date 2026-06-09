@@ -793,7 +793,7 @@ def bidding_page():
                         rx.cond(
                             m["left"] == "passed",
                             rx.text("passed", style={"color": T.MUTED, "font_family": T.MONO, "font_size": "0.85rem"}),
-                            rx.text(T.countdown(date=m["left"]), style={"color": T.ACCENT, "font_family": T.MONO, "font_size": "0.85rem"})
+                            rx.text(T.countdown(date=rx.cond(m["left"] == "passed", "2099-12-31T23:59:59Z", m["left"])), style={"color": T.ACCENT, "font_family": T.MONO, "font_size": "0.85rem"})
                         ),
                         width="100%", align="center")),
                     spacing="1", width="100%"),
@@ -861,7 +861,14 @@ def bidding_page():
                                         rx.cond(
                                             b["time_left"] == "passed",
                                             rx.text("passed", style={"color": T.DANGER, "font_size": "0.85rem"}),
-                                            rx.hstack(rx.text("⏳", size="1"), rx.text(T.countdown(date=b["time_left"]), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"}))
+                                            rx.cond(
+                                                b["time_left"] == "",
+                                                rx.text("—", style={"color": T.MUTED, "font_size": "0.85rem"}),
+                                                rx.hstack(
+                                                    rx.text("⏳", size="1"), 
+                                                    rx.text(T.countdown(date=rx.cond(b["time_left"] == "passed", "2099-12-31T23:59:59Z", rx.cond(b["time_left"] == "", "2099-12-31T23:59:59Z", b["time_left"]))), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"})
+                                                )
+                                            )
                                         )
                                     )
                                 ))
@@ -1405,6 +1412,25 @@ def calculator_page():
 # --------------------------------------------------------------------------- #
 app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
 
+from starlette.responses import JSONResponse
+
+def diagnostic(request):
+    code = request.path_params.get("code", "").upper()
+    from .state import repo
+    doc = repo.load()
+    room = doc.get("rooms", {}).get(code)
+    if not room:
+        return JSONResponse({"error": f"room {code} not found"})
+    return JSONResponse({
+        "open_bids": room.get("open_bids"),
+        "participants": [
+            {"name": p["name"], "budget": p.get("budget"), "squad_size": len(p.get("squad", []))}
+            for p in room.get("participants", [])
+        ]
+    })
+
+app._api.add_route("/backend/diagnostic/{code}", diagnostic, methods=["GET"])
+
 
 def _serve_prebuilt_frontend(reflex_asgi):
     """Make Reflex's OWN backend serve the pre-built static frontend.
@@ -1425,8 +1451,16 @@ def _serve_prebuilt_frontend(reflex_asgi):
     backend_prefixes = ("/_event", "/ping", "/_upload", "/_health", "/backend",
                         "/sitemap", "/.well-known")
 
+    def _is_backend_path(path: str) -> bool:
+        return path == "/_event" or path.startswith(backend_prefixes)
+
     async def asgi(scope, receive, send):
-        if scope.get("type") == "http" and not scope.get("path", "/").startswith(backend_prefixes):
+        path = scope.get("path", "/")
+        # Never serve static files for Reflex backend / Socket.IO paths (HTTP or WS).
+        if scope.get("type") in ("http", "websocket") and _is_backend_path(path):
+            await reflex_asgi(scope, receive, send)
+            return
+        if scope.get("type") == "http":
             try:
                 await static(scope, receive, send)
                 return

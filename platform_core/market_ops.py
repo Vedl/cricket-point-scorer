@@ -16,6 +16,32 @@ from season_engine.trading import TradeError, apply_trade, validate_trade
 MAX_SQUAD = 30
 
 
+def _legacy_player_list(t: dict, plural: str, singular: str) -> list:
+    """Coerce legacy single-player trade keys into a list field."""
+    if plural in t:
+        val = t[plural]
+        if val is None:
+            return []
+        return list(val) if isinstance(val, list) else [val]
+    legacy = t.get(singular)
+    if legacy:
+        return [legacy] if isinstance(legacy, str) else list(legacy)
+    return []
+
+
+def _normalize_trade(t: dict) -> dict:
+    """Ensure a pending-trade dict has the fields expected by the UI/engine.
+
+    Legacy records may use ``give_player`` / ``get_player`` or omit player lists
+    entirely (e.g. cash-only legs).
+    """
+    t["give_players"] = _legacy_player_list(t, "give_players", "give_player")
+    t["get_players"] = _legacy_player_list(t, "get_players", "get_player")
+    t.setdefault("give_cash", 0)
+    t.setdefault("get_cash", 0)
+    return t
+
+
 def participants_by_name(room: dict) -> dict[str, dict]:
     return {p["name"]: p for p in room.get("participants", [])}
 
@@ -48,15 +74,18 @@ def propose_trade(room, from_name, to_name, give_players, get_players,
 
 
 def incoming_trades(room, name):
-    return [t for t in room.get("pending_trades", []) if t["to"] == name and t["status"] == "pending"]
+    return [_normalize_trade(t) for t in room.get("pending_trades", [])
+            if t.get("to") == name and t.get("status") == "pending"]
 
 
 def outgoing_trades(room, name):
-    return [t for t in room.get("pending_trades", []) if t["from"] == name and t["status"] == "pending"]
+    return [_normalize_trade(t) for t in room.get("pending_trades", [])
+            if t.get("from") == name and t.get("status") == "pending"]
 
 
 def _find_trade(room, trade_id):
-    return next((t for t in room.get("pending_trades", []) if t["id"] == trade_id), None)
+    t = next((t for t in room.get("pending_trades", []) if t.get("id") == trade_id), None)
+    return _normalize_trade(t) if t is not None else None
 
 
 def accept_trade(room, trade_id) -> dict:
@@ -81,7 +110,8 @@ def reject_trade(room, trade_id) -> None:
 
 
 def trades_awaiting_admin(room):
-    return [t for t in room.get("pending_trades", []) if t["status"] == "awaiting_admin"]
+    return [_normalize_trade(t) for t in room.get("pending_trades", [])
+            if t.get("status") == "awaiting_admin"]
 
 
 def admin_approve_trade(room, trade_id) -> dict:

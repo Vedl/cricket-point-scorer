@@ -7,12 +7,13 @@ half-price releases.
 
 from __future__ import annotations
 
+import asyncio
 import reflex as rx
 
 from platform_core import season_ops as so
 from platform_core.season_ops import SeasonError
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 
 class RoomState(rx.State):
@@ -91,13 +92,17 @@ class RoomState(rx.State):
     @rx.event
     async def on_load_hub(self):
         app = await self.get_state(AppState)
-        code, doc, room = self._load()
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
         if not code:
             return  # room param not ready yet — don't bounce
         if room is None:
-            # Only treat as a real "missing room" once we're fully hydrated AND the
-            # user is known — never evict on a transient hydration/reconnect race.
-            if app.is_hydrated and app.auth_user:
+            if app.auth_user:
                 return rx.redirect("/rooms")
             return
         self.room_code = code
@@ -134,11 +139,11 @@ class RoomState(rx.State):
 
         # Trades proposed to me (I receive give_players, I give get_players).
         self.hub_trades = [
-            {"id": t["id"],
-             "text": (f"{t['from']} → you receive [{', '.join(t['give_players']) or '—'}]"
-                      f"{(' +'+str(t['give_cash'])+'M') if t.get('give_cash') else ''}, "
-                      f"give [{', '.join(t['get_players']) or '—'}]"
-                      f"{(' +'+str(t['get_cash'])+'M') if t.get('get_cash') else ''}")}
+            {"id": t.get("id", ""),
+             "text": (f"{t.get('from', '?')} → you receive [{', '.join(t.get('give_players') or []) or '—'}]"
+                      f"{(' +'+str(t.get('give_cash', 0))+'M') if t.get('give_cash') else ''}, "
+                      f"give [{', '.join(t.get('get_players') or []) or '—'}]"
+                      f"{(' +'+str(t.get('get_cash', 0))+'M') if t.get('get_cash') else ''}")}
             for t in mo.incoming_trades(room, me)]
 
         # Current standings rank.
@@ -189,16 +194,25 @@ class RoomState(rx.State):
                 if "bowl" in r: return 4
                 return 5
 
-        squad_data = me.get("squad", [])
+        squad_data = me.get("squad") or []
+        if isinstance(squad_data, dict):
+            squad_data = list(squad_data.values())
+
+        def safe_price(p):
+            try:
+                return float(p.get("buy_price", 0))
+            except (ValueError, TypeError):
+                return 0
+
         if self.squad_sort_by == "Position":
-            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -x.get("buy_price", 0)))
+            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -safe_price(x)))
         else:
-            sorted_squad = sorted(squad_data, key=lambda x: -x.get("buy_price", 0))
+            sorted_squad = sorted(squad_data, key=lambda x: -safe_price(x))
 
         self.my_squad = [
-            {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
+            {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
-             "ir": "yes" if e["name"] == me.get("ir") else "no"}
+             "ir": "yes" if e.get("name") == me.get("ir") else "no"}
             for e in sorted_squad
         ]
         p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
@@ -221,7 +235,7 @@ class RoomState(rx.State):
 
         self.teams = []
         for p in room.get("participants", []):
-            sq = p.get("squad", [])
+            sq = p.get("squad") or []
             c = _counts(sq)
             self.teams.append({
                 "name": p["name"], "budget": str(p.get("budget", 0)),
@@ -268,16 +282,25 @@ class RoomState(rx.State):
                 if "bowl" in r: return 4
                 return 5
 
-        squad_data = p.get("squad", [])
+        squad_data = p.get("squad") or []
+        if isinstance(squad_data, dict):
+            squad_data = list(squad_data.values())
+
+        def safe_price_view(pl):
+            try:
+                return float(pl.get("buy_price", 0))
+            except (ValueError, TypeError):
+                return 0
+
         if self.squad_sort_by == "Position":
-            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -x.get("buy_price", 0)))
+            sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -safe_price_view(x)))
         else:
-            sorted_squad = sorted(squad_data, key=lambda x: -x.get("buy_price", 0))
+            sorted_squad = sorted(squad_data, key=lambda x: -safe_price_view(x))
 
         self.view_squad = [
-            {"name": e["name"], "role": e.get("role", ""), "team": e.get("team", ""),
+            {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
-             "ir": "yes" if e["name"] == p.get("ir") else "no"}
+             "ir": "yes" if e.get("name") == p.get("ir") else "no"}
             for e in sorted_squad
         ]
 
@@ -287,7 +310,7 @@ class RoomState(rx.State):
         rows = []
         if isinstance(team, dict):
             ir = team.get("ir")
-            for e in team.get("squad", []):
+            for e in (team.get("squad") or []):
                 rows.append({"name": e["name"], "role": e.get("role", ""),
                              "ir": "yes" if e["name"] == ir else "no"})
         self.locked_rows = rows
@@ -308,7 +331,7 @@ class RoomState(rx.State):
         results = []
         if query:
             for p in room.get("participants", []):
-                for e in p.get("squad", []):
+                for e in (p.get("squad") or []):
                     if query in e.get("name", "").lower():
                         results.append({
                             "name": e["name"],

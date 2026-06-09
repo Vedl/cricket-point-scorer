@@ -7,6 +7,7 @@ business rules live here.
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import reflex as rx
@@ -62,11 +63,16 @@ from platform_core.repository import (
 # One repository for the process; the store reads Firebase config from env and
 # falls back to a local JSON file when unset (see PLAN.md §6.6).
 repo = Repository()
-# NOTE: deliberately NO startup pre-warm here. Doing a blocking Firebase read +
-# deep-copying every room during import competes for the GIL on the tiny single-CPU
-# free VM and can delay the server from binding its port past fly's health-check
-# grace, causing a restart loop (the app never becomes reachable). The cache warms
-# lazily on the first request instead.
+# Cache warm happens in hf_start.sh (before reflex binds its port), not at import
+# time — see firebase_store.warm_cache().
+
+
+async def aload() -> dict:
+    """Non-blocking ``repo.load()`` for async event handlers.
+
+    A synchronous Firebase/JSON read inside a Reflex handler blocks the asyncio
+    loop and can drop the websocket heartbeat, leaving users on "connecting…"."""
+    return await asyncio.to_thread(repo.load)
 
 
 class AppState(rx.State):
@@ -250,10 +256,14 @@ class AppState(rx.State):
     # Dashboard
     # ------------------------------------------------------------------ #
     @rx.event
-    def load_rooms(self):
+    async def load_rooms(self):
+        for _ in range(100):
+            if self.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not self.auth_user:
             return rx.redirect("/")
-        doc = repo.load()
+        doc = await aload()
         user = doc.get("users", {}).get(self.auth_user, {})
         codes = list(
             dict.fromkeys(user.get("rooms_created", []) + user.get("rooms_joined", []))
@@ -313,11 +323,17 @@ class AppState(rx.State):
         return (self.router._page.params.get("room", "") or "").upper()
 
     @rx.event
-    def load_setup(self):
+    async def load_setup(self):
+        for _ in range(100):
+            if self.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not self.auth_user:
             return rx.redirect("/")
         code = self._room_code_from_url()
-        doc = repo.load()
+        if not code:
+            return
+        doc = await aload()
         room = doc.get("rooms", {}).get(code)
         if not room:
             return rx.redirect("/rooms")
@@ -337,7 +353,7 @@ class AppState(rx.State):
                 "pin": str(p.get("pin") or "—"),
                 "claimed": p.get("user") or "unclaimed",
                 "budget": str(p.get("budget", 0)),
-                "squad": str(len(p.get("squad", []))),
+                "squad": str(len(p.get("squad") or [])),
             }
             for p in room.get("participants", [])
         ]

@@ -12,7 +12,7 @@ from platform_core import bidding_ops as bo
 from platform_core import season_ops as so
 from season_engine.open_bidding import BidError
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 _WINDOW_LABEL = {
     "frozen": "🔒 Frozen — waiting for the admin to set a deadline",
@@ -46,7 +46,7 @@ def _countdown(when, now) -> str:
     secs = int((when - now).total_seconds())
     if secs <= 0:
         return "passed"
-    return when.isoformat()
+    return when.astimezone().isoformat()
 
 
 class BiddingState(rx.State):
@@ -83,9 +83,17 @@ class BiddingState(rx.State):
     @rx.event
     async def on_load_bidding(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code, doc, room = self._load()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
+        if not code:
+            return
         if room is None:
             return rx.redirect("/rooms")
         self.room_code = code
@@ -139,13 +147,16 @@ class BiddingState(rx.State):
             time_left = ""
             if expires_iso:
                 try:
-                    time_left = _countdown(datetime.fromisoformat(expires_iso), now)
+                    exp_dt = datetime.fromisoformat(expires_iso)
+                    if exp_dt.tzinfo is not None:
+                        exp_dt = exp_dt.astimezone().replace(tzinfo=None)
+                    time_left = _countdown(exp_dt, now)
                 except Exception:
                     pass
             new_active.append({
-                "player": b["player"], "team": b["team"], "role": b.get("role", ""), "high_bid": str(b["high_bid"]),
-                "high_bidder": b["high_bidder"], "expires": expires_iso, "time_left": time_left,
-                "mine": "yes" if b["high_bidder"] == self.my_team else "no"
+                "player": b.get("player", "Unknown"), "team": b.get("team", ""), "role": b.get("role", ""), "high_bid": str(b.get("high_bid", 0)),
+                "high_bidder": b.get("high_bidder", ""), "expires": expires_iso, "time_left": time_left,
+                "mine": "yes" if b.get("high_bidder") == self.my_team else "no"
             })
         if self.active != new_active:
             self.active = new_active
@@ -215,7 +226,7 @@ class BiddingState(rx.State):
                 # ticks, instead of the ~1 MB full doc — and NO write here (the
                 # server-side scheduler thread owns deadline processing/locking).
                 # This keeps Firebase egress tiny even if a tab is left open.
-                room = repo.load_room(code)
+                room = await asyncio.to_thread(repo.load_room, code)
                 if room is not None:
                     now = datetime.now()
                     now_iso = now.isoformat()
@@ -223,7 +234,8 @@ class BiddingState(rx.State):
                     # Only ONE client coroutine does the heavy full-doc award per
                     # cooldown window; the rest keep rendering from the cheap read.
                     if has_expired and _claim_expire_processing(code):
-                        _, doc, full_room = self._load()
+                        doc = await aload()
+                        full_room = doc.get("rooms", {}).get(code)
                         if full_room:
                             if bo.process_expired(full_room, now):
                                 repo.save(doc)

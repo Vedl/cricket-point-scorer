@@ -42,6 +42,15 @@ PRUNE_LOG_KEYS = ("transactions", "auction_log")
 DEFAULT_LOG_CAP = 1000
 
 
+def warm_cache(store: Optional["FirebaseStore"] = None) -> dict:
+    """Populate the in-memory snapshot before the web server accepts traffic.
+
+    Called from ``hf_start.sh`` on Render so the first websocket hydrate never
+    blocks the asyncio loop on a cold Firebase download."""
+    store = store or FirebaseStore()
+    return store.load()
+
+
 class FirebaseStore:
     def __init__(
         self,
@@ -209,12 +218,13 @@ class FirebaseStore:
 
         Polling paths (the per-client bidding ``live_loop``, page on-loads) only ever
         need a single room, so we deep-copy just that ~20-50 KB node instead of the
-        whole ~1 MB+ document. On a 512 MB single-CPU box this is the difference
+        whole ~1 MB+ document. Going through ``_snapshot()`` also keeps the cache fresh
+        (stale-while-revalidate). On a 512 MB single-CPU box this is the difference
         between the event loop keeping up and OOM/heartbeat starvation: it avoids
         copying every other room, N times every few seconds, for every connected tab.
         Returns an independent copy so callers can mutate it safely."""
         room = self._snapshot().get("rooms", {}).get((code or "").upper())
-        return copy.deepcopy(room) if room is not None else None
+        return copy.deepcopy(room) if isinstance(room, dict) else None
 
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""

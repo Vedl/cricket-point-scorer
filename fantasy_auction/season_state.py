@@ -9,7 +9,7 @@ import reflex as rx
 from platform_core import scoring_ops
 from platform_core import season_ops as so
 
-from .state import AppState, repo
+from .state import AppState, aload, repo
 
 
 class SeasonState(rx.State):
@@ -63,9 +63,17 @@ class SeasonState(rx.State):
     @rx.event
     async def on_load_standings(self):
         app = await self.get_state(AppState)
+        for _ in range(100):
+            if app.is_hydrated:
+                break
+            await asyncio.sleep(0.05)
         if not app.auth_user:
             return rx.redirect("/")
-        code, doc, room = self._load_room()
+        code = (self.router._page.params.get("room", "") or "").upper()
+        doc = await aload()
+        room = doc.get("rooms", {}).get(code)
+        if not code:
+            return
         if room is None:
             return rx.redirect("/rooms")
         self.room_code = code
