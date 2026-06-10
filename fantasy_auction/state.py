@@ -155,7 +155,21 @@ class AppState(rx.State):
         invalidates any stored spectator session. Mutates the persisted spectator vars
         as a side effect, so call it from an event handler (e.g. a page on_load)."""
         code = (code or "").upper()
-        tok = (room or {}).get("spectator_token") or ""
+        room = room or {}
+        # A logged-in member or admin of this room is ALWAYS a full participant —
+        # never a spectator — even if a stale spectator token lingers in LocalStorage
+        # (e.g. they once opened a spectator link). Clear any stale session and bail.
+        if self.auth_user:
+            is_member = (room.get("admin") == self.auth_user or
+                         any(p.get("user") == self.auth_user
+                             for p in room.get("participants", [])))
+            if is_member:
+                if self.spectator_room == code:
+                    self.spectator_token = ""
+                    self.spectator_room = ""
+                    self.spectating = False
+                return False
+        tok = room.get("spectator_token") or ""
         if not tok:
             if self.spectator_room == code:           # token was revoked → drop session
                 self.spectator_token = ""

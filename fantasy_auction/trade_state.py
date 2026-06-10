@@ -87,9 +87,10 @@ class TradeState(rx.State):
         self.room_code = code
         self.room_name = room.get("name", "")
         self.is_admin = (not spectator) and room.get("admin") == app.auth_user
-        self.is_spectator = spectator
         self.me = "" if spectator else next(
             (p["name"] for p in room.get("participants", []) if p.get("user") == app.auth_user), "")
+        # A logged-in member/admin is never a spectator, regardless of any stale token.
+        self.is_spectator = spectator and not self.is_admin and self.me == ""
         self.msg = ""
         # Pre-fill from a "🤝 Trade" click on another team's squad: ?with=TEAM&want=PLAYER
         params = self.router._page.params

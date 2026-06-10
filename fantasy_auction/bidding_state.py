@@ -122,9 +122,10 @@ class BiddingState(rx.State):
         self.room_code = code
         self.room_name = room.get("name", "")
         self.is_admin = (not spectator) and room.get("admin") == app.auth_user
-        self.is_spectator = spectator
         self.my_team = "" if spectator else next(
             (p["name"] for p in room.get("participants", []) if p.get("user") == app.auth_user), "")
+        # A logged-in member/admin is never a spectator, regardless of any stale token.
+        self.is_spectator = spectator and not self.is_admin and self.my_team == ""
         self.msg = ""
         # Awarding + the first refresh are guarded so a single malformed bid/date can't
         # abort the whole load (Reflex discards a handler's state update on exception,
