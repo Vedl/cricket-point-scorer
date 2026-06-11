@@ -13,6 +13,7 @@ from .state import AppState
 from .room_state import RoomState
 from .bidding_state import BiddingState
 from .trade_state import TradeState
+from .announce_state import AnnounceState
 from .season_state import SeasonState
 from .admin_state import AdminState
 from .scheduler import SchedulerState
@@ -114,6 +115,7 @@ def room_nav(code, is_admin):
             _navlink("👥 Squads", "/squads?room=" + code),
             _navlink("🔨 Bidding", "/bidding?room=" + code),
             _navlink("🤝 Trade", "/trade?room=" + code),
+            _navlink("📣 News", "/announcements?room=" + code),
             _navlink("📊 Standings", "/standings?room=" + code),
             _navlink("📅 Schedule", "/schedule?room=" + code),
             _navlink("🧮 Calculator", "/calculator?room=" + code),
@@ -444,6 +446,8 @@ def squad_row(p):
         rx.cond(p["ir"] == "yes", T.pill("IR", T.WARNING), rx.box(width="34px")),
         rx.text(p["name"], style={"color": T.TEXT, "font_weight": "500"}),
         rx.text(p["role"], style={"color": T.MUTED, "font_size": "0.8rem"}),
+        rx.cond(p["ko"] == "yes", T.pill("🚫 OUT", T.DANGER)),
+        rx.cond(p["loaned"] == "yes", T.pill("ON LOAN", T.PRIMARY)),
         rx.spacer(),
         rx.text(p["price"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
                 "font_size": "0.85rem"}),
@@ -452,12 +456,18 @@ def squad_row(p):
                           on_click=RoomState.clear_ir),
                 rx.button("IR", size="1", variant="ghost", color_scheme="amber",
                           on_click=RoomState.set_ir(p["name"]))),
+        # A player on loan to you can only be IR'd — never released or traded.
         rx.cond(
-            RoomState.confirm_release_player == p["name"],
-            rx.button("Confirm release", size="1", color_scheme="red",
-                      on_click=RoomState.half_release(p["name"])),
-            rx.button("½ release", size="1", variant="ghost", color_scheme="red",
-                      on_click=RoomState.set_confirm_release_player(p["name"]))
+            p["loaned"] == "yes",
+            rx.fragment(),
+            rx.cond(
+                RoomState.confirm_release_player == p["name"],
+                rx.button("Confirm release", size="1", color_scheme="red",
+                          on_click=RoomState.half_release(p["name"])),
+                rx.button(rx.cond(p["ko"] == "yes", "½ release (KO)", "½ release"),
+                          size="1", variant="ghost", color_scheme="red",
+                          on_click=RoomState.set_confirm_release_player(p["name"]))
+            ),
         ),
         width="100%", align="center", spacing="3",
         style={"padding": "0.5rem 0.7rem", "border_radius": "10px",
@@ -674,6 +684,8 @@ def _squad_view_row(p):
         rx.text(p["name"], style={"color": T.TEXT, "font_weight": "500"}),
         rx.text(p["role"], style={"color": T.MUTED, "font_size": "0.8rem"}),
         rx.text(p["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+        rx.cond(p["ko"] == "yes", T.pill("🚫 OUT", T.DANGER)),
+        rx.cond(p["loaned"] == "yes", T.pill("ON LOAN", T.PRIMARY)),
         rx.spacer(),
         rx.text(p["price"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
                 "font_size": "0.85rem"}),
@@ -768,14 +780,83 @@ def available_row(p):
         rx.text(p["name"], style={"color": T.TEXT, "font_weight": "500"}),
         rx.text(p["role"] + " · " + p["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
         rx.spacer(),
-        rx.button("Bid", size="1", variant="soft", on_click=BiddingState.pick(p["name"])),
+        rx.cond(~BiddingState.is_spectator,
+                rx.button("Bid", size="1", variant="soft",
+                          on_click=BiddingState.pick(p["name"]))),
         width="100%", align="center",
         style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
                "border_radius": "10px", "padding": "0.45rem 0.7rem"},
     )
 
 
-# active_bid_row has been removed in favor of a data table.
+def _suggestion_row(p):
+    return rx.hstack(
+        rx.text(p["name"], style={"color": T.TEXT, "font_weight": "600",
+                                  "font_size": "0.88rem"}),
+        rx.spacer(),
+        rx.text(p["role"] + " · " + p["team"],
+                style={"color": T.MUTED, "font_size": "0.76rem"}),
+        on_click=BiddingState.pick(p["name"]),
+        width="100%", align="center", spacing="3",
+        class_name="glass-dropdown-item",
+        style={"cursor": "pointer", "padding": "0.5rem 0.8rem", "border_radius": "10px"},
+    )
+
+
+def _search_with_dropdown():
+    """The single player box: type to search (accent-insensitive), pick from the
+    floating glass dropdown — the chosen name is what 'Place bid' bids on."""
+    return rx.box(
+        rx.input(value=BiddingState.search, on_change=BiddingState.set_search,
+                 placeholder="Type a player or country — accents don't matter…",
+                 width="100%", size="3"),
+        rx.cond(
+            BiddingState.suggestions.length() > 0,
+            rx.vstack(
+                rx.foreach(BiddingState.suggestions, _suggestion_row),
+                spacing="0", width="100%", class_name="glass-dropdown",
+                style={"position": "absolute", "top": "calc(100% + 6px)", "left": "0",
+                       "right": "0", "z_index": "60", "padding": "0.3rem"}),
+        ),
+        style={"position": "relative", "flex": "1", "min_width": "240px"},
+    )
+
+
+def bidding_console():
+    """One unified card: search + filters + the filtered pool + the bid action."""
+    return T.card(
+        rx.hstack(
+            T.section_title("🟢 Available players"),
+            rx.spacer(),
+            T.pill(BiddingState.available.length().to_string() + " shown", T.PRIMARY),
+            width="100%", align="center"),
+        rx.box(height="0.7rem"),
+        rx.hstack(
+            _search_with_dropdown(),
+            rx.select(BiddingState.countries, value=BiddingState.country_sel,
+                      on_change=BiddingState.set_country, size="3", width="170px"),
+            rx.select(BiddingState.roles, value=BiddingState.role_sel,
+                      on_change=BiddingState.set_role, size="3", width="160px"),
+            spacing="2", width="100%", align="center", wrap="wrap"),
+        rx.cond(
+            ~BiddingState.is_spectator,
+            rx.hstack(
+                rx.input(value=BiddingState.bid_amount,
+                         on_change=BiddingState.set_field("bid_amount"),
+                         placeholder="Amount (M)", type="number", width="130px", size="3"),
+                T.primary_button("🔨 Place bid", on_click=BiddingState.place_bid, size="3"),
+                rx.text("bids on the player in the search box",
+                        style={"color": T.MUTED, "font_size": "0.78rem"}),
+                spacing="3", align="center", margin_top="0.6rem", wrap="wrap"),
+            rx.text("👁️ Spectating — you can watch the bids but not place any.",
+                    style={"color": T.MUTED, "margin_top": "0.6rem"})),
+        rx.divider(margin_y="0.8rem"),
+        rx.cond(BiddingState.available.length() > 0,
+                rx.vstack(rx.foreach(BiddingState.available, available_row), spacing="2",
+                          width="100%", max_height="430px", overflow="auto"),
+                rx.text("No unowned players match these filters.",
+                        style={"color": T.MUTED})),
+        width="100%")
 
 
 def bidding_page():
@@ -811,41 +892,8 @@ def bidding_page():
             width="100%", style={"margin_bottom": "0.6rem"}),
         _error(BiddingState.msg),
         rx.box(height="0.5rem"),
-        rx.cond(
-            ~BiddingState.is_spectator,
-            T.card(
-                rx.hstack(
-                    rx.box(
-                        rx.input(value=BiddingState.bid_player, on_change=BiddingState.set_field("bid_player"),
-                                 placeholder="Player to bid on", width="100%", id="bid_player_input", list="available-players"),
-                        rx.el.datalist(
-                            rx.foreach(BiddingState.all_available_players, lambda p: rx.el.option(p["role"] + " · " + p["team"], value=p["name"])),
-                            id="available-players"
-                        ),
-                        width="40%"
-                    ),
-                    rx.input(value=BiddingState.bid_amount, on_change=BiddingState.set_field("bid_amount"),
-                             placeholder="Amount (M)", type="number", width="120px"),
-                    T.primary_button("Place bid", on_click=BiddingState.place_bid),
-                    spacing="3", width="100%", wrap="wrap"),
-                width="100%"),
-            T.card(rx.text("👁️ Spectating — you can watch the bids but not place any.",
-                           style={"color": T.MUTED}), width="100%"),
-        ),
-        rx.box(height="1rem"),
         rx.grid(
-            T.card(
-                rx.hstack(T.section_title("🟢 Available"), rx.spacer(),
-                          rx.input(value=BiddingState.search, on_change=BiddingState.set_field("search"),
-                                   placeholder="search…", width="150px"),
-                          rx.button("Go", variant="soft", on_click=BiddingState.do_search),
-                          width="100%", align="center"),
-                rx.box(height="0.7rem"),
-                rx.cond(BiddingState.available.length() > 0,
-                        rx.vstack(rx.foreach(BiddingState.available, available_row), spacing="2",
-                                  width="100%", max_height="460px", overflow="auto"),
-                        rx.text("No players match.", style={"color": T.MUTED})),
-                width="100%"),
+            bidding_console(),
             T.card(
                 T.section_title("⏳ Active bids"),
                 rx.box(height="0.7rem"),
@@ -897,6 +945,126 @@ def bidding_page():
 
 
 # --------------------------------------------------------------------------- #
+# Announcements (news feed of buys / trades / releases)
+# --------------------------------------------------------------------------- #
+def _ann_icon(emoji, color):
+    return rx.box(emoji, style={
+        "background": f"color-mix(in srgb, {color} 18%, transparent)",
+        "border": f"1px solid color-mix(in srgb, {color} 35%, transparent)",
+        "border_radius": "999px", "width": "38px", "height": "38px", "flex_shrink": "0",
+        "display": "flex", "align_items": "center", "justify_content": "center",
+        "font_size": "1rem"})
+
+
+def _ann_ts(it):
+    return rx.cond(it["ts"] != "",
+                   rx.text(rx.moment(date=it["ts"], format="D MMM YYYY, h:mm a"),
+                           style={"color": T.MUTED, "font_size": "0.74rem"}))
+
+
+def _ann_card(kind_color, *children):
+    return rx.hstack(
+        *children, width="100%", align="start", spacing="3",
+        style={"background": f"color-mix(in srgb, {kind_color} 6%, transparent)",
+               "border": f"1px solid color-mix(in srgb, {kind_color} 22%, transparent)",
+               "border_radius": "14px", "padding": "0.85rem 1rem"})
+
+
+def _ann_buy(it):
+    return _ann_card(
+        T.SUCCESS, _ann_icon("💰", T.SUCCESS),
+        rx.vstack(
+            rx.hstack(
+                rx.text(it["actor"], style={"color": T.SUCCESS, "font_weight": "700"}),
+                rx.text("signed", style={"color": T.MUTED}),
+                rx.text(it["player"], style={"color": T.TEXT, "font_weight": "700"}),
+                rx.text("for", style={"color": T.MUTED}),
+                rx.text(it["amount"], style={"color": T.ACCENT, "font_family": T.MONO,
+                                             "font_weight": "700"}),
+                spacing="2", align="center", wrap="wrap"),
+            rx.cond(it["detail"] != "",
+                    rx.text(it["detail"], style={"color": T.MUTED, "font_size": "0.8rem"})),
+            _ann_ts(it), spacing="1", align="start"))
+
+
+def _ann_release(it):
+    return _ann_card(
+        T.WARNING, _ann_icon("🚪", T.WARNING),
+        rx.vstack(
+            rx.hstack(
+                rx.text(it["actor"], style={"color": T.WARNING, "font_weight": "700"}),
+                rx.text("released", style={"color": T.MUTED}),
+                rx.text(it["player"], style={"color": T.TEXT, "font_weight": "700"}),
+                rx.text("— " + it["mode"], style={"color": T.MUTED}),
+                spacing="2", align="center", wrap="wrap"),
+            rx.cond(it["sub"] != "",
+                    rx.text(it["sub"], style={"color": T.MUTED, "font_size": "0.8rem"})),
+            _ann_ts(it), spacing="1", align="start"))
+
+
+def _ann_trade_panel(name, gave):
+    return rx.box(
+        rx.text(name + " gave", style={"color": T.PRIMARY, "font_weight": "600",
+                                       "font_size": "0.78rem"}),
+        rx.text(gave, style={"color": T.TEXT, "font_size": "0.92rem", "font_weight": "500"}),
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+               "border_radius": "10px", "padding": "0.55rem 0.8rem", "width": "100%"})
+
+
+def _ann_trade(it):
+    return _ann_card(
+        T.ACCENT, _ann_icon("🔁", T.ACCENT),
+        rx.vstack(
+            rx.hstack(
+                rx.text("Trade completed", style={"color": T.TEXT, "font_weight": "700"}),
+                rx.cond(it["loan"] == "yes", T.pill("LOAN", T.WARNING)),
+                spacing="2", align="center"),
+            rx.grid(
+                _ann_trade_panel(it["from_name"], it["from_gave"]),
+                _ann_trade_panel(it["to_name"], it["to_gave"]),
+                columns=rx.breakpoints(initial="1", sm="2"), spacing="2", width="100%"),
+            _ann_ts(it), spacing="2", align="start", width="100%"),
+    )
+
+
+def _ann_item(it):
+    return rx.match(it["kind"],
+                    ("buy", _ann_buy(it)),
+                    ("trade", _ann_trade(it)),
+                    ("release", _ann_release(it)),
+                    rx.fragment())
+
+
+def _ann_tab(label, key, count):
+    selected = AnnounceState.tab == key
+    return rx.button(
+        rx.hstack(rx.text(label), rx.text("(" + count + ")", style={"opacity": "0.75"}),
+                  spacing="1", align="center"),
+        on_click=AnnounceState.set_tab(key), size="2", cursor="pointer",
+        variant=rx.cond(selected, "solid", "soft"),
+        color_scheme=rx.cond(selected, "violet", "gray"),
+        radius="full")
+
+
+def announcements_page():
+    return room_shell(
+        _topbar(), room_nav(AnnounceState.room_code, AnnounceState.is_admin),
+        T.hero("Announcements", "A shared news feed of every completed signing, trade and "
+               "release in this room. Most recent first."),
+        rx.hstack(
+            _ann_tab("All", "all", AnnounceState.n_all),
+            _ann_tab("💰 Buys", "buys", AnnounceState.n_buys),
+            _ann_tab("🔁 Trades", "trades", AnnounceState.n_trades),
+            _ann_tab("🚪 Releases", "releases", AnnounceState.n_releases),
+            spacing="2", wrap="wrap", margin_bottom="1rem"),
+        rx.cond(AnnounceState.items.length() > 0,
+                rx.vstack(rx.foreach(AnnounceState.items, _ann_item), spacing="2", width="100%"),
+                T.card(rx.text("Nothing here yet — completed buys, trades and releases will "
+                               "appear in this feed.", style={"color": T.MUTED}), width="100%")),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Trade
 # --------------------------------------------------------------------------- #
 def _proposal_row(t, kind):
@@ -920,17 +1088,48 @@ def _proposal_row(t, kind):
                "border_radius": "10px", "padding": "0.6rem 0.8rem"})
 
 
+def _trade_chip(name, on_remove):
+    return rx.hstack(
+        rx.text(name, style={"color": T.TEXT, "font_size": "0.8rem", "font_weight": "600"}),
+        rx.text("✕", on_click=on_remove,
+                style={"color": T.MUTED, "font_size": "0.75rem", "cursor": "pointer"}),
+        spacing="2", align="center",
+        style={"background": "rgba(124,92,255,0.12)", "border": "1px solid rgba(124,92,255,0.35)",
+               "border_radius": "999px", "padding": "2px 10px"})
+
+
+def _trade_leg(label, options, picker_value, picker_field, on_add, chips, on_remove):
+    """A multi-player trade leg: select + '+ Add' + removable chips."""
+    return _field(
+        label,
+        rx.hstack(
+            rx.select(options, value=picker_value, placeholder="(player)",
+                      on_change=TradeState.set_field(picker_field), width="100%"),
+            rx.button("+ Add", size="2", variant="soft", on_click=on_add,
+                      style={"flex_shrink": "0"}),
+            spacing="2", width="100%", align="center"),
+        rx.cond(chips.length() > 0,
+                rx.hstack(rx.foreach(chips, lambda n: _trade_chip(n, on_remove(n))),
+                          spacing="2", wrap="wrap", width="100%", margin_top="0.3rem")),
+    )
+
+
 def trade_page():
     propose = T.card(
         T.section_title("🤝 Propose a trade"),
+        rx.text("Add as many players as you like on either side with “+ Add”. "
+                "A pure cash deal (players one way, only cash back) may involve one player.",
+                style={"color": T.MUTED, "font_size": "0.78rem", "margin_top": "0.3rem"}),
         rx.box(height="0.7rem"),
         rx.grid(
             _field("With", rx.select(TradeState.other_teams, value=TradeState.counterparty,
                    placeholder="Team", on_change=TradeState.pick_counterparty, width="100%")),
-            _field("You give", rx.select(TradeState.my_players, value=TradeState.give_player,
-                   placeholder="(player)", on_change=TradeState.set_field("give_player"), width="100%")),
-            _field("You get", rx.select(TradeState.their_players, value=TradeState.get_player,
-                   placeholder="(player)", on_change=TradeState.set_field("get_player"), width="100%")),
+            _trade_leg("You give", TradeState.my_players, TradeState.give_player,
+                       "give_player", TradeState.add_give, TradeState.give_players,
+                       lambda n: TradeState.remove_give(n)),
+            _trade_leg("You get", TradeState.their_players, TradeState.get_player,
+                       "get_player", TradeState.add_get, TradeState.get_players,
+                       lambda n: TradeState.remove_get(n)),
             _field("Cash you add", rx.input(value=TradeState.give_cash, type="number",
                    on_change=TradeState.set_field("give_cash"), width="100%")),
             _field("Cash you want", rx.input(value=TradeState.get_cash, type="number",
@@ -941,7 +1140,8 @@ def trade_page():
                                style={"white_space": "nowrap", "margin_top": "0.4rem"})),
             columns=rx.breakpoints(initial="1", md="3"), spacing="3", width="100%"),
         T.primary_button("Send proposal", on_click=TradeState.propose, margin_top="0.6rem"),
-        rx.text("All accepted trades require admin approval before they apply.",
+        rx.text("All accepted trades require admin approval before they apply. Anything "
+                "unresolved when the trading deadline passes is auto-rejected.",
                 style={"color": T.MUTED, "font_size": "0.78rem", "margin_top": "0.4rem"}),
         _error(TradeState.msg), width="100%")
     return room_shell(
@@ -976,15 +1176,19 @@ def trade_page():
                                 rx.text("Nothing awaiting approval.", style={"color": T.MUTED})),
                         width="100%"))),
         rx.box(height="1rem"),
-        T.card(T.section_title("📜 Transactions"), rx.box(height="0.6rem"),
-               rx.cond(TradeState.txns.length() > 0,
-                       rx.vstack(rx.foreach(TradeState.txns,
-                                 lambda e: rx.hstack(
-                                     rx.cond(e["ts"] != "", rx.text(rx.moment(date=e["ts"], format="DD MMM HH:mm"), style={"color": T.PRIMARY, "font_size": "0.75rem", "font_family": T.MONO, "width": "90px"})),
-                                     rx.text(e["text"], style={"color": T.MUTED, "font_size": "0.83rem"})
-                                 )), spacing="1", width="100%",
-                                 align="start"),
-                       rx.text("No transactions yet.", style={"color": T.MUTED})), width="100%"),
+        T.card(
+            rx.hstack(T.section_title("📣 Latest announcements"), rx.spacer(),
+                      rx.link("View all →", href="/announcements?room=" + TradeState.room_code,
+                              style={"color": T.ACCENT, "font_size": "0.82rem",
+                                     "font_weight": "600"}),
+                      width="100%", align="center"),
+            rx.box(height="0.6rem"),
+            rx.cond(AnnounceState.recent.length() > 0,
+                    rx.vstack(rx.foreach(AnnounceState.recent, _ann_item), spacing="2",
+                              width="100%"),
+                    rx.text("No completed buys, trades or releases yet.",
+                            style={"color": T.MUTED})),
+            width="100%"),
     )
 
 
@@ -1161,11 +1365,46 @@ def _admin_band(emoji, label, desc=""):
     )
 
 
+def knocked_out_nations_card():
+    return T.card(
+        T.section_title("🚫 Knocked-out nations"),
+        rx.text("When a country is eliminated from the World Cup, mark it here. Nobody can "
+                "bid on its players (standing open bids are cancelled), and owners can "
+                "release those players for half price WITHOUT using their one paid release "
+                "for the gameweek.",
+                style={"color": T.MUTED, "font_size": "0.82rem", "margin": "0.4rem 0 0.6rem"}),
+        rx.hstack(
+            rx.select(AdminState.ko_options, value=AdminState.ko_country,
+                      placeholder="Select country", on_change=AdminState.set_field("ko_country"),
+                      width="220px"),
+            rx.button("🚫 Mark knocked out", on_click=AdminState.mark_country_ko,
+                      color_scheme="red", variant="soft"),
+            spacing="3", align="center", wrap="wrap"),
+        rx.cond(
+            AdminState.ko_countries.length() > 0,
+            rx.vstack(
+                rx.divider(margin_y="0.6rem"),
+                rx.foreach(AdminState.ko_countries, lambda c: rx.hstack(
+                    T.pill("🚫 " + c, T.DANGER),
+                    rx.spacer(),
+                    rx.button("Restore", size="1", variant="soft", color_scheme="gray",
+                              on_click=AdminState.unmark_country_ko(c)),
+                    width="100%", align="center")),
+                spacing="2", width="100%"),
+            rx.text("No nations marked knocked out yet.",
+                    style={"color": T.MUTED, "font_size": "0.8rem", "margin_top": "0.5rem"})),
+        width="100%")
+
+
 def admin_page():
     body = rx.vstack(
         _admin_band("⚙️", "Gameweek control",
                     "Scores, the bidding deadline that drives the whole gameweek, and knockouts."),
         rx.cond(AdminState.is_admin, gameweek_admin_panel()),
+        _admin_band("🚫", "World Cup knockouts",
+                    "Mark eliminated nations — blocks bids and unlocks allowance-free "
+                    "half-price releases of their players."),
+        knocked_out_nations_card(),
         _admin_band("👥", "Roster Control", "Force moves, editing budgets, and reversing releases."),
         rx.grid(
             T.card(T.section_title("➕ Force add"), rx.box(height="0.5rem"),
@@ -1545,7 +1784,10 @@ app.add_page(room_page, route="/room", title="Room", on_load=RoomState.on_load_h
 app.add_page(squads_page, route="/squads", title="Squads", on_load=RoomState.on_load_hub)
 app.add_page(bidding_page, route="/bidding", title="Open Bidding",
              on_load=BiddingState.on_load_bidding)
-app.add_page(trade_page, route="/trade", title="Trades", on_load=TradeState.on_load_trade)
+app.add_page(trade_page, route="/trade", title="Trades",
+             on_load=[TradeState.on_load_trade, AnnounceState.on_load_announcements])
+app.add_page(announcements_page, route="/announcements", title="Announcements",
+             on_load=AnnounceState.on_load_announcements)
 app.add_page(standings_page, route="/standings", title="Standings",
              on_load=[SeasonState.on_load_standings, RoomState.on_load_hub])
 app.add_page(admin_page, route="/admin", title="Admin",

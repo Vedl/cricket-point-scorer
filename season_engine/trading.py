@@ -33,18 +33,35 @@ def validate_trade(
     get_cash: int = 0,
     *,
     max_squad: int = 30,
+    ko_countries: set | None = None,
 ) -> list[str]:
     """Return a list of error strings (empty == valid)."""
     errors: list[str] = []
     give_cash = max(0, int(give_cash))
     get_cash = max(0, int(get_cash))
+    ko = set(ko_countries or ())
+
+    def _check(owner: dict, name: str):
+        e = _entry(owner, name)
+        if e is None:
+            errors.append(f"{owner['name']} doesn't own {name}.")
+        elif e.get("acquired_via") == "loan":
+            errors.append(f"{name} is on loan to {owner['name']} and can't be traded.")
+        elif (e.get("team") or "") in ko:
+            errors.append(f"{e.get('team')} is knocked out — {name} can't be traded.")
 
     for name in give_players:
-        if _entry(p_from, name) is None:
-            errors.append(f"{p_from['name']} doesn't own {name}.")
+        _check(p_from, name)
     for name in get_players:
-        if _entry(p_to, name) is None:
-            errors.append(f"{p_to['name']} doesn't own {name}.")
+        _check(p_to, name)
+
+    # A pure cash deal (players one way, only cash back) may involve ONE player.
+    if give_players and not get_players and len(give_players) > 1 and get_cash > 0:
+        errors.append("Only 1 player is allowed in a pure cash deal — "
+                      "include a player coming back or split into separate trades.")
+    if get_players and not give_players and len(get_players) > 1 and give_cash > 0:
+        errors.append("Only 1 player is allowed in a pure cash deal — "
+                      "include a player coming back or split into separate trades.")
 
     # Net budgets after the swap.
     from_budget = p_from.get("budget", 0) - give_cash + get_cash
@@ -77,29 +94,44 @@ def apply_trade(
     get_cash: int = 0,
     *,
     max_squad: int = 30,
+    ko_countries: set | None = None,
 ) -> dict:
     """Validate then execute the trade in place. Returns a transaction record.
 
     Raises :class:`TradeError` if invalid.
     """
     errors = validate_trade(p_from, p_to, give_players, get_players,
-                            give_cash, get_cash, max_squad=max_squad)
+                            give_cash, get_cash, max_squad=max_squad,
+                            ko_countries=ko_countries)
     if errors:
         raise TradeError(" ".join(errors))
 
     give_cash = max(0, int(give_cash))
     get_cash = max(0, int(get_cash))
 
+    # A pure-cash purchase (exactly one player one way, only cash the other way)
+    # re-prices the player at the cash paid — that's a "buy". Any swap involving
+    # players on both sides keeps every player's original buy price.
+    pure_buy_price = None
+    if len(give_players) == 1 and not get_players and get_cash > 0 and give_cash == 0:
+        pure_buy_price = get_cash       # p_to buys give_players[0] for get_cash
+    elif len(get_players) == 1 and not give_players and give_cash > 0 and get_cash == 0:
+        pure_buy_price = give_cash      # p_from buys get_players[0] for give_cash
+
     # Move players (mark acquired_via=trade).
     for name in give_players:
         e = _entry(p_from, name)
         p_from["squad"].remove(e)
         e = {**e, "acquired_via": "trade"}
+        if pure_buy_price is not None:
+            e["buy_price"] = pure_buy_price
         p_to["squad"].append(e)
     for name in get_players:
         e = _entry(p_to, name)
         p_to["squad"].remove(e)
         e = {**e, "acquired_via": "trade"}
+        if pure_buy_price is not None:
+            e["buy_price"] = pure_buy_price
         p_from["squad"].append(e)
 
     p_from["budget"] = p_from.get("budget", 0) - give_cash + get_cash

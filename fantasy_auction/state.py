@@ -246,6 +246,13 @@ class AppState(rx.State):
             from fantasy_auction.trade_state import TradeState
             t = await self.get_state(TradeState)
             await t.on_load_trade()
+            from fantasy_auction.announce_state import AnnounceState
+            an = await self.get_state(AnnounceState)
+            await an.on_load_announcements()
+        elif "/announcements" in path:
+            from fantasy_auction.announce_state import AnnounceState
+            an = await self.get_state(AnnounceState)
+            await an.on_load_announcements()
         elif "/schedule" in path:
             from fantasy_auction.schedule_state import ScheduleState
             sc = await self.get_state(ScheduleState)

@@ -37,8 +37,10 @@ class TradeState(rx.State):
     counterparty: str = ""
     their_players: list[str] = []
 
-    give_player: str = ""
+    give_player: str = ""          # picker selection (feeds "+ Add")
     get_player: str = ""
+    give_players: list[str] = []   # the actual multi-player legs of the proposal
+    get_players: list[str] = []
     give_cash: str = "0"
     get_cash: str = "0"
     
@@ -107,10 +109,17 @@ class TradeState(rx.State):
     def _refresh(self, room: dict):
         by = mo.participants_by_name(room)
         mine = by.get(self.me, {})
-        self.my_players = [e["name"] for e in mine.get("squad", [])]
+        ko = set(room.get("knocked_out_countries", []) or [])
+
+        def _tradable(p: dict) -> list[str]:
+            # Loaned-in players and knocked-out nations' players can't be traded.
+            return [e["name"] for e in p.get("squad", [])
+                    if e.get("acquired_via") != "loan" and (e.get("team") or "") not in ko]
+
+        self.my_players = _tradable(mine)
         self.other_teams = [n for n in by if n != self.me]
         if self.counterparty and self.counterparty in by:
-            self.their_players = [e["name"] for e in by[self.counterparty].get("squad", [])]
+            self.their_players = _tradable(by[self.counterparty])
         else:
             self.their_players = []
         self.incoming = [{"id": t["id"], "text": _summary(t, incoming=True)}
@@ -150,9 +159,32 @@ class TradeState(rx.State):
     @rx.event
     def pick_counterparty(self, name: str):
         self.counterparty = name
+        self.get_players = []      # their players belong to the old counterparty
+        self.get_player = ""
         _, _, room = self._load()
         if room:
             self._refresh(room)
+
+    # --- multi-player legs --------------------------------------------------- #
+    @rx.event
+    def add_give(self):
+        if self.give_player and self.give_player not in self.give_players:
+            self.give_players = self.give_players + [self.give_player]
+        self.give_player = ""
+
+    @rx.event
+    def remove_give(self, name: str):
+        self.give_players = [p for p in self.give_players if p != name]
+
+    @rx.event
+    def add_get(self):
+        if self.get_player and self.get_player not in self.get_players:
+            self.get_players = self.get_players + [self.get_player]
+        self.get_player = ""
+
+    @rx.event
+    def remove_get(self, name: str):
+        self.get_players = [p for p in self.get_players if p != name]
 
     def _save_refresh(self, doc, room, ok_msg):
         repo.save(doc)
@@ -170,9 +202,16 @@ class TradeState(rx.State):
         if not so.trading_open(room, datetime.now()):
             self.msg = "⚠️ Trading is frozen — it opens once the admin sets a bidding deadline."
             return
-        gp = [self.give_player] if self.give_player else []
-        rp = [self.get_player] if self.get_player else []
-        
+        # The added lists, plus whatever is still selected in a picker (so a simple
+        # one-for-one trade doesn't require pressing "+ Add").
+        gp = list(self.give_players)
+        if self.give_player and self.give_player not in gp:
+            gp.append(self.give_player)
+        rp = list(self.get_players)
+        if self.get_player and self.get_player not in rp:
+            rp.append(self.get_player)
+
+
         loan_gw = ""
         if self.is_loan:
             cur_gw = int(room.get("current_gameweek", 1) or 1)
@@ -185,6 +224,11 @@ class TradeState(rx.State):
         except (TradeError, ValueError) as exc:
             self.msg = f"⚠️ {exc}"
             return
+        self.give_players = []
+        self.get_players = []
+        self.give_player = self.get_player = ""
+        self.give_cash = self.get_cash = "0"
+        self.is_loan = False
         self._save_refresh(doc, room, "✅ Proposal sent.")
 
     @rx.event

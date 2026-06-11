@@ -46,6 +46,10 @@ def participants_by_name(room: dict) -> dict[str, dict]:
     return {p["name"]: p for p in room.get("participants", [])}
 
 
+def _ko(room: dict) -> set:
+    return set(room.get("knocked_out_countries", []) or [])
+
+
 def _log(room: dict, rec: dict) -> None:
     rec["ts"] = datetime.now().isoformat()
     room.setdefault("transactions", []).append(rec)
@@ -60,7 +64,8 @@ def propose_trade(room, from_name, to_name, give_players, get_players,
     if from_name == to_name:
         raise TradeError("You can't trade with yourself.")
     errors = validate_trade(by[from_name], by[to_name], give_players, get_players,
-                            give_cash, get_cash, max_squad=MAX_SQUAD)
+                            give_cash, get_cash, max_squad=MAX_SQUAD,
+                            ko_countries=_ko(room))
     if errors:
         raise TradeError(" ".join(errors))
     tid = uuid.uuid4().hex[:8]
@@ -96,7 +101,8 @@ def accept_trade(room, trade_id) -> dict:
     # Validate it's still applicable before queuing for admin.
     by = participants_by_name(room)
     errors = validate_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
-                            t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD)
+                            t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD,
+                            ko_countries=_ko(room))
     if errors:
         raise TradeError(" ".join(errors))
     t["status"] = "awaiting_admin"
@@ -121,7 +127,8 @@ def admin_approve_trade(room, trade_id) -> dict:
         raise TradeError("Trade is not awaiting approval.")
     by = participants_by_name(room)
     rec = apply_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
-                      t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD)
+                      t["give_cash"], t["get_cash"], max_squad=MAX_SQUAD,
+                      ko_countries=_ko(room))
                       
     if t.get("is_loan"):
         loans = room.setdefault("active_loans", [])
@@ -147,6 +154,9 @@ def admin_approve_trade(room, trade_id) -> dict:
                 })
                 
     t["status"] = "approved"
+    if t.get("is_loan"):
+        rec["is_loan"] = True
+        rec["loan_return_gw"] = t.get("loan_return_gw", "")
     _log(room, rec)
     return rec
 
@@ -162,11 +172,18 @@ def release(room, name, player_name, *, refund=False) -> dict:
     by = participants_by_name(room)
     if name not in by:
         raise TradeError("Unknown participant.")
+    entry = next((e for e in by[name].get("squad", [])
+                  if e["name"].lower() == player_name.lower()), None)
+    if entry is not None and entry.get("acquired_via") == "loan":
+        raise TradeError(f"{player_name} is on loan to {name} and can't be released.")
+    buy_price = (entry or {}).get("buy_price", 0)
     rec = release_player(by[name], player_name, refund=refund)
     pool = room.setdefault("unsold_players", [])
     if not any((p.get("name") if isinstance(p, dict) else p) == rec["name"] for p in pool):
         pool.append(rec)
-    _log(room, {"type": "release", "participant": name, "player": player_name, "refund": refund})
+    _log(room, {"type": "release", "participant": name, "player": player_name,
+                "refund": buy_price if refund else 0, "buy_price": buy_price,
+                "role": rec.get("role", ""), "player_team": rec.get("team", "")})
     return rec
 
 
@@ -181,6 +198,10 @@ def place_market_bid(room, name, player_name, amount) -> None:
     by = participants_by_name(room)
     if name not in by:
         raise TradeError("Unknown participant.")
+    ko = set(room.get("knocked_out_countries", []) or [])
+    player = next((p for p in available_players(room) if p["name"] == player_name), None)
+    if player is not None and player.get("team") in ko:
+        raise TradeError(f"{player.get('team')} is knocked out — their players can't be bid on.")
     amount = int(amount)
     if amount <= 0 or amount > by[name].get("budget", 0):
         raise TradeError("Bid exceeds your budget.")

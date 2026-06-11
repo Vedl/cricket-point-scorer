@@ -44,14 +44,26 @@ def _pool(room) -> list[dict]:
             for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
 
 
-def available_players(room, *, search: str = "", limit: int = 60) -> list[dict]:
+def available_players(room, *, search: str = "", country: str = "", role: str = "",
+                      limit: int = 60, include_knocked_out: bool = False) -> list[dict]:
+    """Unowned pool players, accent-insensitively matched against ``search`` and
+    optionally filtered by nation + position. Players from knocked-out nations
+    are hidden (they can't be bid on) unless ``include_knocked_out``."""
+    from .textutil import fold
     owned = owned_names(room)
-    s = search.strip().lower()
+    ko = set() if include_knocked_out else set(room.get("knocked_out_countries", []) or [])
+    s = fold(search)
     out = []
     for p in _pool(room):
         if p["name"].lower() in owned:
             continue
-        if s and s not in p["name"].lower() and s not in p["team"].lower():
+        if p.get("team") in ko:
+            continue
+        if country and p.get("team") != country:
+            continue
+        if role and p.get("role") != role:
+            continue
+        if s and s not in fold(p["name"]) and s not in fold(p["team"]):
             continue
         out.append(p)
         if len(out) >= limit:
@@ -60,8 +72,10 @@ def available_players(room, *, search: str = "", limit: int = 60) -> list[dict]:
 
 
 def _player(room, player_name) -> dict | None:
+    from .textutil import fold
+    want = fold(player_name)
     for p in _pool(room):
-        if p["name"].lower() == player_name.lower():
+        if fold(p["name"]) == want:
             return p
     return None
 
@@ -103,6 +117,9 @@ def place(room, participant, player_name, amount, now: datetime) -> None:
         raise BidError(f"Unknown player {player_name!r}.")
     if player["name"].lower() in owned_names(room):
         raise BidError(f"{player_name} is already owned.")
+    if player.get("team") in set(room.get("knocked_out_countries", []) or []):
+        raise BidError(f"{player.get('team')} is knocked out of the tournament — "
+                       "their players can't be bid on.")
     existing = any(k.lower() == player["name"].lower() for k in room.get("open_bids", {}))
     if st in ("no_new", "raise_only") and not existing:
         raise BidError("Bidding is closing — no new players, only raise existing bids.")

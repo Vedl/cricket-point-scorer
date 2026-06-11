@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "fantasy-auction",
-      "runtimeExecutable": "./.venv/bin/reflex",
-      "runtimeArgs": ["run"],
-      "port": 3000
+      "runtimeExecutable": "./scripts/dev_preview.sh",
+      "runtimeArgs": [],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

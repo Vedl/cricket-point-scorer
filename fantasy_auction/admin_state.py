@@ -33,6 +33,8 @@ class AdminState(rx.State):
     fr_player: str = ""
     fr_refund: bool = False
     fr_team_players: list[str] = []
+    # releasing a LOANED player needs a second click to confirm (player name held here)
+    fr_loan_confirm: str = ""
     # budget / pin
     boost_amount: str = ""
     rename_old: str = ""
@@ -56,6 +58,10 @@ class AdminState(rx.State):
     loan_to: str = ""
     loan_player: str = ""
     loan_gw: str = ""
+    # country knockouts (WC): block bids + enable allowance-free half-price releases
+    ko_country: str = ""
+    ko_countries: list[str] = []          # currently knocked out
+    ko_options: list[str] = []            # all nations in the pool
     # backup
     export_text: str = ""
     import_text: str = ""
@@ -158,6 +164,9 @@ class AdminState(rx.State):
             self._pool = [{"name": p.name, "role": p.role, "team": p.team}
                           for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
         self._refresh_fr_players(room)
+        from platform_core import season_ops as so
+        self.ko_countries = sorted(so.knocked_out_countries(room))
+        self.ko_options = sorted({(p.get("team") or "") for p in self._pool} - {""})
         self.loans = [{"id": l["id"],
                        "text": f"{l['player']}: {l['from']} → {l['to']}"
                                + (f" (ret GW{l['return_gameweek']})" if l.get("return_gameweek") else "")}
@@ -190,24 +199,58 @@ class AdminState(rx.State):
     def pick_fr_team(self, name: str):
         self.fr_team = name
         self.fr_player = ""
+        self.fr_loan_confirm = ""
         code, doc, room = self._load()
         if room:
             self._refresh_fr_players(room)
 
     @rx.event
     def fa_type(self, value: str):
+        from platform_core.textutil import fold
         self.fa_player = value
-        v = value.strip().lower()
+        v = fold(value)
         if len(v) < 2:
             self.fa_suggestions = []
             return
         out = []
         for p in self._pool:
-            if v in p["name"].lower():
+            if v in fold(p["name"]):
                 out.append(p)
                 if len(out) >= 8:
                     break
         self.fa_suggestions = out
+
+    @rx.event
+    def mark_country_ko(self):
+        """Mark the selected nation as knocked out of the World Cup."""
+        from platform_core import season_ops as so
+        self.msg = ""
+        country = (self.ko_country or "").strip()
+        if not country:
+            self.msg = "⚠️ Pick a country first."
+            return
+        code, doc, room = self._load()
+        if not room:
+            return
+        cancelled = so.mark_country_knocked_out(room, country, True)
+        repo.save(doc)
+        self._refresh(room)
+        self.ko_country = ""
+        self.msg = (f"🚫 {country} marked knocked out — their players can't be bid on; "
+                    f"owners can release them at half price without using their paid release."
+                    + (f" Cancelled open bids: {', '.join(cancelled)}." if cancelled else ""))
+
+    @rx.event
+    def unmark_country_ko(self, country: str):
+        from platform_core import season_ops as so
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        so.mark_country_knocked_out(room, country, False)
+        repo.save(doc)
+        self._refresh(room)
+        self.msg = f"✅ {country} restored — bidding on their players is allowed again."
 
     @rx.event
     def pick_fa(self, name: str, role: str, team: str):
@@ -222,18 +265,59 @@ class AdminState(rx.State):
             room, self.fa_team, self.fa_player, self.fa_role, self.fa_team_name,
             int(self.fa_price or 0)), f"✅ Added {self.fa_player} to {self.fa_team}.")
 
+    def _confirm_loaned_release(self, room) -> bool:
+        """If the selected player is on loan to fr_team, require a second click.
+        Returns True when the release may proceed."""
+        by = {p["name"]: p for p in room.get("participants", [])}
+        entry = next((e for e in by.get(self.fr_team, {}).get("squad", [])
+                      if e.get("name", "").lower() == (self.fr_player or "").lower()), None)
+        if entry is None or entry.get("acquired_via") != "loan":
+            self.fr_loan_confirm = ""
+            return True
+        if self.fr_loan_confirm == self.fr_player:
+            self.fr_loan_confirm = ""
+            return True
+        loan = next((l for l in room.get("active_loans", [])
+                     if l.get("player", "").lower() == self.fr_player.lower()
+                     and l.get("to") == self.fr_team), None)
+        owner = f" (on loan from {loan['from']})" if loan else " (on loan)"
+        self.fr_loan_confirm = self.fr_player
+        self.msg = (f"⚠️ {self.fr_player} is a LOANED player{owner} — releasing them from "
+                    f"{self.fr_team} also breaks the loan. Click release again to confirm.")
+        return False
+
+    def _force_release(self, *, refund: bool, ok_msg: str):
+        self.msg = ""
+        code, doc, room = self._load()
+        if not room:
+            return
+        if not self._confirm_loaned_release(room):
+            return
+        try:
+            ao.force_release(room, self.fr_team, self.fr_player, refund=refund)
+        except ao.AdminError as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        # Drop the loan record too — the entry is gone from the borrower's squad,
+        # so an auto-return later would otherwise duplicate the player.
+        room["active_loans"] = [l for l in room.get("active_loans", [])
+                                if not (l.get("player", "").lower() == self.fr_player.lower()
+                                        and l.get("to") == self.fr_team)]
+        repo.save(doc)
+        self._refresh(room)
+        self.msg = ok_msg
+
     @rx.event
     def force_release(self):
-        self._do(lambda room, doc: ao.force_release(
-            room, self.fr_team, self.fr_player, refund=self.fr_refund),
-            f"✅ Released {self.fr_player} from {self.fr_team}.")
+        self._force_release(refund=self.fr_refund,
+                            ok_msg=f"✅ Released {self.fr_player} from {self.fr_team}.")
 
     @rx.event
     def release_full_price(self):
         """Release the selected player and refund the team the FULL price they paid."""
-        self._do(lambda room, doc: ao.force_release(
-            room, self.fr_team, self.fr_player, refund=True),
-            f"✅ Released {self.fr_player} for full price — refund credited to {self.fr_team}.")
+        self._force_release(refund=True,
+                            ok_msg=f"✅ Released {self.fr_player} for full price — "
+                                   f"refund credited to {self.fr_team}.")
 
     @rx.event
     def adjust_budget(self):

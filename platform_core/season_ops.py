@@ -33,10 +33,34 @@ def _participants_for_standings(room: dict) -> list[dict]:
     return out
 
 
+def _participants_for_gameweek(room: dict, gameweek: str) -> list[dict]:
+    """Participants with the LOCKED squad snapshot for ``gameweek`` when one
+    exists (so points always come from locked squads, never the live ones);
+    falls back to the current squad only for gameweeks that were never locked."""
+    snap = room.get("gameweek_squads", {}).get(str(gameweek))
+    out = []
+    for p in _participants_for_standings(room):
+        team_snap = (snap or {}).get(p["name"])
+        if isinstance(team_snap, dict):
+            squad = team_snap.get("squad") or []
+            out.append({"name": p["name"],
+                        "squad": [{"name": s["name"], "role": s.get("role", "")} for s in squad],
+                        "ir": team_snap.get("ir")})
+        elif isinstance(team_snap, list):   # legacy snapshot shape
+            out.append({"name": p["name"],
+                        "squad": [{"name": s["name"], "role": s.get("role", "")} for s in team_snap],
+                        "ir": p.get("ir")})
+        else:
+            out.append(p)
+    return out
+
+
 def compute_gameweek_standings(room: dict, gameweek: str) -> list[dict]:
+    # enforce_ir=False = owner rule: the IR only binds for a FULL (>= 19) squad;
+    # below that the IR player still counts in Best-11.
     scores = room.get("gameweek_scores", {}).get(str(gameweek), {})
     return gameweek_standings(
-        _participants_for_standings(room), scores,
+        _participants_for_gameweek(room, gameweek), scores,
         is_football=_is_football(room), gameweek=gameweek, enforce_ir=False,
     )
 
@@ -100,7 +124,9 @@ def set_ir(room: dict, participant: str, player_name) -> None:
 def half_price_release(room: dict, participant: str, player_name: str) -> int:
     """Release a player. Before the GW1 deadline: unlimited half-price refunds.
     After GW1: the first release each gameweek is half-price; any further releases
-    that gameweek are FREE (no money back). Returns the refund."""
+    that gameweek are FREE (no money back). Players from a nation the admin marked
+    as knocked out always refund half price WITHOUT consuming the paid-release
+    allowance. Returns the refund."""
     by = {p["name"]: p for p in room.get("participants", [])}
     p = by.get(participant)
     if p is None:
@@ -108,8 +134,13 @@ def half_price_release(room: dict, participant: str, player_name: str) -> int:
     e = next((x for x in p.get("squad", []) if x["name"].lower() == player_name.lower()), None)
     if e is None:
         raise SeasonError(f"You don't own {player_name}.")
+    if e.get("acquired_via") == "loan":
+        raise SeasonError(f"{player_name} is on loan to you — you can't release them.")
 
-    if not room.get("gw1_locked"):
+    ko = (e.get("team") or "") in set(knocked_out_countries(room))
+    if ko:
+        refund = math.ceil(e.get("buy_price", 0) / 2)  # KO release: half, no allowance used
+    elif not room.get("gw1_locked"):
         refund = math.ceil(e.get("buy_price", 0) / 2)  # unlimited half-price pre-GW1
     elif p.get("half_releases_this_gw", 0) < 1:
         refund = math.ceil(e.get("buy_price", 0) / 2)  # one half-price per GW
@@ -120,8 +151,45 @@ def half_price_release(room: dict, participant: str, player_name: str) -> int:
     p["squad"].remove(e)
     p["budget"] = p.get("budget", 0) + refund
     room.setdefault("transactions", []).append(
-        {"ts": datetime.now().isoformat(), "type": "half_release", "participant": participant, "player": player_name, "refund": refund})
+        {"ts": datetime.now().isoformat(), "type": "half_release", "participant": participant,
+         "player": player_name, "refund": refund, "buy_price": e.get("buy_price", 0),
+         "role": e.get("role", ""), "player_team": e.get("team", ""), "ko": ko})
     return refund
+
+
+# --- knocked-out nations --------------------------------------------------- #
+def knocked_out_countries(room: dict) -> list[str]:
+    return list(room.get("knocked_out_countries", []) or [])
+
+
+def mark_country_knocked_out(room: dict, country: str, knocked: bool = True) -> list[str]:
+    """Admin marks a nation as knocked out of the tournament (or undoes it).
+
+    While knocked out: players of that nation can't receive open bids (any
+    standing open bids on them are cancelled here), and owners may release them
+    at half price without using their paid release for the gameweek.
+    Returns the names of players whose open bids were cancelled."""
+    country = (country or "").strip()
+    if not country:
+        raise SeasonError("Pick a country.")
+    cur = room.setdefault("knocked_out_countries", [])
+    cancelled: list[str] = []
+    if knocked:
+        if country not in cur:
+            cur.append(country)
+        ob = room.get("open_bids", {}) or {}
+        for name in [n for n, b in ob.items() if (b.get("team") or "") == country]:
+            del ob[name]
+            cancelled.append(name)
+        # Also drop sealed market bids on this nation's players.
+        from . import bidding_ops as bo
+        nation_players = {p["name"].lower() for p in bo._pool(room)
+                          if (p.get("team") or "") == country}
+        room["active_bids"] = [b for b in room.get("active_bids", [])
+                               if (b.get("player") or "").lower() not in nation_players]
+    elif country in cur:
+        cur.remove(country)
+    return cancelled
 
 
 def lock_gameweek(room: dict, gameweek: str) -> tuple[dict, bool]:
@@ -135,9 +203,19 @@ def lock_gameweek(room: dict, gameweek: str) -> tuple[dict, bool]:
     for p in room.get("participants", []):
         if p.get("is_eliminated"):
             continue
-        _released, notes = lock_participant(p)
+        released, notes = lock_participant(p)
         if notes:
             notes_all[p["name"]] = notes
+        # Log auto-releases (squad-cap trim / unaffordable IR) so they show in the
+        # announcements feed and can be reversed by the admin if needed.
+        for e in released:
+            room.setdefault("transactions", []).append({
+                "ts": datetime.now().isoformat(), "type": "half_release",
+                "participant": p["name"], "player": e.get("name", "?"), "refund": 0,
+                "buy_price": e.get("buy_price", 0), "role": e.get("role", ""),
+                "player_team": e.get("team", ""), "auto": True,
+                "reason": "auto-released at squad lock",
+            })
         p["half_releases_this_gw"] = 0  # reset allowance for the new gameweek
 
     # Snapshot AFTER the pipeline so scoring uses the locked squads + IR.
@@ -150,6 +228,12 @@ def lock_gameweek(room: dict, gameweek: str) -> tuple[dict, bool]:
     room.setdefault("gameweek_squads", {})[str(gameweek)] = snap
     room["bidding_open"] = False
     room["trading_open"] = False
+
+    # Any trade still unresolved at lock (not yet accepted, or accepted but not
+    # admin-approved) dies with the gameweek — auto-rejected, never applied.
+    for t in room.get("pending_trades", []):
+        if t.get("status") in ("pending", "awaiting_admin"):
+            t["status"] = "auto_rejected"
 
     first = not room.get("gw1_locked")
     if first:
@@ -245,6 +329,20 @@ def trading_open(room: dict, now: datetime) -> bool:
     if dl is None:
         return False
     return now < dl + timedelta(minutes=30)
+
+
+def deadline_work_due(room: dict, now: datetime) -> bool:
+    """Cheap check: does this room have bidding-deadline work pending right now?
+    (Awards at the deadline, or the +30m lock/advance/freeze.) Used by the
+    per-page live loops so the timeline still fires when the scheduler thread
+    is disabled — any connected client drives it."""
+    from . import bidding_ops as bo
+    dl = bo.bidding_deadline(room)
+    if dl is None:
+        return False
+    if now >= dl and not room.get("bids_resolved"):
+        return True
+    return now >= dl + timedelta(minutes=30) and not room.get("locked_for_deadline")
 
 
 def process_room_deadline(room: dict, now: datetime) -> list[str]:

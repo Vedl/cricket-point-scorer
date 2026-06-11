@@ -168,6 +168,23 @@ class RoomState(rx.State):
                 try:
                     room = await asyncio.to_thread(repo.load_room, code)
                     if room is not None:
+                        # Keep the gameweek timeline on schedule from here too (the
+                        # hub is the most commonly open page): award bids at the
+                        # deadline, lock+advance+freeze at +30m. Shares the bidding
+                        # page's cooldown guard so only one client does the heavy work.
+                        from datetime import datetime
+                        from .bidding_state import _claim_expire_processing
+                        from platform_core import bidding_ops as bo
+                        now = datetime.now()
+                        if so.deadline_work_due(room, now) and _claim_expire_processing(code):
+                            doc = await aload()
+                            full_room = doc.get("rooms", {}).get(code)
+                            if full_room:
+                                changed = bool(bo.process_expired(full_room, now))
+                                changed = bool(so.process_room_deadline(full_room, now)) or changed
+                                if changed:
+                                    repo.save(doc)
+                                room = full_room
                         async with self:
                             self._refresh(room)
                             try:
@@ -271,10 +288,13 @@ class RoomState(rx.State):
         else:
             sorted_squad = sorted(squad_data, key=lambda x: -safe_price(x))
 
+        ko_set = set(room.get("knocked_out_countries", []) or [])
         self.my_squad = [
             {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
-             "ir": "yes" if e.get("name") == me.get("ir") else "no"}
+             "ir": "yes" if e.get("name") == me.get("ir") else "no",
+             "ko": "yes" if e.get("team") in ko_set else "no",
+             "loaned": "yes" if e.get("acquired_via") == "loan" else "no"}
             for e in sorted_squad
         ]
         p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
@@ -359,10 +379,13 @@ class RoomState(rx.State):
         else:
             sorted_squad = sorted(squad_data, key=lambda x: -safe_price_view(x))
 
+        ko_set = set(room.get("knocked_out_countries", []) or [])
         self.view_squad = [
             {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
-             "ir": "yes" if e.get("name") == p.get("ir") else "no"}
+             "ir": "yes" if e.get("name") == p.get("ir") else "no",
+             "ko": "yes" if e.get("team") in ko_set else "no",
+             "loaned": "yes" if e.get("acquired_via") == "loan" else "no"}
             for e in sorted_squad
         ]
 
@@ -387,20 +410,24 @@ class RoomState(rx.State):
 
     @rx.event
     def do_squads_search(self):
+        from platform_core.textutil import fold
         code, doc, room = self._load()
         if not room: return
-        query = self.squads_search.lower().strip()
+        query = fold(self.squads_search)
         results = []
+        ko_set = set(room.get("knocked_out_countries", []) or [])
         if query:
             for p in room.get("participants", []):
                 for e in (p.get("squad") or []):
-                    if query in e.get("name", "").lower():
+                    if query in fold(e.get("name", "")):
                         results.append({
                             "name": e["name"],
                             "role": e.get("role", ""),
                             "team": p["name"],
                             "price": str(e.get("buy_price", 0)),
-                            "ir": "yes" if e["name"] == p.get("ir") else "no"
+                            "ir": "yes" if e["name"] == p.get("ir") else "no",
+                            "ko": "yes" if e.get("team") in ko_set else "no",
+                            "loaned": "yes" if e.get("acquired_via") == "loan" else "no",
                         })
         self.squads_search_results = results
 
