@@ -14,15 +14,19 @@ from season_engine.trading import TradeError
 from .state import AppState, aload, repo
 
 
-def _summary(t: dict, *, incoming: bool) -> str:
-    gp = ", ".join(t.get("give_players") or []) or "—"
-    rp = ", ".join(t.get("get_players") or []) or "—"
-    loan_sfx = f" (Loan till GW{t.get('loan_return_gw', '?')})" if t.get("is_loan") else ""
-    if incoming:
-        return (f"{t.get('from', '?')} sends [{gp}] +{t.get('give_cash', 0)}M  ↔  wants your "
-                f"[{rp}] +{t.get('get_cash', 0)}M{loan_sfx}")
-    return (f"To {t.get('to', '?')}: you send [{gp}] +{t.get('give_cash', 0)}M  "
-            f"for [{rp}] +{t.get('get_cash', 0)}M{loan_sfx}")
+def _trade_card(t: dict) -> dict:
+    """Structured view of a trade for the UI's two-panel proposal cards."""
+    return {
+        "id": t.get("id", ""),
+        "from": t.get("from", "?"),
+        "to": t.get("to", "?"),
+        "give": ", ".join(t.get("give_players") or []) or "—",
+        "give_cash": str(t.get("give_cash", 0) or 0),
+        "get": ", ".join(t.get("get_players") or []) or "—",
+        "get_cash": str(t.get("get_cash", 0) or 0),
+        "loan": "yes" if t.get("is_loan") else "",
+        "loan_gw": str(t.get("loan_return_gw", "") or ""),
+    }
 
 
 class TradeState(rx.State):
@@ -122,18 +126,10 @@ class TradeState(rx.State):
             self.their_players = _tradable(by[self.counterparty])
         else:
             self.their_players = []
-        self.incoming = [{"id": t["id"], "text": _summary(t, incoming=True)}
-                         for t in mo.incoming_trades(room, self.me)]
-        self.outgoing = [{"id": t["id"], "text": _summary(t, incoming=False)}
-                         for t in mo.outgoing_trades(room, self.me)]
-        self.awaiting = [{"id": t.get("id", ""),
-                          "text": f"{t.get('from', '?')} ↔ {t.get('to', '?')}: "
-                                  f"[{', '.join(t.get('give_players') or []) or '—'}]"
-                                  f"+{t.get('give_cash', 0)}M "
-                                  f"for [{', '.join(t.get('get_players') or []) or '—'}]"
-                                  f"+{t.get('get_cash', 0)}M" +
-                                  (f" (Loan till GW{t.get('loan_return_gw', '?')})" if t.get("is_loan") else "")}
-                         for t in mo.trades_awaiting_admin(room)] if self.is_admin else []
+        self.incoming = [_trade_card(t) for t in mo.incoming_trades(room, self.me)]
+        self.outgoing = [_trade_card(t) for t in mo.outgoing_trades(room, self.me)]
+        self.awaiting = [_trade_card(t) for t in mo.trades_awaiting_admin(room)] \
+            if self.is_admin else []
         self.available = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
                           for p in mo.available_players(room)]
         self.txns = [{"text": self._txn_text(t), "ts": t.get("ts", "")} for t in reversed(mo.transactions(room)[-15:])]

@@ -1067,6 +1067,26 @@ def announcements_page():
 # --------------------------------------------------------------------------- #
 # Trade
 # --------------------------------------------------------------------------- #
+def _trade_side(name, players, cash, accent):
+    """One side of a proposal card: who gives what (players + optional cash)."""
+    return rx.box(
+        rx.text(name, style={"color": accent, "font_weight": "700", "font_size": "0.72rem",
+                             "letter_spacing": "0.4px", "text_transform": "uppercase"}),
+        rx.text("gives", style={"color": T.MUTED, "font_size": "0.68rem"}),
+        rx.box(height="0.25rem"),
+        rx.text(players, style={"color": T.TEXT, "font_size": "0.9rem", "font_weight": "500",
+                                "line_height": "1.35"}),
+        rx.cond(cash != "0",
+                rx.hstack(
+                    rx.text("＋", style={"color": T.MUTED, "font_size": "0.78rem"}),
+                    rx.text(cash + "M", style={"color": T.ACCENT, "font_family": T.MONO,
+                                               "font_weight": "700", "font_size": "0.82rem"}),
+                    rx.text("cash", style={"color": T.MUTED, "font_size": "0.72rem"}),
+                    spacing="1", align="center", margin_top="0.25rem")),
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+               "border_radius": "10px", "padding": "0.6rem 0.8rem", "width": "100%"})
+
+
 def _proposal_row(t, kind):
     if kind == "incoming":
         actions = rx.hstack(
@@ -1081,65 +1101,103 @@ def _proposal_row(t, kind):
                       on_click=TradeState.admin_reject(t["id"])), spacing="2")
     else:
         actions = T.pill("pending", T.WARNING)
-    return rx.hstack(
-        rx.text(t["text"], style={"color": T.TEXT, "font_size": "0.83rem"}), rx.spacer(), actions,
-        width="100%", align="center",
-        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
-               "border_radius": "10px", "padding": "0.6rem 0.8rem"})
+    return rx.box(
+        rx.hstack(
+            rx.box("🔁", style={"font_size": "0.95rem"}),
+            rx.text(t["from"], style={"color": T.TEXT, "font_weight": "700",
+                                      "font_size": "0.86rem"}),
+            rx.text("↔", style={"color": T.MUTED}),
+            rx.text(t["to"], style={"color": T.TEXT, "font_weight": "700",
+                                    "font_size": "0.86rem"}),
+            rx.cond(t["loan"] == "yes", T.pill("LOAN", T.WARNING)),
+            rx.spacer(), actions,
+            width="100%", align="center", spacing="2", wrap="wrap"),
+        rx.box(height="0.55rem"),
+        rx.grid(
+            _trade_side(t["from"], t["give"], t["give_cash"], T.PRIMARY),
+            _trade_side(t["to"], t["get"], t["get_cash"], T.ACCENT),
+            columns="2", spacing="2", width="100%", align="stretch"),
+        width="100%",
+        style={"background": T.SURFACE, "border": f"1px solid {T.BORDER}",
+               "border_radius": "12px", "padding": "0.75rem 0.85rem"})
 
 
-def _trade_chip(name, on_remove):
+def _trade_chip(name, on_remove, accent=T.PRIMARY):
     return rx.hstack(
         rx.text(name, style={"color": T.TEXT, "font_size": "0.8rem", "font_weight": "600"}),
         rx.text("✕", on_click=on_remove,
                 style={"color": T.MUTED, "font_size": "0.75rem", "cursor": "pointer"}),
         spacing="2", align="center",
-        style={"background": "rgba(124,92,255,0.12)", "border": "1px solid rgba(124,92,255,0.35)",
+        style={"background": f"color-mix(in srgb, {accent} 14%, transparent)",
+               "border": f"1px solid color-mix(in srgb, {accent} 38%, transparent)",
                "border_radius": "999px", "padding": "2px 10px"})
 
 
-def _trade_leg(label, options, picker_value, picker_field, on_add, chips, on_remove):
-    """A multi-player trade leg: select + '+ Add' + removable chips."""
-    return _field(
-        label,
+def _trade_leg(label, sublabel, accent, options, picker_value, picker_field, on_add, chips,
+               on_remove, cash_label, cash_value, cash_field):
+    """A multi-player trade leg as a self-contained panel: header, picker + add,
+    chips, then a cash field — laid out vertically so nothing overlaps."""
+    return rx.box(
         rx.hstack(
-            rx.select(options, value=picker_value, placeholder="(player)",
-                      on_change=TradeState.set_field(picker_field), width="100%"),
-            rx.button("+ Add", size="2", variant="soft", on_click=on_add,
-                      style={"flex_shrink": "0"}),
-            spacing="2", width="100%", align="center"),
+            rx.text(label, style={"color": accent, "font_weight": "700", "font_size": "0.82rem"}),
+            rx.text(sublabel, style={"color": T.MUTED, "font_size": "0.74rem"}),
+            spacing="2", align="baseline", wrap="wrap"),
+        rx.box(height="0.55rem"),
+        rx.select(options, value=picker_value, placeholder="Choose a player…",
+                  on_change=TradeState.set_field(picker_field), width="100%"),
+        rx.button(rx.hstack(rx.text("＋", style={"font_size": "0.9rem"}), rx.text("Add player"),
+                            spacing="1", align="center"),
+                  size="2", variant="soft", color_scheme="gray", on_click=on_add,
+                  width="100%", margin_top="0.4rem", cursor="pointer"),
         rx.cond(chips.length() > 0,
-                rx.hstack(rx.foreach(chips, lambda n: _trade_chip(n, on_remove(n))),
-                          spacing="2", wrap="wrap", width="100%", margin_top="0.3rem")),
-    )
+                rx.hstack(rx.foreach(chips, lambda n: _trade_chip(n, on_remove(n), accent)),
+                          spacing="2", wrap="wrap", width="100%", margin_top="0.55rem"),
+                rx.text("No players added yet.", style={"color": T.MUTED, "font_size": "0.74rem",
+                        "margin_top": "0.55rem"})),
+        rx.divider(margin_y="0.75rem"),
+        rx.text(cash_label, style={"color": T.MUTED, "font_size": "0.78rem", "font_weight": "500"}),
+        rx.input(value=cash_value, type="number", on_change=TradeState.set_field(cash_field),
+                 width="100%", margin_top="0.25rem"),
+        width="100%",
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+               "border_radius": "14px", "padding": "0.9rem 1rem"})
 
 
 def trade_page():
     propose = T.card(
         T.section_title("🤝 Propose a trade"),
-        rx.text("Add as many players as you like on either side with “+ Add”. "
+        rx.text("Add as many players as you like on either side with “Add player”. "
                 "A pure cash deal (players one way, only cash back) may involve one player.",
                 style={"color": T.MUTED, "font_size": "0.78rem", "margin_top": "0.3rem"}),
-        rx.box(height="0.7rem"),
+        rx.box(height="0.8rem"),
+        rx.hstack(
+            _field("Trade with", rx.select(
+                TradeState.other_teams, value=TradeState.counterparty, placeholder="Pick a team…",
+                on_change=TradeState.pick_counterparty, width="100%")),
+            rx.box(
+                rx.text("Loan", style={"color": T.MUTED, "font_size": "0.8rem",
+                                       "font_weight": "500"}),
+                rx.box(height="0.5rem"),
+                rx.checkbox("1-gameweek loan", checked=TradeState.is_loan,
+                            on_change=TradeState.set_field("is_loan"), size="2",
+                            style={"white_space": "nowrap"}),
+                style={"flex_shrink": "0", "min_width": "180px"}),
+            spacing="4", width="100%", align="start", wrap="wrap"),
+        rx.box(height="0.9rem"),
         rx.grid(
-            _field("With", rx.select(TradeState.other_teams, value=TradeState.counterparty,
-                   placeholder="Team", on_change=TradeState.pick_counterparty, width="100%")),
-            _trade_leg("You give", TradeState.my_players, TradeState.give_player,
-                       "give_player", TradeState.add_give, TradeState.give_players,
-                       lambda n: TradeState.remove_give(n)),
-            _trade_leg("You get", TradeState.their_players, TradeState.get_player,
-                       "get_player", TradeState.add_get, TradeState.get_players,
-                       lambda n: TradeState.remove_get(n)),
-            _field("Cash you add", rx.input(value=TradeState.give_cash, type="number",
-                   on_change=TradeState.set_field("give_cash"), width="100%")),
-            _field("Cash you want", rx.input(value=TradeState.get_cash, type="number",
-                   on_change=TradeState.set_field("get_cash"), width="100%")),
-            _field("Is this a loan?",
-                   rx.checkbox("1-gameweek loan", checked=TradeState.is_loan,
-                               on_change=TradeState.set_field("is_loan"), size="2",
-                               style={"white_space": "nowrap", "margin_top": "0.4rem"})),
-            columns=rx.breakpoints(initial="1", md="3"), spacing="3", width="100%"),
-        T.primary_button("Send proposal", on_click=TradeState.propose, margin_top="0.6rem"),
+            _trade_leg("You give", "→ " + TradeState.counterparty, T.PRIMARY,
+                       TradeState.my_players, TradeState.give_player, "give_player",
+                       TradeState.add_give, TradeState.give_players,
+                       lambda n: TradeState.remove_give(n),
+                       "Cash you add", TradeState.give_cash, "give_cash"),
+            _trade_leg("You get", "← " + TradeState.counterparty, T.ACCENT,
+                       TradeState.their_players, TradeState.get_player, "get_player",
+                       TradeState.add_get, TradeState.get_players,
+                       lambda n: TradeState.remove_get(n),
+                       "Cash you want", TradeState.get_cash, "get_cash"),
+            columns=rx.breakpoints(initial="1", md="2"), spacing="3", width="100%"),
+        rx.box(height="0.9rem"),
+        T.primary_button("Send proposal", on_click=TradeState.propose),
         rx.text("All accepted trades require admin approval before they apply. Anything "
                 "unresolved when the trading deadline passes is auto-rejected.",
                 style={"color": T.MUTED, "font_size": "0.78rem", "margin_top": "0.4rem"}),
