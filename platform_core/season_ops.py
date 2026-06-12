@@ -274,7 +274,13 @@ def advance_gameweek(room: dict) -> int:
                 if cur_p is not None:
                     to_team["squad"].remove(cur_p)
             if from_team:
-                from_team.setdefault("squad", []).append(loan["entry"])
+                returned_entry = dict(loan["entry"])
+                # Defensive: the returning player is owned outright again — never
+                # leave them flagged on-loan (older loan records snapshotted the
+                # entry after it was marked, so normalise here too).
+                if returned_entry.get("acquired_via") == "loan":
+                    returned_entry["acquired_via"] = "trade"
+                from_team.setdefault("squad", []).append(returned_entry)
             loans.remove(loan)
             
     return new_gw

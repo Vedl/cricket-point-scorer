@@ -133,6 +133,7 @@ def test_loan_lifecycle_snapshot_then_return():
     so.advance_gameweek(room)                                          # GW1 → GW2
     entry = next((e for e in a["squad"] if e["name"] == "Mbappé"), None)
     assert entry is not None and entry.get("buy_price") == 40          # back, price intact
+    assert entry.get("acquired_via") != "loan"                        # no longer on loan
     assert all(e["name"] != "Mbappé" for e in b["squad"])
     assert room.get("active_loans") == []
 

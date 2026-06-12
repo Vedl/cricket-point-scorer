@@ -139,18 +139,20 @@ def admin_approve_trade(room, trade_id) -> dict:
         for p_name in t.get("give_players", []):
             entry = _entry(by[t["to"]], p_name)
             if entry:
-                entry["acquired_via"] = "loan"
+                original = dict(entry)          # snapshot the real owner's entry
+                entry["acquired_via"] = "loan"  # before flagging it on-loan
                 loans.append({
                     "id": uuid.uuid4().hex[:8], "from": t["from"], "to": t["to"],
-                    "player": p_name, "return_gameweek": str(return_gw), "entry": dict(entry)
+                    "player": p_name, "return_gameweek": str(return_gw), "entry": original
                 })
         for p_name in t.get("get_players", []):
             entry = _entry(by[t["from"]], p_name)
             if entry:
-                entry["acquired_via"] = "loan"
+                original = dict(entry)          # snapshot the real owner's entry
+                entry["acquired_via"] = "loan"  # before flagging it on-loan
                 loans.append({
                     "id": uuid.uuid4().hex[:8], "from": t["to"], "to": t["from"],
-                    "player": p_name, "return_gameweek": str(return_gw), "entry": dict(entry)
+                    "player": p_name, "return_gameweek": str(return_gw), "entry": original
                 })
                 
     t["status"] = "approved"
