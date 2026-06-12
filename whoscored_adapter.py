@@ -116,18 +116,23 @@ def get_whoscored_stats(ws_url):
     events = data.get('events', [])
     ft = data.get('ftScore', '0:0').split(':')
     
-    # Detect extra time: if etScore exists, match went to 120 minutes
-    et_score = data.get('etScore')
-    has_extra_time = et_score is not None
-    match_duration = 120 if has_extra_time else 90
-    
-    # Also check maxMinute as a fallback indicator
+    # Detect extra time by checking whether any event actually occurred in an
+    # extra-time period. This is far more reliable than relying on `etScore`,
+    # which WhoScored often includes (as "" or "0:0") even for 90-minute matches.
+    ET_PERIODS = {'FirstPeriodOfExtraTime', 'SecondPeriodOfExtraTime',
+                  'ExtraFirstHalf', 'ExtraSecondHalf'}
+    periods_played = {e.get('period', {}).get('displayName', '') for e in events}
+    has_extra_time = bool(periods_played & ET_PERIODS)
+
+    # Fallback: only trust maxMinute if it clearly exceeds a full 90 + stoppage
+    # (regular time can reach ~100' with stoppage, so require a high threshold).
     max_minute = data.get('maxMinute', 90)
-    if max_minute > 115 and not has_extra_time:
+    if max_minute > 105 and not has_extra_time:
         has_extra_time = True
-        match_duration = 120
-    
-    print(f"[WhoScoredAdapter] Extra time: {has_extra_time}, match duration: {match_duration} min")
+
+    match_duration = 120 if has_extra_time else 90
+
+    print(f"[WhoScoredAdapter] Extra time: {has_extra_time}, match duration: {match_duration} min (periods: {sorted(periods_played)})")
     
     exp_mins = data.get('expandedMinutes', {})
     expanded_to_real = {}
