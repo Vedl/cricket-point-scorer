@@ -137,7 +137,8 @@ def rename_team(room: dict, old_name: str, new_name: str) -> None:
     new_name = new_name.strip()
     if not new_name:
         raise AdminError("Team name cannot be empty.")
-    if any(p["name"].lower() == new_name.lower() for p in room.get("participants", [])):
+    if any(p["name"].lower() == new_name.lower() for p in room.get("participants", [])
+           if p["name"] != old_name):
         raise AdminError(f"A team named '{new_name}' already exists.")
         
     found = False
@@ -151,18 +152,18 @@ def rename_team(room: dict, old_name: str, new_name: str) -> None:
         raise AdminError(f"Team '{old_name}' not found.")
         
     for b in room.get("active_bids", []):
-        if b.get("highest_bidder") == old_name:
-            b["highest_bidder"] = new_name
+        if b.get("participant") == old_name:
+            b["participant"] = new_name
             
     for b in room.get("open_bids", {}).values():
         if b.get("high_bidder") == old_name:
             b["high_bidder"] = new_name
             
     for t in room.get("pending_trades", []):
-        if t.get("proposer") == old_name:
-            t["proposer"] = new_name
-        if t.get("target_team") == old_name:
-            t["target_team"] = new_name
+        if t.get("from") == old_name:
+            t["from"] = new_name
+        if t.get("to") == old_name:
+            t["to"] = new_name
             
     for t in room.get("transactions", []):
         if t.get("participant") == old_name:

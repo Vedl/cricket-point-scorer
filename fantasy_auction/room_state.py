@@ -86,12 +86,17 @@ class RoomState(rx.State):
         code, doc, room = self._load()
         if not room:
             return
+        new = self.rename_input.strip()
+        if new == self.my_team:
+            self.rename_error = ""
+            return
         from platform_core.admin_ops import rename_team, AdminError
         try:
-            rename_team(room, self.my_team, self.rename_input)
+            rename_team(room, self.my_team, new)
             repo.save(doc)
             self.rename_error = ""
-            self.my_team = self.rename_input.strip()
+            self.my_team = new
+            self.rename_input = ""
             self._refresh(room)
             return rx.window_alert(f"Team successfully renamed to {self.my_team}!")
         except AdminError as e:
