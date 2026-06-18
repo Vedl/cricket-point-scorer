@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import functools
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import reflex as rx
 
@@ -10,6 +13,18 @@ from platform_core import scoring_ops
 from platform_core import season_ops as so
 
 from .state import AppState, aload, repo
+
+# Scraping runs on its OWN thread pool, isolated from asyncio's tiny default
+# executor (~5 threads on a 1-CPU box). Otherwise the parallel scrape tasks
+# occupy nearly the whole pool and starve every other to_thread call (page
+# hydrates, the per-client live loops) → seconds-long lag while scoring runs.
+_SCRAPE_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="scrape")
+
+# Standings are identical for every viewer of a room/gameweek, but each client's
+# loop recomputed them independently. Cache the computed payload process-wide with
+# a short TTL so N concurrent viewers share ONE compute instead of N.
+_STANDINGS_CACHE: dict = {}      # (code, selected_gw) -> (monotonic_ts, data, current_gw, gameweeks)
+_STANDINGS_TTL = 8.0
 
 
 class SeasonState(rx.State):
@@ -121,17 +136,30 @@ class SeasonState(rx.State):
                 try:
                     async with self:
                         selected_gw = self.selected_gw
-                    room = await asyncio.to_thread(repo.load_room, code)
-                    if room is not None:
-                        # Compute off the event loop: the Best-11 search is CPU-heavy,
-                        # so doing it here (not under `async with self`) keeps a slow
-                        # tick from blocking other users or pegging the worker.
+                    key = (code, selected_gw)
+                    cached = _STANDINGS_CACHE.get(key)
+                    if cached and (time.monotonic() - cached[0]) < _STANDINGS_TTL:
+                        _, data, cur_gw, gws = cached
+                    else:
+                        # load_room is served from the in-memory snapshot (~0.6ms),
+                        # so it's cheap enough to call directly without a thread.
+                        room = await asyncio.to_thread(repo.load_room, code)
+                        if room is None:
+                            await asyncio.sleep(12)
+                            continue
                         data = await asyncio.to_thread(
                             self._compute_standings_data, room, selected_gw)
-                        async with self:
-                            self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
-                            self.gameweeks = so.gameweeks_with_scores(room)
-                            self._assign_standings(data)
+                        cur_gw = str(room.get("current_gameweek", 0) or 0)
+                        gws = so.gameweeks_with_scores(room)
+                        _STANDINGS_CACHE[key] = (time.monotonic(), data, cur_gw, gws)
+                        # Drop stale entries so the cache can't grow unbounded.
+                        for k in [k for k, v in _STANDINGS_CACHE.items()
+                                  if time.monotonic() - v[0] > 60]:
+                            _STANDINGS_CACHE.pop(k, None)
+                    async with self:
+                        self.current_gameweek = cur_gw
+                        self.gameweeks = gws
+                        self._assign_standings(data)
                 except Exception as exc:
                     print(f"[standings_loop] tick failed, continuing: {exc}")
                 await asyncio.sleep(12)
@@ -340,17 +368,21 @@ class SeasonState(rx.State):
         done = 0
         sem = asyncio.Semaphore(4)
 
+        loop = asyncio.get_running_loop()
+
         async def _score(url):
             nonlocal done
             result = None
             async with sem:
                 # WhoScored bot-blocks are usually transient, so retry a couple
-                # times with backoff before giving up on a match.
+                # times with backoff before giving up on a match. Runs on the
+                # dedicated scrape pool so it can't starve the app's thread pool.
                 for attempt in range(3):
                     try:
-                        result = await asyncio.to_thread(
-                            scoring_ops.score_one_link, url,
-                            is_football=is_football, countries=countries)
+                        result = await loop.run_in_executor(
+                            _SCRAPE_EXECUTOR,
+                            functools.partial(scoring_ops.score_one_link, url,
+                                              is_football=is_football, countries=countries))
                         break
                     except Exception:  # network / bot-block / parse
                         if attempt < 2:
