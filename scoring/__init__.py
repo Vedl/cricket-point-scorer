@@ -95,34 +95,30 @@ def whoscored_points(url: str) -> list[dict]:
 
 
 def whoscored_keeper_scores(url: str) -> dict:
-    """Return ``{"home": gk_score, "away": gk_score}`` for a match — the points of
-    each side's goalkeeper (highest-minutes GK). Used for nation "Keeper" entries.
+    """Return ``{"home": gk_score, "away": gk_score}`` for a match — each nation's
+    goalkeeper points for the "Keeper" entries.
+
+    Scores straight off the RAW WhoScored stat line via ``gk_score_calc``. The old
+    path read ``calc_all_players_whoscored``'s pre-computed Score, but that frame
+    renames/drops columns so ``gk_score_calc`` saw zeros for passes/clearances and
+    under-scored keepers. We also AGGREGATE every GK a side used (sum counting
+    stats + minutes), so a keeper substitution is scored as one nation entry.
     """
     res = {"home": None, "away": None}
-    best_min = {"home": -1, "away": -1}
-    # _scrape_grouped collapses minutes; re-scan for GK with most minutes per side.
-    import football_score_calculator as f
-    df = f.calc_all_players_whoscored(url)
+    import whoscored_adapter as wa
+    import football_score_calculator as fsc
+
+    df = wa.get_whoscored_stats(url)
     if df is None or getattr(df, "empty", True):
         return res
-    for _, r in df.iterrows():
-        pos = str(r.get("Position", "") or "")
-        if pos != "GK":
+    gk = df[df["Pos"] == "GK"]
+    for side_key, team_label in (("home", "Home"), ("away", "Away")):
+        rows = gk[gk["Team"] == team_label]
+        if rows.empty:
             continue
-        side = str(r.get("Team", "") or "").lower()
-        if side not in ("home", "away"):
-            continue
-        try:
-            mins = int(r.get("minutes_played", 0) or 0)
-        except (TypeError, ValueError):
-            mins = 0
-        try:
-            score = int(round(float(r.get("Score") or 0)))
-        except (TypeError, ValueError):
-            score = 0
-        if mins > best_min[side]:
-            best_min[side] = mins
-            res[side] = score
+        agg = rows.sum(numeric_only=True).to_frame().T
+        conceded = float(agg["goals_conceded"].values[0]) if "goals_conceded" in agg else 0.0
+        res[side_key] = int(fsc.gk_score_calc(agg, 0, conceded))
     return res
 
 

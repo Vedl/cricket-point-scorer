@@ -165,123 +165,53 @@ def load_gk_model():
     return GK_ML_MODEL
 
 def gk_score_calc(df, team_score, team_conc):
-    # Try to use ML Model first (Zero Error Approach)
-    model = load_gk_model()
-    
-    if model:
-        # Prepare features exactly as trained:
-        # saves, claims, sweep, rec, clears, acc_pass, fail_pass, og, punch, sv_inside, poss_lost, pk_save, pk_faced, gp, ksv
-        
-        failed_passes = df['Passes_Att'] - df['Passes_Cmp']
-        
-        # Extract features
-        features = [
-            df['Performance_Saves'].values[0],
-            df['Performance_HighClaims'].values[0],
-            df['Performance_RunsOut'].values[0],
-            df['Performance_Rec'].values[0],
-            df['Unnamed: 20_level_0_Clr'].values[0],
-            df['Passes_Cmp'].values[0], 
-            failed_passes.values[0],
-            df['Performance_OG'].values[0],
-            df['Performance_Punches'].values[0],
-            df['Performance_SavedInsideBox'].values[0],
-            df['Performance_PossLost'].values[0],
-            df['Performance_PKSaved'].values[0],
-            df['Performance_PKFaced'].values[0],
-            df['Performance_GoalsPrevented'].values[0],
-            df['Performance_KeeperSaveValue'].values[0]
-        ]
-        
-        # Predict expects 2D array
-        feat_df = pd.DataFrame([features], columns=[
-            "saves", "claims", "sweep", "rec", "clears", "acc_pass", "fail_pass", "og", "punch", 
-            "sv_inside", "poss_lost", "pk_save", "pk_faced", "gp", "ksv"
-        ])
-        
-        pred = model.predict(feat_df)[0]
-        
-        # Add discipline points (standard rules)
-        def get_val(col):
-            v = df[col].values[0] if col in df else 0
-            return int(v) if not pd.isna(v) else 0
-            
-        yc = get_val('Performance_CrdY')
-        rc = get_val('Performance_CrdR')
-        pk_con = get_val('Performance_PKcon')
-        
-        disc_score = (-3 * yc) + (-5 * rc) - (5 * pk_con)
-        
-        final_score = pred + disc_score
+    """Goalkeeper score — v12 (WhoScored-fitted).
 
-        # Add PK Won bonus
-        pk_won = df['Performance_PKwon'].values[0]
-        pk_scored = df['Performance_PK'].values[0]
-        if (pk_won == 1) and (pk_scored != 1):
-            final_score += 6.4
+    Least-squares fit (RMSE 0.92, MAE 0.70 over 48 known-correct GW1 keepers) on
+    the stats WhoScored actually exposes. The retired ML model and v11 formula
+    relied on GoalsPrevented / KeeperSaveValue / PKFaced / Rec / PossLost, which
+    the scraper always reports as 0, so they were systematically wrong. Refit from
+    new known-correct scores with scripts/fit_gk_scoring.py.
+    """
+    def _g(col):
+        if col not in df:
+            return 0.0
+        x = df[col].values[0]
+        return 0.0 if pd.isna(x) else float(x)
 
-        # Note: Do NOT add minutes_played / 30 here because the ML model was trained on targets 
-        # that INCLUDED the minutes points (so it learned the bias +3).
-        # Adding it again would double count.
-        
-        minutes_played = df['Unnamed: 5_level_0_Min'].values[0]
+    saves        = _g('Performance_Saves')
+    high_claims  = _g('Performance_HighClaims')
+    runs_out     = _g('Performance_RunsOut')
+    clearances   = _g('Unnamed: 20_level_0_Clr')
+    punches      = _g('Performance_Punches')
+    saves_in_box = _g('Performance_SavedInsideBox')
+    passes_cmp   = _g('Passes_Cmp')
+    failed_pass  = _g('Passes_Att') - passes_cmp
+    minutes      = _g('Unnamed: 5_level_0_Min')
+    conceded     = _g('goals_conceded')
+    yellow       = _g('Performance_CrdY')
+    red          = _g('Performance_CrdR')
+    pk_con       = _g('Performance_PKcon')
+    clean_sheet  = 1.0 if (conceded == 0 and minutes >= 60) else 0.0
 
-        # Add partial clean sheet penalty (conditional logic might not be fully captured by regression)
-        if (minutes_played <= 45) and (team_conc == 0):
-            final_score -= 5
-            
-        return round(final_score)
-
-    # Fallback: Goalkeeper Formula (v11)
-    # Optimized on 16 GKs including Real vs City match.
-    # RMSE: 2.16 (Proven reliable for key test cases)
-    
-    # Calculate derived stats
-    failed_passes = df['Passes_Att'] - df['Passes_Cmp']
-    
     score = (
-        + 21.94
-        
-        # Standard GK Stats
-        + 1.55 * df['Performance_Saves']
-        + 8.16 * df['Performance_HighClaims']
-        + 4.52 * df['Performance_RunsOut']
-        - 0.54 * df['Performance_Rec']
-        + 1.47 * df['Unnamed: 20_level_0_Clr']
-        
-        # Distribution
-        + 0.15 * df['Passes_Cmp']
-        + 2.00 * failed_passes
-        
-        # Advanced GK Stats
-        - 6.70 * df['Performance_Punches']
-        - 2.56 * df['Performance_SavedInsideBox']
-        - 1.94 * df['Performance_PossLost']
-        + 0.00 * df['Performance_PKSaved'] 
-        + 5.00 * df['Performance_PKFaced']
-        + 9.70 * df['Performance_GoalsPrevented']
-        - 4.42 * df['Performance_KeeperSaveValue']
-        
-        # Discipline
-        - 5 * df['Performance_CrdR']
-        - 3 * df['Performance_CrdY']
-        - 5 * df['Performance_PKcon']
+        31.430
+        + 2.981 * saves
+        + 2.602 * high_claims
+        - 0.199 * runs_out
+        + 1.052 * clearances
+        + 1.750 * punches
+        + 0.393 * saves_in_box
+        + 0.233 * passes_cmp
+        - 0.125 * failed_pass
+        - 0.123 * minutes
+        - 5.988 * conceded
+        + 0.026 * clean_sheet
+        - 1.116 * yellow
+        - 1.116 * pk_con
+        - 5.0 * red  # no red cards in the fit set — keep a real sending-off penalty
     )
-    
-    pk_won = df['Performance_PKwon'].values[0]
-    pk_scored = df['Performance_PK'].values[0]
-    
-    if (pk_won == 1) and (pk_scored != 1):
-        score += 6.4
-        
-    minutes_played = df['Unnamed: 5_level_0_Min'].values[0]
-    score += minutes_played / 30
-
-    if (minutes_played <= 45) and (team_conc == 0):
-        score -= 5  # Partial clean sheet penalty
-    
-    val = score.values[0] if isinstance(score, pd.Series) else score
-    return round(val, 0)
+    return round(score)
 
 
 # ============================================================
