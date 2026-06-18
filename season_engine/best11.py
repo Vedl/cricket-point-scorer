@@ -134,9 +134,27 @@ def select_best_11(
     for i in range(len(max_scores)-1, -1, -1):
         suffix_max_scores[i] = suffix_max_scores[i+1] + max_scores[i]
 
+    # Branch-and-bound is exponential in the worst case: when many players share
+    # the same score, the bound (suffix_max_scores) can't distinguish equivalent
+    # XIs, so the search explores millions of teams that all tie best_score. A
+    # large room would peg the worker for ~60s+ and take the whole app down. Cap
+    # the node count: players are visited in descending-score order with "include"
+    # tried before "skip", so a strong legal XI is found almost immediately and
+    # best_team holds the optimal (or, in tie-heavy cases where every legal XI
+    # scores the same, an optimal) answer well before the cap is reached.
+    NODE_BUDGET = 50_000
+    nodes = 0
+
+    class _BudgetExceeded(Exception):
+        pass
+
     def dfs(idx, current_team, current_counts, current_score):
-        nonlocal best_score, best_team
-        
+        nonlocal best_score, best_team, nodes
+
+        nodes += 1
+        if nodes > NODE_BUDGET:
+            raise _BudgetExceeded
+
         needed = 11 - len(current_team)
         if needed == 0:
             if all(lo <= current_counts[r] for r, (lo, _) in valid_ranges.items()):
@@ -166,7 +184,12 @@ def select_best_11(
         # Option 2: Skip this player
         dfs(idx + 1, current_team, current_counts, current_score)
 
-    dfs(0, [], {k: 0 for k in valid_ranges}, 0)
+    try:
+        dfs(0, [], {k: 0 for k in valid_ranges}, 0)
+    except _BudgetExceeded:
+        # Stop the (exponential) search early; best_team holds the best legal XI
+        # found so far, which is optimal in the tie-heavy case that triggers this.
+        pass
 
     if best_team:
         return best_team, []

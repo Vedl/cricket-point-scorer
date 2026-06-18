@@ -114,12 +114,19 @@ class SeasonState(rx.State):
                         return
                     code = self.room_code
                 try:
+                    async with self:
+                        selected_gw = self.selected_gw
                     room = await asyncio.to_thread(repo.load_room, code)
                     if room is not None:
+                        # Compute off the event loop: the Best-11 search is CPU-heavy,
+                        # so doing it here (not under `async with self`) keeps a slow
+                        # tick from blocking other users or pegging the worker.
+                        data = await asyncio.to_thread(
+                            self._compute_standings_data, room, selected_gw)
                         async with self:
                             self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
                             self.gameweeks = so.gameweeks_with_scores(room)
-                            self._recompute(room)
+                            self._assign_standings(data)
                 except Exception as exc:
                     print(f"[standings_loop] tick failed, continuing: {exc}")
                 await asyncio.sleep(12)
@@ -131,39 +138,60 @@ class SeasonState(rx.State):
     def stop_watching(self):
         self.watching = False
 
-    def _recompute(self, room: dict):
-        self.eliminated = sorted(so.eliminated_names(room))
-        elim = set(self.eliminated)
-        self.cumulative = [
+    @staticmethod
+    def _compute_standings_data(room: dict, selected_gw: str) -> dict:
+        """Pure computation of everything _recompute assigns. No ``self`` access, so
+        it can run in a worker thread (asyncio.to_thread) and keep the heavy Best-11
+        search off the event loop / state lock — a slow tick must never block other
+        users or peg the worker."""
+        eliminated = sorted(so.eliminated_names(room))
+        elim = set(eliminated)
+        cumulative = [
             {"participant": r["participant"] + (" ❌" if r["participant"] in elim else ""),
              "points": str(r["points"])}
             for r in so.compute_cumulative_standings(room)
         ]
-        if self.selected_gw:
-            standings = so.compute_gameweek_standings(room, self.selected_gw)
-            self.gw_standings = [
+        gw_standings: list[dict] = []
+        best11_cache: dict = {}
+        if selected_gw:
+            standings = so.compute_gameweek_standings(room, selected_gw)
+            gw_standings = [
                 {"participant": r["participant"], "points": str(r["points"]),
                  "warn": "⚠️" if r.get("warnings") else ""}
                 for r in standings
             ]
-            self._gw_best11_cache = {
+            best11_cache = {
                 r["participant"]: [
                     {"name": p["name"], "role": p.get("category", p.get("role", "")), "score": str(p["score"])}
                     for p in r.get("best_11", [])
                 ] for r in standings
             }
-        else:
-            self.gw_standings = []
-        self.top_scorers = [
+        top_scorers = [
             {"player": r["player"], "points": str(r["points"]), "owner": r["owner"]}
             for r in so.top_player_scorers(room, limit=20)
         ]
         locked = room.get("gameweek_squads", {})
-        self.deadlines = [
+        deadlines = [
             {"gw": gw, "when": iso[:16].replace("T", " "),
              "status": "locked" if gw in locked else "scheduled"}
             for gw, iso in sorted(room.get("gameweek_deadlines", {}).items())
         ]
+        return {
+            "eliminated": eliminated, "cumulative": cumulative,
+            "gw_standings": gw_standings, "best11_cache": best11_cache,
+            "top_scorers": top_scorers, "deadlines": deadlines,
+        }
+
+    def _assign_standings(self, data: dict):
+        self.eliminated = data["eliminated"]
+        self.cumulative = data["cumulative"]
+        self.gw_standings = data["gw_standings"]
+        self._gw_best11_cache = data["best11_cache"]
+        self.top_scorers = data["top_scorers"]
+        self.deadlines = data["deadlines"]
+
+    def _recompute(self, room: dict):
+        self._assign_standings(self._compute_standings_data(room, self.selected_gw))
 
     @rx.event
     def select_gw(self, gw: str):
