@@ -58,29 +58,55 @@ def _keeper_aliases(url: str, countries: list[str]) -> tuple[str, str]:
     return home, away
 
 
+def is_football_room(room: dict) -> bool:
+    return room.get("tournament_type") == "FIFA World Cup 2026"
+
+
+def fifa_countries(room: dict) -> list[str]:
+    """Public wrapper: distinct nations with a 'Keeper' entry in this room."""
+    return _fifa_countries(room)
+
+
+def score_one_link(url: str, *, is_football: bool, countries: list[str]) -> dict:
+    """Scrape ONE match link → ``{player_or_keeper_name: number | {pos: score}}``.
+
+    Pure per-match scrape with no room mutation, so a caller can loop over the
+    gameweek's links one at a time and report progress between matches.
+    """
+    from scoring import whoscored_keeper_scores, whoscored_player_scores
+
+    out: dict = {}
+    for name, sc in whoscored_player_scores(url).items():
+        out[name] = _merge(out.get(name), sc)
+    if is_football:
+        ks = whoscored_keeper_scores(url)
+        home, away = _keeper_aliases(url, countries)
+        if home and ks.get("home") is not None:
+            out[f"{home} Keeper"] = _merge(out.get(f"{home} Keeper"), ks["home"])
+        if away and ks.get("away") is not None:
+            out[f"{away} Keeper"] = _merge(out.get(f"{away} Keeper"), ks["away"])
+    return out
+
+
+def merge_link_totals(totals: dict, one: dict) -> None:
+    """Fold one match's ``score_one_link`` result into the running gameweek totals."""
+    for name, sc in one.items():
+        totals[name] = _merge(totals.get(name), sc)
+
+
 def score_gameweek_from_links(room: dict, gameweek: str, links: list[str]) -> tuple[dict, list[str]]:
     """Scrape each link, store per-player points (dual-position aware) under the
     gameweek. For football, each nation's goalkeeper points are stored under
     ``"{Country} Keeper"`` (keepers are owned per nation). Best-11 picks each
     player's best position from the ``{pos: score}`` dicts.
     """
-    from scoring import whoscored_keeper_scores, whoscored_player_scores
-
-    is_football = room.get("tournament_type") == "FIFA World Cup 2026"
-    countries = _fifa_countries(room) if is_football else []
+    is_football = is_football_room(room)
+    countries = fifa_countries(room) if is_football else []
     totals: dict = {}
     errors: list[str] = []
     for url in links:
         try:
-            for name, sc in whoscored_player_scores(url).items():
-                totals[name] = _merge(totals.get(name), sc)
-            if is_football:
-                ks = whoscored_keeper_scores(url)
-                home, away = _keeper_aliases(url, countries)
-                if home and ks.get("home") is not None:
-                    totals[f"{home} Keeper"] = _merge(totals.get(f"{home} Keeper"), ks["home"])
-                if away and ks.get("away") is not None:
-                    totals[f"{away} Keeper"] = _merge(totals.get(f"{away} Keeper"), ks["away"])
+            merge_link_totals(totals, score_one_link(url, is_football=is_football, countries=countries))
         except Exception as exc:  # network / bot-block / parse
             errors.append(f"{url[:60]}…: {exc}")
     if totals:

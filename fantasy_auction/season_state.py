@@ -50,6 +50,10 @@ class SeasonState(rx.State):
     # WhoScored auto-scoring
     score_links: str = ""
     scoring_running: bool = False
+    scoring_done: int = 0          # matches scraped so far
+    scoring_total: int = 0         # matches to scrape this run
+    scoring_pct: int = 0           # 0-100 for the progress bar
+    scoring_status: str = ""       # live "Scraped 3/24…" line
     # Self-healing refresh (see RoomState.watching): repopulate standings after a
     # reconnect / free-tier restart instead of staying blank.
     watching: bool = False
@@ -160,10 +164,17 @@ class SeasonState(rx.State):
                  "warn": "⚠️" if r.get("warnings") else ""}
                 for r in standings
             ]
+            # Show each Best-11 in formation order: GK, DEF, MID, FWD (cricket:
+            # WK, BAT, AR, BWL), highest scorer first within each line.
+            pos_order = {"GK": 0, "DEF": 1, "MID": 2, "FWD": 3,
+                         "WK": 0, "BAT": 1, "AR": 2, "BWL": 3}
             best11_cache = {
                 r["participant"]: [
                     {"name": p["name"], "role": p.get("category", p.get("role", "")), "score": str(p["score"])}
-                    for p in r.get("best_11", [])
+                    for p in sorted(
+                        r.get("best_11", []),
+                        key=lambda p: (pos_order.get(p.get("category", ""), 9), -p["score"]),
+                    )
                 ] for r in standings
             }
         top_scorers = [
@@ -298,9 +309,14 @@ class SeasonState(rx.State):
             gw = self.gw_input
             links = scoring_ops.parse_links(self.score_links)
             code = self.room_code
+            self.scoring_total = len(links)
+            self.scoring_done = 0
+            self.scoring_pct = 0
+            self.scoring_status = f"Starting… 0/{len(links)} matches"
         if not links:
             async with self:
                 self.scoring_running = False
+                self.scoring_status = ""
                 self.msg = "⚠️ Paste at least one WhoScored match link."
             return
         doc = repo.load()
@@ -308,19 +324,41 @@ class SeasonState(rx.State):
         if room is None:
             async with self:
                 self.scoring_running = False
+                self.scoring_status = ""
             return
-        totals, errors = await asyncio.to_thread(
-            scoring_ops.score_gameweek_from_links, room, gw, links)
+        # Scrape one match at a time so the admin sees live progress — 24 matches
+        # through the proxy fallback can take many minutes, and a single opaque
+        # "Scraping…" spinner gave no sign it was alive.
+        is_football = scoring_ops.is_football_room(room)
+        countries = scoring_ops.fifa_countries(room) if is_football else []
+        totals: dict = {}
+        errors: list[str] = []
+        for i, url in enumerate(links, start=1):
+            try:
+                one = await asyncio.to_thread(
+                    scoring_ops.score_one_link, url, is_football=is_football, countries=countries)
+                scoring_ops.merge_link_totals(totals, one)
+            except Exception as exc:  # network / bot-block / parse
+                errors.append(f"{url[:60]}…: {exc}")
+            async with self:
+                self.scoring_done = i
+                self.scoring_pct = int(i * 100 / max(1, len(links)))
+                self.scoring_status = f"Scraped {i}/{len(links)} matches…"
         if totals:
+            so.set_gameweek_scores(room, gw, totals)
             repo.save(doc)
         async with self:
             self.scoring_running = False
+            self.scoring_status = ""
+            self.scoring_pct = 0
             if totals:
                 self.selected_gw = str(gw)
                 self.gameweeks = so.gameweeks_with_scores(room)
                 self._recompute(room)
                 self.msg = (f"✅ Scored {len(totals)} players for GW{gw} from "
-                            f"{len(links)} match(es).")
+                            f"{len(links) - len(errors)}/{len(links)} match(es).")
+            else:
+                self.msg = "⚠️ No scores scraped — every match link failed."
             if errors:
                 self.msg += "  ⚠️ " + " | ".join(errors[:2])
 
