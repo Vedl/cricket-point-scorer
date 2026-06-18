@@ -326,24 +326,40 @@ class SeasonState(rx.State):
                 self.scoring_running = False
                 self.scoring_status = ""
             return
-        # Scrape one match at a time so the admin sees live progress — 24 matches
-        # through the proxy fallback can take many minutes, and a single opaque
-        # "Scraping…" spinner gave no sign it was alive.
+        # Scrape several matches at once (bounded) with live progress. 24 matches
+        # one-at-a-time took minutes and pegged the box; scraping is network-bound,
+        # so a small pool overlaps the waits while staying memory-safe (each match
+        # is fetched once — see whoscored_adapter scrape-once cache — and the proxy
+        # swarm is capped, so worst-case concurrent downloads stay bounded).
         is_football = scoring_ops.is_football_room(room)
         countries = scoring_ops.fifa_countries(room) if is_football else []
         totals: dict = {}
         errors: list[str] = []
-        for i, url in enumerate(links, start=1):
-            try:
-                one = await asyncio.to_thread(
-                    scoring_ops.score_one_link, url, is_football=is_football, countries=countries)
-                scoring_ops.merge_link_totals(totals, one)
-            except Exception as exc:  # network / bot-block / parse
-                errors.append(f"{url[:60]}…: {exc}")
+        n = len(links)
+        done = 0
+        sem = asyncio.Semaphore(4)
+
+        async def _score(url):
+            nonlocal done
+            result, err = None, None
+            async with sem:
+                try:
+                    result = await asyncio.to_thread(
+                        scoring_ops.score_one_link, url, is_football=is_football, countries=countries)
+                except Exception as exc:  # network / bot-block / parse
+                    err = f"{url[:60]}…: {exc}"
             async with self:
-                self.scoring_done = i
-                self.scoring_pct = int(i * 100 / max(1, len(links)))
-                self.scoring_status = f"Scraped {i}/{len(links)} matches…"
+                done += 1
+                self.scoring_done = done
+                self.scoring_pct = int(done * 100 / max(1, n))
+                self.scoring_status = f"Scraped {done}/{n} matches…"
+            return result, err
+
+        for result, err in await asyncio.gather(*[_score(u) for u in links]):
+            if err:
+                errors.append(err)
+            elif result:
+                scoring_ops.merge_link_totals(totals, result)
         if totals:
             so.set_gameweek_scores(room, gw, totals)
             repo.save(doc)

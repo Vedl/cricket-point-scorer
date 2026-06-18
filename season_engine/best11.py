@@ -18,7 +18,7 @@ from __future__ import annotations
 import itertools
 from typing import Optional
 
-from .names import canonical
+from .names import build_index, lookup
 
 
 def classify_cricket(role_str: str) -> str:
@@ -89,15 +89,15 @@ def select_best_11(
 
     classify = classify_football if is_football else classify_cricket
 
-    # Accent-insensitive fallback: scraped score keys often lack the diacritics the
-    # squad/pool spelling uses, so an exact lookup would score those players 0.
-    canon_scores = {canonical(k): v for k, v in player_scores.items()}
+    # Tolerant fallback: scraped score keys differ from squad spellings in accents,
+    # hyphenation and word order, so an exact lookup would score those players 0.
+    score_index = build_index(player_scores)
 
     scored_players: list[dict] = []
     for p in active_squad:
         entry = player_scores.get(p["name"])
         if entry is None:
-            entry = canon_scores.get(canonical(p["name"]), 0)
+            entry = lookup(score_index, p["name"], 0)
         if isinstance(entry, dict):
             for pos_key, pos_score in entry.items():
                 scored_players.append(

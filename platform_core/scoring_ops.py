@@ -42,16 +42,52 @@ def _fifa_countries(room: dict) -> list[str]:
     return sorted({p["team"] for p in pool if p["name"].endswith(" Keeper")})
 
 
-def _slugify(s: str) -> str:
+def _norm_tokens(s: str) -> list[str]:
+    """Lowercase, accent-stripped tokens split on any non-alphanumeric run — so a
+    URL slug and a nation name tokenise the same way (hyphens are separators here,
+    unlike player-name canonicalisation which joins across them)."""
     import re
-    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s or ""))
+    s = "".join(c for c in s if not unicodedata.combining(c)).casefold()
+    return [t for t in re.split(r"[^a-z0-9]+", s) if t]
+
+
+# Pool nation names that share no full token with their WhoScored URL slug — map
+# the token form of the pool name to the distinctive slug token(s).
+_COUNTRY_SLUG_ALIASES = {
+    "korea republic": {"korea"},        # url: ...-south-korea-...
+    "ir iran": {"iran"},                # url: ...-iran-...
+    "cote d ivoire": {"ivory", "coast"},  # url: ...-ivory-coast-...
+}
 
 
 def _keeper_aliases(url: str, countries: list[str]) -> tuple[str, str]:
-    """From a WhoScored URL, find the two nations (home, away) by slug order."""
-    low = url.lower()
-    hits = [(low.find(_slugify(c)), c) for c in countries if _slugify(c) and _slugify(c) in low]
-    hits = [h for h in hits if h[0] >= 0]
+    """From a WhoScored URL find the two nations (home, away) in slug order.
+
+    Matches a pool nation when all of its tokens appear in the URL (so "Congo DR"
+    matches ``dr-congo``, "Türkiye" matches ``turkiye``, "Curaçao" matches
+    ``curacao``), with an alias table for names that share no full token with the
+    slug (e.g. "Korea Republic" ↔ ``south-korea``)."""
+    url_tokens = _norm_tokens(url)
+    url_set = set(url_tokens)
+    flat = " ".join(url_tokens)
+    hits = []
+    for c in countries:
+        ctoks = _norm_tokens(c)
+        if not ctoks:
+            continue
+        cset = set(ctoks)
+        alias = _COUNTRY_SLUG_ALIASES.get(" ".join(ctoks), set())
+        if cset.issubset(url_set):
+            match_toks = cset
+        elif alias & url_set:
+            match_toks = alias & url_set
+        else:
+            continue
+        pos = min((flat.find(t) for t in match_toks if flat.find(t) >= 0), default=-1)
+        if pos >= 0:
+            hits.append((pos, c))
     hits.sort()
     home = hits[0][1] if len(hits) >= 1 else None
     away = hits[1][1] if len(hits) >= 2 else None

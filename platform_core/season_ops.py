@@ -11,7 +11,7 @@ import math
 from datetime import datetime, timedelta
 
 from season_engine.knockout import select_for_elimination
-from season_engine.names import canonical
+from season_engine.names import build_index, lookup
 from season_engine.standings import cumulative_standings, gameweek_standings
 
 from .config_layer import SPORT_BY_TOURNAMENT
@@ -302,8 +302,9 @@ def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
     owner = {}
     for p in room.get("participants", []):
         for e in p.get("squad", []):
-            owner[canonical(e["name"])] = p["name"]
-    rows = [{"player": n, "points": t, "owner": owner.get(canonical(n), "—")}
+            owner[e["name"]] = p["name"]
+    owner_index = build_index(owner)
+    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—")}
             for n, t in totals.items()]
     rows.sort(key=lambda r: r["points"], reverse=True)
     return rows[:limit]

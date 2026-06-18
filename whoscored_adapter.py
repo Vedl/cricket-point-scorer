@@ -14,6 +14,22 @@ POS_MAP = {'GK':'GK','DR':'DEF','DC':'DEF','DL':'DEF','DMR':'DEF','DML':'DEF',
            'MC':'MID','DMC':'MID','AMC':'MID','MR':'MID','ML':'MID',
            'AMR':'MID','AML':'MID','FW':'FWD','FWR':'FWD','FWL':'FWD','Sub':'MID'}
 
+# Scrape-once cache: a match is scraped twice per scoring run (outfield players +
+# keepers both call get_whoscored_stats). Memoising by URL halves the network +
+# parse work, and lets a re-scrape of an already-fetched gameweek return instantly.
+# Match data is final once scored, so staleness is a non-issue; bounded so it can't
+# grow without limit on the long-running server.
+_STATS_CACHE = {}
+_STATS_CACHE_ORDER = []
+_STATS_CACHE_MAX = 64
+
+
+def _stats_cache_put(url, df):
+    _STATS_CACHE[url] = df
+    _STATS_CACHE_ORDER.append(url)
+    if len(_STATS_CACHE_ORDER) > _STATS_CACHE_MAX:
+        _STATS_CACHE.pop(_STATS_CACHE_ORDER.pop(0), None)
+
 def sum_stat(sd):
     if not sd or not isinstance(sd, dict): return 0
     return sum(float(v) for v in sd.values())
@@ -34,7 +50,7 @@ def test_proxy(proxy_url, target_url):
 # value of 50 meant ~50 multi-MB pages in flight at once, which blew past the
 # instance memory limit and got the whole web service OOM-killed/restarted on
 # Render. Keep this low so peak memory stays bounded (a handful of pages at a time).
-_PROXY_SWARM_WORKERS = 6
+_PROXY_SWARM_WORKERS = 4
 _PROXY_SWARM_LIMIT = 30
 
 
@@ -61,8 +77,11 @@ def fetch_with_free_proxies(url):
     return result
 
 def get_whoscored_stats(ws_url):
+    cached = _STATS_CACHE.get(ws_url)
+    if cached is not None:
+        return cached.copy()
     print(f"[WhoScoredAdapter] Fetching data from: {ws_url}")
-    
+
     m = None
     if ws_url.startswith("file://"):
         file_path = ws_url.replace("file://", "")
@@ -288,4 +307,5 @@ def get_whoscored_stats(ws_url):
             results.append(row)
             
     df = pd.DataFrame(results)
-    return df
+    _stats_cache_put(ws_url, df)
+    return df.copy()
