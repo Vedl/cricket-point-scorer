@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import functools
+import json
+import os
+import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import reflex as rx
 
@@ -14,11 +15,19 @@ from platform_core import season_ops as so
 
 from .state import AppState, aload, repo
 
-# Scraping runs on its OWN thread pool, isolated from asyncio's tiny default
-# executor (~5 threads on a 1-CPU box). Otherwise the parallel scrape tasks
-# occupy nearly the whole pool and starve every other to_thread call (page
-# hydrates, the per-client live loops) → seconds-long lag while scoring runs.
-_SCRAPE_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="scrape")
+# "Calculate points" scrapes WhoScored and fits the sklearn keeper model. Run inside
+# this long-lived web process that work loads curl_cffi / cloudscraper / tls_client
+# (native TLS), pandas and sklearn into the heap AND holds several multi-MB match
+# pages — a resident footprint that never returns to the OS on the 512 MB box, so
+# after one run every request for every user is slow until a redeploy. We instead run
+# it in a short-lived CHILD process (see scripts/score_links_worker.py) that exits
+# when done, so the kernel reclaims all of that memory. The web process only handles
+# lightweight JSON progress/results.
+_SCORE_WORKER = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "scripts", "score_links_worker.py",
+)
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Standings are identical for every viewer of a room/gameweek, but each client's
 # loop recomputed them independently. Cache the computed payload process-wide with
@@ -356,50 +365,56 @@ class SeasonState(rx.State):
                 self.scoring_running = False
                 self.scoring_status = ""
             return
-        # Scrape several matches at once (bounded) with live progress. 24 matches
-        # one-at-a-time took minutes and pegged the box; scraping is network-bound,
-        # so a small pool overlaps the waits while staying memory-safe (each match
-        # is fetched once — see whoscored_adapter scrape-once cache — and the proxy
-        # swarm is capped, so worst-case concurrent downloads stay bounded).
+        # Scrape + score in a SHORT-LIVED CHILD PROCESS (see _SCORE_WORKER note at
+        # top of file). The child loads the whole heavy stack (curl_cffi, cloudscraper,
+        # tls_client, pandas, the sklearn keeper model) and holds the multi-MB match
+        # pages; when it exits, the kernel reclaims all of it — so a scoring run can no
+        # longer leave the 512 MB web process bloated and laggy for everyone. It is
+        # also network-bound, so the worker scrapes a few matches at once (bounded) and
+        # streams per-match progress back as NDJSON, preserving the live progress bar.
         is_football = scoring_ops.is_football_room(room)
         countries = scoring_ops.fifa_countries(room) if is_football else []
         totals: dict = {}
-        n = len(links)
-        done = 0
-        sem = asyncio.Semaphore(4)
-
-        loop = asyncio.get_running_loop()
-
-        async def _score(url):
-            nonlocal done
-            result = None
-            async with sem:
-                # WhoScored bot-blocks are usually transient, so retry a couple
-                # times with backoff before giving up on a match. Runs on the
-                # dedicated scrape pool so it can't starve the app's thread pool.
-                for attempt in range(3):
-                    try:
-                        result = await loop.run_in_executor(
-                            _SCRAPE_EXECUTOR,
-                            functools.partial(scoring_ops.score_one_link, url,
-                                              is_football=is_football, countries=countries))
-                        break
-                    except Exception:  # network / bot-block / parse
-                        if attempt < 2:
-                            await asyncio.sleep(2 * (attempt + 1))
-            async with self:
-                done += 1
-                self.scoring_done = done
-                self.scoring_pct = int(done * 100 / max(1, n))
-                self.scoring_status = f"Scraped {done}/{n} matches…"
-            return url, result
-
         failed: list[str] = []
-        for url, result in await asyncio.gather(*[_score(u) for u in links]):
-            if result is None:
-                failed.append(scoring_ops.match_label(url))
-            else:
-                scoring_ops.merge_link_totals(totals, result)
+        n = len(links)
+        payload = json.dumps(
+            {"links": links, "is_football": is_football, "countries": countries})
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, _SCORE_WORKER,
+                cwd=_REPO_ROOT,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            proc.stdin.write(payload.encode())
+            await proc.stdin.drain()
+            proc.stdin.close()
+            # Stream the worker's NDJSON: progress lines drive the bar, the result line
+            # carries the merged totals + the matches WhoScored blocked this run.
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                try:
+                    msg = json.loads(line.decode())
+                except ValueError:
+                    continue
+                if msg.get("t") == "progress":
+                    done = int(msg.get("done", 0))
+                    async with self:
+                        self.scoring_done = done
+                        self.scoring_pct = int(done * 100 / max(1, n))
+                        self.scoring_status = f"Scraped {done}/{n} matches…"
+                elif msg.get("t") == "result":
+                    totals = msg.get("totals") or {}
+                    failed = list(msg.get("failed") or [])
+            await proc.wait()
+            if proc.returncode and not totals:
+                err = (await proc.stderr.read()).decode(errors="replace")[-400:]
+                print(f"[run_whoscored_scoring] worker exit {proc.returncode}: {err}")
+        except Exception as exc:
+            print(f"[run_whoscored_scoring] worker failed: {exc}")
         if totals:
             so.set_gameweek_scores(room, gw, totals)
             repo.save(doc)
