@@ -54,6 +54,7 @@ class SeasonState(rx.State):
     scoring_total: int = 0         # matches to scrape this run
     scoring_pct: int = 0           # 0-100 for the progress bar
     scoring_status: str = ""       # live "Scraped 3/24…" line
+    scoring_failed: list[str] = [] # match labels WhoScored blocked this run
     # Self-healing refresh (see RoomState.watching): repopulate standings after a
     # reconnect / free-tier restart instead of staying blank.
     watching: bool = False
@@ -312,6 +313,7 @@ class SeasonState(rx.State):
             self.scoring_total = len(links)
             self.scoring_done = 0
             self.scoring_pct = 0
+            self.scoring_failed = []
             self.scoring_status = f"Starting… 0/{len(links)} matches"
         if not links:
             async with self:
@@ -334,31 +336,37 @@ class SeasonState(rx.State):
         is_football = scoring_ops.is_football_room(room)
         countries = scoring_ops.fifa_countries(room) if is_football else []
         totals: dict = {}
-        errors: list[str] = []
         n = len(links)
         done = 0
         sem = asyncio.Semaphore(4)
 
         async def _score(url):
             nonlocal done
-            result, err = None, None
+            result = None
             async with sem:
-                try:
-                    result = await asyncio.to_thread(
-                        scoring_ops.score_one_link, url, is_football=is_football, countries=countries)
-                except Exception as exc:  # network / bot-block / parse
-                    err = f"{url[:60]}…: {exc}"
+                # WhoScored bot-blocks are usually transient, so retry a couple
+                # times with backoff before giving up on a match.
+                for attempt in range(3):
+                    try:
+                        result = await asyncio.to_thread(
+                            scoring_ops.score_one_link, url,
+                            is_football=is_football, countries=countries)
+                        break
+                    except Exception:  # network / bot-block / parse
+                        if attempt < 2:
+                            await asyncio.sleep(2 * (attempt + 1))
             async with self:
                 done += 1
                 self.scoring_done = done
                 self.scoring_pct = int(done * 100 / max(1, n))
                 self.scoring_status = f"Scraped {done}/{n} matches…"
-            return result, err
+            return url, result
 
-        for result, err in await asyncio.gather(*[_score(u) for u in links]):
-            if err:
-                errors.append(err)
-            elif result:
+        failed: list[str] = []
+        for url, result in await asyncio.gather(*[_score(u) for u in links]):
+            if result is None:
+                failed.append(scoring_ops.match_label(url))
+            else:
                 scoring_ops.merge_link_totals(totals, result)
         if totals:
             so.set_gameweek_scores(room, gw, totals)
@@ -367,16 +375,19 @@ class SeasonState(rx.State):
             self.scoring_running = False
             self.scoring_status = ""
             self.scoring_pct = 0
+            self.scoring_failed = failed
+            ok = n - len(failed)
             if totals:
                 self.selected_gw = str(gw)
                 self.gameweeks = so.gameweeks_with_scores(room)
                 self._recompute(room)
-                self.msg = (f"✅ Scored {len(totals)} players for GW{gw} from "
-                            f"{len(links) - len(errors)}/{len(links)} match(es).")
+                self.msg = f"✅ Scored {len(totals)} players for GW{gw} from {ok}/{n} match(es)."
             else:
                 self.msg = "⚠️ No scores scraped — every match link failed."
-            if errors:
-                self.msg += "  ⚠️ " + " | ".join(errors[:2])
+            if failed:
+                self.msg += (f"  ⚠️ {len(failed)} match(es) blocked by WhoScored — "
+                             "listed below. Click Compute again to retry just those "
+                             "(already-scraped matches are cached and instant).")
 
     @rx.event
     def save_deadline(self):

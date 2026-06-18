@@ -98,6 +98,15 @@ def is_football_room(room: dict) -> bool:
     return room.get("tournament_type") == "FIFA World Cup 2026"
 
 
+def match_label(url: str) -> str:
+    """Readable 'home-away' label from a WhoScored URL, for progress/error display."""
+    tail = url.rstrip("/").split("/")[-1]
+    for marker in ("-2026-", "world-cup-"):
+        if marker in tail:
+            tail = tail.split(marker)[-1]
+    return tail or url
+
+
 def fifa_countries(room: dict) -> list[str]:
     """Public wrapper: distinct nations with a 'Keeper' entry in this room."""
     return _fifa_countries(room)

@@ -1316,6 +1316,18 @@ def gameweek_admin_panel():
                     spacing="2", width="100%"),
                 T.primary_button("📊 Compute standings for GW " + SeasonState.gw_input,
                                  on_click=SeasonState.run_whoscored_scoring)),
+        rx.cond(
+            SeasonState.scoring_failed.length() > 0,
+            rx.box(
+                rx.text("⚠️ WhoScored blocked these matches — click Compute again to retry "
+                        "(scraped matches are cached, so it's quick):",
+                        style={"color": T.WARNING, "font_size": "0.8rem", "font_weight": "600",
+                               "margin_top": "0.5rem"}),
+                rx.foreach(SeasonState.scoring_failed,
+                           lambda m: rx.text("• " + m,
+                                             style={"color": T.MUTED, "font_size": "0.8rem"})),
+            ),
+        ),
         rx.divider(margin_y="0.7rem"),
         T.section_title("⏰ Bidding deadline (drives the gameweek)"),
         rx.text("Set ONE deadline: new bids until −1h, raise-only (+5M) in the last 30m, bids "
