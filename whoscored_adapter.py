@@ -29,25 +29,36 @@ def test_proxy(proxy_url, target_url):
         pass
     return None
 
+# Concurrency is deliberately small: each worker downloads a full multi-MB
+# WhoScored page and holds it in memory (plus a native curl/TLS handle). The old
+# value of 50 meant ~50 multi-MB pages in flight at once, which blew past the
+# instance memory limit and got the whole web service OOM-killed/restarted on
+# Render. Keep this low so peak memory stays bounded (a handful of pages at a time).
+_PROXY_SWARM_WORKERS = 6
+_PROXY_SWARM_LIMIT = 30
+
+
 def fetch_with_free_proxies(url):
     print("[WhoScoredAdapter] Fetching free proxies from ProxyScrape...")
     try:
         r = std_requests.get('https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all', timeout=10)
-        proxy_list = r.text.strip().splitlines()[:100]
+        proxy_list = r.text.strip().splitlines()[:_PROXY_SWARM_LIMIT]
     except:
         return None
-        
-    print(f"[WhoScoredAdapter] Testing {len(proxy_list)} proxies concurrently...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+
+    print(f"[WhoScoredAdapter] Testing {len(proxy_list)} proxies ({_PROXY_SWARM_WORKERS} at a time)...")
+    result = None
+    with concurrent.futures.ThreadPoolExecutor(max_workers=_PROXY_SWARM_WORKERS) as executor:
         futures = {executor.submit(test_proxy, p, url): p for p in proxy_list}
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            if result:
+            res = future.result()
+            if res:
                 print(f"[WhoScoredAdapter] Success with proxy {futures[future]}!")
-                # Cancel pending futures to save resources
+                result = res
+                # Cancel queued futures so we don't keep downloading pages we'll discard.
                 executor.shutdown(wait=False, cancel_futures=True)
-                return result
-    return None
+                break
+    return result
 
 def get_whoscored_stats(ws_url):
     print(f"[WhoScoredAdapter] Fetching data from: {ws_url}")
