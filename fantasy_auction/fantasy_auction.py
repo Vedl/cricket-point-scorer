@@ -1275,6 +1275,7 @@ def _rank_table(rows, warn=False):
 
 def scorer_row(s):
     return rx.table.row(rx.table.row_header_cell(s["player"]),
+                        rx.table.cell(s["country"]),
                         rx.table.cell(s["points"] + " pts"), rx.table.cell(s["owner"]))
 
 
@@ -1429,8 +1430,8 @@ def standings_page():
             rx.box(height="0.5rem"),
             rx.cond(SeasonState.player_results.length() > 0,
                     rx.table.root(rx.table.header(rx.table.row(
-                        rx.table.column_header_cell("Player"), rx.table.column_header_cell("Points"),
-                        rx.table.column_header_cell("Owner"))),
+                        rx.table.column_header_cell("Player"), rx.table.column_header_cell("Country"),
+                        rx.table.column_header_cell("Points"), rx.table.column_header_cell("Owner"))),
                         rx.table.body(rx.foreach(SeasonState.player_results, scorer_row)), width="100%"),
                     rx.text("No players match — pick a scope and type a name.",
                             style={"color": T.MUTED})),
@@ -1439,8 +1440,8 @@ def standings_page():
         T.card(T.section_title("⭐ Top player scorers"), rx.box(height="0.5rem"),
                rx.cond(SeasonState.top_scorers.length() > 0,
                        rx.table.root(rx.table.header(rx.table.row(
-                           rx.table.column_header_cell("Player"), rx.table.column_header_cell("Points"),
-                           rx.table.column_header_cell("Owner"))),
+                           rx.table.column_header_cell("Player"), rx.table.column_header_cell("Country"),
+                           rx.table.column_header_cell("Points"), rx.table.column_header_cell("Owner"))),
                            rx.table.body(rx.foreach(SeasonState.top_scorers, scorer_row)), width="100%"),
                        rx.text("No scores yet.", style={"color": T.MUTED})), width="100%"),
         rx.cond(SeasonState.is_admin,

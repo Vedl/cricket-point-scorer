@@ -316,10 +316,23 @@ def _player_owner_index(room: dict):
     return build_index(owner)
 
 
+def _player_country_index(room: dict):
+    """Fuzzy name → country index. A player's squad ``team`` field is their country
+    for football (the franchise for cricket), the same field the squad sort uses."""
+    country = {}
+    for p in room.get("participants", []):
+        for e in p.get("squad", []):
+            if e.get("team"):
+                country[e["name"]] = e["team"]
+    return build_index(country)
+
+
 def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
     """Cumulative points per *player* across all gameweeks, with current owner."""
     owner_index = _player_owner_index(room)
-    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—")}
+    country_index = _player_country_index(room)
+    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—"),
+             "country": lookup(country_index, n, "—")}
             for n, t in _player_point_totals(room).items()]
     rows.sort(key=lambda r: r["points"], reverse=True)
     return rows[:limit]
@@ -329,10 +342,12 @@ def search_player_points(room: dict, query: str = "", gameweek: str | None = Non
                          limit: int = 50) -> list[dict]:
     """Points per player for a single ``gameweek`` (str) or cumulative (``None``),
     filtered by a case-insensitive substring of the player's name and sorted high→low.
-    Each row carries the player's current owner so a participant can see who has them."""
+    Each row carries the player's country and current owner."""
     owner_index = _player_owner_index(room)
+    country_index = _player_country_index(room)
     q = (query or "").strip().lower()
-    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—")}
+    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—"),
+             "country": lookup(country_index, n, "—")}
             for n, t in _player_point_totals(room, gameweek).items()
             if not q or q in n.lower()]
     rows.sort(key=lambda r: r["points"], reverse=True)
