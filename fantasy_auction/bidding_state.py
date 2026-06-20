@@ -14,6 +14,7 @@ from platform_core.textutil import fold
 from season_engine.open_bidding import BidError
 
 from .state import AppState, aload, repo
+from .liveness import client_connected
 
 _WINDOW_LABEL = {
     "frozen": "🔒 Frozen — waiting for the admin to set a deadline",
@@ -94,6 +95,11 @@ class BiddingState(rx.State):
 
     watching: bool = False
     loop_running: bool = False
+    # Consecutive ticks our own client was absent from Reflex's live-socket map.
+    # Backend var (leading underscore) so it never goes over the wire. Two strikes
+    # → live_loop self-terminates instead of forever emitting deltas to a
+    # disconnected client.
+    _liveness_misses: int = 0
 
     @rx.event
     def set_field(self, name: str, value):
@@ -331,6 +337,18 @@ class BiddingState(rx.State):
                 async with self:
                     if not self.watching or not self.room_code:
                         return
+                    # Self-terminate once our own client is gone, instead of
+                    # ticking forever and emitting deltas Reflex discards with a
+                    # "disconnected client" warning. Two consecutive misses
+                    # (~2 ticks = ~12s at the 6s interval below) before quitting,
+                    # so a live client surviving a transient gap is spared.
+                    if client_connected(self):
+                        self._liveness_misses = 0
+                    else:
+                        self._liveness_misses += 1
+                        if self._liveness_misses >= 2:
+                            self.watching = False
+                            return
                     code = self.room_code
                 # Each tick is wrapped so a single bad read/refresh (a malformed bid,
                 # a date edge case, a transient Firebase hiccup) can NEVER kill the
