@@ -40,15 +40,6 @@ def def_score_calc(df, team_score, team_conc):
             df['Unnamed: 5_level_0_Min']/30 + 10*df['Performance_Gls'] + 8*df['Performance_Ast'] +
             (-4*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)) + (3*df.get('Off_the_Line', 0)) + (5*df.get('Last_Man_Tackle', 0)))
 
-    pk_won = df['Performance_PKwon'].values[0]
-    pk_scored = df['Performance_PK'].values[0]
-    pk_assist = df['Performance_PKassist'].values[0] if 'Performance_PKassist' in df.columns else 0
-
-    # Give the 6.4 bonus only when the penalty was missed/saved — if a teammate
-    # scored it, the winner already gets an assist (8 pts) instead.
-    if (pk_won >= 1) and (pk_scored == 0) and (pk_assist == 0):
-        score += 6.4
-
     minutes_played = df['Unnamed: 5_level_0_Min'].values[0]
 
     if (minutes_played <= 45) and (team_conc == 0):
@@ -69,13 +60,6 @@ def mid_score_calc(df, team_score, team_conc):
             df['Unnamed: 5_level_0_Min']/30 + 10*df['Performance_Gls'] + 8*df['Performance_Ast'] +
             (-4*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)) + (3*df.get('Off_the_Line', 0)) + (5*df.get('Last_Man_Tackle', 0)))
 
-    pk_won = df['Performance_PKwon'].values[0]
-    pk_scored = df['Performance_PK'].values[0]
-    pk_assist = df['Performance_PKassist'].values[0] if 'Performance_PKassist' in df.columns else 0
-
-    if (pk_won >= 1) and (pk_scored == 0) and (pk_assist == 0):
-        score += 6.4
-
     val = score.values[0] if isinstance(score, pd.Series) else score
     return round(val, 0)
 
@@ -90,13 +74,6 @@ def fwd_score_calc(df, team_score, team_conc):
             3.0*df['Performance_SoT'] + (-0.3*(df['Performance_Sh']-df['Performance_SoT'])) +
             df['Unnamed: 5_level_0_Min']/30 + 10*df['Performance_Gls'] + 8*df['Performance_Ast'] +
             (-4*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)) + (3*df.get('Off_the_Line', 0)) + (5*df.get('Last_Man_Tackle', 0)))
-
-    pk_won = df['Performance_PKwon'].values[0]
-    pk_scored = df['Performance_PK'].values[0]
-    pk_assist = df['Performance_PKassist'].values[0] if 'Performance_PKassist' in df.columns else 0
-
-    if (pk_won >= 1) and (pk_scored == 0) and (pk_assist == 0):
-        score += 6.4
 
     val = score.values[0] if isinstance(score, pd.Series) else score
     return round(val, 0)
