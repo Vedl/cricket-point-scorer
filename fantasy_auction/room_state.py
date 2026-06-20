@@ -14,6 +14,7 @@ from platform_core import season_ops as so
 from platform_core.season_ops import SeasonError
 
 from .state import AppState, aload, repo
+from .liveness import client_connected
 
 
 class RoomState(rx.State):
@@ -61,6 +62,11 @@ class RoomState(rx.State):
     # light background loop that re-fetches the room so the data always comes back.
     watching: bool = False
     loop_running: bool = False
+    # Consecutive ticks our own client was absent from Reflex's live-socket map.
+    # Backend var (leading underscore) so it never goes over the wire. Two strikes
+    # → the loop self-terminates (see hub_loop) instead of forever emitting deltas
+    # to a disconnected client.
+    _liveness_misses: int = 0
 
     @rx.event
     def select_sort_by(self, val: str):
@@ -169,6 +175,18 @@ class RoomState(rx.State):
                 async with self:
                     if not self.watching or not self.room_code:
                         return
+                    # Self-terminate once our own client is gone, instead of
+                    # ticking forever and emitting deltas Reflex discards with a
+                    # "disconnected client" warning. Two consecutive misses
+                    # (~2 ticks = ~20s at the 10s interval below) before quitting,
+                    # so a live client surviving a transient gap is spared.
+                    if client_connected(self):
+                        self._liveness_misses = 0
+                    else:
+                        self._liveness_misses += 1
+                        if self._liveness_misses >= 2:
+                            self.watching = False
+                            return
                     code = self.room_code
                 try:
                     room = await asyncio.to_thread(repo.load_room, code)

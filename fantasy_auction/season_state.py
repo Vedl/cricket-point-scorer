@@ -14,6 +14,7 @@ from platform_core import scoring_ops
 from platform_core import season_ops as so
 
 from .state import AppState, aload, repo
+from .liveness import client_connected
 
 # "Calculate points" scrapes WhoScored and fits the sklearn keeper model. Run inside
 # this long-lived web process that work loads curl_cffi / cloudscraper / tls_client
@@ -89,6 +90,11 @@ class SeasonState(rx.State):
     # reconnect / free-tier restart instead of staying blank.
     watching: bool = False
     loop_running: bool = False
+    # Consecutive ticks our own client was absent from Reflex's live-socket map.
+    # Backend var (leading underscore) so it never goes over the wire. Two strikes
+    # → standings_loop self-terminates instead of forever emitting deltas to a
+    # disconnected client.
+    _liveness_misses: int = 0
 
     @rx.event
     def set_field(self, name: str, value):
@@ -174,6 +180,18 @@ class SeasonState(rx.State):
                 async with self:
                     if not self.watching or not self.room_code:
                         return
+                    # Self-terminate once our own client is gone, instead of
+                    # ticking forever and emitting deltas Reflex discards with a
+                    # "disconnected client" warning. Two consecutive misses
+                    # (~2 ticks = ~24s at the 12s interval below) before quitting,
+                    # so a live client surviving a transient gap is spared.
+                    if client_connected(self):
+                        self._liveness_misses = 0
+                    else:
+                        self._liveness_misses += 1
+                        if self._liveness_misses >= 2:
+                            self.watching = False
+                            return
                     code = self.room_code
                 try:
                     async with self:
