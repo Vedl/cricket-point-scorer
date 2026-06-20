@@ -182,6 +182,26 @@ def get_whoscored_stats(ws_url, force_refresh=False):
     goal_events = []
     pending_pk_winners = {}  # team_id -> [player_name, ...] FIFO of players who won a penalty
 
+    # Clearance off the line: WhoScored does NOT emit a dedicated event type for this.
+    # Verified against real match data (e.g. Katic, CAN v BIH, 2026 WC): the blocked
+    # shot — the SHOOTER's `SavedShot` event — carries a `SavedOffline` qualifier, and
+    # the defender who cleared it off the line is that shot's *opposite-related* event
+    # (a `Save` carrying `OutfielderBlock`). Pre-scan the shots to collect the defender
+    # events' (period, eventId) keys so we can credit them in the main loop. Keyed by
+    # (period, eventId) because `eventId` is only unique within a period, not globally.
+    offline_clearance_keys = set()
+    for e in events:
+        if not any(q.get('type', {}).get('displayName', '') == 'SavedOffline'
+                   for q in e.get('qualifiers', [])):
+            continue
+        period = e.get('period', {}).get('displayName', '')
+        for q in e.get('qualifiers', []):
+            if q.get('type', {}).get('displayName', '') == 'OppositeRelatedEvent' and q.get('value') is not None:
+                try:
+                    offline_clearance_keys.add((period, int(q['value'])))
+                except (TypeError, ValueError):
+                    pass
+
     for e in events:
         # Skip penalty shootout events — they should NOT count towards player stats
         event_period = e.get('period', {}).get('displayName', '')
@@ -257,8 +277,17 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                 player_ev[name]['pk_con'] += 1
 
         if t == 'ShotOnPost': player_ev[name]['woodwork'] += 1
-        if t == 'ClearanceOffLine': player_ev[name]['clearance_off_line'] += 1
-        if t == 'Tackle' and 'LastManTackle' in quals: player_ev[name]['last_man_tackle'] += 1
+        # Clearance off the line — credit the defender whose event is the opposite-related
+        # event of a shot tagged `SavedOffline` (see pre-scan above). There is no
+        # `ClearanceOffLine` event type in WhoScored's feed. The `OutfielderBlock`
+        # guard is required because `eventId` is not unique even within a period, so the
+        # (period, eventId) key alone can match an unrelated event; the off-the-line
+        # clearer always carries `OutfielderBlock`, which pins it to the right event.
+        if (event_period, e.get('eventId')) in offline_clearance_keys and 'OutfielderBlock' in quals:
+            player_ev[name]['clearance_off_line'] += 1
+        # Last man tackle — verified qualifier name is `LastMan` (not `LastManTackle`),
+        # e.g. Bardakci (TUR v PAR, 2026 WC) min 54: Tackle / Unsuccessful / ['LastMan'].
+        if t == 'Tackle' and 'LastMan' in quals: player_ev[name]['last_man_tackle'] += 1
         if t == 'KeeperSweeper': player_ev[name]['keeper_sweeper'] += 1
         if t == 'Punch': player_ev[name]['punches'] += 1
         if t == 'Save' and 'KeeperSaveInTheBox' in quals: player_ev[name]['saves_in_box'] += 1
