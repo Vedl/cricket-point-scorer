@@ -38,7 +38,7 @@ def def_score_calc(df, team_score, team_conc):
             1.1*df['Blocks_Sh'] + 1.5*df['Unnamed: 23_level_0_KP'] + 1.2*df['Performance_Crs'] +
             2.5*df['Performance_SoT'] + ((df['Performance_Sh']-df['Performance_SoT'])/2) +
             df['Unnamed: 5_level_0_Min']/30 + 10*df['Performance_Gls'] + 8*df['Performance_Ast'] +
-            (-5*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)))
+            (-4*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)) + (3*df.get('Off_the_Line', 0)))
     
     pk_won = df['Performance_PKwon'].values[0]
     pk_scored = df['Performance_PK'].values[0]
@@ -55,16 +55,16 @@ def def_score_calc(df, team_score, team_conc):
     return round(val, 0)
 
 def mid_score_calc(df, team_score, team_conc):
-    score = ( 1.7*df['Aerial Duels_Won'] - 1.5*df['Aerial Duels_Lost'] + 2.6*df['Performance_Tkl']
+    score = ( 1.63*df['Aerial Duels_Won'] - 1.5*df['Aerial Duels_Lost'] + 2.6*df['Performance_Tkl']
             - 1.2*df['Challenges_Lost'] + 2.5*df['Performance_Int'] + 1.1*df['Unnamed: 20_level_0_Clr']
-            + (4-(2*team_conc)+(2*team_score)) + (3-(1.1*df['Carries_Dis'])-(0.6*(df['Performance_Fls']+df['Performance_Off']))
+            + (4-(2*team_conc)+(2*team_score)) + (3-(1.1*df['Carries_Dis'])-(0.55*(df['Performance_Fls']+df['Performance_Off']))
                                -(3.3*df['Performance_OG'])-(5*df['Unnamed: 21_level_0_Err'])) +
-            df['Passes_Cmp']/6.6 - ((df['Passes_Att']-df['Passes_Cmp'])/3.2) + df['Unnamed: 23_level_0_KP']
+            df['Passes_Cmp']/6.65 - ((df['Passes_Att']-df['Passes_Cmp'])/3.2) + df['Unnamed: 23_level_0_KP']
             + df['Take-Ons_Succ']*2.9 - ((df['Take-Ons_Att']-df['Take-Ons_Succ'])*0.8) +
             1.1*df['Blocks_Sh'] + 1.5*df['Unnamed: 23_level_0_KP'] + 1.2*df['Performance_Crs'] +
             2.2*df['Performance_SoT'] + ((df['Performance_Sh']-df['Performance_SoT'])/4) +
             df['Unnamed: 5_level_0_Min']/30 + 10*df['Performance_Gls'] + 8*df['Performance_Ast'] +
-            (-5*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)))
+            (-4*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)) + (3*df.get('Off_the_Line', 0)))
     
     pk_won = df['Performance_PKwon'].values[0]
     pk_scored = df['Performance_PK'].values[0]
@@ -80,12 +80,12 @@ def fwd_score_calc(df, team_score, team_conc):
             - 1*df['Challenges_Lost'] + 2.7*df['Performance_Int'] + 0.8*df['Unnamed: 20_level_0_Clr']
             + ((3*team_score)) + (5-(0.9*df['Carries_Dis'])-(0.5*(df['Performance_Fls']+df['Performance_Off']))
                                -(3.0*df['Performance_OG'])-(5*df['Unnamed: 21_level_0_Err'])) +
-            df['Passes_Cmp']/6 - ((df['Passes_Att']-df['Passes_Cmp'])/8.0) + df['Unnamed: 23_level_0_KP']
+            df['Passes_Cmp']/6 - ((df['Passes_Att']-df['Passes_Cmp'])/8.0) + 1.5*df['Unnamed: 23_level_0_KP']
             + df['Take-Ons_Succ']*3.0 - ((df['Take-Ons_Att']-df['Take-Ons_Succ'])*1.0) +
            0.8*df['Blocks_Sh'] + 1.5*df['Unnamed: 23_level_0_KP'] + 1.2*df['Performance_Crs'] +
-            3.0*df['Performance_SoT'] + ((df['Performance_Sh']-df['Performance_SoT'])/3) +
+            3.0*df['Performance_SoT'] + (-0.3*(df['Performance_Sh']-df['Performance_SoT'])) +
             df['Unnamed: 5_level_0_Min']/30 + 10*df['Performance_Gls'] + 8*df['Performance_Ast'] +
-            (-5*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)))
+            (-4*df['Performance_CrdR']) + (-5*df['Performance_PKcon']) + (-5*(df['Performance_PKatt']-df['Performance_PK'])) + (3*df.get('Hit_Woodwork', 0)) + (3*df.get('Off_the_Line', 0)))
     
     pk_won = df['Performance_PKwon'].values[0]
     pk_scored = df['Performance_PK'].values[0]
