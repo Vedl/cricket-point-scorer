@@ -288,10 +288,16 @@ def advance_gameweek(room: dict) -> int:
 
 
 # --- top player scorers -------------------------------------------------- #
-def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
-    """Cumulative points per *player* across all gameweeks, with current owner."""
+def _player_point_totals(room: dict, gameweek: str | None = None) -> dict[str, int]:
+    """Points per *player* — for a single ``gameweek`` (str) or cumulative across all
+    gameweeks (``gameweek=None``). Dual-position scores count the player's best slot."""
+    gw_scores = room.get("gameweek_scores", {})
+    if gameweek is None:
+        sources = gw_scores.values()
+    else:
+        sources = [gw_scores.get(str(gameweek), {})]
     totals: dict[str, int] = {}
-    for scores in room.get("gameweek_scores", {}).values():
+    for scores in sources:
         for player, pts in scores.items():
             if isinstance(pts, dict):     # dual-position: count their best position
                 pts = max(pts.values()) if pts else 0
@@ -299,13 +305,36 @@ def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
                 totals[player] = totals.get(player, 0) + int(pts)
             except (TypeError, ValueError):
                 pass
+    return totals
+
+
+def _player_owner_index(room: dict):
     owner = {}
     for p in room.get("participants", []):
         for e in p.get("squad", []):
             owner[e["name"]] = p["name"]
-    owner_index = build_index(owner)
+    return build_index(owner)
+
+
+def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
+    """Cumulative points per *player* across all gameweeks, with current owner."""
+    owner_index = _player_owner_index(room)
     rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—")}
-            for n, t in totals.items()]
+            for n, t in _player_point_totals(room).items()]
+    rows.sort(key=lambda r: r["points"], reverse=True)
+    return rows[:limit]
+
+
+def search_player_points(room: dict, query: str = "", gameweek: str | None = None,
+                         limit: int = 50) -> list[dict]:
+    """Points per player for a single ``gameweek`` (str) or cumulative (``None``),
+    filtered by a case-insensitive substring of the player's name and sorted high→low.
+    Each row carries the player's current owner so a participant can see who has them."""
+    owner_index = _player_owner_index(room)
+    q = (query or "").strip().lower()
+    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—")}
+            for n, t in _player_point_totals(room, gameweek).items()
+            if not q or q in n.lower()]
     rows.sort(key=lambda r: r["points"], reverse=True)
     return rows[:limit]
 

@@ -290,6 +290,10 @@ class RoomState(rx.State):
 
         if self.squad_sort_by == "Position":
             sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -safe_price(x)))
+        elif self.squad_sort_by == "Country":
+            # For football the "team" field IS the player's country; for cricket it's
+            # the franchise. Group alphabetically, highest price first within a country.
+            sorted_squad = sorted(squad_data, key=lambda x: ((x.get("team") or "").lower(), -safe_price(x)))
         else:
             sorted_squad = sorted(squad_data, key=lambda x: -safe_price(x))
 
@@ -381,6 +385,8 @@ class RoomState(rx.State):
 
         if self.squad_sort_by == "Position":
             sorted_squad = sorted(squad_data, key=lambda x: (get_pos_weight(x.get("role")), -safe_price_view(x)))
+        elif self.squad_sort_by == "Country":
+            sorted_squad = sorted(squad_data, key=lambda x: ((x.get("team") or "").lower(), -safe_price_view(x)))
         else:
             sorted_squad = sorted(squad_data, key=lambda x: -safe_price_view(x))
 
