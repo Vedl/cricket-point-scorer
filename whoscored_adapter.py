@@ -16,16 +16,20 @@ POS_MAP = {'GK':'GK','DR':'DEF','DC':'DEF','DL':'DEF','DMR':'DEF','DML':'DEF',
 
 # Scrape-once cache: a match is scraped twice per scoring run (outfield players +
 # keepers both call get_whoscored_stats). Memoising by URL halves the network +
-# parse work, and lets a re-scrape of an already-fetched gameweek return instantly.
-# Match data is final once scored, so staleness is a non-issue; bounded so it can't
-# grow without limit on the long-running server.
+# parse work. Entries carry a short TTL because a match scraped while its stats are
+# still PRELIMINARY (live / just-finished) must not be frozen forever — that froze a
+# thin early stat line and made re-runs keep returning a stale (too-low) score until
+# the server restarted. The dedupe a single scoring run needs happens within seconds,
+# so a short TTL keeps that benefit while letting a re-run minutes later pick up
+# WhoScored's finalised stats. Bounded so it can't grow without limit on the server.
 _STATS_CACHE = {}
 _STATS_CACHE_ORDER = []
 _STATS_CACHE_MAX = 64
+_STATS_CACHE_TTL = 600  # seconds (10 min)
 
 
 def _stats_cache_put(url, df):
-    _STATS_CACHE[url] = df
+    _STATS_CACHE[url] = (df, time.time())
     _STATS_CACHE_ORDER.append(url)
     if len(_STATS_CACHE_ORDER) > _STATS_CACHE_MAX:
         _STATS_CACHE.pop(_STATS_CACHE_ORDER.pop(0), None)
@@ -76,10 +80,12 @@ def fetch_with_free_proxies(url):
                 break
     return result
 
-def get_whoscored_stats(ws_url):
+def get_whoscored_stats(ws_url, force_refresh=False):
     cached = _STATS_CACHE.get(ws_url)
-    if cached is not None:
-        return cached.copy()
+    if cached is not None and not force_refresh:
+        df, cached_at = cached
+        if (time.time() - cached_at) < _STATS_CACHE_TTL:
+            return df.copy()
     print(f"[WhoScoredAdapter] Fetching data from: {ws_url}")
 
     m = None
