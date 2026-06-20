@@ -205,11 +205,24 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                 player_ev[name]['og'] += 1
             else:
                 player_ev[name]['goals'] += 1
-                if 'Penalty' in quals: 
+                if 'Penalty' in quals:
                     player_ev[name]['pk_scored'] += 1
                     player_ev[name]['pk_att'] += 1
-                    
-        if 'IntentionalGoalAssist' in quals: player_ev[name]['assists'] += 1
+                # Credit the assist from the GOAL event's relatedPlayerId whenever the
+                # goal is flagged 'Assisted'. The old check looked for
+                # 'IntentionalGoalAssist' on the assisting PASS, but Opta omits that
+                # qualifier when the scorer adds individual play (dribble) before
+                # finishing — so those assists were silently dropped (e.g. Elliot
+                # Anderson -> Bellingham, tagged ShotAssist/BigChance, not Intentional).
+                # The goal's relatedPlayerId points at the assister in every case.
+                if 'Assisted' in quals and e.get('relatedPlayerId'):
+                    aname = pdict.get(str(int(e['relatedPlayerId'])))
+                    if aname:
+                        if aname not in player_ev:
+                            player_ev[aname] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
+                                                'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'woodwork':0,
+                                                'keeper_sweeper':0,'punches':0,'saves_in_box':0}
+                        player_ev[aname]['assists'] += 1
         
         if t == 'Card':
             if 'Yellow' in quals: player_ev[name]['yellow'] += 1
