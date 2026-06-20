@@ -180,7 +180,8 @@ def get_whoscored_stats(ws_url, force_refresh=False):
     
     player_ev = {}
     goal_events = []
-    
+    pending_pk_winners = {}  # team_id -> [player_name, ...] FIFO of players who won a penalty
+
     for e in events:
         # Skip penalty shootout events — they should NOT count towards player stats
         event_period = e.get('period', {}).get('displayName', '')
@@ -192,7 +193,8 @@ def get_whoscored_stats(ws_url, force_refresh=False):
         name = pdict.get(pid, '?')
         if name not in player_ev:
             player_ev[name] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
-                              'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'woodwork':0,
+                              'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'pk_assist':0,
+                              'woodwork':0,'clearance_off_line':0,'last_man_tackle':0,
                               'keeper_sweeper':0,'punches':0,'saves_in_box':0}
         
         t = e.get('type',{}).get('displayName','')
@@ -201,13 +203,27 @@ def get_whoscored_stats(ws_url, force_refresh=False):
         
         if e.get('isGoal'):
             goal_events.append({'minute': e.get('minute', 0), 'teamId': e.get('teamId'), 'isOG': 'OwnGoal' in quals})
-            if 'OwnGoal' in quals: 
+            if 'OwnGoal' in quals:
                 player_ev[name]['og'] += 1
             else:
                 player_ev[name]['goals'] += 1
                 if 'Penalty' in quals:
                     player_ev[name]['pk_scored'] += 1
                     player_ev[name]['pk_att'] += 1
+                    # If a different player won this penalty, give them an assist.
+                    # Only fires when the penalty is actually scored (this block).
+                    team_id = e.get('teamId')
+                    pending = pending_pk_winners.get(team_id, [])
+                    if pending:
+                        pk_winner = pending.pop(0)
+                        if pk_winner != name:
+                            if pk_winner not in player_ev:
+                                player_ev[pk_winner] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
+                                                        'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'pk_assist':0,
+                                                        'woodwork':0,'clearance_off_line':0,'last_man_tackle':0,
+                                                        'keeper_sweeper':0,'punches':0,'saves_in_box':0}
+                            player_ev[pk_winner]['pk_assist'] += 1
+                            player_ev[pk_winner]['assists'] += 1
                 # Credit the assist from the GOAL event's relatedPlayerId whenever the
                 # goal is flagged 'Assisted'. The old check looked for
                 # 'IntentionalGoalAssist' on the assisting PASS, but Opta omits that
@@ -220,7 +236,8 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                     if aname:
                         if aname not in player_ev:
                             player_ev[aname] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
-                                                'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'woodwork':0,
+                                                'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'pk_assist':0,
+                                                'woodwork':0,'clearance_off_line':0,'last_man_tackle':0,
                                                 'keeper_sweeper':0,'punches':0,'saves_in_box':0}
                         player_ev[aname]['assists'] += 1
         
@@ -231,10 +248,17 @@ def get_whoscored_stats(ws_url, force_refresh=False):
         if 'Cross' in quals: player_ev[name]['crosses'] += 1
         
         if t == 'Foul' and 'Penalty' in quals:
-            if outcome == 'Successful': player_ev[name]['pk_won'] += 1
-            elif outcome == 'Unsuccessful': player_ev[name]['pk_con'] += 1
-            
+            if outcome == 'Successful':
+                player_ev[name]['pk_won'] += 1
+                # Queue this player as the penalty winner so we can credit an assist
+                # if a teammate subsequently scores the spot-kick.
+                pending_pk_winners.setdefault(e.get('teamId'), []).append(name)
+            elif outcome == 'Unsuccessful':
+                player_ev[name]['pk_con'] += 1
+
         if t == 'ShotOnPost': player_ev[name]['woodwork'] += 1
+        if t == 'ClearanceOffLine': player_ev[name]['clearance_off_line'] += 1
+        if t == 'Tackle' and 'LastManTackle' in quals: player_ev[name]['last_man_tackle'] += 1
         if t == 'KeeperSweeper': player_ev[name]['keeper_sweeper'] += 1
         if t == 'Punch': player_ev[name]['punches'] += 1
         if t == 'Save' and 'KeeperSaveInTheBox' in quals: player_ev[name]['saves_in_box'] += 1
@@ -315,6 +339,9 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                 'Performance_PK': ev.get('pk_scored',0), 
                 'Performance_PKatt': ev.get('pk_att',0),
                 'Hit_Woodwork': ev.get('woodwork',0),
+                'Off_the_Line': ev.get('clearance_off_line', 0),
+                'Last_Man_Tackle': ev.get('last_man_tackle', 0),
+                'Performance_PKassist': ev.get('pk_assist', 0),
                 'Performance_Saves': sum_stat(stats.get('totalSaves',{})),
                 'Performance_HighClaims': sum_stat(stats.get('claimsHigh',{})),
                 'Performance_RunsOut': ev.get('keeper_sweeper',0),
