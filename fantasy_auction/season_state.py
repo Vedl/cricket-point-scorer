@@ -64,6 +64,12 @@ class SeasonState(rx.State):
     eliminated: list[str] = []
     knockout_count: str = "1"
 
+    # player-points search (standings page): find any player's points for a
+    # particular gameweek or cumulatively, with their current owner.
+    player_query: str = ""
+    player_scope_sel: str = "Cumulative"   # "Cumulative" or a gameweek number
+    player_results: list[dict[str, str]] = []
+
     # top scorers + deadlines
     top_scorers: list[dict[str, str]] = []
     deadline_gw: str = "1"
@@ -87,6 +93,32 @@ class SeasonState(rx.State):
     @rx.event
     def set_field(self, name: str, value):
         setattr(self, name, value)
+
+    @rx.var
+    def player_scope_options(self) -> list[str]:
+        return ["Cumulative"] + self.gameweeks
+
+    @rx.event
+    def set_player_query(self, q: str):
+        self.player_query = q
+        self._run_player_search()
+
+    @rx.event
+    def set_player_scope(self, scope: str):
+        self.player_scope_sel = scope or "Cumulative"
+        self._run_player_search()
+
+    def _run_player_search(self):
+        _, _, room = self._load_room()
+        if not room:
+            self.player_results = []
+            return
+        gw = None if self.player_scope_sel == "Cumulative" else self.player_scope_sel
+        rows = so.search_player_points(room, self.player_query, gameweek=gw, limit=50)
+        self.player_results = [
+            {"player": r["player"], "points": str(r["points"]), "owner": r["owner"]}
+            for r in rows
+        ]
 
     def _load_room(self):
         code = (self.router._page.params.get("room", "") or "").upper()
