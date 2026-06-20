@@ -116,7 +116,8 @@ class SeasonState(rx.State):
         gw = None if self.player_scope_sel == "Cumulative" else self.player_scope_sel
         rows = so.search_player_points(room, self.player_query, gameweek=gw, limit=50)
         self.player_results = [
-            {"player": r["player"], "points": str(r["points"]), "owner": r["owner"]}
+            {"player": r["player"], "points": str(r["points"]),
+             "country": r["country"], "owner": r["owner"]}
             for r in rows
         ]
 
@@ -248,7 +249,8 @@ class SeasonState(rx.State):
                 ] for r in standings
             }
         top_scorers = [
-            {"player": r["player"], "points": str(r["points"]), "owner": r["owner"]}
+            {"player": r["player"], "points": str(r["points"]),
+             "country": r["country"], "owner": r["owner"]}
             for r in so.top_player_scorers(room, limit=20)
         ]
         locked = room.get("gameweek_squads", {})

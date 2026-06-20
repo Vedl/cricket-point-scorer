@@ -10,8 +10,21 @@ def test_top_player_scorers_aggregates_with_owner():
         "gameweek_scores": {"1": {"Kohli": 50, "Rohit": 40}, "2": {"Kohli": 20, "Rohit": 10}},
     }
     rows = so.top_player_scorers(room)
-    assert rows[0] == {"player": "Kohli", "points": 70, "owner": "A"}
-    assert rows[1] == {"player": "Rohit", "points": 50, "owner": "—"}
+    assert rows[0] == {"player": "Kohli", "points": 70, "owner": "A", "country": "—"}
+    assert rows[1] == {"player": "Rohit", "points": 50, "owner": "—", "country": "—"}
+
+
+def test_scorers_carry_country_from_squad_team():
+    room = {
+        "tournament_type": "fifa_world_cup",
+        "participants": [{"name": "A", "squad": [{"name": "Messi", "team": "Argentina"}]}],
+        "gameweek_scores": {"1": {"Messi": 30}, "2": {"Messi": 5}},
+    }
+    assert so.top_player_scorers(room)[0]["country"] == "Argentina"
+    found = so.search_player_points(room, query="mess")
+    assert found[0]["country"] == "Argentina"
+    # cumulative vs single-gameweek both keep the country
+    assert so.search_player_points(room, gameweek="1")[0]["country"] == "Argentina"
 
 
 def test_process_due_deadlines_locks_and_advances():
