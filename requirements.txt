@@ -9,7 +9,11 @@
 # starlette <0.42 and WOULD conflict with reflex in this shared environment.
 
 # --- Reflex web app (Reflex Cloud) ---
-reflex==0.9.*
+# Pinned EXACTLY: fantasy_auction/liveness.py reads a 0.9.3-internal attribute path
+# (app.event_namespace._token_manager.token_to_socket) to detect disconnected clients.
+# An accidental minor upgrade could move that path and silently disable loop teardown
+# (the FAILED_OPEN counter would flag it, but pinning prevents it outright).
+reflex==0.9.3
 
 # --- FastAPI HTTP API: api_server.py (Render) ---
 # uvicorn[standard] (not plain uvicorn): api_server.py is fully async (46 async

@@ -1,6 +1,7 @@
 # New Reflex app dependencies (Python 3.12). Install into .venv:
 #   python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements-app.txt
-reflex==0.9.*
+# Pinned EXACTLY — see requirements.txt: liveness.py depends on a 0.9.3-internal path.
+reflex==0.9.3
 requests
 pytest
 
