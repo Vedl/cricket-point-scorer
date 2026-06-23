@@ -296,10 +296,25 @@ def get_whoscored_stats(ws_url, force_refresh=False):
     
     for team_key, team_id in [('home', home_id), ('away', away_id)]:
         team_name = data[team_key]['name']
-        
+
+        # Every goalkeeper a side actually used, including any who came on as a sub.
+        # WhoScored tags a substitute's `position` as "Sub" (never "GK"), so a
+        # REPLACEMENT keeper would otherwise be mis-classed as MID and silently
+        # dropped from the nation's "Keeper" slot (which aggregates every GK row).
+        # The formation data is authoritative: whoever occupies the GK formation
+        # slot (`vertical == 0`) in ANY formation period kept goal for that stint.
+        keeper_ids = set()
+        for f in data[team_key].get('formations', []) or []:
+            pids = f.get('playerIds') or []
+            for i, fp in enumerate(f.get('formationPositions') or []):
+                if i < len(pids) and fp.get('vertical') == 0:
+                    keeper_ids.add(pids[i])
+
         for p in data[team_key]['players']:
             name = p['name']
             pos = POS_MAP.get(p.get('position','Sub'), 'MID')
+            if p.get('playerId') in keeper_ids:
+                pos = 'GK'  # a (sub) keeper, even if WhoScored labelled them "Sub"
             is_starter = p.get('isFirstEleven', False)
             
             sub_in_exp = p.get('subbedInExpandedMinute')
