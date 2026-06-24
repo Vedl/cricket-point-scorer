@@ -57,7 +57,12 @@ def page_shell(*children, theme_class="app-bg", **props) -> rx.Component:
             width="100%",
             max_width="1140px",
             margin="0 auto",
-            padding="2rem 1.25rem 4rem",
+            style={
+                # Safe-area-inset-top: content must not hide under the notch/Dynamic Island
+                # in standalone PWA mode (black-translucent status bar, viewport-fit=cover).
+                # max() keeps at least 2rem even on devices with no inset.
+                "padding": "max(2rem, calc(env(safe-area-inset-top, 0px) + 0.75rem)) 1.25rem 4rem",
+            },
             position="relative",
             z_index="1",
         ),
@@ -73,8 +78,11 @@ def page_shell(*children, theme_class="app-bg", **props) -> rx.Component:
 def hero(title: str, subtitle: str = "") -> rx.Component:
     return rx.vstack(
         rx.heading(title, class_name="gradient-text",
-                   style={"font_family": DISPLAY, "font_size": "2.4rem", "font_weight": "700",
-                          "letter_spacing": "-1px", "line_height": "1.1"}),
+                   style={"font_family": DISPLAY,
+                          "font_size": rx.breakpoints(initial="1.75rem", md="2.4rem"),
+                          "font_weight": "700",
+                          "letter_spacing": rx.breakpoints(initial="-0.5px", md="-1px"),
+                          "line_height": "1.1"}),
         rx.cond(subtitle != "",
                 rx.text(subtitle, style={"color": MUTED, "font_size": "1.02rem"})),
         spacing="2", align="start", margin_bottom="1.75rem",

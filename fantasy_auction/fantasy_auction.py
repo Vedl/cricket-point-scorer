@@ -24,6 +24,19 @@ T = theme
 
 
 # --------------------------------------------------------------------------- #
+# Nav UI state  (pure UI — no business logic)
+# --------------------------------------------------------------------------- #
+class NavState(rx.State):
+    more_open: bool = False
+
+    def open_more(self):
+        self.more_open = True
+
+    def close_more(self):
+        self.more_open = False
+
+
+# --------------------------------------------------------------------------- #
 # Shared
 # --------------------------------------------------------------------------- #
 def _field(label, *control):
@@ -50,22 +63,40 @@ def _topbar():
     return rx.hstack(
         _brand(),
         rx.spacer(),
+        # Connecting indicator — hide label on mobile, keep spinner
         rx.cond(~AppState.is_hydrated,
-                rx.hstack(rx.box(class_name="app-spinner",
-                          style={"width": "15px", "height": "15px", "border_width": "2px"}),
-                          rx.text("connecting…", style={"color": T.MUTED, "font_size": "0.78rem"}),
-                          spacing="2", align="center")),
+                rx.hstack(
+                    rx.box(class_name="app-spinner",
+                           style={"width": "15px", "height": "15px", "border_width": "2px"}),
+                    rx.box(
+                        rx.text("connecting…", style={"color": T.MUTED, "font_size": "0.78rem"}),
+                        display=rx.breakpoints(initial="none", sm="block"),
+                    ),
+                    spacing="2", align="center")),
+        # Logged-in controls — hide username and Refresh on small screens
         rx.cond(AppState.logged_in,
                 rx.hstack(
-                    rx.box(AppState.auth_user, style={"color": T.ACCENT, "font_weight": "600",
-                           "font_size": "0.9rem"}),
-                    rx.button(rx.icon("refresh-cw", size=14), "Refresh", on_click=AppState.force_refresh, variant="soft", size="2", color_scheme="blue"),
+                    rx.box(
+                        AppState.auth_user,
+                        style={"color": T.ACCENT, "font_weight": "600", "font_size": "0.9rem"},
+                        display=rx.breakpoints(initial="none", sm="block"),
+                    ),
+                    rx.box(
+                        rx.button(rx.icon("refresh-cw", size=14), "Refresh",
+                                  on_click=AppState.force_refresh, variant="soft", size="2",
+                                  color_scheme="blue"),
+                        display=rx.breakpoints(initial="none", md="flex"),
+                    ),
                     rx.button("Logout", on_click=AppState.handle_logout, variant="soft",
                               size="2", color_scheme="gray"),
                     align="center", spacing="3")),
+        # Spectating controls — abbreviate pill on mobile
         rx.cond(AppState.spectating & ~AppState.logged_in,
                 rx.hstack(
-                    T.pill("👁️ Spectating · read-only", T.WARNING),
+                    rx.box(T.pill("👁️ Spectating · read-only", T.WARNING),
+                           display=rx.breakpoints(initial="none", sm="block")),
+                    rx.box(T.pill("👁️", T.WARNING),
+                           display=rx.breakpoints(initial="block", sm="none")),
                     rx.button("Exit", on_click=AppState.exit_spectator, variant="soft",
                               size="2", color_scheme="gray"),
                     align="center", spacing="3")),
@@ -85,8 +116,18 @@ def _theme_class():
 
 
 def room_shell(*children, **props):
-    """page_shell themed by the active tournament."""
-    return T.page_shell(*children, theme_class=_theme_class(), **props)
+    """page_shell themed by the active tournament, with mobile bottom-bar clearance."""
+    return T.page_shell(
+        *children,
+        # Absorbs the fixed tab bar + home-indicator safe area on mobile; zero on desktop.
+        # Tab bar content ≈ 56px; safe-area-inset-bottom = 34px on iPhone 15.
+        rx.box(
+            display=rx.breakpoints(initial="block", md="none"),
+            style={"height": "calc(64px + env(safe-area-inset-bottom, 0px))", "flex_shrink": "0"},
+        ),
+        theme_class=_theme_class(),
+        **props,
+    )
 
 
 def _navlink(label, href):
@@ -107,25 +148,177 @@ def _copy_code(code):
     )
 
 
-def room_nav(code, is_admin):
-    return T.card(
-        rx.hstack(
-            _copy_code(code),
-            _navlink("🏠 Hub", "/room?room=" + code),
-            _navlink("👥 Squads", "/squads?room=" + code),
-            _navlink("🔨 Bidding", "/bidding?room=" + code),
-            _navlink("🤝 Trade", "/trade?room=" + code),
-            _navlink("📣 News", "/announcements?room=" + code),
-            _navlink("📊 Standings", "/standings?room=" + code),
-            _navlink("📅 Schedule", "/schedule?room=" + code),
-            _navlink("🧮 Calculator", "/calculator?room=" + code),
-            rx.cond(is_admin, _navlink("🛠️ Admin", "/admin?room=" + code)),
-            rx.spacer(),
-            _navlink("← Rooms", "/rooms"),
-            width="100%", align="center", spacing="1", wrap="wrap",
+def _bottom_tab(emoji, label, href, active_path):
+    """Single primary tab in the mobile bottom bar."""
+    is_active = NavState.router.page.path == active_path
+    return rx.link(
+        rx.vstack(
+            rx.text(emoji, style={"font_size": "1.3rem", "line_height": "1"}),
+            rx.text(label, style={
+                "font_size": "0.6rem", "line_height": "1.2",
+                "font_weight": rx.cond(is_active, "700", "500"),
+                "color": rx.cond(is_active, T.ACCENT, T.MUTED),
+            }),
+            spacing="1", align="center",
         ),
-        style={"padding": "0.6rem 0.9rem", "margin_bottom": "1.5rem"},
+        href=href,
+        on_click=NavState.close_more,
+        style={
+            "flex": "1", "display": "flex", "flex_direction": "column",
+            "align_items": "center", "justify_content": "center",
+            "min_height": "44px", "padding": "0.5rem 0.25rem",
+            "text_decoration": "none", "color": "inherit",
+        },
     )
+
+
+def _more_tab():
+    """'⋯ More' tab — opens the secondary-links drawer."""
+    return rx.box(
+        rx.vstack(
+            rx.text("⋯", style={"font_size": "1.3rem", "line_height": "1",
+                                 "font_weight": "700", "color": T.MUTED}),
+            rx.text("More", style={"font_size": "0.6rem", "line_height": "1.2",
+                                   "font_weight": "500", "color": T.MUTED}),
+            spacing="1", align="center",
+        ),
+        on_click=NavState.open_more,
+        style={
+            "flex": "1", "display": "flex", "flex_direction": "column",
+            "align_items": "center", "justify_content": "center",
+            "min_height": "44px", "padding": "0.5rem 0.25rem", "cursor": "pointer",
+        },
+    )
+
+
+def _more_link(label, href):
+    """A link row inside the More drawer."""
+    return rx.link(
+        rx.text(label, style={"font_size": "1rem", "font_weight": "500", "color": T.TEXT}),
+        href=href,
+        on_click=NavState.close_more,
+        style={
+            "display": "block", "width": "100%", "text_decoration": "none",
+            "padding": "0.85rem 0",
+            "border_bottom": f"1px solid {T.BORDER}",
+        },
+        _hover={"color": T.ACCENT},
+    )
+
+
+def _more_drawer(code, is_admin):
+    """Fixed bottom sheet with secondary nav links (rendered but hidden on desktop)."""
+    return rx.cond(
+        NavState.more_open,
+        rx.fragment(
+            # Backdrop — tap to dismiss
+            rx.box(
+                on_click=NavState.close_more,
+                class_name="more-drawer-backdrop",
+                style={
+                    "position": "fixed", "inset": "0",
+                    "background": "rgba(0,0,0,0.55)",
+                    "backdrop_filter": "blur(3px)",
+                    "-webkit-backdrop-filter": "blur(3px)",
+                    "z_index": "199",
+                },
+            ),
+            # Sheet panel
+            rx.box(
+                # Drag-handle visual
+                rx.box(style={
+                    "width": "40px", "height": "4px", "border_radius": "2px",
+                    "background": T.BORDER_Hi, "margin": "0 auto 1rem",
+                }),
+                _copy_code(code),
+                rx.box(height="0.6rem"),
+                rx.vstack(
+                    _more_link("👥 Squads", "/squads?room=" + code),
+                    _more_link("📊 Standings", "/standings?room=" + code),
+                    _more_link("📅 Schedule", "/schedule?room=" + code),
+                    _more_link("🧮 Calculator", "/calculator?room=" + code),
+                    rx.cond(is_admin, _more_link("🛠️ Admin", "/admin?room=" + code)),
+                    spacing="0", width="100%",
+                ),
+                rx.box(height="0.5rem"),
+                rx.link(
+                    rx.text("← Back to all rooms",
+                            style={"font_size": "0.9rem", "font_weight": "500",
+                                   "color": T.MUTED}),
+                    href="/rooms",
+                    on_click=NavState.close_more,
+                    style={"display": "block", "text_decoration": "none",
+                           "padding": "0.75rem 0"},
+                    _hover={"color": T.TEXT},
+                ),
+                class_name="more-drawer-panel",
+                style={
+                    "position": "fixed", "bottom": "0", "left": "0", "right": "0",
+                    "z_index": "200",
+                    "background": "rgba(13,13,20,0.97)",
+                    "backdrop_filter": "blur(20px)",
+                    "-webkit-backdrop-filter": "blur(20px)",
+                    "border_top": f"1px solid {T.BORDER_Hi}",
+                    "border_radius": "20px 20px 0 0",
+                    "padding": "0.75rem 1.5rem calc(env(safe-area-inset-bottom, 0px) + 2.5rem)",
+                    "box_shadow": "0 -12px 40px rgba(0,0,0,0.6)",
+                },
+            ),
+        ),
+    )
+
+
+def _mobile_tab_bar(code, is_admin):
+    """Fixed bottom tab bar: 4 primary destinations + ⋯ More."""
+    return rx.box(
+        _bottom_tab("🔨", "Bidding", "/bidding?room=" + code, "/bidding"),
+        _bottom_tab("🏠", "Hub", "/room?room=" + code, "/room"),
+        _bottom_tab("📣", "News", "/announcements?room=" + code, "/announcements"),
+        _bottom_tab("🤝", "Trade", "/trade?room=" + code, "/trade"),
+        _more_tab(),
+        style={
+            "position": "fixed", "bottom": "0", "left": "0", "right": "0",
+            "z_index": "100",
+            "display": "flex", "flex_direction": "row",
+            "background": "rgba(8,8,12,0.96)",
+            "backdrop_filter": "blur(16px)",
+            "-webkit-backdrop-filter": "blur(16px)",
+            "border_top": f"1px solid {T.BORDER}",
+            "padding_bottom": "env(safe-area-inset-bottom, 0px)",
+        },
+    )
+
+
+def room_nav(code, is_admin):
+    # Desktop (md+): exactly the original card nav, hidden on mobile.
+    desktop = rx.box(
+        T.card(
+            rx.hstack(
+                _copy_code(code),
+                _navlink("🏠 Hub", "/room?room=" + code),
+                _navlink("👥 Squads", "/squads?room=" + code),
+                _navlink("🔨 Bidding", "/bidding?room=" + code),
+                _navlink("🤝 Trade", "/trade?room=" + code),
+                _navlink("📣 News", "/announcements?room=" + code),
+                _navlink("📊 Standings", "/standings?room=" + code),
+                _navlink("📅 Schedule", "/schedule?room=" + code),
+                _navlink("🧮 Calculator", "/calculator?room=" + code),
+                rx.cond(is_admin, _navlink("🛠️ Admin", "/admin?room=" + code)),
+                rx.spacer(),
+                _navlink("← Rooms", "/rooms"),
+                width="100%", align="center", spacing="1", wrap="wrap",
+            ),
+            style={"padding": "0.6rem 0.9rem", "margin_bottom": "1.5rem"},
+        ),
+        display=rx.breakpoints(initial="none", md="block"),
+    )
+    # Mobile (below md): fixed bottom tab bar + slide-up More drawer.
+    mobile = rx.box(
+        _mobile_tab_bar(code, is_admin),
+        _more_drawer(code, is_admin),
+        display=rx.breakpoints(initial="block", md="none"),
+    )
+    return rx.fragment(desktop, mobile)
 
 
 # --------------------------------------------------------------------------- #
@@ -281,12 +474,13 @@ def rooms_page():
         T.section_title("📋 Your rooms"),
         rx.box(height="0.75rem"),
         rx.cond(AppState.my_rooms.length() > 0,
-                T.card(rx.table.root(
+                T.card(rx.box(rx.table.root(
                     rx.table.header(rx.table.row(
                         rx.table.column_header_cell("Room"), rx.table.column_header_cell("Code"),
                         rx.table.column_header_cell("Tournament"), rx.table.column_header_cell("Role"),
                         rx.table.column_header_cell("Teams"), rx.table.column_header_cell(""))),
                     rx.table.body(rx.foreach(AppState.my_rooms, room_row)), width="100%"),
+                    overflow_x="auto", width="100%"),
                     width="100%"),
                 rx.text("You haven't created or joined any rooms yet.", style={"color": T.MUTED})),
     )
@@ -442,7 +636,51 @@ def import_review_section():
 # Hub (your team + all teams)
 # --------------------------------------------------------------------------- #
 def squad_row(p):
-    return rx.hstack(
+    _ir_btn_sm = rx.cond(p["ir"] == "yes",
+                         rx.button("unIR", size="2", variant="ghost", color_scheme="gray",
+                                   on_click=RoomState.clear_ir),
+                         rx.button("IR", size="2", variant="ghost", color_scheme="amber",
+                                   on_click=RoomState.set_ir(p["name"])))
+    _release_btn_sm = rx.cond(
+        p["loaned"] == "yes",
+        rx.fragment(),
+        rx.cond(
+            RoomState.confirm_release_player == p["name"],
+            rx.button("Confirm release", size="2", color_scheme="red",
+                      on_click=RoomState.half_release(p["name"])),
+            rx.button(rx.cond(p["ko"] == "yes", "½ release (KO)", "½ release"),
+                      size="2", variant="ghost", color_scheme="red",
+                      on_click=RoomState.set_confirm_release_player(p["name"]))
+        ),
+    )
+    # Mobile: two-line card, size="2" buttons (~44px tap targets)
+    mobile = rx.box(
+        rx.hstack(
+            rx.text(p["name"], style={"color": T.TEXT, "font_weight": "600",
+                                      "font_size": "0.92rem"}),
+            rx.cond(p["ir"] == "yes", T.pill("IR", T.WARNING)),
+            rx.cond(p["ko"] == "yes", T.pill("🚫 OUT", T.DANGER)),
+            rx.cond(p["loaned"] == "yes", T.pill("ON LOAN", T.PRIMARY)),
+            spacing="2", align="center", wrap="wrap",
+        ),
+        rx.box(height="0.3rem"),
+        rx.hstack(
+            rx.text(p["role"], style={"color": T.MUTED, "font_size": "0.8rem"}),
+            rx.spacer(),
+            rx.text(p["price"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
+                                              "font_size": "0.85rem"}),
+            _ir_btn_sm,
+            _release_btn_sm,
+            spacing="2", align="center",
+        ),
+        style={"padding": "0.6rem 0.8rem", "border_radius": "12px",
+               "background": rx.cond(p["ir"] == "yes", "rgba(251,191,36,0.07)", T.SURFACE_2),
+               "border": f"1px solid {T.BORDER}"},
+        display=rx.breakpoints(initial="block", md="none"),
+        width="100%",
+    )
+    # Desktop: original hstack, pixel-identical
+    desktop = rx.hstack(
         rx.cond(p["ir"] == "yes", T.pill("IR", T.WARNING), rx.box(width="34px")),
         rx.text(p["name"], style={"color": T.TEXT, "font_weight": "500"}),
         rx.text(p["role"], style={"color": T.MUTED, "font_size": "0.8rem"}),
@@ -472,7 +710,9 @@ def squad_row(p):
         width="100%", align="center", spacing="3",
         style={"padding": "0.5rem 0.7rem", "border_radius": "10px",
                "background": rx.cond(p["ir"] == "yes", "rgba(251,191,36,0.07)", "transparent")},
+        display=rx.breakpoints(initial="none", md="flex"),
     )
+    return rx.box(mobile, desktop, width="100%")
 
 
 def _brk(label, val, color):
@@ -726,7 +966,8 @@ def squads_page():
         ),
         rx.hstack(rx.text("View team:", style={"color": T.MUTED}),
                   rx.select(RoomState.all_team_names, value=RoomState.view_team_sel,
-                            on_change=RoomState.select_view_team, width="240px"),
+                            on_change=RoomState.select_view_team,
+                            width=rx.breakpoints(initial="100%", md="240px")),
                   rx.spacer(),
                   rx.text("Sort by:", style={"color": T.MUTED}),
                   rx.select(["Price", "Position", "Country"], value=RoomState.squad_sort_by,
@@ -818,7 +1059,7 @@ def _search_with_dropdown():
                 style={"position": "absolute", "top": "calc(100% + 6px)", "left": "0",
                        "right": "0", "z_index": "60", "padding": "0.3rem"}),
         ),
-        style={"position": "relative", "flex": "1", "min_width": "240px"},
+        style={"position": "relative", "flex": "1", "min_width": rx.breakpoints(initial="0", md="240px")},
     )
 
 
@@ -834,32 +1075,164 @@ def bidding_console():
         rx.hstack(
             _search_with_dropdown(),
             rx.select(BiddingState.countries, value=BiddingState.country_sel,
-                      on_change=BiddingState.set_country, size="3", width="170px"),
+                      on_change=BiddingState.set_country, size="3",
+                      width=rx.breakpoints(initial="100%", md="170px")),
             rx.select(BiddingState.roles, value=BiddingState.role_sel,
-                      on_change=BiddingState.set_role, size="3", width="160px"),
+                      on_change=BiddingState.set_role, size="3",
+                      width=rx.breakpoints(initial="100%", md="160px")),
             spacing="2", width="100%", align="center", wrap="wrap"),
         rx.cond(
             ~BiddingState.is_spectator,
-            rx.hstack(
-                rx.input(value=BiddingState.bid_amount,
-                         on_change=BiddingState.set_field("bid_amount"),
-                         placeholder="Amount (M)", type="number", width="130px", size="3"),
-                T.primary_button("🔨 Place bid", on_click=BiddingState.place_bid, size="3"),
-                rx.text("bids on the player in the search box",
-                        style={"color": T.MUTED, "font_size": "0.78rem"}),
-                spacing="3", align="center", margin_top="0.6rem", wrap="wrap"),
+            rx.fragment(
+                # Mobile: stacked full-width controls, thumb-friendly
+                rx.vstack(
+                    rx.input(value=BiddingState.bid_amount,
+                             on_change=BiddingState.set_field("bid_amount"),
+                             placeholder="Amount (M)", type="number", width="100%", size="3"),
+                    T.primary_button("🔨 Place bid", on_click=BiddingState.place_bid,
+                                     size="3", width="100%", height="48px"),
+                    rx.text("bids on the player in the search box",
+                            style={"color": T.MUTED, "font_size": "0.78rem"}),
+                    spacing="2", width="100%", margin_top="0.6rem",
+                    display=rx.breakpoints(initial="flex", md="none"),
+                ),
+                # Desktop: original layout, pixel-identical
+                rx.hstack(
+                    rx.input(value=BiddingState.bid_amount,
+                             on_change=BiddingState.set_field("bid_amount"),
+                             placeholder="Amount (M)", type="number", width="130px", size="3"),
+                    T.primary_button("🔨 Place bid", on_click=BiddingState.place_bid, size="3"),
+                    rx.text("bids on the player in the search box",
+                            style={"color": T.MUTED, "font_size": "0.78rem"}),
+                    spacing="3", align="center", margin_top="0.6rem", wrap="wrap",
+                    display=rx.breakpoints(initial="none", md="flex"),
+                ),
+            ),
             rx.text("👁️ Spectating — you can watch the bids but not place any.",
                     style={"color": T.MUTED, "margin_top": "0.6rem"})),
         rx.divider(margin_y="0.8rem"),
         rx.cond(BiddingState.available.length() > 0,
                 rx.vstack(rx.foreach(BiddingState.available, available_row), spacing="2",
-                          width="100%", max_height="430px", overflow="auto"),
+                          width="100%",
+                          max_height=rx.breakpoints(initial="260px", md="430px"),
+                          overflow="auto"),
                 rx.text("No unowned players match these filters.",
                         style={"color": T.MUTED})),
         width="100%")
 
 
+def _active_bid_card(b):
+    """Mobile card layout for a single active bid row."""
+    _time_cell = rx.cond(
+        b["time_left"] == "passed",
+        rx.text("⏰ passed", style={"color": T.DANGER, "font_size": "0.75rem"}),
+        rx.cond(
+            b["time_left"] == "",
+            rx.text("—", style={"color": T.MUTED, "font_size": "0.75rem"}),
+            rx.hstack(
+                rx.text("⏳", style={"font_size": "0.75rem"}),
+                rx.text(T.countdown(date=rx.cond(
+                    b["time_left"] == "passed", "2099-12-31T23:59:59Z",
+                    rx.cond(b["time_left"] == "", "2099-12-31T23:59:59Z", b["time_left"])
+                )), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.75rem"}),
+                spacing="1", align="center",
+            ),
+        ),
+    )
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text(b["player"], style={"color": T.TEXT, "font_weight": "600",
+                                            "font_size": "0.88rem"}),
+                rx.text(b["role"] + " · " + b["team"],
+                        style={"color": T.MUTED, "font_size": "0.72rem"}),
+                spacing="0", align="start",
+            ),
+            rx.spacer(),
+            rx.vstack(
+                rx.text(b["high_bid"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
+                                                     "font_weight": "700", "font_size": "1rem"}),
+                rx.hstack(
+                    rx.text(b["high_bidder"], style={"color": T.MUTED, "font_size": "0.7rem"}),
+                    rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS)),
+                    spacing="1",
+                ),
+                spacing="0", align="end",
+            ),
+            width="100%", align="start",
+        ),
+        rx.box(height="0.35rem"),
+        _time_cell,
+        style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
+               "border_radius": "12px", "padding": "0.65rem 0.85rem"},
+        width="100%",
+    )
+
+
 def bidding_page():
+    # Active bids section — cards on mobile, table on desktop
+    active_bids_card = T.card(
+        T.section_title("⏳ Active bids"),
+        rx.box(height="0.7rem"),
+        rx.cond(
+            BiddingState.active.length() > 0,
+            rx.fragment(
+                # Mobile: one card per bid, no overflow
+                rx.vstack(
+                    rx.foreach(BiddingState.active, _active_bid_card),
+                    spacing="2", width="100%",
+                    display=rx.breakpoints(initial="flex", md="none"),
+                ),
+                # Desktop: original table, pixel-identical
+                rx.box(
+                    rx.table.root(
+                        rx.table.header(
+                            rx.table.row(
+                                rx.table.column_header_cell("Player"),
+                                rx.table.column_header_cell("Highest Bid"),
+                                rx.table.column_header_cell("Time Left"),
+                            )
+                        ),
+                        rx.table.body(
+                            rx.foreach(BiddingState.active, lambda b: rx.table.row(
+                                rx.table.row_header_cell(
+                                    rx.vstack(rx.text(b["player"], style={"color": T.TEXT, "font_weight": "500"}),
+                                              rx.text(b["role"] + " · " + b["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+                                              spacing="0", align="start")
+                                ),
+                                rx.table.cell(
+                                    rx.vstack(rx.text(b["high_bid"] + "M", style={"color": T.ACCENT, "font_family": T.MONO, "font_weight": "bold"}),
+                                              rx.hstack(rx.text(b["high_bidder"], style={"color": T.MUTED, "font_size": "0.78rem"}),
+                                                        rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS)),
+                                                        spacing="1"),
+                                              spacing="0", align="start")
+                                ),
+                                rx.table.cell(
+                                    rx.cond(
+                                        b["time_left"] == "passed",
+                                        rx.text("passed", style={"color": T.DANGER, "font_size": "0.85rem"}),
+                                        rx.cond(
+                                            b["time_left"] == "",
+                                            rx.text("—", style={"color": T.MUTED, "font_size": "0.85rem"}),
+                                            rx.hstack(
+                                                rx.text("⏳", size="1"),
+                                                rx.text(T.countdown(date=rx.cond(b["time_left"] == "passed", "2099-12-31T23:59:59Z", rx.cond(b["time_left"] == "", "2099-12-31T23:59:59Z", b["time_left"]))), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"})
+                                            )
+                                        )
+                                    )
+                                )
+                            ))
+                        ),
+                        width="100%", variant="surface", size="1"
+                    ),
+                    display=rx.breakpoints(initial="none", md="block"),
+                ),
+            ),
+            rx.text("No active bids yet.", style={"color": T.MUTED}),
+        ),
+        width="100%",
+    )
+
     return room_shell(
         _topbar(), room_nav(BiddingState.room_code, BiddingState.is_admin),
         rx.hstack(T.hero("Open bidding", "Bid on any unowned player. Min 5M; +5M steps once a bid "
@@ -892,54 +1265,13 @@ def bidding_page():
             width="100%", style={"margin_bottom": "0.6rem"}),
         _error(BiddingState.msg),
         rx.box(height="0.5rem"),
+        # On mobile: active bids (order 1) surfaces above the console (order 2).
+        # On desktop: console is left col, active bids is right col — unchanged.
         rx.grid(
-            bidding_console(),
-            T.card(
-                T.section_title("⏳ Active bids"),
-                rx.box(height="0.7rem"),
-                rx.cond(BiddingState.active.length() > 0,
-                        rx.table.root(
-                            rx.table.header(
-                                rx.table.row(
-                                    rx.table.column_header_cell("Player"),
-                                    rx.table.column_header_cell("Highest Bid"),
-                                    rx.table.column_header_cell("Time Left"),
-                                )
-                            ),
-                            rx.table.body(
-                                rx.foreach(BiddingState.active, lambda b: rx.table.row(
-                                    rx.table.row_header_cell(
-                                        rx.vstack(rx.text(b["player"], style={"color": T.TEXT, "font_weight": "500"}),
-                                                  rx.text(b["role"] + " · " + b["team"], style={"color": T.MUTED, "font_size": "0.78rem"}),
-                                                  spacing="0", align="start")
-                                    ),
-                                    rx.table.cell(
-                                        rx.vstack(rx.text(b["high_bid"] + "M", style={"color": T.ACCENT, "font_family": T.MONO, "font_weight": "bold"}),
-                                                  rx.hstack(rx.text(b["high_bidder"], style={"color": T.MUTED, "font_size": "0.78rem"}),
-                                                            rx.cond(b["mine"] == "yes", T.pill("you lead", T.SUCCESS)),
-                                                            spacing="1"),
-                                                  spacing="0", align="start")
-                                    ),
-                                    rx.table.cell(
-                                        rx.cond(
-                                            b["time_left"] == "passed",
-                                            rx.text("passed", style={"color": T.DANGER, "font_size": "0.85rem"}),
-                                            rx.cond(
-                                                b["time_left"] == "",
-                                                rx.text("—", style={"color": T.MUTED, "font_size": "0.85rem"}),
-                                                rx.hstack(
-                                                    rx.text("⏳", size="1"), 
-                                                    rx.text(T.countdown(date=rx.cond(b["time_left"] == "passed", "2099-12-31T23:59:59Z", rx.cond(b["time_left"] == "", "2099-12-31T23:59:59Z", b["time_left"]))), style={"color": T.WARNING, "font_family": T.MONO, "font_size": "0.85rem"})
-                                                )
-                                            )
-                                        )
-                                    )
-                                ))
-                            ),
-                            width="100%", variant="surface", size="1"
-                        ),
-                        rx.text("No active bids yet.", style={"color": T.MUTED})),
-                width="100%"),
+            rx.box(bidding_console(),
+                   style={"order": rx.breakpoints(initial="2", md="1")}),
+            rx.box(active_bids_card,
+                   style={"order": rx.breakpoints(initial="1", md="2")}),
             columns=rx.breakpoints(initial="1", md="2"), spacing="4", width="100%"),
     )
 
@@ -1269,8 +1601,11 @@ def _rank_table(rows, warn=False):
     headers = [rx.table.column_header_cell("Team"), rx.table.column_header_cell("Points")]
     if warn:
         headers.append(rx.table.column_header_cell(""))
-    return rx.table.root(rx.table.header(rx.table.row(*headers)),
-                         rx.table.body(rx.foreach(rows, row)), width="100%")
+    return rx.box(
+        rx.table.root(rx.table.header(rx.table.row(*headers)),
+                      rx.table.body(rx.foreach(rows, row)), width="100%"),
+        overflow_x="auto", width="100%",
+    )
 
 
 def scorer_row(s):
@@ -1439,10 +1774,12 @@ def standings_page():
         rx.box(height="1rem"),
         T.card(T.section_title("⭐ Top player scorers"), rx.box(height="0.5rem"),
                rx.cond(SeasonState.top_scorers.length() > 0,
-                       rx.table.root(rx.table.header(rx.table.row(
-                           rx.table.column_header_cell("Player"), rx.table.column_header_cell("Country"),
-                           rx.table.column_header_cell("Points"), rx.table.column_header_cell("Owner"))),
-                           rx.table.body(rx.foreach(SeasonState.top_scorers, scorer_row)), width="100%"),
+                       rx.box(
+                           rx.table.root(rx.table.header(rx.table.row(
+                               rx.table.column_header_cell("Player"), rx.table.column_header_cell("Country"),
+                               rx.table.column_header_cell("Points"), rx.table.column_header_cell("Owner"))),
+                               rx.table.body(rx.foreach(SeasonState.top_scorers, scorer_row)), width="100%"),
+                           overflow_x="auto", width="100%"),
                        rx.text("No scores yet.", style={"color": T.MUTED})), width="100%"),
         rx.cond(SeasonState.is_admin,
                 rx.text("Gameweek admin (scores, deadlines, knockout) has moved to the 🛠️ Admin tab.",
@@ -1802,12 +2139,14 @@ def calculator_page():
                           T.pill(WhoScoredState.count.to_string() + " players", T.ACCENT),
                           width="100%", align="center"),
                 rx.box(height="0.5rem"),
-                rx.table.root(
-                    rx.table.header(rx.table.row(
-                        rx.table.column_header_cell("Player"), rx.table.column_header_cell("Team"),
-                        rx.table.column_header_cell("Pos"), rx.table.column_header_cell("Min"),
-                        rx.table.column_header_cell("Points"))),
-                    rx.table.body(rx.foreach(WhoScoredState.results, ws_row)), width="100%"),
+                rx.box(
+                    rx.table.root(
+                        rx.table.header(rx.table.row(
+                            rx.table.column_header_cell("Player"), rx.table.column_header_cell("Team"),
+                            rx.table.column_header_cell("Pos"), rx.table.column_header_cell("Min"),
+                            rx.table.column_header_cell("Points"))),
+                        rx.table.body(rx.foreach(WhoScoredState.results, ws_row)), width="100%"),
+                    overflow_x="auto", width="100%"),
                 width="100%"),
         ),
     )
@@ -1816,7 +2155,115 @@ def calculator_page():
 # --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
-app = rx.App(style={"font_family": T.FONT}, stylesheets=["/custom.css"])
+app = rx.App(
+    style={"font_family": T.FONT},
+    stylesheets=["/custom.css"],
+    head_components=[
+        # PWA — viewport + theme
+        rx.el.meta(
+            name="viewport",
+            content="width=device-width, initial-scale=1, viewport-fit=cover",
+        ),
+        rx.el.meta(name="theme-color", content="#08080c"),
+        # PWA — installability
+        rx.el.link(rel="manifest", href="/manifest.json"),
+        # iOS standalone mode
+        rx.el.meta(name="apple-mobile-web-app-capable", content="yes"),
+        rx.el.meta(
+            name="apple-mobile-web-app-status-bar-style",
+            # black-translucent: content extends under the status bar;
+            # combined with viewport-fit=cover and safe-area-inset-top padding
+            # in page_shell, nothing is clipped.
+            content="black-translucent",
+        ),
+        rx.el.meta(name="apple-mobile-web-app-title", content="Fantasy"),
+        rx.el.link(rel="apple-touch-icon", href="/apple-touch-icon.png"),
+        # Android Chrome — equivalent of apple-mobile-web-app-capable
+        rx.el.meta(name="mobile-web-app-capable", content="yes"),
+        # Service-worker registration — network-first, never caches JS bundles
+        rx.el.script(
+            """
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+      .catch(function(err) {
+        console.warn('SW registration failed:', err);
+      });
+  });
+}
+""",
+        ),
+        # iOS install hint — shown ONLY on iOS Safari when NOT in standalone mode,
+        # dismissed permanently via localStorage.
+        rx.el.script(
+            """
+(function () {
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isStandalone = navigator.standalone === true ||
+                     window.matchMedia('(display-mode: standalone)').matches;
+  var dismissed = localStorage.getItem('pwa-hint-dismissed') === '1';
+  if (!isIOS || isStandalone || dismissed) return;
+
+  function mount() {
+    var kf = document.createElement('style');
+    kf.textContent =
+      '@keyframes pwa-slide-up{from{opacity:0;transform:translateY(10px)}' +
+      'to{opacity:1;transform:translateY(0)}}';
+    document.head.appendChild(kf);
+
+    var el = document.createElement('div');
+    el.style.cssText = [
+      'position:fixed',
+      'left:1rem',
+      'right:1rem',
+      // sits above the fixed bottom tab bar (~56px content + safe-area)
+      'bottom:calc(env(safe-area-inset-bottom,0px) + 72px)',
+      'z-index:9999',
+      'display:flex',
+      'align-items:center',
+      'gap:0.6rem',
+      'padding:0.7rem 0.9rem',
+      'background:rgba(13,13,20,0.97)',
+      'backdrop-filter:blur(18px)',
+      '-webkit-backdrop-filter:blur(18px)',
+      'border:1px solid rgba(255,255,255,0.18)',
+      'border-radius:14px',
+      'box-shadow:0 8px 32px rgba(0,0,0,0.55)',
+      'font-family:Inter,ui-sans-serif,sans-serif',
+      'font-size:0.82rem',
+      'color:#f4f5fb',
+      'animation:pwa-slide-up 0.28s cubic-bezier(.32,.72,0,1) both',
+    ].join(';');
+
+    el.innerHTML =
+      '<span style="font-size:1.1rem;flex-shrink:0">\\uD83D\\uDCF2</span>' +
+      '<span style="flex:1;line-height:1.45">' +
+        'Install this app: tap <strong>Share \\u2B06</strong>,' +
+        ' then <strong>Add to Home Screen</strong>.' +
+      '</span>' +
+      '<button aria-label="Dismiss" style="flex-shrink:0;background:none;border:none;' +
+        'color:#9aa0b8;font-size:1.3rem;line-height:1;cursor:pointer;padding:0 0.1rem">' +
+        '&#x2715;' +
+      '</button>';
+
+    el.querySelector('button').addEventListener('click', function () {
+      localStorage.setItem('pwa-hint-dismissed', '1');
+      el.remove();
+    });
+
+    document.body.appendChild(el);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else {
+    mount();
+  }
+})();
+""",
+        ),
+    ],
+)
 
 from starlette.responses import JSONResponse
 
