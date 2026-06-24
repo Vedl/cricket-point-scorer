@@ -125,6 +125,7 @@ def room_shell(*children, **props):
             display=rx.breakpoints(initial="block", md="none"),
             style={"height": "calc(64px + env(safe-area-inset-bottom, 0px))", "flex_shrink": "0"},
         ),
+        _push_prompt(),
         theme_class=_theme_class(),
         **props,
     )
@@ -209,6 +210,47 @@ def _more_link(label, href):
 def _enable_alerts_script():
     """JS to subscribe the current user to web-push (defined in head_components)."""
     return rx.call_script("window.enablePushAlerts('" + AppState.auth_user + "')")
+
+
+def _push_prompt():
+    """Dismissible 'Enable alerts' banner. Rendered (hidden) for logged-in users; the
+    head script reveals it only when push is supported, not yet enabled, not dismissed,
+    and not on an un-installed iOS device."""
+    return rx.cond(
+        AppState.logged_in,
+        rx.box(
+            rx.hstack(
+                rx.text("🔔", style={"font_size": "1.35rem", "line_height": "1"}),
+                rx.vstack(
+                    rx.text("Turn on alerts",
+                            style={"color": T.TEXT, "font_weight": "700", "font_size": "0.9rem"}),
+                    rx.text("Outbids · signings · releases · trades",
+                            style={"color": T.MUTED, "font_size": "0.72rem"}),
+                    spacing="0", align="start",
+                ),
+                rx.spacer(),
+                T.primary_button("Enable", on_click=_enable_alerts_script(), size="2"),
+                rx.box(
+                    rx.text("✕", style={"color": T.MUTED, "font_size": "1.1rem", "line_height": "1"}),
+                    on_click=rx.call_script("window.__dismissPushPrompt && window.__dismissPushPrompt()"),
+                    style={"cursor": "pointer", "padding": "0.25rem 0.35rem"},
+                ),
+                width="100%", align="center", spacing="3",
+            ),
+            id="push-prompt",
+            style={
+                "display": "none",  # head script decides final visibility
+                "position": "fixed", "left": "1rem", "right": "1rem",
+                "bottom": "calc(env(safe-area-inset-bottom, 0px) + 72px)",
+                "max_width": "560px", "margin": "0 auto", "z_index": "150",
+                "background": "rgba(13,13,20,0.97)",
+                "backdrop_filter": "blur(18px)", "-webkit-backdrop-filter": "blur(18px)",
+                "border": f"1px solid {T.BORDER_Hi}", "border_radius": "14px",
+                "padding": "0.7rem 0.9rem",
+                "box_shadow": "0 8px 32px rgba(0,0,0,0.55)",
+            },
+        ),
+    )
 
 
 def _more_drawer(code, is_admin):
@@ -2328,12 +2370,42 @@ window.enablePushAlerts = async function (user) {
       body: JSON.stringify({ subscription: sub.toJSON(), user: user || '', room: room }),
     });
     localStorage.setItem('push-enabled', '1');
+    var _b = document.getElementById('push-prompt');
+    if (_b) { _b.style.display = 'none'; }
     alert('\\uD83D\\uDD14 Alerts on. You\\'ll be notified about outbids, signings, releases and trades.');
   } catch (e) {
     console.error('enablePushAlerts failed', e);
     alert('Could not enable alerts: ' + ((e && e.message) ? e.message : e));
   }
 };
+
+// ── In-app "Enable alerts" prompt banner (rendered by Reflex for logged-in users) ──
+window.__dismissPushPrompt = function () {
+  localStorage.setItem('push-prompt-dismissed', '1');
+  var b = document.getElementById('push-prompt');
+  if (b) { b.style.display = 'none'; }
+};
+
+window.__refreshPushPrompt = function () {
+  var b = document.getElementById('push-prompt');
+  if (!b) { return; }  // logged out / not on a room page → element absent
+  var supported = ('serviceWorker' in navigator) && ('PushManager' in window);
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var standalone = navigator.standalone === true ||
+                   window.matchMedia('(display-mode: standalone)').matches;
+  var enabled = localStorage.getItem('push-enabled') === '1';
+  var dismissed = localStorage.getItem('push-prompt-dismissed') === '1';
+  // iOS only delivers push to a Home-Screen install; if iOS & not installed the
+  // separate install hint covers it — don't double up.
+  var iosBlocked = isIOS && !standalone;
+  b.style.display = (supported && !enabled && !dismissed && !iosBlocked) ? 'block' : 'none';
+};
+
+// Re-evaluate after hydration and across SPA route changes (cheap DOM check).
+window.addEventListener('load', function () {
+  setTimeout(function () { try { window.__refreshPushPrompt(); } catch (e) {} }, 800);
+});
+setInterval(function () { try { window.__refreshPushPrompt(); } catch (e) {} }, 2000);
 """,
         ),
     ],

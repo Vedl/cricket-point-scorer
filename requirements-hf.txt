@@ -7,3 +7,8 @@ scikit-learn
 cloudscraper
 curl_cffi
 tls-client
+
+# Web Push (PWA notifications): platform_core/push.py. Pulls in cryptography +
+# py_vapid + http_ece. Without this the deployed image can't send pushes and
+# /backend/push/pubkey reports configured:false.
+pywebpush>=2.0,<3.0
