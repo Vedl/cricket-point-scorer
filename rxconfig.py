@@ -19,6 +19,10 @@ if _transport not in ("websocket", "polling"):
 _kwargs = dict(
     app_name="fantasy_auction",
     transport=_transport,
+    # Hide Reflex's "Built with Reflex" sticky badge. It renders position:fixed in the
+    # bottom-right and overlaps the mobile bottom tab bar ("More"). Self-hosted prod
+    # defaults this to True; the flag is the supported way to turn it off.
+    show_built_with_reflex=False,
     # SQLite is unused — Firebase is the datastore (PLAN.md §6.6). Reflex still
     # wants a db_url for its internal bookkeeping; keep a throwaway local file.
     db_url="sqlite:///reflex_internal.db",

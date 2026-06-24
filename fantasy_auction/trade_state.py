@@ -254,6 +254,11 @@ class TradeState(rx.State):
             self.msg = f"⚠️ {exc}"
             return
         self._save_refresh(doc, room, "✅ Trade approved and applied.")
+        # Push: the trade is now applied — tell the room.
+        _t = next((x for x in room.get("pending_trades", []) if x.get("id") == trade_id), None)
+        if _t:
+            from fantasy_auction import notify
+            notify.trade_done(room, _t.get("from", ""), _t.get("to", ""), code)
 
     @rx.event
     def admin_reject(self, trade_id: str):

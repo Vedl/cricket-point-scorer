@@ -551,3 +551,5 @@ class RoomState(rx.State):
         repo.save(doc)
         self._refresh(room)
         self.msg = f"🗑️ Released {player} for +{refund}M (half price)."
+        from fantasy_auction import notify
+        notify.released(room, self.my_team, player, code)

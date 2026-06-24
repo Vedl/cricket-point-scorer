@@ -150,6 +150,8 @@ class BiddingState(rx.State):
             awarded = bo.process_expired(room, datetime.now())
             if awarded:
                 repo.save(doc)
+                from fantasy_auction import notify
+                notify.signed_many(room, awarded, self.room_code)
         except Exception as exc:
             print(f"[on_load_bidding] award skipped: {exc}")
         try:
@@ -315,6 +317,11 @@ class BiddingState(rx.State):
         code, doc, room = self._load()
         if not room:
             return
+        # Who currently leads this player? Capture before placing so we can tell whom
+        # (if anyone) this bid outbids.
+        _tf = fold(target)
+        _prev = next((b for n, b in room.get("open_bids", {}).items() if fold(n) == _tf), None)
+        prev_bidder = (_prev or {}).get("high_bidder", "")
         try:
             bo.place(room, self.my_team, target, int(self.bid_amount or 0), datetime.now())
         except (BidError, ValueError) as exc:
@@ -325,6 +332,10 @@ class BiddingState(rx.State):
         self._refresh(room)
         canonical = next((n for n in room.get("open_bids", {}) if fold(n) == fold(target)), target)
         self.msg = f"✅ Bid placed on {canonical}."
+        # Push: the previous leader (if any, and not us) was just outbid.
+        if prev_bidder and prev_bidder != self.my_team:
+            from fantasy_auction import notify
+            notify.outbid(room, prev_bidder, canonical, code)
 
     @rx.event(background=True)
     async def live_loop(self):
@@ -374,10 +385,16 @@ class BiddingState(rx.State):
                             doc = await aload()
                             full_room = doc.get("rooms", {}).get(code)
                             if full_room:
-                                changed = bool(bo.process_expired(full_room, now))
+                                awarded = bo.process_expired(full_room, now)
+                                changed = bool(awarded)
                                 changed = bool(so.process_room_deadline(full_room, now)) or changed
                                 if changed:
                                     repo.save(doc)
+                                    # Only the client that claimed processing reaches
+                                    # here, so each signing is pushed exactly once.
+                                    if awarded:
+                                        from fantasy_auction import notify
+                                        notify.signed_many(full_room, awarded, code)
                                 room = full_room
 
                         async with self:

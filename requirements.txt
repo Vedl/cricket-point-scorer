@@ -32,3 +32,8 @@ scikit-learn
 cloudscraper
 curl_cffi
 tls-client
+
+# --- Web Push (PWA notifications): platform_core/push.py ---
+# Pulls in cryptography + py_vapid + http_ece. Used to send VAPID-signed pushes to
+# subscribed browsers (outbid / signed / released / trade alerts).
+pywebpush>=2.0,<3.0

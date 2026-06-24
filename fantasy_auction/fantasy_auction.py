@@ -206,6 +206,11 @@ def _more_link(label, href):
     )
 
 
+def _enable_alerts_script():
+    """JS to subscribe the current user to web-push (defined in head_components)."""
+    return rx.call_script("window.enablePushAlerts('" + AppState.auth_user + "')")
+
+
 def _more_drawer(code, is_admin):
     """Fixed bottom sheet with secondary nav links (rendered but hidden on desktop)."""
     return rx.cond(
@@ -239,6 +244,14 @@ def _more_drawer(code, is_admin):
                     _more_link("🧮 Calculator", "/calculator?room=" + code),
                     rx.cond(is_admin, _more_link("🛠️ Admin", "/admin?room=" + code)),
                     spacing="0", width="100%",
+                ),
+                rx.box(height="0.5rem"),
+                rx.box(
+                    rx.text("🔔 Enable alerts",
+                            style={"font_size": "1rem", "font_weight": "600", "color": T.ACCENT}),
+                    on_click=_enable_alerts_script(),
+                    style={"display": "block", "width": "100%", "cursor": "pointer",
+                           "padding": "0.85rem 0", "border_bottom": f"1px solid {T.BORDER}"},
                 ),
                 rx.box(height="0.5rem"),
                 rx.link(
@@ -305,6 +318,13 @@ def room_nav(code, is_admin):
                 _navlink("🧮 Calculator", "/calculator?room=" + code),
                 rx.cond(is_admin, _navlink("🛠️ Admin", "/admin?room=" + code)),
                 rx.spacer(),
+                rx.box(
+                    rx.text("🔔 Alerts", style={"color": T.MUTED, "font_size": "0.9rem",
+                            "font_weight": "500", "padding": "6px 12px", "border_radius": "10px"}),
+                    on_click=_enable_alerts_script(),
+                    style={"cursor": "pointer"},
+                    _hover={"color": T.TEXT},
+                ),
                 _navlink("← Rooms", "/rooms"),
                 width="100%", align="center", spacing="1", wrap="wrap",
             ),
@@ -2171,10 +2191,11 @@ app = rx.App(
         rx.el.meta(name="apple-mobile-web-app-capable", content="yes"),
         rx.el.meta(
             name="apple-mobile-web-app-status-bar-style",
-            # black-translucent: content extends under the status bar;
-            # combined with viewport-fit=cover and safe-area-inset-top padding
-            # in page_shell, nothing is clipped.
-            content="black-translucent",
+            # "black": iOS reserves a solid status-bar region (matches our #08080c
+            # theme) and the webview starts BELOW it, so scrolled content never slides
+            # under the clock. (black-translucent renders fullscreen under the bar,
+            # which clipped list rows behind the status bar on scroll.)
+            content="black",
         ),
         rx.el.meta(name="apple-mobile-web-app-title", content="Fantasy"),
         rx.el.link(rel="apple-touch-icon", href="/apple-touch-icon.png"),
@@ -2262,6 +2283,59 @@ if ('serviceWorker' in navigator) {
 })();
 """,
         ),
+        # Web Push subscribe flow — exposes window.enablePushAlerts(user).
+        # Targeting is by user, so the username is all we need to tag the subscription;
+        # the room is read from the URL for context.
+        rx.el.script(
+            """
+function __urlB64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(base64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) { arr[i] = raw.charCodeAt(i); }
+  return arr;
+}
+
+window.enablePushAlerts = async function (user) {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Push notifications are not supported on this browser. On iPhone, add the app to your Home Screen first.');
+      return;
+    }
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      alert('Notifications are blocked. Enable them in your browser/app settings to receive alerts.');
+      return;
+    }
+    var reg = await navigator.serviceWorker.ready;
+    var meta = await (await fetch('/backend/push/pubkey')).json();
+    if (!meta || !meta.configured || !meta.key) {
+      alert('Notifications are not set up on the server yet. Try again later.');
+      return;
+    }
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: __urlB64ToUint8Array(meta.key),
+      });
+    }
+    var room = new URLSearchParams(location.search).get('room') || '';
+    await fetch('/backend/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), user: user || '', room: room }),
+    });
+    localStorage.setItem('push-enabled', '1');
+    alert('\\uD83D\\uDD14 Alerts on. You\\'ll be notified about outbids, signings, releases and trades.');
+  } catch (e) {
+    console.error('enablePushAlerts failed', e);
+    alert('Could not enable alerts: ' + ((e && e.message) ? e.message : e));
+  }
+};
+""",
+        ),
     ],
 )
 
@@ -2283,6 +2357,48 @@ def diagnostic(request):
     })
 
 app._api.add_route("/backend/diagnostic/{code}", diagnostic, methods=["GET"])
+
+
+# ── Web Push subscription endpoints ────────────────────────────────────────────────
+
+def push_pubkey(request):
+    """Hand the browser the VAPID public key it needs to subscribe."""
+    from platform_core import push
+    return JSONResponse({"key": push.public_key(), "configured": push.configured()})
+
+
+async def push_subscribe(request):
+    """Persist a browser push subscription, tagged with the owning user/room/team."""
+    from platform_core import push
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "bad json"}, status_code=400)
+    sub = body.get("subscription") or {}
+    if not sub.get("endpoint"):
+        return JSONResponse({"ok": False, "error": "no endpoint"}, status_code=400)
+    push.save_subscription(
+        sub,
+        user=(body.get("user") or "").strip(),
+        room=(body.get("room") or "").strip(),
+        team=(body.get("team") or "").strip(),
+    )
+    return JSONResponse({"ok": True})
+
+
+async def push_unsubscribe(request):
+    from platform_core import push
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "bad json"}, status_code=400)
+    push.delete_subscription((body.get("endpoint") or "").strip())
+    return JSONResponse({"ok": True})
+
+
+app._api.add_route("/backend/push/pubkey", push_pubkey, methods=["GET"])
+app._api.add_route("/backend/push/subscribe", push_subscribe, methods=["POST"])
+app._api.add_route("/backend/push/unsubscribe", push_unsubscribe, methods=["POST"])
 
 
 def _serve_prebuilt_frontend(reflex_asgi):
