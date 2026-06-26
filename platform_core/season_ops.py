@@ -355,6 +355,12 @@ def search_player_points(room: dict, query: str = "", gameweek: str | None = Non
 
 
 # --- gameweek deadlines + automation ------------------------------------- #
+# Trading stays open until T + this many minutes; at T+30m squads lock, the gameweek
+# advances and the market freezes. Single source of truth (used here and by the
+# deadline push scheduler).
+TRADING_LOCK_MIN = 30
+
+
 def set_deadline(room: dict, gameweek: str, iso: str) -> None:
     room.setdefault("gameweek_deadlines", {})[str(gameweek)] = iso
 
@@ -380,7 +386,7 @@ def trading_open(room: dict, now: datetime) -> bool:
     dl = bo.bidding_deadline(room)
     if dl is None:
         return False
-    return now < dl + timedelta(minutes=30)
+    return now < dl + timedelta(minutes=TRADING_LOCK_MIN)
 
 
 def deadline_work_due(room: dict, now: datetime) -> bool:
@@ -394,7 +400,7 @@ def deadline_work_due(room: dict, now: datetime) -> bool:
         return False
     if now >= dl and not room.get("bids_resolved"):
         return True
-    return now >= dl + timedelta(minutes=30) and not room.get("locked_for_deadline")
+    return now >= dl + timedelta(minutes=TRADING_LOCK_MIN) and not room.get("locked_for_deadline")
 
 
 def process_room_deadline(room: dict, now: datetime) -> list[str]:
@@ -412,7 +418,7 @@ def process_room_deadline(room: dict, now: datetime) -> list[str]:
     awarded = bo.resolve_deadline(room, now)
     if awarded:
         events.append(f"awarded {len(awarded)} open bids")
-    if now >= dl + timedelta(minutes=30) and not room.get("locked_for_deadline"):
+    if now >= dl + timedelta(minutes=TRADING_LOCK_MIN) and not room.get("locked_for_deadline"):
         gw = str(int(room.get("current_gameweek", 1) or 1))
         lock_gameweek(room, gw)
         advance_gameweek(room)

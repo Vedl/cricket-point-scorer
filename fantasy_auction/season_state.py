@@ -384,6 +384,16 @@ class SeasonState(rx.State):
             return
         so.set_bidding_deadline(room, self.bidding_deadline_value)
         repo.save(doc)
+        # Denormalise the deadline into the isolated push index so the cron tick can find
+        # it without ever reading the auction doc; reset this room's fired markers since
+        # a fresh deadline starts a new alert schedule. Never let this break setting it.
+        try:
+            from platform_core import push
+            push.set_deadline_index(code, self.bidding_deadline_value,
+                                    str(room.get("current_gameweek", 1)))
+            push.clear_fired(code)
+        except Exception as exc:
+            print(f"[push] deadline index update failed: {exc}")
         self.bidding_deadline_str = self.bidding_deadline_value.replace("T", " ")
         self.msg = ("⏰ Deadline set. Bidding opens now; new players until −1h, raise-only "
                     "(+5M) in the final 30m, bids award at the deadline, trading until +30m, "

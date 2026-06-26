@@ -37,7 +37,13 @@ except Exception:  # pragma: no cover - optional dependency
     _PUSH_OK = False
 
 _DEFAULT_SUBJECT = "mailto:laddavedant@gmail.com"
-_LOCAL_FILE = os.environ.get("PUSH_SUBSCRIPTIONS_FILE", "push_subscriptions.json")
+
+# Each isolated Firebase node has a local-mode fallback file (dev / no Firebase URL).
+_LOCAL_FILES = {
+    "push_subscriptions": os.environ.get("PUSH_SUBSCRIPTIONS_FILE", "push_subscriptions.json"),
+    "push_deadlines": os.environ.get("PUSH_DEADLINES_FILE", "push_deadlines.json"),
+    "push_fired": os.environ.get("PUSH_FIRED_FILE", "push_fired.json"),
+}
 
 _warned = False
 
@@ -76,30 +82,43 @@ def _secret() -> str:
             or os.environ.get("FIREBASE_SECRET_KEY", ""))
 
 
-def _node_url(path: str) -> str:
-    base = f"{_db_base()}/push_subscriptions{path}.json"
+def _rest_url(node: str, path: str = "") -> str:
+    base = f"{_db_base()}/{node}{path}.json"
     sec = _secret()
     return f"{base}?auth={sec}" if sec else base
+
+
+def _node_url(path: str = "") -> str:
+    """Subscriptions node URL (used by the subscription helpers below)."""
+    return _rest_url("push_subscriptions", path)
 
 
 def _use_remote() -> bool:
     return bool(_db_base()) and requests is not None
 
 
-def _load_local() -> dict:
+def _load_node_local(node: str) -> dict:
     try:
-        with open(_LOCAL_FILE, "r", encoding="utf-8") as fh:
+        with open(_LOCAL_FILES.get(node, f"{node}.json"), "r", encoding="utf-8") as fh:
             return json.load(fh) or {}
     except Exception:
         return {}
 
 
-def _save_local(data: dict) -> None:
+def _save_node_local(node: str, data: dict) -> None:
     try:
-        with open(_LOCAL_FILE, "w", encoding="utf-8") as fh:
+        with open(_LOCAL_FILES.get(node, f"{node}.json"), "w", encoding="utf-8") as fh:
             json.dump(data, fh)
     except Exception as exc:  # pragma: no cover
-        print(f"[push] local save error: {exc}")
+        print(f"[push] local save error ({node}): {exc}")
+
+
+def _load_local() -> dict:
+    return _load_node_local("push_subscriptions")
+
+
+def _save_local(data: dict) -> None:
+    _save_node_local("push_subscriptions", data)
 
 
 def load_subscriptions() -> dict:
@@ -174,6 +193,101 @@ def _delete_by_sid(sid: str) -> None:
             _save_local(data)
 
 
+# ── deadline index + fired-markers (isolated nodes for the cron-driven scheduler) ──
+
+def set_deadline_index(code: str, dl_iso: str, gw: str = "") -> None:
+    """Record a room's current bidding deadline so the tick can find it WITHOUT ever
+    reading the auction document. Written once when the admin sets the deadline."""
+    if not code or not dl_iso:
+        return
+    rec = {"dl": dl_iso, "gw": gw or ""}
+    if _use_remote():
+        try:
+            requests.put(_rest_url("push_deadlines", f"/{code}"), data=json.dumps(rec),
+                         headers={"Content-Type": "application/json"}, timeout=10)
+            return
+        except Exception as exc:  # pragma: no cover
+            print(f"[push] deadline index put error: {exc}")
+            return
+    data = _load_node_local("push_deadlines")
+    data[code] = rec
+    _save_node_local("push_deadlines", data)
+
+
+def load_deadline_index() -> dict:
+    """{room_code: {"dl": iso, "gw": str}} — the only thing the tick reads to find work."""
+    if _use_remote():
+        try:
+            resp = requests.get(_rest_url("push_deadlines"), timeout=10)
+            if resp.ok:
+                return resp.json() or {}
+        except Exception as exc:  # pragma: no cover
+            print(f"[push] deadline index load error: {exc}")
+        return {}
+    return _load_node_local("push_deadlines")
+
+
+def delete_deadline_index(code: str) -> None:
+    if not code:
+        return
+    if _use_remote():
+        try:
+            requests.delete(_rest_url("push_deadlines", f"/{code}"), timeout=10)
+        except Exception:  # pragma: no cover
+            pass
+        return
+    data = _load_node_local("push_deadlines")
+    if code in data:
+        del data[code]
+        _save_node_local("push_deadlines", data)
+
+
+def load_fired(code: str) -> set[str]:
+    """Set of dedup keys already fired for this room's current deadline."""
+    if not code:
+        return set()
+    if _use_remote():
+        try:
+            resp = requests.get(_rest_url("push_fired", f"/{code}"), timeout=10)
+            if resp.ok and isinstance(resp.json(), dict):
+                return set(resp.json().keys())
+        except Exception as exc:  # pragma: no cover
+            print(f"[push] fired load error: {exc}")
+        return set()
+    return set((_load_node_local("push_fired").get(code) or {}).keys())
+
+
+def mark_fired(code: str, key: str) -> None:
+    if not code or not key:
+        return
+    if _use_remote():
+        try:
+            requests.put(_rest_url("push_fired", f"/{code}/{key}"), data="true",
+                         headers={"Content-Type": "application/json"}, timeout=10)
+        except Exception as exc:  # pragma: no cover
+            print(f"[push] mark_fired error: {exc}")
+        return
+    data = _load_node_local("push_fired")
+    data.setdefault(code, {})[key] = True
+    _save_node_local("push_fired", data)
+
+
+def clear_fired(code: str) -> None:
+    """Drop all fired markers for a room (called when a fresh deadline is set, and on prune)."""
+    if not code:
+        return
+    if _use_remote():
+        try:
+            requests.delete(_rest_url("push_fired", f"/{code}"), timeout=10)
+        except Exception:  # pragma: no cover
+            pass
+        return
+    data = _load_node_local("push_fired")
+    if code in data:
+        del data[code]
+        _save_node_local("push_fired", data)
+
+
 # ── sending ─────────────────────────────────────────────────────────────────────────
 
 def _send_one(sid: str, record: dict, payload: dict) -> None:
@@ -201,31 +315,48 @@ def _send_one(sid: str, record: dict, payload: dict) -> None:
         print(f"[push] send error: {exc}")
 
 
-def _notify_blocking(users: set[str], title: str, body: str, url: str) -> None:
+def _notify_blocking(match, title: str, body: str, url: str) -> None:
     subs = load_subscriptions()
     payload = {"title": title, "body": body, "url": url or "/"}
     for sid, rec in subs.items():
         if not isinstance(rec, dict):
             continue
-        if rec.get("user") in users:
+        if match(rec):
             _send_one(sid, rec, payload)
+
+
+def _unconfigured_skip() -> bool:
+    global _warned
+    if not configured():
+        if not _warned:
+            print("[push] not configured (missing pywebpush or VAPID keys) — skipping")
+            _warned = True
+        return True
+    return False
 
 
 def notify_users(users: Iterable[str], title: str, body: str, url: str = "/") -> None:
     """Fire a push to every device of the given usernames, in a background thread so the
     caller's request returns immediately. No-op if push isn't configured."""
-    global _warned
     targets = {u for u in (users or []) if u}
-    if not targets:
-        return
-    if not configured():
-        if not _warned:
-            print("[push] not configured (missing pywebpush or VAPID keys) — skipping")
-            _warned = True
+    if not targets or _unconfigured_skip():
         return
     threading.Thread(
         target=_notify_blocking,
-        args=(targets, title, body, url),
-        name="push-send",
-        daemon=True,
+        args=(lambda rec: rec.get("user") in targets, title, body, url),
+        name="push-send", daemon=True,
     ).start()
+
+
+def notify_room(code: str, title: str, body: str, url: str = "/") -> bool:
+    """Push to every device subscribed within room ``code`` (room-wide alerts). Returns
+    True if a send was dispatched, False if it was a no-op (unconfigured) — the caller
+    uses this to decide whether to mark a milestone as fired."""
+    if not code or _unconfigured_skip():
+        return False
+    threading.Thread(
+        target=_notify_blocking,
+        args=(lambda rec: rec.get("room") == code, title, body, url),
+        name="push-send-room", daemon=True,
+    ).start()
+    return True

@@ -23,6 +23,24 @@ from .config_layer import load_player_pool
 
 MAX_SQUAD = 30
 
+# Canonical window offsets relative to the bidding deadline T (single source of truth;
+# referenced by window_state below and by the deadline push scheduler).
+NEW_PLAYER_CUTOFF_MIN = 60   # before T-60m you may bid on new players; after, raise-only
+RAISE_ONLY_MIN = 30          # T-30m..T: existing bids may only be raised in +5M steps
+
+
+def parse_deadline(iso) -> datetime | None:
+    """Parse a stored ISO deadline string to a naive-local datetime (or None)."""
+    if not iso:
+        return None
+    try:
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
 
 def _by(room):
     return {p["name"]: p for p in room.get("participants", [])}
@@ -81,16 +99,7 @@ def _player(room, player_name) -> dict | None:
 
 
 def bidding_deadline(room) -> datetime | None:
-    iso = room.get("bidding_deadline")
-    if not iso:
-        return None
-    try:
-        dt = datetime.fromisoformat(iso)
-        if dt.tzinfo is not None:
-            dt = dt.astimezone().replace(tzinfo=None)
-        return dt
-    except (ValueError, TypeError):
-        return None
+    return parse_deadline(room.get("bidding_deadline"))
 
 
 def window_state(room, now: datetime) -> str:
@@ -99,9 +108,9 @@ def window_state(room, now: datetime) -> str:
         return "frozen"
     if now >= dl:
         return "closed"
-    if now >= dl - timedelta(minutes=30):
+    if now >= dl - timedelta(minutes=RAISE_ONLY_MIN):
         return "raise_only"
-    if now >= dl - timedelta(minutes=60):
+    if now >= dl - timedelta(minutes=NEW_PLAYER_CUTOFF_MIN):
         return "no_new"
     return "open"
 

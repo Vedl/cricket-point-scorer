@@ -2468,9 +2468,91 @@ async def push_unsubscribe(request):
     return JSONResponse({"ok": True})
 
 
+def _run_push_tick(now, dry_run: bool) -> dict:
+    """Evaluate every room's deadline schedule and dispatch any due alerts.
+
+    Reads ONLY the isolated push nodes (deadline index, per-room fired markers,
+    subscriptions) — never the auction document. Per-room work is isolated in
+    try/except so one bad room can't crash the tick. Returns a small JSON summary."""
+    from platform_core import push, push_schedule
+    from platform_core.bidding_ops import parse_deadline
+
+    summary = {"now": now.isoformat(), "dry_run": dry_run, "configured": push.configured(),
+               "rooms": 0, "evaluated": 0, "sent": 0, "pruned": 0, "alerts": []}
+    index = push.load_deadline_index() or {}
+    for code, rec in index.items():
+        try:
+            if not isinstance(rec, dict):
+                continue
+            dl = parse_deadline(rec.get("dl"))
+            if dl is None:
+                continue
+            summary["rooms"] += 1
+            # Once every window has elapsed, drop the index + markers so the nodes stay tiny.
+            if now >= push_schedule.schedule_horizon(dl):
+                if not dry_run:
+                    push.clear_fired(code)
+                    push.delete_deadline_index(code)
+                    summary["pruned"] += 1
+                continue
+            # Dry-run ignores fired markers so it shows the full window picture; a real
+            # run honours them so each (milestone, offset) sends exactly once.
+            fired = set() if dry_run else push.load_fired(code)
+            for key, title, body in push_schedule.due_alerts(dl, now, fired):
+                summary["evaluated"] += 1
+                summary["alerts"].append({"room": code, "key": key, "title": title, "body": body})
+                if dry_run:
+                    continue
+                # Mark as fired only on a real dispatch (push configured); otherwise leave
+                # it so the next tick retries within the same window.
+                if push.notify_room(code, title, body, f"/bidding?room={code}"):
+                    push.mark_fired(code, key)
+                    summary["sent"] += 1
+        except Exception as exc:  # one room must never break the rest
+            print(f"[push tick] room {code} failed: {exc}")
+    return summary
+
+
+async def push_tick(request):
+    """External-cron entrypoint (cron-job.org hits this every minute). Secured by a
+    shared secret in the X-Push-Token header. Body may set {"dry_run": true, "now": iso}
+    to preview window logic without sending or marking anything."""
+    import asyncio
+    import hmac
+    import os
+    from datetime import datetime
+    from platform_core.bidding_ops import parse_deadline
+
+    secret = os.environ.get("PUSH_TICK_SECRET", "")
+    if not secret:
+        return JSONResponse({"ok": False, "error": "tick not configured"}, status_code=503)
+    token = request.headers.get("X-Push-Token", "")
+    if not token or not hmac.compare_digest(token, secret):
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+
+    body = {}
+    try:
+        if "application/json" in (request.headers.get("content-type") or ""):
+            body = await request.json()
+    except Exception:
+        body = {}
+    dry_run = bool(body.get("dry_run"))
+    now = datetime.now()
+    if body.get("now"):  # simulate a "now" for testing against a near-term deadline
+        sim = parse_deadline(body.get("now"))
+        if sim is not None:
+            now = sim
+
+    # Firebase reads are blocking → run off the event loop; sends are fire-and-forget.
+    summary = await asyncio.to_thread(_run_push_tick, now, dry_run)
+    print(f"[push tick] {summary}")
+    return JSONResponse({"ok": True, **summary})
+
+
 app._api.add_route("/backend/push/pubkey", push_pubkey, methods=["GET"])
 app._api.add_route("/backend/push/subscribe", push_subscribe, methods=["POST"])
 app._api.add_route("/backend/push/unsubscribe", push_unsubscribe, methods=["POST"])
+app._api.add_route("/backend/push/tick", push_tick, methods=["POST"])
 
 
 def _serve_prebuilt_frontend(reflex_asgi):
