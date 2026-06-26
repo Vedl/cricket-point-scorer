@@ -215,7 +215,7 @@ def get_whoscored_stats(ws_url, force_refresh=False):
             player_ev[name] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
                               'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'pk_assist':0,
                               'woodwork':0,'clearance_off_line':0,'last_man_tackle':0,
-                              'keeper_sweeper':0,'punches':0,'saves_in_box':0}
+                              'keeper_sweeper':0,'punches':0,'saves_in_box':0,'blocks_sh':0}
         
         t = e.get('type',{}).get('displayName','')
         quals = [q.get('type',{}).get('displayName','') for q in e.get('qualifiers',[])]
@@ -241,7 +241,7 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                                 player_ev[pk_winner] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
                                                         'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'pk_assist':0,
                                                         'woodwork':0,'clearance_off_line':0,'last_man_tackle':0,
-                                                        'keeper_sweeper':0,'punches':0,'saves_in_box':0}
+                                                        'keeper_sweeper':0,'punches':0,'saves_in_box':0,'blocks_sh':0}
                             player_ev[pk_winner]['pk_assist'] += 1
                             player_ev[pk_winner]['assists'] += 1
                 # Credit the assist from the GOAL event's relatedPlayerId whenever the
@@ -258,7 +258,7 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                             player_ev[aname] = {'goals':0,'assists':0,'og':0,'yellow':0,'red':0,'crosses':0,
                                                 'pk_scored':0,'pk_att':0,'pk_won':0,'pk_con':0,'pk_assist':0,
                                                 'woodwork':0,'clearance_off_line':0,'last_man_tackle':0,
-                                                'keeper_sweeper':0,'punches':0,'saves_in_box':0}
+                                                'keeper_sweeper':0,'punches':0,'saves_in_box':0,'blocks_sh':0}
                         player_ev[aname]['assists'] += 1
         
         if t == 'Card':
@@ -291,6 +291,9 @@ def get_whoscored_stats(ws_url, force_refresh=False):
         if t == 'KeeperSweeper': player_ev[name]['keeper_sweeper'] += 1
         if t == 'Punch': player_ev[name]['punches'] += 1
         if t == 'Save' and 'KeeperSaveInTheBox' in quals: player_ev[name]['saves_in_box'] += 1
+        # Outfield player blocked shots: WhoScored records these as Save+OutfielderBlock
+        # in the events feed only — the shotsBlocked stats key is always empty for outfielders.
+        if t == 'Save' and 'OutfielderBlock' in quals: player_ev[name]['blocks_sh'] = player_ev[name].get('blocks_sh', 0) + 1
 
     results = []
     
@@ -368,7 +371,7 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                 'Unnamed: 23_level_0_KP': sum_stat(stats.get('passesKey',{})),
                 'Take-Ons_Succ': sum_stat(stats.get('dribblesWon',{})),
                 'Take-Ons_Att': sum_stat(stats.get('dribblesAttempted',{})),
-                'Blocks_Sh': sum_stat(stats.get('shotsBlocked',{})),
+                'Blocks_Sh': sum_stat(stats.get('shotsBlocked',{})) + ev.get('blocks_sh', 0),
                 'Performance_Sh': sum_stat(stats.get('shotsTotal',{})),
                 'Performance_SoT': sum_stat(stats.get('shotsOnTarget',{})),
                 'Performance_Crs': ev.get('crosses', 0),
