@@ -1,163 +1,67 @@
 /**
- * Fantasy Sports Auction — Service Worker
+ * Fantasy Sports Auction — Service Worker (minimal, non-caching).
  *
- * Strategy: NETWORK-FIRST for everything.
+ * This app is LIVE-DATA and its JS bundles are content-hashed and change on every
+ * redeploy, so caching responses is pure risk: a stale HTML shell points at bundle
+ * filenames that no longer exist, and (worse) a network hiccup during a Render free-tier
+ * cold start could make us answer a *script* request with an offline *HTML* page —
+ * which the browser then fails to parse, leaving a black screen.
  *
- * Goal: installability + future push notification capability.
- * NOT offline-first. The Reflex app uses live Firebase data and the
- * JS bundle changes on every redeploy, so serving a stale cache would
- * silently break the app. We never precache JS bundles.
+ * So we deliberately do NOT cache anything. The SW exists only to:
+ *   1. satisfy PWA installability (a fetch handler must be present), and
+ *   2. receive Web Push + handle notification clicks.
  *
- * What the cache IS used for:
- *   - Fallback when the network request fails (shows cached page rather
- *     than a browser error screen, which is better UX on a shaky
- *     connection during a live auction).
- *   - Static assets that never change (icons, manifest) get a short cache
- *     so repeated installs are fast.
+ * Assets, scripts, styles and API calls are NOT intercepted at all — they go straight
+ * to the network via the browser's default handling. Only top-level navigations are
+ * handled, and only to provide a tiny offline message on total network failure (never a
+ * cached, possibly-stale shell).
  *
- * skipWaiting + clients.claim ensures a new SW activates immediately on
- * redeploy — users never get stuck on an old version.
+ * skipWaiting + clients.claim + deleting ALL old caches on activate means deploying this
+ * version self-heals any device still holding the previous caching SW: on the next
+ * navigation the browser fetches this script, activates it immediately, and purges the
+ * poisoned caches.
  */
 
-const CACHE_NAME = "fantasy-auction-v1";
+const SW_VERSION = "v2-nocache";
 
-// Only these static assets are ever written to the cache.
-// Deliberately excludes /_event, /_next/*, /chunk-*, *.js, *.mjs —
-// those are Reflex's runtime bundles and MUST always come from the network.
-const STATIC_ASSETS = [
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/icon-maskable-512.png",
-  "/apple-touch-icon.png",
-];
-
-// Paths whose responses we should NEVER cache — Reflex internals.
-const NEVER_CACHE = [
-  "/_event",
-  "/ping",
-  "/_upload",
-  "/_health",
-  "/backend",
-  "/socket.io",
-];
-
-function shouldNeverCache(url) {
-  const path = new URL(url).pathname;
-  return NEVER_CACHE.some((prefix) => path.startsWith(prefix));
-}
-
-function isStaticAsset(url) {
-  const path = new URL(url).pathname;
-  return STATIC_ASSETS.includes(path);
-}
-
-// ── Install ──────────────────────────────────────────────────────────────────
-
-self.addEventListener("install", (event) => {
-  // Pre-cache only the tiny static asset list; skip JS bundles entirely.
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      // Use { cache: "reload" } so we always fetch fresh during install.
-      Promise.allSettled(
-        STATIC_ASSETS.map((path) =>
-          fetch(path, { cache: "reload" })
-            .then((res) => {
-              if (res.ok) cache.put(path, res);
-            })
-            .catch(() => {
-              // Icon/manifest not yet deployed — silently skip.
-            })
-        )
-      )
-    )
-  );
-  // Activate immediately — don't wait for old tabs to close.
+// ── Install: take over as soon as possible, precache nothing. ────────────────────────
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
-// ── Activate ─────────────────────────────────────────────────────────────────
-
+// ── Activate: purge EVERY cache from any previous SW, then claim open tabs. ──────────
 self.addEventListener("activate", (event) => {
-  // Delete any cache from a previous SW version.
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-        )
-      )
-      .then(() => self.clients.claim()) // Take control of all open tabs immediately.
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── Fetch ─────────────────────────────────────────────────────────────────────
-
+// ── Fetch: never cache. Only handle top-level navigations (for an offline fallback);
+//    everything else (scripts, styles, assets, /_event, API) is left to the browser. ──
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-
-  // Only handle GET requests.
   if (request.method !== "GET") return;
+  if (request.mode !== "navigate") return; // do NOT touch assets/scripts/styles/APIs
 
-  // Let Reflex backend paths (WebSocket upgrades, events, etc.) pass through
-  // untouched — the browser handles them natively.
-  if (shouldNeverCache(request.url)) return;
-
-  if (isStaticAsset(request.url)) {
-    // Static assets: cache-first with network revalidation in the background.
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const networkFetch = fetch(request)
-          .then((res) => {
-            if (res.ok) {
-              caches.open(CACHE_NAME).then((c) => c.put(request, res.clone()));
-            }
-            return res;
-          })
-          .catch(() => cached); // network failed → fall back to cache
-        return cached || networkFetch;
-      })
-    );
-    return;
-  }
-
-  // Everything else (HTML pages, API responses): NETWORK-FIRST.
-  // Try the network; fall back to cache only on failure.
   event.respondWith(
-    fetch(request)
-      .then((res) => {
-        // Only cache successful same-origin HTML responses.
-        if (
-          res.ok &&
-          res.type === "basic" &&
-          res.headers.get("content-type")?.includes("text/html")
-        ) {
-          caches
-            .open(CACHE_NAME)
-            .then((c) => c.put(request, res.clone()))
-            .catch(() => {});
-        }
-        return res;
-      })
-      .catch(() =>
-        // Network completely unavailable → serve cached page if we have one.
-        caches.match(request).then(
-          (cached) =>
-            cached ||
-            new Response(
-              "<h1>You are offline</h1><p>The Fantasy Auction app requires a live connection.</p>",
-              { headers: { "Content-Type": "text/html" } }
-            )
+    fetch(request).catch(
+      () =>
+        new Response(
+          "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>" +
+            "<body style='background:#08080c;color:#f4f5fb;font-family:Inter,system-ui,sans-serif;" +
+            "display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:2rem'>" +
+            "<div><h1 style='font-weight:700'>You're offline</h1>" +
+            "<p style='color:#9aa0b8'>The Fantasy Auction needs a live connection. Reconnect and reload.</p></div>",
+          { headers: { "Content-Type": "text/html; charset=utf-8" } }
         )
-      )
+    )
   );
 });
 
-// ── Push notifications (placeholder — no-op until backend sends pushes) ──────
-
+// ── Web Push ─────────────────────────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   const data = event.data?.json() ?? {};
   const title = data.title ?? "Fantasy Auction";
