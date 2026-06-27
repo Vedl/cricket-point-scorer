@@ -29,22 +29,48 @@ def _sorted_key(canon: str) -> str:
     return " ".join(sorted(canon.split()))
 
 
+# Generational / honorific suffixes that sources disagree on: the player pool stores
+# "Neymar Jr" while WhoScored keys him "Neymar"; likewise "Vinicius Junior" vs
+# "Vinicius". Only stripped when TRAILING, so a real leading name ("Junior Firpo") is
+# left untouched.
+_NAME_SUFFIXES = {"jr", "jnr", "junior", "sr", "snr", "senior", "ii", "iii", "iv"}
+
+
+def _strip_suffix(canon: str) -> str:
+    """Drop trailing generational suffix tokens (never the only token)."""
+    toks = canon.split()
+    while len(toks) > 1 and toks[-1] in _NAME_SUFFIXES:
+        toks.pop()
+    return " ".join(toks)
+
+
 def build_index(mapping: dict) -> dict:
-    """Turn a ``{name: value}`` dict into a match index keyed by canonical form
-    AND by sorted-token form, so lookups tolerate accents, punctuation and word
-    order. Earlier names win on collision."""
+    """Turn a ``{name: value}`` dict into a match index keyed by canonical form,
+    sorted-token form, AND suffix-stripped forms, so lookups tolerate accents,
+    punctuation, word order and Jr/Junior-suffix disagreements. Earlier names win
+    on collision."""
     index: dict = {}
     for key, value in mapping.items():
         canon = canonical(key)
         index.setdefault(canon, value)
         index.setdefault(_sorted_key(canon), value)
+        stripped = _strip_suffix(canon)
+        if stripped != canon:
+            index.setdefault(stripped, value)
+            index.setdefault(_sorted_key(stripped), value)
     return index
 
 
 def lookup(index: dict, name, default=None):
-    """Look ``name`` up in a :func:`build_index` result (exact canonical first,
-    then word-order-independent)."""
+    """Look ``name`` up in a :func:`build_index` result: exact canonical, then
+    word-order-independent, then with a trailing Jr/Junior-type suffix removed."""
     canon = canonical(name)
-    if canon in index:
-        return index[canon]
-    return index.get(_sorted_key(canon), default)
+    for key in (canon, _sorted_key(canon)):
+        if key in index:
+            return index[key]
+    stripped = _strip_suffix(canon)
+    if stripped != canon:
+        for key in (stripped, _sorted_key(stripped)):
+            if key in index:
+                return index[key]
+    return default
