@@ -2597,6 +2597,7 @@ async def push_test(request):
     which devices the push service rejects (the fire-and-forget senders can't surface
     this). Secured by the same X-Push-Token as the tick. Body: {"room": "CODE",
     "title"?, "body"?}."""
+    import asyncio
     import hmac
     import os
     from platform_core import push
