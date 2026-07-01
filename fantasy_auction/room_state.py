@@ -216,7 +216,6 @@ class RoomState(rx.State):
                             self.watching = False
                             return
                     code = self.room_code
-                app = await self.get_state(AppState)
                 try:
                     room = await asyncio.to_thread(repo.load_room, code)
                     if room is not None:
@@ -250,6 +249,8 @@ class RoomState(rx.State):
                             # Re-resolve identity every tick: if auth_user hydrated late
                             # (mobile/PWA), a member stuck in the read-only view is
                             # promoted back to their team here without needing a reload.
+                            # get_state MUST be inside the lock in a background task.
+                            app = await self.get_state(AppState)
                             self._resolve_identity(app, room, code)
                             self._refresh(room)
                             try:

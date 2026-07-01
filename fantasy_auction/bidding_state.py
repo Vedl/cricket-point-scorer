@@ -387,7 +387,6 @@ class BiddingState(rx.State):
                 # loop. Before this, one exception ended the task and that participant
                 # was frozen — seeing the page but no further live updates — while
                 # others kept updating. That's the "some see it, some don't" symptom.
-                app = await self.get_state(AppState)
                 try:
                     # Cheap per-room read (~20-50 KB), served from the 20s cache most
                     # ticks, instead of the ~1 MB full doc.
@@ -431,6 +430,8 @@ class BiddingState(rx.State):
                         async with self:
                             # Re-resolve identity: a member whose auth_user hydrated late
                             # (mobile/PWA) is promoted out of the read-only view here.
+                            # get_state MUST be inside the lock in a background task.
+                            app = await self.get_state(AppState)
                             self._resolve_identity(app, room, code)
                             # Skip the heavy 1000-row datalist rebuild on every tick.
                             self._refresh(room, full=False)
