@@ -331,6 +331,18 @@ class AppState(rx.State):
         codes = list(
             dict.fromkeys(user.get("rooms_created", []) + user.get("rooms_joined", []))
         )
+        # Also surface any room this user actually belongs to (admin or a claimed team)
+        # even if their reverse index (rooms_created/rooms_joined) drifted out of sync —
+        # otherwise a real member silently can't see their room. The whole doc is already
+        # loaded, so this scan costs no extra Firebase egress.
+        for rcode, room in (doc.get("rooms", {}) or {}).items():
+            if not isinstance(room, dict):
+                continue
+            if (room.get("admin") == self.auth_user
+                    or any(p.get("user") == self.auth_user
+                           for p in room.get("participants", []))):
+                if rcode not in codes:
+                    codes.append(rcode)
         rooms: list[dict[str, str]] = []
         for code in codes:
             room = doc.get("rooms", {}).get(code)

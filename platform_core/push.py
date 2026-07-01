@@ -161,19 +161,28 @@ def _merged_rooms(existing: dict, user: str, room: str) -> list[str]:
 
 
 def save_subscription(subscription: dict, *, user: str, room: str = "", team: str = "") -> None:
-    """Upsert one browser subscription, tagged with the owning user (+ room/team ctx)."""
+    """Upsert one browser subscription, tagged with the owning user (+ room/team ctx).
+
+    Never DOWNGRADES an existing record: a re-subscribe that arrives without a user or
+    room (e.g. a silent refresh fired from a non-room page) keeps whatever the device
+    was already tagged with, so a good subscription can't be blanked out — targeting is
+    by user/room, so blanks would silently stop that device receiving anything."""
     endpoint = (subscription or {}).get("endpoint", "")
     if not endpoint:
         return
     sid = sub_id(endpoint)
-    rooms = _merged_rooms(_get_subscription(sid), user or "", room or "")
+    existing = _get_subscription(sid)
+    eff_user = user or existing.get("user", "")
+    eff_room = room or existing.get("room", "")
+    eff_team = team or existing.get("team", "")
+    rooms = _merged_rooms(existing, eff_user, eff_room)
     record = {
         "endpoint": endpoint,
         "keys": (subscription or {}).get("keys", {}),
-        "user": user or "",
-        "room": room or "",
+        "user": eff_user,
+        "room": eff_room,
         "rooms": rooms,
-        "team": team or "",
+        "team": eff_team,
     }
     if _use_remote():
         try:

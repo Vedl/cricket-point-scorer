@@ -2391,6 +2391,13 @@ window.enablePushAlerts = async function (user) {
 window.__autoResubscribe = async function () {
   try {
     if (localStorage.getItem('push-enabled') !== '1') { return; }  // never opted in
+    // Never re-subscribe without a known user: an empty user tag would OVERWRITE a
+    // good subscription record with blanks, and push targeting is by user/room. Users
+    // who opted in before this build have no stored user — leave their existing (good)
+    // subscription untouched; they'll be re-tagged next time they open a room (below)
+    // or tap Enable again.
+    var u = localStorage.getItem('push-user') || '';
+    if (!u) { return; }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) { return; }
     if (Notification.permission !== 'granted') { return; }
     var reg = await navigator.serviceWorker.ready;
@@ -2407,11 +2414,7 @@ window.__autoResubscribe = async function () {
     await fetch('/backend/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subscription: sub.toJSON(),
-        user: localStorage.getItem('push-user') || '',
-        room: room,
-      }),
+      body: JSON.stringify({ subscription: sub.toJSON(), user: u, room: room }),
     });
   } catch (e) { /* silent — never disrupt the page */ }
 };
