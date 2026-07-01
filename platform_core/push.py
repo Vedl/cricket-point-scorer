@@ -328,7 +328,10 @@ def clear_fired(code: str) -> None:
 
 # ── sending ─────────────────────────────────────────────────────────────────────────
 
-def _send_one(sid: str, record: dict, payload: dict) -> None:
+def _send_one(sid: str, record: dict, payload: dict) -> dict:
+    """Attempt one push. Returns a per-device result dict (callers may ignore it):
+    ``{"ok": bool, "status": int|None, "error": str}``. Prunes the subscription on a
+    404/410 (the browser dropped it)."""
     info = {
         "endpoint": record.get("endpoint", ""),
         "keys": record.get("keys", {}),
@@ -341,16 +344,45 @@ def _send_one(sid: str, record: dict, payload: dict) -> None:
             vapid_claims={"sub": _subject()},
             timeout=10,
         )
+        return {"ok": True, "status": 201, "error": ""}
     except WebPushException as exc:  # pragma: no cover - network
         status = getattr(getattr(exc, "response", None), "status_code", None)
         # 404/410 → the browser dropped this subscription; prune it so the node
         # never accumulates dead endpoints.
+        pruned = False
         if status in (404, 410):
             _delete_by_sid(sid)
+            pruned = True
         else:
             print(f"[push] send failed ({status}): {exc}")
+        return {"ok": False, "status": status, "error": str(exc)[:300], "pruned": pruned}
     except Exception as exc:  # pragma: no cover
         print(f"[push] send error: {exc}")
+        return {"ok": False, "status": None, "error": str(exc)[:300]}
+
+
+def send_report(code: str, title: str, body: str, url: str = "/") -> list[dict]:
+    """Diagnostic: synchronously push to every device matching room ``code`` and return
+    each device's outcome (user, endpoint host, ok/status/error). Lets an admin see
+    exactly which devices the push service rejects — the piece the fire-and-forget
+    senders can't surface. Not for hot paths (blocking)."""
+    from urllib.parse import urlparse
+    if _unconfigured_skip():
+        return []
+    subs = load_subscriptions()
+    payload = {"title": title, "body": body, "url": url or "/"}
+    out: list[dict] = []
+    for sid, rec in subs.items():
+        if not isinstance(rec, dict):
+            continue
+        if code == rec.get("room") or code in (rec.get("rooms") or []):
+            res = _send_one(sid, rec, payload)
+            out.append({
+                "user": rec.get("user", ""),
+                "host": urlparse(rec.get("endpoint", "")).netloc,
+                **res,
+            })
+    return out
 
 
 def _notify_blocking(match, title: str, body: str, url: str) -> None:

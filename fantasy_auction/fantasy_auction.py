@@ -2591,10 +2591,43 @@ async def push_tick(request):
     return JSONResponse({"ok": True, **summary})
 
 
+async def push_test(request):
+    """Diagnostic: synchronously push a test alert to every device in a room and report
+    each device's outcome (user, host, ok/status/error) — so an admin can see EXACTLY
+    which devices the push service rejects (the fire-and-forget senders can't surface
+    this). Secured by the same X-Push-Token as the tick. Body: {"room": "CODE",
+    "title"?, "body"?}."""
+    import hmac
+    import os
+    from platform_core import push
+
+    secret = os.environ.get("PUSH_TICK_SECRET", "")
+    if not secret:
+        return JSONResponse({"ok": False, "error": "not configured"}, status_code=503)
+    token = request.headers.get("X-Push-Token", "")
+    if not token or not hmac.compare_digest(token, secret):
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    code = (body.get("room") or "").strip().upper()
+    if not code:
+        return JSONResponse({"ok": False, "error": "room required"}, status_code=400)
+    title = body.get("title") or "🔔 Test alert"
+    text = body.get("body") or "If you can see this, your notifications are working."
+    results = await asyncio.to_thread(push.send_report, code, title, text, f"/room?room={code}")
+    ok = sum(1 for r in results if r.get("ok"))
+    print(f"[push test] room={code} devices={len(results)} ok={ok}")
+    return JSONResponse({"ok": True, "room": code, "devices": len(results),
+                         "delivered": ok, "results": results})
+
+
 app._api.add_route("/backend/push/pubkey", push_pubkey, methods=["GET"])
 app._api.add_route("/backend/push/subscribe", push_subscribe, methods=["POST"])
 app._api.add_route("/backend/push/unsubscribe", push_unsubscribe, methods=["POST"])
 app._api.add_route("/backend/push/tick", push_tick, methods=["POST"])
+app._api.add_route("/backend/push/test", push_test, methods=["POST"])
 
 
 def _serve_prebuilt_frontend(reflex_asgi):
