@@ -110,6 +110,25 @@ class BiddingState(rx.State):
         doc = repo.load()
         return code, doc, doc.get("rooms", {}).get(code)
 
+    def _resolve_identity(self, app, room: dict, code: str, spectate_param: str = "") -> None:
+        """(Re)compute member identity from the (possibly late-hydrated) auth user.
+
+        Called on load AND every live_loop tick. Only ever UPGRADES: once a real
+        team/admin is resolved it's sticky, so a reconnect that briefly reads an empty
+        ``auth_user`` can't demote a member to the read-only spectator view."""
+        user = app.auth_user
+        if user:
+            if room.get("admin") == user:
+                self.is_admin = True
+            team = next((p["name"] for p in room.get("participants", [])
+                         if p.get("user") == user), "")
+            if team:
+                self.my_team = team
+        if self.is_admin or self.my_team:
+            self.is_spectator = False
+            return
+        self.is_spectator = app.grant_spectator_if_valid(code, room, spectate_param)
+
     @rx.event
     async def on_load_bidding(self):
         app = await self.get_state(AppState)
@@ -119,28 +138,30 @@ class BiddingState(rx.State):
         code = ""
         for _ in range(60):
             code = (self.router._page.params.get("room", "") or "").upper()
-            # Wait until either a logged-in member OR a hydrated spectator session is
-            # observable, so a guest arriving via an invite link isn't bounced.
-            if code and (app.auth_user or app.is_hydrated):
+            if code:
                 break
             await asyncio.sleep(0.05)
         if not code:
             return
+        # Give the persisted auth user a moment to hydrate before member-vs-spectator
+        # is decided. is_hydrated can flip BEFORE this LocalStorage value arrives on
+        # mobile/PWA, which was demoting real members to the read-only view. live_loop
+        # re-resolves every tick too, so a late arrival self-heals with no reload.
+        for _ in range(20):  # ~1s grace; a genuine spectator never has auth_user
+            if app.auth_user:
+                break
+            await asyncio.sleep(0.05)
         doc = await aload()
         room = doc.get("rooms", {}).get(code)
-        spectator = app.grant_spectator_if_valid(
-            code, room, self.router._page.params.get("spectate", "") or "")
+        spectate_param = self.router._page.params.get("spectate", "") or ""
+        spectator = app.grant_spectator_if_valid(code, room, spectate_param)
         if not app.auth_user and not spectator:
             return rx.redirect("/")
         if room is None:
             return rx.redirect("/rooms") if app.auth_user else rx.redirect("/")
         self.room_code = code
         self.room_name = room.get("name", "")
-        self.is_admin = (not spectator) and room.get("admin") == app.auth_user
-        self.my_team = "" if spectator else next(
-            (p["name"] for p in room.get("participants", []) if p.get("user") == app.auth_user), "")
-        # A logged-in member/admin is never a spectator, regardless of any stale token.
-        self.is_spectator = spectator and not self.is_admin and self.my_team == ""
+        self._resolve_identity(app, room, code, spectate_param)
         self.msg = ""
         # Awarding + the first refresh are guarded so a single malformed bid/date can't
         # abort the whole load (Reflex discards a handler's state update on exception,
@@ -366,6 +387,7 @@ class BiddingState(rx.State):
                 # loop. Before this, one exception ended the task and that participant
                 # was frozen — seeing the page but no further live updates — while
                 # others kept updating. That's the "some see it, some don't" symptom.
+                app = await self.get_state(AppState)
                 try:
                     # Cheap per-room read (~20-50 KB), served from the 20s cache most
                     # ticks, instead of the ~1 MB full doc.
@@ -396,8 +418,20 @@ class BiddingState(rx.State):
                                         from fantasy_auction import notify
                                         notify.signed_many(full_room, awarded, code)
                                 room = full_room
+                        # Timed deadline push alerts (1h/30m/at each milestone), driven
+                        # from this loop so they fire from normal app activity — no
+                        # external cron needed. Throttled + deduped inside dispatch.
+                        try:
+                            from platform_core import push
+                            await asyncio.to_thread(
+                                push.dispatch_due_alerts, code, bo.bidding_deadline(room), now)
+                        except Exception as exc:
+                            print(f"[bidding live_loop] push dispatch: {exc}")
 
                         async with self:
+                            # Re-resolve identity: a member whose auth_user hydrated late
+                            # (mobile/PWA) is promoted out of the read-only view here.
+                            self._resolve_identity(app, room, code)
                             # Skip the heavy 1000-row datalist rebuild on every tick.
                             self._refresh(room, full=False)
                 except Exception as exc:  # keep the live updater alive no matter what

@@ -110,6 +110,29 @@ class RoomState(rx.State):
         except Exception as e:
             self.rename_error = "An error occurred."
 
+    def _resolve_identity(self, app, room: dict, code: str, spectate_param: str = "") -> None:
+        """(Re)compute member identity from the (possibly late-hydrated) auth user.
+
+        Called on load AND from the self-healing loop each tick. It only ever
+        UPGRADES: once a real team/admin is resolved it is sticky, so a reconnect that
+        momentarily reads an empty ``auth_user`` can never demote a member back to the
+        read-only spectator view (the "accidentally a spectator" bug, worst on mobile
+        where LocalStorage hydration lags)."""
+        user = app.auth_user
+        if user:
+            if room.get("admin") == user:
+                self.is_admin = True
+            team = next((p["name"] for p in room.get("participants", [])
+                         if p.get("user") == user), "")
+            if team:
+                self.my_team = team
+        # A resolved member/admin is never a spectator — and we don't re-blank them.
+        if self.is_admin or self.my_team:
+            self.is_spectator = False
+            return
+        # Not (yet) a known member: honour a valid read-only spectator session.
+        self.is_spectator = app.grant_spectator_if_valid(code, room, spectate_param)
+
     @rx.event
     async def on_load_hub(self):
         app = await self.get_state(AppState)
@@ -126,6 +149,15 @@ class RoomState(rx.State):
             await asyncio.sleep(0.05)
         if not code:
             return  # genuinely no room in the URL — don't bounce
+        # Give the persisted auth user a moment to hydrate before deciding
+        # member-vs-spectator. On mobile / installed PWA this LocalStorage value can
+        # arrive AFTER is_hydrated flips, which was silently demoting real members to
+        # the read-only ("spectator") view. We wait briefly here, and hub_loop below
+        # re-resolves identity every tick so a late arrival self-heals with no reload.
+        for _ in range(20):  # ~1s grace; a genuine spectator never has auth_user
+            if app.auth_user:
+                break
+            await asyncio.sleep(0.05)
         try:
             doc = await aload()
             room = doc.get("rooms", {}).get(code)
@@ -137,12 +169,8 @@ class RoomState(rx.State):
             self.room_name = room.get("name", "")
             self.tournament = room.get("tournament_type", "")
             app.active_tournament = self.tournament   # drives per-room theming
-            self.is_admin = room.get("admin") == app.auth_user
-            self.my_team = next((p["name"] for p in room.get("participants", [])
-                                 if p.get("user") == app.auth_user), "")
-            spectator = app.grant_spectator_if_valid(
-                code, room, self.router._page.params.get("spectate", "") or "")
-            self.is_spectator = spectator and not self.is_admin and self.my_team == ""
+            self._resolve_identity(app, room, code,
+                                   self.router._page.params.get("spectate", "") or "")
             self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
             self.gw1_locked = bool(room.get("gw1_locked"))
             self._refresh(room)
@@ -188,6 +216,7 @@ class RoomState(rx.State):
                             self.watching = False
                             return
                     code = self.room_code
+                app = await self.get_state(AppState)
                 try:
                     room = await asyncio.to_thread(repo.load_room, code)
                     if room is not None:
@@ -208,7 +237,20 @@ class RoomState(rx.State):
                                 if changed:
                                     repo.save(doc)
                                 room = full_room
+                        # Timed deadline push alerts (1h/30m/at each milestone), driven
+                        # from this loop so they fire from normal app activity — no
+                        # external cron needed. Throttled + deduped inside dispatch.
+                        try:
+                            from platform_core import push
+                            await asyncio.to_thread(
+                                push.dispatch_due_alerts, code, bo.bidding_deadline(room), now)
+                        except Exception as exc:
+                            print(f"[hub_loop] push dispatch: {exc}")
                         async with self:
+                            # Re-resolve identity every tick: if auth_user hydrated late
+                            # (mobile/PWA), a member stuck in the read-only view is
+                            # promoted back to their team here without needing a reload.
+                            self._resolve_identity(app, room, code)
                             self._refresh(room)
                             try:
                                 self._compute_dashboard(room)   # display only, no save

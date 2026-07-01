@@ -306,6 +306,10 @@ class AdminState(rx.State):
         repo.save(doc)
         self._refresh(room)
         self.msg = ok_msg
+        # Broadcast the release to the room (admin-driven releases previously fired no
+        # notification, so nobody knew a player had left a squad).
+        from fantasy_auction import notify
+        notify.released(room, self.fr_team, self.fr_player, code)
 
     @rx.event
     def force_release(self):

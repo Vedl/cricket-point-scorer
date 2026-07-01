@@ -284,6 +284,7 @@ class TradeState(rx.State):
         code, doc, room = self._load()
         if not room or not self.release_sel:
             return
+        released_player = self.release_sel
         try:
             mo.release(room, self.me, self.release_sel, refund=False)
         except TradeError as exc:
@@ -291,6 +292,8 @@ class TradeState(rx.State):
             return
         self.release_sel = ""
         self._save_refresh(doc, room, "🗑️ Player released to the market.")
+        from fantasy_auction import notify
+        notify.released(room, self.me, released_player, code)
 
     @rx.event
     def place_bid(self):
@@ -317,3 +320,5 @@ class TradeState(rx.State):
         rec = mo.resolve_market(room, player_name)
         self._save_refresh(doc, room,
                            f"🛒 {rec['participant']} won {player_name}." if rec else "No valid bids.")
+        from fantasy_auction import notify
+        notify.market_bought(room, rec, code)

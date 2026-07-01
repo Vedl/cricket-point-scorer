@@ -2370,6 +2370,9 @@ window.enablePushAlerts = async function (user) {
       body: JSON.stringify({ subscription: sub.toJSON(), user: user || '', room: room }),
     });
     localStorage.setItem('push-enabled', '1');
+    // Remember who this device belongs to so __autoResubscribe can silently refresh an
+    // expired/rotated subscription later WITHOUT another permission prompt.
+    localStorage.setItem('push-user', user || '');
     var _b = document.getElementById('push-prompt');
     if (_b) { _b.style.display = 'none'; }
     alert('\\uD83D\\uDD14 Alerts on. You\\'ll be notified about outbids, signings, releases and trades.');
@@ -2377,6 +2380,40 @@ window.enablePushAlerts = async function (user) {
     console.error('enablePushAlerts failed', e);
     alert('Could not enable alerts: ' + ((e && e.message) ? e.message : e));
   }
+};
+
+// ── Silent re-subscribe for devices that already opted in ──────────────────────────
+// Push subscriptions expire / get rotated by the browser (very common on iOS), and the
+// server prunes dead endpoints on 4xx — so users who once enabled alerts silently stop
+// receiving them and are never re-prompted. Since permission is already granted, we can
+// re-subscribe with NO user gesture and re-POST the (possibly new) endpoint, re-tagging
+// it with the current room so multi-room deadline alerts keep working.
+window.__autoResubscribe = async function () {
+  try {
+    if (localStorage.getItem('push-enabled') !== '1') { return; }  // never opted in
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) { return; }
+    if (Notification.permission !== 'granted') { return; }
+    var reg = await navigator.serviceWorker.ready;
+    var meta = await (await fetch('/backend/push/pubkey')).json();
+    if (!meta || !meta.configured || !meta.key) { return; }
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: __urlB64ToUint8Array(meta.key),
+      });
+    }
+    var room = new URLSearchParams(location.search).get('room') || '';
+    await fetch('/backend/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription: sub.toJSON(),
+        user: localStorage.getItem('push-user') || '',
+        room: room,
+      }),
+    });
+  } catch (e) { /* silent — never disrupt the page */ }
 };
 
 // ── In-app "Enable alerts" prompt banner (rendered by Reflex for logged-in users) ──
@@ -2404,6 +2441,8 @@ window.__refreshPushPrompt = function () {
 // Re-evaluate after hydration and across SPA route changes (cheap DOM check).
 window.addEventListener('load', function () {
   setTimeout(function () { try { window.__refreshPushPrompt(); } catch (e) {} }, 800);
+  // Silently refresh an existing opt-in so returning users don't drop off the list.
+  setTimeout(function () { try { window.__autoResubscribe(); } catch (e) {} }, 1200);
 });
 setInterval(function () { try { window.__refreshPushPrompt(); } catch (e) {} }, 2000);
 """,

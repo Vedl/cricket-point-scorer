@@ -133,17 +133,46 @@ def load_subscriptions() -> dict:
     return _load_local()
 
 
+def _get_subscription(sid: str) -> dict:
+    """Read one stored subscription record (for read-modify-write merges)."""
+    if _use_remote():
+        try:
+            resp = requests.get(_node_url(f"/{sid}"), timeout=10)
+            if resp.ok and isinstance(resp.json(), dict):
+                return resp.json()
+        except Exception:  # pragma: no cover
+            return {}
+        return {}
+    return _load_local().get(sid) or {}
+
+
+def _merged_rooms(existing: dict, user: str, room: str) -> list[str]:
+    """Accumulate the rooms a device receives room-wide (deadline) alerts for.
+
+    A subscription is tagged with the room from the URL at enable-time; a member who
+    enabled alerts in one room (or from the lobby) would otherwise miss deadline
+    alerts for their other rooms. We keep a per-device list, merging on re-subscribe —
+    but reset it if the device is now a different user (shared/re-logged-in device)."""
+    prior: list[str] = []
+    if existing and (existing.get("user") or "") == (user or ""):
+        prior = list(existing.get("rooms") or ([existing["room"]] if existing.get("room") else []))
+    rooms = [r for r in [*prior, room] if r]
+    return list(dict.fromkeys(rooms))  # de-dupe, preserve order
+
+
 def save_subscription(subscription: dict, *, user: str, room: str = "", team: str = "") -> None:
     """Upsert one browser subscription, tagged with the owning user (+ room/team ctx)."""
     endpoint = (subscription or {}).get("endpoint", "")
     if not endpoint:
         return
     sid = sub_id(endpoint)
+    rooms = _merged_rooms(_get_subscription(sid), user or "", room or "")
     record = {
         "endpoint": endpoint,
         "keys": (subscription or {}).get("keys", {}),
         "user": user or "",
         "room": room or "",
+        "rooms": rooms,
         "team": team or "",
     }
     if _use_remote():
@@ -348,15 +377,50 @@ def notify_users(users: Iterable[str], title: str, body: str, url: str = "/") ->
     ).start()
 
 
+# Per-process throttle so the in-app loops (many connected clients, ~6-10s ticks) only
+# evaluate a room's deadline schedule occasionally. The single backend process shares
+# this dict, so together with the persisted fired-markers it prevents duplicate sends.
+_last_dispatch: dict[str, float] = {}
+_DISPATCH_COOLDOWN_S = 45
+
+
+def dispatch_due_alerts(code: str, dl, now, *, force: bool = False) -> list[str]:
+    """Send any deadline push alerts due at ``now`` for room ``code`` (deadline ``dl``).
+
+    This is the reliable path for deadline notifications: it's called from every
+    connected client's background loop, so alerts fire from normal app activity near a
+    deadline instead of depending on an external cron reaching ``/backend/push/tick``.
+    A per-process cooldown plus the persisted fired-markers guarantee each milestone
+    alert sends exactly once. Blocking (Firebase reads/writes) — call via a thread from
+    async loops. Returns the dedup keys sent (empty if throttled / nothing due)."""
+    import time as _t
+    from . import push_schedule
+    if not code or dl is None or _unconfigured_skip():
+        return []
+    if not force:
+        if _t.time() - _last_dispatch.get(code, 0.0) < _DISPATCH_COOLDOWN_S:
+            return []
+        _last_dispatch[code] = _t.time()
+    fired = load_fired(code)
+    sent: list[str] = []
+    for key, title, body in push_schedule.due_alerts(dl, now, fired):
+        if notify_room(code, title, body, f"/bidding?room={code}"):
+            mark_fired(code, key)
+            sent.append(key)
+    return sent
+
+
 def notify_room(code: str, title: str, body: str, url: str = "/") -> bool:
     """Push to every device subscribed within room ``code`` (room-wide alerts). Returns
     True if a send was dispatched, False if it was a no-op (unconfigured) — the caller
     uses this to decide whether to mark a milestone as fired."""
     if not code or _unconfigured_skip():
         return False
+    def _match(rec: dict) -> bool:
+        return code == rec.get("room") or code in (rec.get("rooms") or [])
     threading.Thread(
         target=_notify_blocking,
-        args=(lambda rec: rec.get("room") == code, title, body, url),
+        args=(_match, title, body, url),
         name="push-send-room", daemon=True,
     ).start()
     return True

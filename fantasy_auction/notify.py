@@ -30,6 +30,14 @@ def _all_room_users(room: dict) -> set[str]:
     return users
 
 
+def _others(room: dict, exclude_team: str = "") -> set[str]:
+    """Every room user except the one who owns ``exclude_team`` — used for room-wide
+    announcements so the actor doesn't get a redundant 'so-and-so did X' about their
+    own action (they get a personal confirmation instead)."""
+    ex = _user_for_team(room, exclude_team)
+    return {u for u in _all_room_users(room) if u and u != ex}
+
+
 def outbid(room: dict, team: str, player: str, code: str) -> None:
     """The previous high bidder (`team`) just got topped on `player`."""
     user = _user_for_team(room, team)
@@ -42,6 +50,7 @@ def outbid(room: dict, team: str, player: str, code: str) -> None:
 
 
 def signed(room: dict, team: str, player: str, amount, code: str) -> None:
+    """Personal 'you won X' to the buyer + a room-wide 'team signed X' announcement."""
     user = _user_for_team(room, team)
     if user:
         push.notify_users(
@@ -49,12 +58,24 @@ def signed(room: dict, team: str, player: str, amount, code: str) -> None:
             f"You won {player} for {amount}M.",
             f"/bidding?room={code}",
         )
+    push.notify_users(
+        _others(room, team), "🛒 New signing",
+        f"{team} signed {player} for {amount}M.",
+        f"/announcements?room={code}",
+    )
 
 
 def signed_many(room: dict, awarded: list[dict], code: str) -> None:
     """`awarded` is the list from bidding_ops.process_expired."""
     for a in awarded or []:
         signed(room, a.get("participant", ""), a.get("player", ""), a.get("amount", ""), code)
+
+
+def market_bought(room: dict, rec: dict | None, code: str) -> None:
+    """A sealed open-market bid was resolved (``rec`` from market_ops.resolve_market)."""
+    if not rec:
+        return
+    signed(room, rec.get("participant", ""), rec.get("player", ""), rec.get("amount", ""), code)
 
 
 def released(room: dict, team: str, player: str, code: str) -> None:
