@@ -38,6 +38,19 @@ def test_leading_junior_is_not_stripped():
     assert lookup(idx, "Firpo", 0) == 0
 
 
+def test_nordic_letters_that_dont_decompose_under_nfkd():
+    # WhoScored keys "Martin Ødegaard" / "Alexander Sørloth" (Ø/ø), but the pool/squad
+    # store plain "Odegaard" / "Sorloth". Ø/ø do NOT decompose under NFKD, so an
+    # accent-strip alone left them mismatched → those players scored 0 in Best-11.
+    idx = build_index({"Martin Ødegaard": 43, "Alexander Sørloth": 19})
+    assert lookup(idx, "Martin Odegaard", 0) == 43
+    assert lookup(idx, "Alexander Sorloth", 0) == 19
+    # And the reverse direction, plus a few other non-decomposing letters.
+    assert canonical("Ødegaard") == canonical("Odegaard")
+    assert canonical("Łukasz") == canonical("Lukasz")
+    assert canonical("Straße") == canonical("Strasse")
+
+
 def test_single_token_suffix_not_emptied():
     # Defensive: a name that is only a suffix token stays intact (no empty key).
     assert canonical("Jr") == "jr"

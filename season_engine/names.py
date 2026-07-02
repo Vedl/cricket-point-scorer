@@ -13,10 +13,21 @@ from __future__ import annotations
 
 import unicodedata
 
+# Letters that DON'T decompose under NFKD, so an accent-strip alone leaves them
+# mismatched — e.g. WhoScored keys "Martin Ødegaard" / "Alexander Sørloth" while the
+# pool/squad store "Martin Odegaard" / "Alexander Sorloth". Transliterate these
+# explicitly BEFORE normalising. (Mirrors platform_core.textutil.fold.)
+_TRANSLIT = str.maketrans({
+    "ø": "o", "Ø": "o", "đ": "d", "Đ": "d", "ł": "l", "Ł": "l",
+    "ß": "ss", "æ": "ae", "Æ": "ae", "œ": "oe", "Œ": "oe",
+    "ð": "d", "Ð": "d", "þ": "th", "Þ": "th", "ı": "i",
+})
+
 
 def canonical(name) -> str:
     """Accent-, punctuation- and case-insensitive key for matching names."""
-    s = unicodedata.normalize("NFKD", str(name or ""))
+    s = str(name or "").translate(_TRANSLIT)
+    s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     # Drop punctuation (hyphens, apostrophes, dots) entirely so "Heung-Min" and
     # "Heungmin" collapse together; keep alphanumerics and spaces.
