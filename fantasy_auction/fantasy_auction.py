@@ -1184,13 +1184,33 @@ def bidding_console():
 
 
 def _outbid_button(b):
-    """One-tap 'Outbid' shown on each active bid — places the minimum valid raise.
-    Hidden for spectators, for the bid you already lead, and when bidding is frozen/closed."""
+    """'Outbid' shown on each active bid — opens a confirm dialog, and on 'Yes' places
+    the minimum valid raise. Hidden for spectators, for the bid you already lead, and
+    when bidding is frozen/closed."""
     return rx.cond(
         ~BiddingState.is_spectator & (b["mine"] == "no") & BiddingState.bidding_open,
-        rx.button("⚡ " + b["min_next"] + "M", size="1", variant="soft", color_scheme="grass",
-                  on_click=BiddingState.outbid(b["player"]),
-                  style={"cursor": "pointer", "font_weight": "700", "white_space": "nowrap"}),
+        rx.dialog.root(
+            rx.dialog.trigger(
+                rx.button("⚡ " + b["min_next"] + "M", size="1", variant="soft",
+                          color_scheme="grass",
+                          style={"cursor": "pointer", "font_weight": "700", "white_space": "nowrap"}),
+            ),
+            rx.dialog.content(
+                rx.dialog.title("Confirm your bid"),
+                rx.dialog.description(
+                    "Place a bid of " + b["min_next"] + "M on " + b["player"] + "?"),
+                rx.box(height="1.1rem"),
+                rx.hstack(
+                    rx.dialog.close(rx.button("Cancel", variant="soft", color_scheme="gray")),
+                    rx.dialog.close(
+                        rx.button("⚡ Yes, bid " + b["min_next"] + "M", color_scheme="grass",
+                                  style={"cursor": "pointer", "font_weight": "700"},
+                                  on_click=BiddingState.outbid(b["player"])),
+                    ),
+                    spacing="3", justify="end", width="100%"),
+                style={"max_width": "410px"},
+            ),
+        ),
     )
 
 
