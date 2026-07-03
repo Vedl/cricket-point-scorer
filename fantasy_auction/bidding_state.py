@@ -11,7 +11,7 @@ import reflex as rx
 from platform_core import bidding_ops as bo
 from platform_core import season_ops as so
 from platform_core.textutil import fold
-from season_engine.open_bidding import BidError
+from season_engine.open_bidding import BidError, MIN_BID
 
 from .state import AppState, aload, repo
 from .liveness import client_connected
@@ -65,6 +65,25 @@ def _countdown(when, now) -> str:
     return when.astimezone().isoformat()
 
 
+def _min_next_amount(cur: int, window: str) -> int:
+    """Smallest amount that is a valid next bid on a player, given the current window.
+
+    Mirrors ``season_engine.open_bidding`` (min 5M; +5M steps once a bid reaches 50M)
+    but folds in the raise-only endgame, where any raise must clear ``cur+5`` AND land
+    on a 5M multiple. Used to prefill the Amount box and to power one-tap "Outbid" — so
+    a single click always lands a bid the backend will accept."""
+    if cur <= 0:
+        return MIN_BID
+    if window == "raise_only":
+        base = cur + 5
+        if base % 5:
+            base += 5 - (base % 5)
+        return base
+    if cur >= 50:
+        return cur + 5
+    return cur + 1
+
+
 class BiddingState(rx.State):
     room_code: str = ""
     room_name: str = ""
@@ -78,6 +97,9 @@ class BiddingState(rx.State):
     active: list[dict[str, str]] = []
     bid_player: str = ""
     bid_amount: str = ""
+    # Folded name of the player the Amount box was last auto-prefilled for. Guards the
+    # prefill so re-searching the SAME player doesn't clobber a manual amount edit.
+    _prefill_for: str = ""
     window: str = "frozen"
     window_label: str = ""
     deadline_str: str = ""
@@ -100,6 +122,11 @@ class BiddingState(rx.State):
     # → live_loop self-terminates instead of forever emitting deltas to a
     # disconnected client.
     _liveness_misses: int = 0
+
+    @rx.var
+    def bidding_open(self) -> bool:
+        """True when bids can currently be placed/raised — gates the Outbid button."""
+        return self.window in ("open", "no_new", "raise_only")
 
     @rx.event
     def set_field(self, name: str, value):
@@ -220,7 +247,8 @@ class BiddingState(rx.State):
                 self.roles = new_roles
 
         now = datetime.now()
-        
+        new_window = bo.window_state(room, now)
+
         new_active = []
         for b in bo.active(room):
             expires_iso = b.get("expires", "")
@@ -233,15 +261,17 @@ class BiddingState(rx.State):
                     time_left = _countdown(exp_dt, now)
                 except Exception:
                     pass
+            high_bid = int(b.get("high_bid", 0))
             new_active.append({
-                "player": b.get("player", "Unknown"), "team": b.get("team", ""), "role": b.get("role", ""), "high_bid": str(b.get("high_bid", 0)),
+                "player": b.get("player", "Unknown"), "team": b.get("team", ""), "role": b.get("role", ""), "high_bid": str(high_bid),
                 "high_bidder": b.get("high_bidder", ""), "expires": expires_iso, "time_left": time_left,
-                "mine": "yes" if b.get("high_bidder") == self.my_team else "no"
+                "mine": "yes" if b.get("high_bidder") == self.my_team else "no",
+                # Amount a one-tap Outbid would place — the min valid raise for this window.
+                "min_next": str(_min_next_amount(high_bid, new_window)),
             })
         if self.active != new_active:
             self.active = new_active
-            
-        new_window = bo.window_state(room, now)
+
         if self.window != new_window:
             self.window = new_window
             self.window_label = _WINDOW_LABEL.get(self.window, "")
@@ -297,10 +327,32 @@ class BiddingState(rx.State):
         else:
             self.suggestions = []
 
+    def _maybe_prefill(self, player_exact: str):
+        """Prefill the Amount box with the minimum valid next bid for a fully-resolved
+        player — its current-bid + increment if it's already in Active bids, else 5M.
+
+        Only fires when the target player *changes*, so a manual amount edit for the same
+        player isn't overwritten as the user keeps typing/refiltering."""
+        f = fold(player_exact)
+        if f == self._prefill_for:
+            return
+        self._prefill_for = f
+        match = next((b for b in self.active if fold(b["player"]) == f), None)
+        cur = int(match["high_bid"]) if match else 0
+        self.bid_amount = str(_min_next_amount(cur, self.window))
+
     @rx.event
     def set_search(self, value: str):
         self.search = value
         self._apply_filters()
+        # When the box resolves to an exact player, seed a sensible Amount: the going
+        # price + increment if they're already being bid on, otherwise the 5M minimum.
+        f = fold(value)
+        if f and (any(fold(b["player"]) == f for b in self.active)
+                  or any(fold(p["name"]) == f for p in self._pool_cache)):
+            self._maybe_prefill(value)
+        else:
+            self._prefill_for = ""
 
     @rx.event
     def set_country(self, value: str):
@@ -319,6 +371,7 @@ class BiddingState(rx.State):
         self.bid_player = player
         self.suggestions = []
         self._apply_filters()
+        self._maybe_prefill(player)
 
     @rx.event
     def do_search(self):
@@ -326,12 +379,15 @@ class BiddingState(rx.State):
         if room:
             self._refresh(room)
 
-    @rx.event
-    def place_bid(self):
+    def _do_place(self, target: str, amount_str: str):
+        """Core bid placement shared by the console 'Place bid' and one-tap 'Outbid'.
+
+        Takes an explicit target + amount so 'Outbid' can bid on an Active-bids row
+        without hijacking the search box the user may be typing into."""
         self.msg = ""
         if self.is_spectator:
             return
-        target = (self.search or self.bid_player).strip()
+        target = (target or "").strip()
         if not target:
             self.msg = "⚠️ Pick a player to bid on first."
             return
@@ -344,12 +400,13 @@ class BiddingState(rx.State):
         _prev = next((b for n, b in room.get("open_bids", {}).items() if fold(n) == _tf), None)
         prev_bidder = (_prev or {}).get("high_bidder", "")
         try:
-            bo.place(room, self.my_team, target, int(self.bid_amount or 0), datetime.now())
+            bo.place(room, self.my_team, target, int(amount_str or 0), datetime.now())
         except (BidError, ValueError) as exc:
             self.msg = f"⚠️ {exc}"
             return
         repo.save(doc)
         self.bid_amount = ""
+        self._prefill_for = ""
         self._refresh(room)
         canonical = next((n for n in room.get("open_bids", {}) if fold(n) == fold(target)), target)
         self.msg = f"✅ Bid placed on {canonical}."
@@ -357,6 +414,20 @@ class BiddingState(rx.State):
         if prev_bidder and prev_bidder != self.my_team:
             from fantasy_auction import notify
             notify.outbid(room, prev_bidder, canonical, code)
+
+    @rx.event
+    def place_bid(self):
+        self._do_place(self.search or self.bid_player, self.bid_amount)
+
+    @rx.event
+    def outbid(self, player: str):
+        """One-tap outbid straight from the Active bids list — places the minimum valid
+        raise for the current window, no searching required."""
+        if self.is_spectator:
+            return
+        match = next((b for b in self.active if fold(b["player"]) == fold(player)), None)
+        cur = int(match["high_bid"]) if match else 0
+        self._do_place(player, str(_min_next_amount(cur, self.window)))
 
     @rx.event(background=True)
     async def live_loop(self):

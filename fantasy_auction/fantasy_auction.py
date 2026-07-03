@@ -1183,6 +1183,17 @@ def bidding_console():
         width="100%")
 
 
+def _outbid_button(b):
+    """One-tap 'Outbid' shown on each active bid — places the minimum valid raise.
+    Hidden for spectators, for the bid you already lead, and when bidding is frozen/closed."""
+    return rx.cond(
+        ~BiddingState.is_spectator & (b["mine"] == "no") & BiddingState.bidding_open,
+        rx.button("⚡ " + b["min_next"] + "M", size="1", variant="soft", color_scheme="grass",
+                  on_click=BiddingState.outbid(b["player"]),
+                  style={"cursor": "pointer", "font_weight": "700", "white_space": "nowrap"}),
+    )
+
+
 def _active_bid_card(b):
     """Mobile card layout for a single active bid row."""
     _time_cell = rx.cond(
@@ -1224,7 +1235,12 @@ def _active_bid_card(b):
             width="100%", align="start",
         ),
         rx.box(height="0.35rem"),
-        _time_cell,
+        rx.hstack(
+            _time_cell,
+            rx.spacer(),
+            _outbid_button(b),
+            width="100%", align="center",
+        ),
         style={"background": T.SURFACE_2, "border": f"1px solid {T.BORDER}",
                "border_radius": "12px", "padding": "0.65rem 0.85rem"},
         width="100%",
@@ -1253,6 +1269,7 @@ def bidding_page():
                                 rx.table.column_header_cell("Player"),
                                 rx.table.column_header_cell("Highest Bid"),
                                 rx.table.column_header_cell("Time Left"),
+                                rx.table.column_header_cell(""),
                             )
                         ),
                         rx.table.body(
@@ -1282,7 +1299,8 @@ def bidding_page():
                                             )
                                         )
                                     )
-                                )
+                                ),
+                                rx.table.cell(_outbid_button(b), style={"text_align": "right"}),
                             ))
                         ),
                         width="100%", variant="surface", size="1"
