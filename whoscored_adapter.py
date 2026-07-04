@@ -152,23 +152,23 @@ def get_whoscored_stats(ws_url, force_refresh=False):
     events = data.get('events', [])
     ft = data.get('ftScore', '0:0').split(':')
     
-    # Detect extra time by checking whether any event actually occurred in an
-    # extra-time period. This is far more reliable than relying on `etScore`,
-    # which WhoScored often includes (as "" or "0:0") even for 90-minute matches.
+    # Detect extra time solely by whether any event actually occurred in an extra-time
+    # period. That is the authoritative signal: if ET was played, WhoScored labels those
+    # events with an ET period name. We deliberately do NOT infer ET from maxMinute —
+    # regular time with heavy stoppage can run well past 100' with no extra time (e.g.
+    # Portugal 2-1 Croatia, match 1992063: maxMinute 108 from ~18' of second-half
+    # stoppage, periods only First/Second half). A maxMinute>105 fallback used to live
+    # here and wrongly flagged that match as extra time, inflating everyone's minutes
+    # played to 120. etScore is likewise unreliable (often "" or "0:0" on 90' matches).
     ET_PERIODS = {'FirstPeriodOfExtraTime', 'SecondPeriodOfExtraTime',
                   'ExtraFirstHalf', 'ExtraSecondHalf'}
     periods_played = {e.get('period', {}).get('displayName', '') for e in events}
     has_extra_time = bool(periods_played & ET_PERIODS)
 
-    # Fallback: only trust maxMinute if it clearly exceeds a full 90 + stoppage
-    # (regular time can reach ~100' with stoppage, so require a high threshold).
-    max_minute = data.get('maxMinute', 90)
-    if max_minute > 105 and not has_extra_time:
-        has_extra_time = True
-
     match_duration = 120 if has_extra_time else 90
 
-    print(f"[WhoScoredAdapter] Extra time: {has_extra_time}, match duration: {match_duration} min (periods: {sorted(periods_played)})")
+    print(f"[WhoScoredAdapter] Extra time: {has_extra_time}, match duration: {match_duration} min "
+          f"(maxMinute: {data.get('maxMinute')}, periods: {sorted(periods_played)})")
     
     exp_mins = data.get('expandedMinutes', {})
     expanded_to_real = {}
