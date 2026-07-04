@@ -5,8 +5,9 @@ Rules (owner spec):
   * once a player's bid reaches 50M, further bids must be in multiples of 5M;
   * a participant can never commit beyond their budget across ALL their leading
     bids (budget is reserved against every player they currently lead);
-  * in the final window before the deadline, bids may only be RAISED in +5M steps
-    (the room layer passes ``raise_only``);
+  * in the final window before the deadline, bids may only be RAISED in exact +5M steps
+    (the room layer passes ``raise_only``); anything past 50M must be a multiple of 5M,
+    so a 46/47/48/49M bid jumps straight to 55M;
   * all standing bids are awarded to the high bidder at the bidding deadline.
 
 Pure functions over room-shaped dicts.
@@ -30,6 +31,19 @@ def min_next(open_bids: dict, player_name: str) -> int:
     return cur + 1
 
 
+def raise_only_next(cur: int) -> int:
+    """Minimum valid raise in the final (raise-only) window.
+
+    Bids step up by exactly 5M, EXCEPT that any amount past 50M must be a multiple of
+    5M — so a bid sitting at 46/47/48/49M (where +5 would land on 51-54M) jumps straight
+    to 55M. Below 50M the +5 step is kept as-is, even if the current bid isn't itself a
+    multiple of 5 (it may have reached an odd value via +1 bids in an earlier window)."""
+    nxt = cur + 5
+    if nxt > 50 and nxt % 5 != 0:
+        nxt += 5 - (nxt % 5)
+    return nxt
+
+
 def reserved(open_bids: dict, participant: str, exclude_player: str = None) -> int:
     """Total a participant has committed via the players they currently lead."""
     return sum(b["high_bid"] for pl, b in open_bids.items()
@@ -51,8 +65,13 @@ def place_bid(participants_by_name: dict, open_bids: dict, player: dict, partici
         if not existing:
             raise BidError("Bidding is closing — you can only raise existing bids now.")
         cur = open_bids[name]["high_bid"]
-        if amount < cur + 5 or amount % 5 != 0:
-            raise BidError("In the final window bids may only be raised in multiples of 5M.")
+        need = raise_only_next(cur)
+        if amount < need:
+            raise BidError(f"In the final window you must raise to at least {need}M.")
+        if amount > 50 and amount % 5 != 0:
+            raise BidError("Above 50M, bids must be in multiples of 5M.")
+        if amount <= 50 and (amount - cur) % 5 != 0:
+            raise BidError("In the final window bids go up in exact 5M steps.")
     else:
         need = min_next(open_bids, name)
         if amount < need:

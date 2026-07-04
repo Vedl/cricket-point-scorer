@@ -71,15 +71,38 @@ def test_no_new_players_in_final_hour():
         bo.place(room, "B", "Mbappe", 10, NOW)
 
 
+def _raise_only_room(cur):
+    """Room in the final (raise-only) window with a single seeded bid at ``cur``."""
+    room = _room(deadline=NOW + timedelta(minutes=20))
+    room["open_bids"] = {"Mbappe": {"high_bid": cur, "high_bidder": "B",
+                                    "role": "FWD", "team": "France"}}
+    return room
+
+
 def test_raise_only_in_final_30m():
-    dl = NOW + timedelta(minutes=20)
-    room = _room(deadline=dl)
-    # seed an existing bid (pretend placed earlier)
-    room["open_bids"] = {"Mbappe": {"high_bid": 20, "high_bidder": "B", "role": "FWD", "team": "France"}}
-    with pytest.raises(BidError, match="multiples of 5M"):
-        bo.place(room, "A", "Mbappe", 22, NOW)     # not +5
+    room = _raise_only_room(20)
+    with pytest.raises(BidError):
+        bo.place(room, "A", "Mbappe", 22, NOW)     # not an exact +5 step
     bo.place(room, "A", "Mbappe", 25, NOW)
     assert bo.active(room)[0]["high_bid"] == 25
+
+
+def test_raise_only_exact_5m_steps_and_post_50_snap():
+    # (current bid, the min valid raise, an amount that must be rejected)
+    cases = [
+        (20, 25, 26),   # exact +5 below 50; +6 rejected
+        (44, 49, 50),   # +5 keeps a sub-50 non-multiple (49); 50 isn't a +5 step from 44
+        (46, 55, 51),   # +5 → 51 is past 50 → snap up to 55; 51 rejected
+        (47, 55, 54),   # 47/48/49 all jump straight to 55
+        (49, 55, 54),
+        (50, 55, 52),   # at 50 → next is 55; multiples of 5 only past 50
+    ]
+    for cur, ok, bad in cases:
+        room = _raise_only_room(cur)
+        with pytest.raises(BidError):
+            bo.place(room, "A", "Mbappe", bad, NOW)
+        bo.place(room, "A", "Mbappe", ok, NOW)
+        assert bo.active(room)[0]["high_bid"] == ok, f"cur={cur}"
 
 
 def test_resolve_and_lock_timeline():

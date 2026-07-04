@@ -11,7 +11,7 @@ import reflex as rx
 from platform_core import bidding_ops as bo
 from platform_core import season_ops as so
 from platform_core.textutil import fold
-from season_engine.open_bidding import BidError, MIN_BID
+from season_engine.open_bidding import BidError, MIN_BID, raise_only_next
 
 from .state import AppState, aload, repo
 from .liveness import client_connected
@@ -75,10 +75,7 @@ def _min_next_amount(cur: int, window: str) -> int:
     if cur <= 0:
         return MIN_BID
     if window == "raise_only":
-        base = cur + 5
-        if base % 5:
-            base += 5 - (base % 5)
-        return base
+        return raise_only_next(cur)
     if cur >= 50:
         return cur + 5
     return cur + 1
