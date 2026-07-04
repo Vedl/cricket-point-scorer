@@ -31,10 +31,10 @@ _SCORE_WORKER = os.path.join(
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Standings are identical for every viewer of a room/gameweek, but each client's
-# loop recomputed them independently. Cache the computed payload process-wide with
-# a short TTL so N concurrent viewers share ONE compute instead of N.
-_STANDINGS_CACHE: dict = {}      # (code, selected_gw) -> (monotonic_ts, data, current_gw, gameweeks)
-_STANDINGS_TTL = 8.0
+# loop recomputed them independently. Cache the computed payload process-wide,
+# keyed by the doc version stamp, so N concurrent viewers share ONE compute per
+# actual data change (exact invalidation — no TTL staleness window).
+_STANDINGS_CACHE: dict = {}      # (code, selected_gw) -> (monotonic_ts, data, current_gw, gameweeks, doc_v)
 
 
 class SeasonState(rx.State):
@@ -95,6 +95,12 @@ class SeasonState(rx.State):
     # → standings_loop self-terminates instead of forever emitting deltas to a
     # disconnected client.
     _liveness_misses: int = 0
+    # Change-gate markers (backend-only): the doc version + gameweek selection this
+    # client last rendered. Standings can only change when the doc changes, so an
+    # unchanged tick skips the compute-cache lookup AND the re-assignment (which
+    # would re-send the whole table as a delta every 12s).
+    _last_seen_v: int = -1
+    _last_gw: str = ""
 
     @rx.event
     def set_field(self, name: str, value):
@@ -196,10 +202,18 @@ class SeasonState(rx.State):
                 try:
                     async with self:
                         selected_gw = self.selected_gw
+                    # Change gate: standings are a pure function of the doc, so while
+                    # the version stamp and the viewer's gameweek selection are
+                    # unchanged this tick can't alter anything — skip everything
+                    # (no copy, no compute, no delta).
+                    v = repo.doc_version()
+                    if v == self._last_seen_v and selected_gw == self._last_gw:
+                        await asyncio.sleep(12)
+                        continue
                     key = (code, selected_gw)
                     cached = _STANDINGS_CACHE.get(key)
-                    if cached and (time.monotonic() - cached[0]) < _STANDINGS_TTL:
-                        _, data, cur_gw, gws = cached
+                    if cached and len(cached) >= 5 and cached[4] == v:
+                        _, data, cur_gw, gws, _ = cached
                     else:
                         # load_room is served from the in-memory snapshot (~0.6ms),
                         # so it's cheap enough to call directly without a thread.
@@ -211,15 +225,19 @@ class SeasonState(rx.State):
                             self._compute_standings_data, room, selected_gw)
                         cur_gw = str(room.get("current_gameweek", 0) or 0)
                         gws = so.gameweeks_with_scores(room)
-                        _STANDINGS_CACHE[key] = (time.monotonic(), data, cur_gw, gws)
+                        _STANDINGS_CACHE[key] = (time.monotonic(), data, cur_gw, gws, v)
                         # Drop stale entries so the cache can't grow unbounded.
-                        for k in [k for k, v in _STANDINGS_CACHE.items()
-                                  if time.monotonic() - v[0] > 60]:
+                        for k in [k for k, v2 in _STANDINGS_CACHE.items()
+                                  if time.monotonic() - v2[0] > 60]:
                             _STANDINGS_CACHE.pop(k, None)
                     async with self:
                         self.current_gameweek = cur_gw
                         self.gameweeks = gws
                         self._assign_standings(data)
+                        # Pre-compute version: a save landing mid-render is re-rendered
+                        # on the next tick, never skipped.
+                        self._last_seen_v = v
+                        self._last_gw = selected_gw
                 except Exception as exc:
                     print(f"[standings_loop] tick failed, continuing: {exc}")
                 await asyncio.sleep(12)

@@ -102,6 +102,7 @@ class FirebaseStore:
         self._writer_lock = threading.Lock()
         self._writer_cv = threading.Condition(self._writer_lock)
         self._writer_started = False
+        self._flushing = False   # a popped ``_pending`` is being written right now
         self._refreshing = False
         try:
             self._log_cap = max(50, int(os.environ.get("STORE_LOG_CAP", str(DEFAULT_LOG_CAP))))
@@ -250,6 +251,33 @@ class FirebaseStore:
         room = self._snapshot().get("rooms", {}).get((code or "").upper())
         return copy.deepcopy(room) if isinstance(room, dict) else None
 
+    def peek_room(self, code: str) -> Optional[dict]:
+        """READ-ONLY view of one room in the shared snapshot — NO deep copy.
+
+        For per-tick change detection in the live loops: checking "did anything
+        expire / is deadline work due / did the doc version move" needs only reads,
+        and deep-copying 20-50 KB per tick per connected tab was pure CPU burn on
+        the 0.1-vCPU box. Callers MUST NOT mutate the result (take ``load_room``
+        for that). The underlying snapshot is replaced wholesale (rebound, never
+        mutated in place) by refresh/save, so a peeked reference stays internally
+        consistent even if a save lands mid-read."""
+        room = self._snapshot().get("rooms", {}).get((code or "").upper())
+        return room if isinstance(room, dict) else None
+
+    def doc_version(self) -> int:
+        """The in-memory document's ``_v`` stamp (0 when unknown/legacy).
+
+        Bumped by every ``save``/``patch_room`` and refreshed from Firebase by the
+        background probe, so the live loops can use it as a cheap "anything changed
+        since my last tick?" gate. Does not touch the network or copy anything."""
+        cache = self._cache
+        if not cache:
+            return 0
+        try:
+            return int(cache.get("_v", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
     def _schedule_refresh(self) -> None:
         """Kick off a single background refresh of the snapshot from Firebase."""
         if not self.use_remote:
@@ -338,15 +366,22 @@ class FirebaseStore:
         data = self._ensure_schema(data)
         self._prune(data)
         data["_v"] = int(time.time() * 1000)  # Add timestamp to prevent stale remote clobbering
-        self._write_local(data)
         # Write-through: refresh the snapshot so the next load reflects this save.
         # Deep-copy so the caller (who still holds ``data``) can keep mutating its
         # object without corrupting the shared cache.
         self._cache = copy.deepcopy(data)
         self._cache_ts = time.monotonic()
         if self.use_remote:
-            # Hand the isolated cache copy to the writer (caller may keep mutating ``data``).
+            # Hand the isolated cache copy to the writer thread, which persists the
+            # local warm-restart file AND pushes to Firebase. json.dumps of the ~1 MB
+            # document takes 10-20 ms of CPU — doing it synchronously here ran inside
+            # every event handler (place_bid, IR, trades…) on the asyncio loop, which
+            # at 0.1 vCPU stalls every connected client on every action. The local
+            # file is only a warm-restart cache (Firebase is the source of truth), so
+            # deferring it a few ms to the writer thread loses nothing.
             self._queue_remote(self._cache)
+        else:
+            self._write_local(data)
 
     # ------------------------------------------------------------------ #
     # Async write-behind to Firebase (coalesced, non-blocking, per-room)
@@ -407,7 +442,10 @@ class FirebaseStore:
                     self._writer_cv.wait()
                 doc = self._pending
                 self._pending = None
+                self._flushing = True
             try:
+                # Local warm-restart file first (fast, never raises), then Firebase.
+                self._write_local(doc)
                 if self._flush_remote(doc):
                     # Only advance the baseline on success, so a failed write is
                     # automatically re-included in the next save's diff.
@@ -416,13 +454,16 @@ class FirebaseStore:
                     print("[FirebaseStore] remote save failed")
             except Exception as exc:  # pragma: no cover
                 print(f"[FirebaseStore] remote save error: {exc}")
+            finally:
+                with self._writer_cv:
+                    self._flushing = False
 
     def flush(self, timeout: float = 5.0) -> None:
-        """Block until any pending remote write has been sent (for shutdown/tests)."""
+        """Block until queued AND in-flight writes are done (for shutdown/tests)."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             with self._writer_cv:
-                if self._pending is None:
+                if self._pending is None and not self._flushing:
                     return
             time.sleep(0.02)
 

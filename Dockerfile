@@ -16,7 +16,7 @@ ENV HOME=/home/user PATH=/home/user/.local/bin:$PATH
 ENV API_URL=https://fantasy-sports-jqux.onrender.com \
     DEPLOY_URL=https://fantasy-sports-jqux.onrender.com \
     CORS_ORIGINS=https://fantasy-sports-jqux.onrender.com \
-    REFLEX_TRANSPORT=polling
+    REFLEX_TRANSPORT=websocket
 RUN reflex init && reflex export --frontend-only --no-zip
 EXPOSE 7860
 CMD ["bash", "/app/hf_start.sh"]

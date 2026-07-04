@@ -10,11 +10,15 @@ import reflex as rx
 _api_url = os.environ.get("API_URL")
 _deploy_url = os.environ.get("DEPLOY_URL")
 _cors = os.environ.get("CORS_ORIGINS")
-# Polling survives reverse proxies (Render/Cloudflare) that drop WebSocket Upgrade
-# headers; override with REFLEX_TRANSPORT=websocket for local dev if preferred.
-_transport = os.environ.get("REFLEX_TRANSPORT", "polling")
+# Websocket by default: verified (2026-07-04) that Render/Cloudflare pass the wss
+# upgrade through to the app — the old "polling survives proxies" rationale dated
+# from a bug in the static-serving ASGI wrapper (it didn't route websocket scopes),
+# which was fixed in the same commit that switched to polling. Polling costs a full
+# HTTP round-trip per event/delta, which on the 0.1-vCPU free instance was a big
+# part of the deadline-hour lag. Set REFLEX_TRANSPORT=polling to fall back.
+_transport = os.environ.get("REFLEX_TRANSPORT", "websocket")
 if _transport not in ("websocket", "polling"):
-    _transport = "polling"
+    _transport = "websocket"
 
 _kwargs = dict(
     app_name="fantasy_auction",

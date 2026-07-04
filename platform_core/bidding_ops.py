@@ -54,12 +54,26 @@ def owned_names(room) -> set[str]:
     return names
 
 
+# The bundled-pool view (~1300 small dicts for the FIFA pool) is immutable for the
+# process lifetime, but it was rebuilt on EVERY available_players call — several
+# times a second across the per-client live loops. Build it once per tournament.
+# Callers treat the dicts as read-only (place_bid/awards copy fields into new
+# dicts); rooms with a custom uploaded pool still rebuild per call since that
+# pool lives in the (mutable) room document.
+_BUILTIN_POOL_VIEW: dict[str, list[dict]] = {}
+
+
 def _pool(room) -> list[dict]:
     if room.get("player_pool"):
         return [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
                 for p in room["player_pool"]]
-    return [{"name": p.name, "role": p.role, "team": p.team}
-            for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
+    tt = room.get("tournament_type", "T20 World Cup")
+    view = _BUILTIN_POOL_VIEW.get(tt)
+    if view is None:
+        view = [{"name": p.name, "role": p.role, "team": p.team}
+                for p in load_player_pool(tt)]
+        _BUILTIN_POOL_VIEW[tt] = view
+    return view
 
 
 def available_players(room, *, search: str = "", country: str = "", role: str = "",

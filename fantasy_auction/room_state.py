@@ -16,6 +16,24 @@ from platform_core.season_ops import SeasonError
 from .state import AppState, aload, repo
 from .liveness import client_connected
 
+# Cumulative standings are identical for every member of a room, but each hub
+# client's loop recomputed them (Best-11 search across every scored gameweek —
+# tens of ms, and growing every gameweek). Cache the result process-wide keyed by
+# the doc version stamp: recomputed once per actual data change, shared by all
+# clients and page loads, exact invalidation (no TTL staleness).
+_CUM_STANDINGS_CACHE: dict[str, tuple[int, list]] = {}
+
+
+def _cached_cum_standings(code: str, room: dict) -> list[dict]:
+    v = repo.doc_version()
+    hit = _CUM_STANDINGS_CACHE.get(code)
+    if hit is not None and v and hit[0] == v:
+        return hit[1]
+    data = so.compute_cumulative_standings(room)
+    if v:
+        _CUM_STANDINGS_CACHE[code] = (v, data)
+    return data
+
 
 class RoomState(rx.State):
     room_code: str = ""
@@ -67,6 +85,10 @@ class RoomState(rx.State):
     # → the loop self-terminates (see hub_loop) instead of forever emitting deltas
     # to a disconnected client.
     _liveness_misses: int = 0
+    # Change-gate marker (backend-only): the doc version this client last rendered.
+    # Nothing on the hub depends on wall-clock (countdown-free page), so while the
+    # doc is unchanged and identity is resolved a tick is a no-op.
+    _last_seen_v: int = -1
 
     @rx.event
     def select_sort_by(self, val: str):
@@ -120,18 +142,21 @@ class RoomState(rx.State):
         where LocalStorage hydration lags)."""
         user = app.auth_user
         if user:
-            if room.get("admin") == user:
+            if room.get("admin") == user and not self.is_admin:
                 self.is_admin = True
             team = next((p["name"] for p in room.get("participants", [])
                          if p.get("user") == user), "")
-            if team:
+            if team and self.my_team != team:
                 self.my_team = team
         # A resolved member/admin is never a spectator — and we don't re-blank them.
         if self.is_admin or self.my_team:
-            self.is_spectator = False
+            if self.is_spectator:
+                self.is_spectator = False
             return
         # Not (yet) a known member: honour a valid read-only spectator session.
-        self.is_spectator = app.grant_spectator_if_valid(code, room, spectate_param)
+        spec = app.grant_spectator_if_valid(code, room, spectate_param)
+        if self.is_spectator != spec:
+            self.is_spectator = spec
 
     @rx.event
     async def on_load_hub(self):
@@ -216,9 +241,14 @@ class RoomState(rx.State):
                             self.watching = False
                             return
                     code = self.room_code
+                    # Identity still unresolved (auth hydrating / spectator pending)?
+                    # Then every tick must re-resolve until it settles.
+                    unresolved = not (self.is_admin or self.my_team or self.is_spectator)
                 try:
-                    room = await asyncio.to_thread(repo.load_room, code)
-                    if room is not None:
+                    # READ-ONLY peek at the shared snapshot (no deep copy) — enough
+                    # for the change checks; the copy + rebuild runs only on change.
+                    room_ro = await asyncio.to_thread(repo.peek_room, code)
+                    if room_ro is not None:
                         # Keep the gameweek timeline on schedule from here too (the
                         # hub is the most commonly open page): award bids at the
                         # deadline, lock+advance+freeze at +30m. Shares the bidding
@@ -227,7 +257,8 @@ class RoomState(rx.State):
                         from .bidding_state import _claim_expire_processing
                         from platform_core import bidding_ops as bo
                         now = datetime.now()
-                        if so.deadline_work_due(room, now) and _claim_expire_processing(code):
+                        room = None   # deep copy, made only if this tick must render
+                        if so.deadline_work_due(room_ro, now) and _claim_expire_processing(code):
                             doc = await aload()
                             full_room = doc.get("rooms", {}).get(code)
                             if full_room:
@@ -242,21 +273,33 @@ class RoomState(rx.State):
                         try:
                             from platform_core import push
                             await asyncio.to_thread(
-                                push.dispatch_due_alerts, code, bo.bidding_deadline(room), now)
+                                push.dispatch_due_alerts, code, bo.bidding_deadline(room_ro), now)
                         except Exception as exc:
                             print(f"[hub_loop] push dispatch: {exc}")
-                        async with self:
-                            # Re-resolve identity every tick: if auth_user hydrated late
-                            # (mobile/PWA), a member stuck in the read-only view is
-                            # promoted back to their team here without needing a reload.
-                            # get_state MUST be inside the lock in a background task.
-                            app = await self.get_state(AppState)
-                            self._resolve_identity(app, room, code)
-                            self._refresh(room)
-                            try:
-                                self._compute_dashboard(room)   # display only, no save
-                            except Exception as exc:
-                                print(f"[hub_loop] dashboard: {exc}")
+                        # Change gate: nothing on the hub is wall-clock-dependent, so
+                        # while the doc version is unchanged (and identity settled) a
+                        # tick emits nothing and copies nothing.
+                        v = repo.doc_version()
+                        if room is not None or v != self._last_seen_v or unresolved:
+                            if room is None:
+                                room = await asyncio.to_thread(repo.load_room, code)
+                            if room is not None:
+                                async with self:
+                                    # Re-resolve identity: if auth_user hydrated late
+                                    # (mobile/PWA), a member stuck in the read-only view
+                                    # is promoted back to their team here without a
+                                    # reload. get_state MUST be inside the lock in a
+                                    # background task.
+                                    app = await self.get_state(AppState)
+                                    self._resolve_identity(app, room, code)
+                                    self._refresh(room)
+                                    try:
+                                        self._compute_dashboard(room)   # display only, no save
+                                    except Exception as exc:
+                                        print(f"[hub_loop] dashboard: {exc}")
+                                    # Pre-copy version: a save landing mid-render is
+                                    # re-rendered next tick, never skipped.
+                                    self._last_seen_v = v
                 except Exception as exc:
                     print(f"[hub_loop] tick failed, continuing: {exc}")
                 await asyncio.sleep(10)
@@ -279,48 +322,65 @@ class RoomState(rx.State):
         bids = [{"player": n, "amount": str(b.get("high_bid", 0))}
                 for n, b in ob.items() if b.get("high_bidder") == me]
         bids.sort(key=lambda x: -int(x["amount"]))
-        self.my_bids = bids
-        self.my_bids_total = str(sum(int(b["amount"]) for b in bids))
+        if self.my_bids != bids:
+            self.my_bids = bids
+        new_total = str(sum(int(b["amount"]) for b in bids))
+        if self.my_bids_total != new_total:
+            self.my_bids_total = new_total
 
         # Trades proposed to me (I receive give_players, I give get_players).
-        self.hub_trades = [
+        new_trades = [
             {"id": t.get("id", ""),
              "text": (f"{t.get('from', '?')} → you receive [{', '.join(t.get('give_players') or []) or '—'}]"
                       f"{(' +'+str(t.get('give_cash', 0))+'M') if t.get('give_cash') else ''}, "
                       f"give [{', '.join(t.get('get_players') or []) or '—'}]"
                       f"{(' +'+str(t.get('get_cash', 0))+'M') if t.get('get_cash') else ''}")}
             for t in mo.incoming_trades(room, me)]
+        if self.hub_trades != new_trades:
+            self.hub_trades = new_trades
 
-        # Current standings rank.
+        # Current standings rank (shared, version-keyed compute — see module top).
         try:
-            standings = so.compute_cumulative_standings(room)
+            standings = _cached_cum_standings(self.room_code, room)
             names = [r["participant"] for r in standings]
             if me in names:
                 i = names.index(me)
-                self.my_rank = f"{i + 1} / {len(names)}"
-                self.my_points = str(standings[i]["points"])
+                new_rank, new_points = f"{i + 1} / {len(names)}", str(standings[i]["points"])
             else:
-                self.my_rank, self.my_points = "—", "0"
+                new_rank, new_points = "—", "0"
         except Exception:
-            self.my_rank, self.my_points = "—", "0"
+            new_rank, new_points = "—", "0"
+        if self.my_rank != new_rank:
+            self.my_rank = new_rank
+        if self.my_points != new_points:
+            self.my_points = new_points
 
         # Open-bidding wins since my last hub visit.
         my_buys = [t for t in room.get("transactions", [])
                    if t.get("type") == "market_buy" and t.get("participant") == me]
         me_p = next((p for p in room.get("participants", []) if p["name"] == me), None)
         seen = (me_p or {}).get("seen_buys", 0)
-        self.my_wins = [{"player": t["player"], "amount": str(t.get("amount", 0))}
-                        for t in my_buys[seen:]]
+        new_wins = [{"player": t["player"], "amount": str(t.get("amount", 0))}
+                    for t in my_buys[seen:]]
+        if self.my_wins != new_wins:
+            self.my_wins = new_wins
         if me_p is not None and len(my_buys) != seen:
             me_p["seen_buys"] = len(my_buys)
             return True
         return False
 
     def _refresh(self, room: dict):
+        # Assignments below are equality-guarded: Reflex marks a var dirty on EVERY
+        # assignment (no value diffing), so unguarded reassignment of these lists
+        # re-sent the full hub payload to every client on every loop tick.
         by = {p["name"]: p for p in room.get("participants", [])}
         me = by.get(self.my_team, {})
-        self.my_budget = me.get("budget", 0)
-        self.my_ir = me.get("ir") or ""
+        new_budget = me.get("budget", 0)
+        if self.my_budget != new_budget:
+            self.my_budget = new_budget
+        new_ir = me.get("ir") or ""
+        if self.my_ir != new_ir:
+            self.my_ir = new_ir
         
         from platform_core.season_ops import _is_football
         is_fb = _is_football(room)
@@ -359,7 +419,7 @@ class RoomState(rx.State):
             sorted_squad = sorted(squad_data, key=lambda x: -safe_price(x))
 
         ko_set = set(room.get("knocked_out_countries", []) or [])
-        self.my_squad = [
+        new_my_squad = [
             {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
              "ir": "yes" if e.get("name") == me.get("ir") else "no",
@@ -367,6 +427,8 @@ class RoomState(rx.State):
              "loaned": "yes" if e.get("acquired_via") == "loan" else "no"}
             for e in sorted_squad
         ]
+        if self.my_squad != new_my_squad:
+            self.my_squad = new_my_squad
         p1_lbl, p2_lbl, p3_lbl, p4_lbl = ("GK", "DEF", "MID", "FWD") if is_fb else ("BAT", "BOWL", "AR", "WK")
 
         def _counts(sq):
@@ -385,11 +447,11 @@ class RoomState(rx.State):
                     else: c["p1"] += 1
             return c
 
-        self.teams = []
+        new_teams = []
         for p in room.get("participants", []):
             sq = p.get("squad") or []
             c = _counts(sq)
-            self.teams.append({
+            new_teams.append({
                 "name": p["name"], "budget": str(p.get("budget", 0)),
                 "squad": str(len(sq)),
                 "p1_lbl": p1_lbl, "p2_lbl": p2_lbl, "p3_lbl": p3_lbl, "p4_lbl": p4_lbl,
@@ -397,25 +459,37 @@ class RoomState(rx.State):
                 "p3": str(c["p3"]), "p4": str(c["p4"]),
                 "status": "out" if p.get("is_eliminated") else "in",
                 "is_me": "yes" if p["name"] == self.my_team else "no"})
+        if self.teams != new_teams:
+            self.teams = new_teams
         # nearest upcoming deadline (the single bidding deadline)
         bd = room.get("bidding_deadline")
-        self.next_deadline = bd[:16].replace("T", " ") if bd else ""
+        new_deadline = bd[:16].replace("T", " ") if bd else ""
+        if self.next_deadline != new_deadline:
+            self.next_deadline = new_deadline
 
         # squads viewer
-        self.all_team_names = [p["name"] for p in room.get("participants", [])]
-        if not self.view_team_sel or self.view_team_sel not in self.all_team_names:
-            self.view_team_sel = self.my_team or (self.all_team_names[0] if self.all_team_names else "")
+        new_names = [p["name"] for p in room.get("participants", [])]
+        if self.all_team_names != new_names:
+            self.all_team_names = new_names
+        if not self.view_team_sel or self.view_team_sel not in new_names:
+            self.view_team_sel = self.my_team or (new_names[0] if new_names else "")
         self._compute_view(room)
-        self.locked_gws = sorted(room.get("gameweek_squads", {}).keys(), key=lambda g: (len(g), g))
-        if not self.view_locked_gw and self.locked_gws:
-            self.view_locked_gw = self.locked_gws[-1]
+        new_locked_gws = sorted(room.get("gameweek_squads", {}).keys(), key=lambda g: (len(g), g))
+        if self.locked_gws != new_locked_gws:
+            self.locked_gws = new_locked_gws
+        if not self.view_locked_gw and new_locked_gws:
+            self.view_locked_gw = new_locked_gws[-1]
         self._compute_locked(room)
 
     def _compute_view(self, room: dict):
         by = {p["name"]: p for p in room.get("participants", [])}
         p = by.get(self.view_team_sel, {})
-        self.view_budget = str(p.get("budget", 0))
-        self.view_ir = p.get("ir") or ""
+        new_budget = str(p.get("budget", 0))
+        if self.view_budget != new_budget:
+            self.view_budget = new_budget
+        new_ir = p.get("ir") or ""
+        if self.view_ir != new_ir:
+            self.view_ir = new_ir
         
         from platform_core.season_ops import _is_football
         is_fb = _is_football(room)
@@ -452,7 +526,7 @@ class RoomState(rx.State):
             sorted_squad = sorted(squad_data, key=lambda x: -safe_price_view(x))
 
         ko_set = set(room.get("knocked_out_countries", []) or [])
-        self.view_squad = [
+        new_view_squad = [
             {"name": e.get("name", "Unknown"), "role": e.get("role", ""), "team": e.get("team", ""),
              "price": str(e.get("buy_price", 0)),
              "ir": "yes" if e.get("name") == p.get("ir") else "no",
@@ -460,6 +534,8 @@ class RoomState(rx.State):
              "loaned": "yes" if e.get("acquired_via") == "loan" else "no"}
             for e in sorted_squad
         ]
+        if self.view_squad != new_view_squad:
+            self.view_squad = new_view_squad
 
     def _compute_locked(self, room: dict):
         snap = room.get("gameweek_squads", {}).get(self.view_locked_gw, {})
@@ -470,7 +546,8 @@ class RoomState(rx.State):
             for e in (team.get("squad") or []):
                 rows.append({"name": e["name"], "role": e.get("role", ""),
                              "ir": "yes" if e["name"] == ir else "no"})
-        self.locked_rows = rows
+        if self.locked_rows != rows:
+            self.locked_rows = rows
 
     @rx.event
     def select_view_team(self, name: str):

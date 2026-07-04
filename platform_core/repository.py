@@ -296,6 +296,19 @@ class Repository:
             return load_room(code)
         return self.store.load().get("rooms", {}).get((code or "").upper())
 
+    def peek_room(self, code: str):
+        """READ-ONLY shared-snapshot view of one room (no copy) — see store.peek_room.
+        Callers must not mutate the result."""
+        peek = getattr(self.store, "peek_room", None)
+        if callable(peek):
+            return peek(code)
+        return self.load_room(code)
+
+    def doc_version(self) -> int:
+        """The current in-memory document ``_v`` stamp (0 when unknown)."""
+        ver = getattr(self.store, "doc_version", None)
+        return ver() if callable(ver) else 0
+
     def save(self, doc: dict) -> None:
         self.store.save(doc)
 

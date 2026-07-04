@@ -65,6 +65,23 @@ def _countdown(when, now) -> str:
     return when.astimezone().isoformat()
 
 
+def _display_phase(room: dict, now) -> str:
+    """Wall-clock-dependent part of the bidding view, as a compact key.
+
+    Everything the page shows is a function of (room data, this phase): countdowns
+    tick CLIENT-side from ISO instants, so a server tick only changes the view when
+    the bidding window flips or a timeline milestone passes. Combined with the doc
+    version stamp this lets ``live_loop`` skip the whole deepcopy + refresh + delta
+    on the (vast majority of) ticks where nothing can have changed."""
+    dl = bo.bidding_deadline(room)
+    win = bo.window_state(room, now)
+    if dl is None:
+        return win
+    passed = sum(1 for t in (dl - timedelta(minutes=60), dl - timedelta(minutes=30),
+                             dl, dl + timedelta(minutes=30)) if now >= t)
+    return f"{win}:{passed}"
+
+
 def _min_next_amount(cur: int, window: str) -> int:
     """Smallest amount that is a valid next bid on a player, given the current window.
 
@@ -119,6 +136,11 @@ class BiddingState(rx.State):
     # → live_loop self-terminates instead of forever emitting deltas to a
     # disconnected client.
     _liveness_misses: int = 0
+    # Change-gate markers (backend-only): the doc version + display phase this
+    # client last rendered. While both are unchanged (and identity is resolved) a
+    # live_loop tick is a no-op — no room deepcopy, no refresh, no websocket delta.
+    _last_seen_v: int = -1
+    _last_phase: str = ""
 
     @rx.var
     def bidding_open(self) -> bool:
@@ -142,16 +164,19 @@ class BiddingState(rx.State):
         ``auth_user`` can't demote a member to the read-only spectator view."""
         user = app.auth_user
         if user:
-            if room.get("admin") == user:
+            if room.get("admin") == user and not self.is_admin:
                 self.is_admin = True
             team = next((p["name"] for p in room.get("participants", [])
                          if p.get("user") == user), "")
-            if team:
+            if team and self.my_team != team:
                 self.my_team = team
         if self.is_admin or self.my_team:
-            self.is_spectator = False
+            if self.is_spectator:
+                self.is_spectator = False
             return
-        self.is_spectator = app.grant_spectator_if_valid(code, room, spectate_param)
+        spec = app.grant_spectator_if_valid(code, room, spectate_param)
+        if self.is_spectator != spec:
+            self.is_spectator = spec
 
     @rx.event
     async def on_load_bidding(self):
@@ -404,7 +429,9 @@ class BiddingState(rx.State):
         repo.save(doc)
         self.bid_amount = ""
         self._prefill_for = ""
-        self._refresh(room)
+        # full=False: a bid changes no ownership, so the unowned-pool cache is
+        # untouched — skip the 1000+-row rebuild on the click path.
+        self._refresh(room, full=False)
         canonical = next((n for n in room.get("open_bids", {}) if fold(n) == fold(target)), target)
         self.msg = f"✅ Bid placed on {canonical}."
         # Push: the previous leader (if any, and not us) was just outbid.
@@ -450,24 +477,30 @@ class BiddingState(rx.State):
                             self.watching = False
                             return
                     code = self.room_code
+                    # Identity still unresolved (auth hydrating / spectator pending)?
+                    # Then every tick must re-resolve until it settles.
+                    unresolved = not (self.is_admin or self.my_team or self.is_spectator)
                 # Each tick is wrapped so a single bad read/refresh (a malformed bid,
                 # a date edge case, a transient Firebase hiccup) can NEVER kill the
                 # loop. Before this, one exception ended the task and that participant
                 # was frozen — seeing the page but no further live updates — while
                 # others kept updating. That's the "some see it, some don't" symptom.
                 try:
-                    # Cheap per-room read (~20-50 KB), served from the 20s cache most
-                    # ticks, instead of the ~1 MB full doc.
-                    room = await asyncio.to_thread(repo.load_room, code)
-                    if room is not None:
+                    # READ-ONLY peek at the shared snapshot (no deep copy): enough for
+                    # all the change-detection below. The expensive copy + view rebuild
+                    # only happens when something actually changed.
+                    room_ro = await asyncio.to_thread(repo.peek_room, code)
+                    if room_ro is not None:
                         now = datetime.now()
                         now_iso = now.isoformat()
-                        has_expired = any(now_iso >= b.get("expires", now_iso) for b in room.get("open_bids", {}).values())
+                        has_expired = any(now_iso >= b.get("expires", now_iso)
+                                          for b in room_ro.get("open_bids", {}).values())
                         # Deadline timeline (award at T, lock+advance+freeze at T+30m)
                         # is driven from here too, so it fires even when the
                         # server-wide scheduler thread is disabled — any connected
                         # client keeps the room on schedule.
-                        deadline_due = so.deadline_work_due(room, now)
+                        deadline_due = so.deadline_work_due(room_ro, now)
+                        room = None   # deep copy, made only if this tick must render
                         # Only ONE client coroutine does the heavy full-doc award per
                         # cooldown window; the rest keep rendering from the cheap read.
                         if (has_expired or deadline_due) and _claim_expire_processing(code):
@@ -491,18 +524,36 @@ class BiddingState(rx.State):
                         try:
                             from platform_core import push
                             await asyncio.to_thread(
-                                push.dispatch_due_alerts, code, bo.bidding_deadline(room), now)
+                                push.dispatch_due_alerts, code, bo.bidding_deadline(room_ro), now)
                         except Exception as exc:
                             print(f"[bidding live_loop] push dispatch: {exc}")
 
-                        async with self:
-                            # Re-resolve identity: a member whose auth_user hydrated late
-                            # (mobile/PWA) is promoted out of the read-only view here.
-                            # get_state MUST be inside the lock in a background task.
-                            app = await self.get_state(AppState)
-                            self._resolve_identity(app, room, code)
-                            # Skip the heavy 1000-row datalist rebuild on every tick.
-                            self._refresh(room, full=False)
+                        # Change gate: countdowns tick client-side, so unless the doc
+                        # version moved, the window/milestone phase flipped, or this
+                        # client's identity isn't settled yet, nothing on the page can
+                        # change — skip the deepcopy, the refresh and the delta. This
+                        # is what keeps N idle tabs ~free on the 0.1-vCPU box.
+                        v = repo.doc_version()
+                        phase = _display_phase(room_ro, now)
+                        if (room is not None or v != self._last_seen_v
+                                or phase != self._last_phase or unresolved):
+                            if room is None:
+                                room = await asyncio.to_thread(repo.load_room, code)
+                            if room is not None:
+                                async with self:
+                                    # Re-resolve identity: a member whose auth_user
+                                    # hydrated late (mobile/PWA) is promoted out of the
+                                    # read-only view here. get_state MUST be inside the
+                                    # lock in a background task.
+                                    app = await self.get_state(AppState)
+                                    self._resolve_identity(app, room, code)
+                                    # Skip the heavy 1000-row datalist rebuild per tick.
+                                    self._refresh(room, full=False)
+                                    # Mark the PRE-copy version: if a save lands while
+                                    # we render, the next tick re-renders rather than
+                                    # ever skipping it.
+                                    self._last_seen_v = v
+                                    self._last_phase = phase
                 except Exception as exc:  # keep the live updater alive no matter what
                     print(f"[bidding live_loop] tick failed, continuing: {exc}")
                 await asyncio.sleep(6)

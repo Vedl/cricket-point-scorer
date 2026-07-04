@@ -176,12 +176,17 @@ class AppState(rx.State):
                 self.spectating = False
             return False
         if spectate_param and spectate_param == tok:  # arriving via a fresh invite link
-            self.spectator_token = tok
-            self.spectator_room = code
-            self.spectating = True
+            # Guarded: this runs on every live-loop tick for spectators, and
+            # re-assigning a LocalStorage var marks it dirty (a delta per tick).
+            if self.spectator_token != tok:
+                self.spectator_token = tok
+            if self.spectator_room != code:
+                self.spectator_room = code
+            if not self.spectating:
+                self.spectating = True
             return True
         ok = self.spectator_token == tok and self.spectator_room == code
-        if ok:
+        if ok and not self.spectating:
             self.spectating = True
         return ok
 

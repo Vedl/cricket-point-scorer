@@ -8,6 +8,7 @@ can type "desire doue" and match "Désiré Doué".
 from __future__ import annotations
 
 import unicodedata
+from functools import lru_cache
 
 # Characters that don't decompose under NFKD but are common in player names.
 _EXTRA = str.maketrans({
@@ -17,12 +18,20 @@ _EXTRA = str.maketrans({
 })
 
 
-def fold(s: str) -> str:
-    """Accent-insensitive, case-insensitive form of ``s`` for matching."""
-    s = (s or "").translate(_EXTRA)
+# Memoised: search/matching folds the same ~1300 pool names over and over (every
+# keystroke, every bidding refresh). The unicodedata pass is pure — a bounded
+# lookup table makes repeat folds a dict hit. 16k entries ≈ a few hundred KB max.
+@lru_cache(maxsize=16384)
+def _fold_cached(s: str) -> str:
+    s = s.translate(_EXTRA)
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     return s.lower().strip()
+
+
+def fold(s: str) -> str:
+    """Accent-insensitive, case-insensitive form of ``s`` for matching."""
+    return _fold_cached(s or "")
 
 
 def contains(haystack: str, needle: str) -> bool:

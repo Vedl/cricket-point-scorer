@@ -4,14 +4,22 @@ export PORT="${PORT:-7860}"
 if [ -n "${RENDER_EXTERNAL_URL:-}" ]; then PUBLIC_URL="$RENDER_EXTERNAL_URL"
 elif [ -n "${SPACE_HOST:-}" ]; then PUBLIC_URL="https://${SPACE_HOST}"
 else PUBLIC_URL="http://localhost:${PORT}"; fi
+# Transport: websocket. Verified 2026-07-04 — Cloudflare/Render pass the wss
+# upgrade to the app (probing /_event?transport=websocket reaches granian, which
+# answered 400 "Invalid transport" purely because the server was polling-only).
+# The 2026-06-09 "external users can't load" bug was the static-serving ASGI
+# wrapper not routing websocket scopes, fixed in the same commit that introduced
+# polling; polling was the workaround, not the fix. Polling costs a full HTTP
+# round-trip per event/delta — on the 0.1-vCPU instance that is the deadline-hour
+# lag. Emergency fallback: set REFLEX_TRANSPORT=polling in the Render env.
 export API_URL="$PUBLIC_URL" DEPLOY_URL="$PUBLIC_URL" CORS_ORIGINS="$PUBLIC_URL" \
-       REFLEX_TRANSPORT="${REFLEX_TRANSPORT:-polling}" TZ="${TZ:-Asia/Kolkata}"
+       REFLEX_TRANSPORT="${REFLEX_TRANSPORT:-websocket}" TZ="${TZ:-Asia/Kolkata}"
 
 # Sync baked frontend env (build-time URL/transport) with runtime Render URL.
 python3 - <<'PY'
 import glob, json, os, re
 url = os.environ.get("API_URL", "").rstrip("/")
-transport = os.environ.get("REFLEX_TRANSPORT", "polling")
+transport = os.environ.get("REFLEX_TRANSPORT", "websocket")
 if not url:
     raise SystemExit(0)
 env = {
