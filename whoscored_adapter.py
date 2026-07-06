@@ -265,7 +265,7 @@ def get_whoscored_stats(ws_url, force_refresh=False):
             if 'Yellow' in quals: player_ev[name]['yellow'] += 1
             elif 'Red' in quals: player_ev[name]['red'] += 1
             
-        if 'Cross' in quals: player_ev[name]['crosses'] += 1
+        if 'Cross' in quals and outcome == 'Successful': player_ev[name]['crosses'] += 1
         
         if t == 'Foul' and 'Penalty' in quals:
             if outcome == 'Successful':
