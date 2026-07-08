@@ -17,6 +17,15 @@ ENV API_URL=https://fantasy-sports-jqux.onrender.com \
     DEPLOY_URL=https://fantasy-sports-jqux.onrender.com \
     CORS_ORIGINS=https://fantasy-sports-jqux.onrender.com \
     REFLEX_TRANSPORT=websocket
-RUN reflex init && reflex export --frontend-only --no-zip
+# `reflex init` fetches bun's install script from raw.githubusercontent.com, which
+# Render's shared build-IP pool intermittently gets 429'd (rate-limited) on. Retry
+# with backoff instead of failing the whole build on a transient CDN hiccup.
+RUN sh -c ' \
+    for i in 1 2 3 4 5; do \
+      reflex init && reflex export --frontend-only --no-zip && exit 0; \
+      echo "reflex export attempt $i failed, retrying in $((i * 15))s..."; \
+      sleep $((i * 15)); \
+    done; \
+    exit 1'
 EXPOSE 7860
 CMD ["bash", "/app/hf_start.sh"]
