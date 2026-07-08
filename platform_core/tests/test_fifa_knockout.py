@@ -53,3 +53,24 @@ def test_progressive_rounds_keep_shrinking():
     elim2, _ = so.eliminate_below_position(room, "QF", keep_top=4)
     assert set(elim2) == {"T4", "T5", "T6", "T7"}   # the next 4 below top 4 (of remaining 8)
     assert len(so.eliminated_names(room)) == 6       # 2 + 4
+
+
+def test_elimination_ranks_by_cumulative_not_single_gameweek():
+    # A leads cumulatively but has a bad final gameweek; B has a great final GW
+    # but is worst overall. Knockout must keep the best CUMULATIVE teams.
+    room = {
+        "tournament_type": "FIFA World Cup 2026",
+        "participants": [
+            {"name": "A", "squad": [{"name": "pA", "role": "Forward", "team": "X", "buy_price": 10}]},
+            {"name": "B", "squad": [{"name": "pB", "role": "Forward", "team": "X", "buy_price": 10}]},
+            {"name": "C", "squad": [{"name": "pC", "role": "Forward", "team": "X", "buy_price": 10}]},
+        ],
+        "gameweek_scores": {
+            "1": {"pA": 100, "pB": 90, "pC": 5},    # cumulative: A=105, B=100, C=105
+            "2": {"pA": 5, "pB": 10, "pC": 100},    # latest GW alone: C=100, B=10, A=5
+        },
+    }
+    # keep_top=2 on the latest GW ("2") would eliminate A (worst that single week);
+    # by cumulative, B is last (100 vs A/C at 105) and must be the one to go.
+    elim, _ = so.eliminate_below_position(room, "2", keep_top=2)
+    assert elim == ["B"]

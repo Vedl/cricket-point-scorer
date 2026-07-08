@@ -484,13 +484,18 @@ KNOCKOUT_ROUNDS = [
 
 
 def eliminate_below_position(room: dict, gameweek: str, keep_top: int) -> tuple[list[str], list[str]]:
-    """Keep the top ``keep_top`` active teams for a gameweek; eliminate the rest.
+    """Keep the top ``keep_top`` active teams by CUMULATIVE standings; eliminate the rest.
+
+    Ranking is by cumulative points across all scored gameweeks (the season table),
+    NOT the single selected gameweek — the knockout keeps the best teams overall.
+    ``gameweek`` is retained only to tag the ``knockout_history`` record (which round
+    this cut belongs to), so the round stays reversible/auditable.
 
     Eliminated teams' players are released into the open-market pool so survivors
     can bid on them in the next round (the FIFA WC knockout flow). Reversible.
     Returns ``(eliminated_names, released_player_names)``.
     """
-    standings = compute_gameweek_standings(room, gameweek)
+    standings = compute_cumulative_standings(room)
     already = eliminated_names(room)
     active = [r for r in standings if r["participant"] not in already]
     if len(active) <= keep_top:
