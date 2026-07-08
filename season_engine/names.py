@@ -23,6 +23,17 @@ _TRANSLIT = str.maketrans({
     "ð": "d", "Ð": "d", "þ": "th", "Þ": "th", "ı": "i",
 })
 
+# Genuine transliteration disagreements — different letter sequences, not accent/
+# punctuation/order variants, so no general rule can bridge them. Verified against
+# real WC 2026 data (room 4MYGF1): pool/squad stored "Mohanad Lashin" and "Marawan
+# Attia"; WhoScored keys them "Mohanad Lasheen" and "Marwan Attia". Both players'
+# points were silently orphaned (never credited to their owning team) until added
+# here. Keys are the pool/squad (wrong) canonical form; values are WhoScored's.
+_NAME_ALIASES = {
+    "mohanad lashin": "mohanad lasheen",
+    "marawan attia": "marwan attia",
+}
+
 
 def canonical(name) -> str:
     """Accent-, punctuation- and case-insensitive key for matching names."""
@@ -32,7 +43,8 @@ def canonical(name) -> str:
     # Drop punctuation (hyphens, apostrophes, dots) entirely so "Heung-Min" and
     # "Heungmin" collapse together; keep alphanumerics and spaces.
     s = "".join(c if (c.isalnum() or c.isspace()) else "" for c in s)
-    return " ".join(s.casefold().split())
+    canon = " ".join(s.casefold().split())
+    return _NAME_ALIASES.get(canon, canon)
 
 
 def _sorted_key(canon: str) -> str:
