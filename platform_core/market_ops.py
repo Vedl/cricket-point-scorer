@@ -115,6 +115,20 @@ def reject_trade(room, trade_id) -> None:
         t["status"] = "rejected"
 
 
+def withdraw_trade(room, trade_id) -> None:
+    """The proposer cancels their own offer before the counterparty accepts it.
+
+    Only still-``pending`` offers can be withdrawn — once accepted, the trade is
+    in the admin's queue and out of the proposer's hands.
+    """
+    t = _find_trade(room, trade_id)
+    if t is None or t["status"] != "pending":
+        raise TradeError(
+            "This offer can no longer be withdrawn — it may have been "
+            "accepted or already resolved.")
+    t["status"] = "withdrawn"
+
+
 def trades_awaiting_admin(room):
     return [_normalize_trade(t) for t in room.get("pending_trades", [])
             if t.get("status") == "awaiting_admin"]

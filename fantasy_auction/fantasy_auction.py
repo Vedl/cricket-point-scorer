@@ -1532,7 +1532,11 @@ def _proposal_row(t, kind):
             rx.button("Reject", size="1", variant="soft", color_scheme="red",
                       on_click=TradeState.admin_reject(t["id"])), spacing="2")
     else:
-        actions = T.pill("pending", T.WARNING)
+        actions = rx.hstack(
+            T.pill("pending", T.WARNING),
+            rx.button("Withdraw", size="1", variant="soft", color_scheme="red",
+                      on_click=TradeState.withdraw(t["id"])),
+            spacing="2", align="center")
     return rx.box(
         rx.hstack(
             rx.box("🔁", style={"font_size": "0.95rem"}),

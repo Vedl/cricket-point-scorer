@@ -51,6 +51,29 @@ def test_reject_trade_by_counterparty():
     assert mo.incoming_trades(room, "B") == []
 
 
+def test_withdraw_trade_by_proposer():
+    room = _room()
+    tid = mo.propose_trade(room, "A", "B", ["Kohli"], ["Rohit"])
+    assert len(mo.outgoing_trades(room, "A")) == 1
+    mo.withdraw_trade(room, tid)
+    # Gone from both the proposer's outgoing list and the counterparty's incoming.
+    assert mo.outgoing_trades(room, "A") == []
+    assert mo.incoming_trades(room, "B") == []
+    # Nothing was applied.
+    by = mo.participants_by_name(room)
+    assert any(e["name"] == "Kohli" for e in by["A"]["squad"])
+    assert any(e["name"] == "Rohit" for e in by["B"]["squad"])
+
+
+def test_withdraw_after_accept_raises():
+    room = _room()
+    tid = mo.propose_trade(room, "A", "B", ["Kohli"], ["Rohit"])
+    mo.accept_trade(room, tid)  # now awaiting admin — out of proposer's hands
+    with pytest.raises(TradeError):
+        mo.withdraw_trade(room, tid)
+    assert mo.trades_awaiting_admin(room)  # still queued for the admin
+
+
 def test_propose_invalid_raises():
     room = _room()
     with pytest.raises(TradeError):

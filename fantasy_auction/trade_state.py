@@ -277,6 +277,22 @@ class TradeState(rx.State):
             self._save_refresh(doc, room, "Proposal rejected.")
 
     @rx.event
+    def withdraw(self, trade_id: str):
+        """Proposer cancels an offer they sent that hasn't been accepted yet."""
+        self.msg = ""
+        if self.is_spectator:
+            return
+        code, doc, room = self._load()
+        if not room:
+            return
+        try:
+            mo.withdraw_trade(room, trade_id)
+        except TradeError as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        self._save_refresh(doc, room, "↩️ Proposal withdrawn.")
+
+    @rx.event
     def do_release(self):
         self.msg = ""
         if self.is_spectator:
