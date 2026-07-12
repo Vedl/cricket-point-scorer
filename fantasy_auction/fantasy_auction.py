@@ -50,6 +50,14 @@ def _error(msg):
     return rx.cond(msg != "", rx.callout(msg, color_scheme="violet", size="1", margin_top="0.5rem"))
 
 
+def _eliminated_banner():
+    """Shown to a member whose team has been knocked out of the league."""
+    return rx.callout(
+        "🚫 You've been knocked out of this league — you can no longer bid, trade, "
+        "or make squad changes. You can still watch and follow the standings.",
+        color_scheme="red", size="1", margin_top="0.5rem", width="100%")
+
+
 def _brand():
     return rx.hstack(
         rx.box("⚡", style={"font_size": "1.3rem"}),
@@ -698,13 +706,15 @@ def import_review_section():
 # Hub (your team + all teams)
 # --------------------------------------------------------------------------- #
 def squad_row(p):
-    _ir_btn_sm = rx.cond(p["ir"] == "yes",
-                         rx.button("unIR", size="2", variant="ghost", color_scheme="gray",
-                                   on_click=RoomState.clear_ir),
-                         rx.button("IR", size="2", variant="ghost", color_scheme="amber",
-                                   on_click=RoomState.set_ir(p["name"])))
+    # Eliminated members keep the read-only squad view but lose every action button.
+    _ir_btn_sm = rx.cond(~RoomState.am_eliminated,
+                         rx.cond(p["ir"] == "yes",
+                                 rx.button("unIR", size="2", variant="ghost", color_scheme="gray",
+                                           on_click=RoomState.clear_ir),
+                                 rx.button("IR", size="2", variant="ghost", color_scheme="amber",
+                                           on_click=RoomState.set_ir(p["name"]))))
     _release_btn_sm = rx.cond(
-        p["loaned"] == "yes",
+        (p["loaned"] == "yes") | RoomState.am_eliminated,
         rx.fragment(),
         rx.cond(
             RoomState.confirm_release_player == p["name"],
@@ -751,14 +761,16 @@ def squad_row(p):
         rx.spacer(),
         rx.text(p["price"] + "M", style={"color": T.ACCENT, "font_family": T.MONO,
                 "font_size": "0.85rem"}),
-        rx.cond(p["ir"] == "yes",
-                rx.button("unIR", size="1", variant="ghost", color_scheme="gray",
-                          on_click=RoomState.clear_ir),
-                rx.button("IR", size="1", variant="ghost", color_scheme="amber",
-                          on_click=RoomState.set_ir(p["name"]))),
+        rx.cond(~RoomState.am_eliminated,
+                rx.cond(p["ir"] == "yes",
+                        rx.button("unIR", size="1", variant="ghost", color_scheme="gray",
+                                  on_click=RoomState.clear_ir),
+                        rx.button("IR", size="1", variant="ghost", color_scheme="amber",
+                                  on_click=RoomState.set_ir(p["name"])))),
         # A player on loan to you can only be IR'd — never released or traded.
+        # Eliminated members lose the release control entirely.
         rx.cond(
-            p["loaned"] == "yes",
+            (p["loaned"] == "yes") | RoomState.am_eliminated,
             rx.fragment(),
             rx.cond(
                 RoomState.confirm_release_player == p["name"],
@@ -849,10 +861,15 @@ def _hub_trade_row(t):
     return rx.vstack(
         rx.text(t["text"], style={"color": T.TEXT, "font_size": "0.82rem"}),
         rx.hstack(
-            rx.button("✓ Accept", on_click=RoomState.hub_accept_trade(t["id"]),
-                      size="1", color_scheme="green", variant="soft"),
-            rx.button("✕ Reject", on_click=RoomState.hub_reject_trade(t["id"]),
-                      size="1", color_scheme="red", variant="soft"),
+            rx.cond(
+                ~RoomState.am_eliminated,
+                rx.hstack(
+                    rx.button("✓ Accept", on_click=RoomState.hub_accept_trade(t["id"]),
+                              size="1", color_scheme="green", variant="soft"),
+                    rx.button("✕ Reject", on_click=RoomState.hub_reject_trade(t["id"]),
+                              size="1", color_scheme="red", variant="soft"),
+                    spacing="2", align="center"),
+            ),
             rx.link("Open in Trade →", href="/trade?room=" + RoomState.room_code,
                     style={"color": T.ACCENT, "font_size": "0.76rem"}),
             spacing="2", align="center"),
@@ -863,6 +880,7 @@ def _hub_trade_row(t):
 
 def room_page():
     dashboard = rx.vstack(
+        rx.cond(RoomState.am_eliminated, _eliminated_banner()),
         # personal stat strip
         rx.grid(
             _stat("Your rank", RoomState.my_rank, T.ACCENT, RoomState.my_points + " pts"),
@@ -1144,7 +1162,7 @@ def bidding_console():
                       width=rx.breakpoints(initial="100%", md="160px")),
             spacing="2", width="100%", align="center", wrap="wrap"),
         rx.cond(
-            ~BiddingState.is_spectator,
+            ~BiddingState.is_spectator & ~BiddingState.am_eliminated,
             rx.fragment(
                 # Mobile: stacked full-width controls, thumb-friendly
                 rx.vstack(
@@ -1170,8 +1188,11 @@ def bidding_console():
                     display=rx.breakpoints(initial="none", md="flex"),
                 ),
             ),
-            rx.text("👁️ Spectating — you can watch the bids but not place any.",
-                    style={"color": T.MUTED, "margin_top": "0.6rem"})),
+            rx.cond(
+                BiddingState.am_eliminated,
+                _eliminated_banner(),
+                rx.text("👁️ Spectating — you can watch the bids but not place any.",
+                        style={"color": T.MUTED, "margin_top": "0.6rem"}))),
         rx.divider(margin_y="0.8rem"),
         rx.cond(BiddingState.available.length() > 0,
                 rx.vstack(rx.foreach(BiddingState.available, available_row), spacing="2",
@@ -1188,7 +1209,7 @@ def _outbid_button(b):
     the minimum valid raise. Hidden for spectators, for the bid you already lead, and
     when bidding is frozen/closed."""
     return rx.cond(
-        ~BiddingState.is_spectator & (b["mine"] == "no") & BiddingState.bidding_open,
+        ~BiddingState.is_spectator & ~BiddingState.am_eliminated & (b["mine"] == "no") & BiddingState.bidding_open,
         rx.dialog.root(
             rx.dialog.trigger(
                 rx.button("⚡ " + b["min_next"] + "M", size="1", variant="soft",
@@ -1642,10 +1663,14 @@ def trade_page():
         _topbar(), room_nav(TradeState.room_code, TradeState.is_admin),
         T.hero(TradeState.room_name + " · Trades", ""),
         rx.cond(
-            ~TradeState.is_spectator,
+            ~TradeState.is_spectator & ~TradeState.am_eliminated,
             propose,
-            T.card(rx.text("👁️ Spectating — you can see proposed and completed trades but "
-                           "can't make any.", style={"color": T.MUTED}), width="100%"),
+            rx.cond(
+                TradeState.am_eliminated,
+                T.card(_eliminated_banner(), width="100%"),
+                T.card(rx.text("👁️ Spectating — you can see proposed and completed trades but "
+                               "can't make any.", style={"color": T.MUTED}), width="100%"),
+            ),
         ),
         rx.box(height="1rem"),
         rx.grid(

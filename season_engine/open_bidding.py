@@ -97,7 +97,10 @@ def resolve_expired(participants_by_name: dict, open_bids: dict, now_iso: str, *
             continue  # not yet expired
             
         p = participants_by_name.get(bid["high_bidder"])
-        if p is not None and bid["high_bid"] <= p.get("budget", 0) and \
+        # An eliminated team never wins a player, even if a stale standing bid
+        # survived to award time — drop it like an over-budget/full-squad bid.
+        if p is not None and not p.get("is_eliminated") and \
+                bid["high_bid"] <= p.get("budget", 0) and \
                 len(p.get("squad", [])) < max_squad:
             p["squad"].append({"name": name, "role": bid.get("role", ""),
                                "team": bid.get("team", ""), "buy_price": bid["high_bid"],

@@ -46,6 +46,9 @@ class RoomState(rx.State):
     my_budget: int = 0
     my_squad: list[dict[str, str]] = []
     my_ir: str = ""
+    # True once this member's team has been knocked out of the league — they can
+    # no longer make squad changes (enforced server-side in season_ops/market_ops).
+    am_eliminated: bool = False
     teams: list[dict[str, str]] = []
     # detailed squads viewer
     all_team_names: list[str] = []
@@ -378,6 +381,9 @@ class RoomState(rx.State):
         new_budget = me.get("budget", 0)
         if self.my_budget != new_budget:
             self.my_budget = new_budget
+        new_elim = bool(me.get("is_eliminated"))
+        if self.am_eliminated != new_elim:
+            self.am_eliminated = new_elim
         new_ir = me.get("ir") or ""
         if self.my_ir != new_ir:
             self.my_ir = new_ir

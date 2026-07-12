@@ -35,6 +35,9 @@ class TradeState(rx.State):
     is_admin: bool = False
     is_spectator: bool = False
     me: str = ""
+    # True once this member's team has been knocked out of the league — they can
+    # no longer trade, release, or bid on the market (enforced in market_ops too).
+    am_eliminated: bool = False
 
     my_players: list[str] = []
     other_teams: list[str] = []
@@ -113,6 +116,7 @@ class TradeState(rx.State):
     def _refresh(self, room: dict):
         by = mo.participants_by_name(room)
         mine = by.get(self.me, {})
+        self.am_eliminated = bool(mine.get("is_eliminated"))
         ko = set(room.get("knocked_out_countries", []) or [])
 
         def _tradable(p: dict) -> list[str]:

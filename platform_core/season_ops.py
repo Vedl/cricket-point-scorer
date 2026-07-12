@@ -117,6 +117,8 @@ def set_ir(room: dict, participant: str, player_name) -> None:
     p = by.get(participant)
     if p is None:
         raise SeasonError("Unknown team.")
+    if p.get("is_eliminated"):
+        raise SeasonError("You've been eliminated from the tournament — you can no longer make changes.")
     if player_name and not any(e["name"] == player_name for e in p.get("squad", [])):
         raise SeasonError("That player isn't in your squad.")
     p["ir"] = player_name or None
@@ -132,6 +134,8 @@ def half_price_release(room: dict, participant: str, player_name: str) -> int:
     p = by.get(participant)
     if p is None:
         raise SeasonError("Unknown team.")
+    if p.get("is_eliminated"):
+        raise SeasonError("You've been eliminated from the tournament — you can no longer release players.")
     e = next((x for x in p.get("squad", []) if x["name"].lower() == player_name.lower()), None)
     if e is None:
         raise SeasonError(f"You don't own {player_name}.")
@@ -457,6 +461,21 @@ def eliminated_names(room: dict) -> set[str]:
     return {p["name"] for p in room.get("participants", []) if p.get("is_eliminated")}
 
 
+def cancel_participant_bids(room: dict, names) -> None:
+    """Drop every standing open bid and sealed market bid held by ``names``.
+
+    Called when participants are eliminated so their held budget is freed and no
+    stale bid can be awarded to a knocked-out team at the deadline."""
+    names = set(names)
+    if not names:
+        return
+    ob = room.get("open_bids", {}) or {}
+    for player in [n for n, b in ob.items() if b.get("high_bidder") in names]:
+        del ob[player]
+    room["active_bids"] = [b for b in room.get("active_bids", [])
+                           if b.get("participant") not in names]
+
+
 def eliminate_for_gameweek(room: dict, gameweek: str, count: int = 1) -> list[str]:
     """Eliminate the bottom ``count`` active participants by that gameweek's Best-11."""
     standings = compute_gameweek_standings(room, gameweek)
@@ -467,6 +486,7 @@ def eliminate_for_gameweek(room: dict, gameweek: str, count: int = 1) -> list[st
     for name in losers:
         if name in by:
             by[name]["is_eliminated"] = True
+    cancel_participant_bids(room, losers)
     if losers:
         room.setdefault("knockout_history", []).append(
             {"gameweek": str(gameweek), "eliminated": losers}
@@ -523,6 +543,7 @@ def eliminate_below_position(room: dict, gameweek: str, keep_top: int) -> tuple[
                 released.append(e["name"])
         p["squad"] = []  # players are now free agents
 
+    cancel_participant_bids(room, losers)
     room.setdefault("knockout_history", []).append({
         "gameweek": str(gameweek), "keep_top": keep_top,
         "eliminated": losers, "entries": entries, "released": released,

@@ -105,6 +105,9 @@ class BiddingState(rx.State):
     is_spectator: bool = False
     my_team: str = ""
     my_budget: int = 0
+    # True once this member's team has been knocked out of the league — they can
+    # no longer bid (enforced server-side in bidding_ops too).
+    am_eliminated: bool = False
 
     search: str = ""
     available: list[dict[str, str]] = []
@@ -245,6 +248,9 @@ class BiddingState(rx.State):
         new_my_budget = by.get(self.my_team, {}).get("budget", 0)
         if self.my_budget != new_my_budget:
             self.my_budget = new_my_budget
+        new_elim = bool(by.get(self.my_team, {}).get("is_eliminated"))
+        if self.am_eliminated != new_elim:
+            self.am_eliminated = new_elim
 
         new_available = [
             {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}

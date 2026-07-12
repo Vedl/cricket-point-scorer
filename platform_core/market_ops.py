@@ -50,6 +50,12 @@ def _ko(room: dict) -> set:
     return set(room.get("knocked_out_countries", []) or [])
 
 
+def _is_eliminated(room: dict, name: str) -> bool:
+    """True if the named participant has been knocked out of the league."""
+    p = participants_by_name(room).get(name)
+    return bool(p and p.get("is_eliminated"))
+
+
 def _log(room: dict, rec: dict) -> None:
     rec["ts"] = datetime.now().isoformat()
     room.setdefault("transactions", []).append(rec)
@@ -63,6 +69,10 @@ def propose_trade(room, from_name, to_name, give_players, get_players,
         raise TradeError("Both participants must exist.")
     if from_name == to_name:
         raise TradeError("You can't trade with yourself.")
+    if _is_eliminated(room, from_name):
+        raise TradeError("You've been eliminated from the tournament — you can no longer trade.")
+    if _is_eliminated(room, to_name):
+        raise TradeError(f"{to_name} has been eliminated and can't receive trades.")
     errors = validate_trade(by[from_name], by[to_name], give_players, get_players,
                             give_cash, get_cash, max_squad=MAX_SQUAD,
                             ko_countries=_ko(room))
@@ -98,6 +108,10 @@ def accept_trade(room, trade_id) -> dict:
     t = _find_trade(room, trade_id)
     if t is None or t["status"] != "pending":
         raise TradeError("Trade not found or already resolved.")
+    if _is_eliminated(room, t["to"]):
+        raise TradeError("You've been eliminated from the tournament — you can no longer trade.")
+    if _is_eliminated(room, t["from"]):
+        raise TradeError(f"{t['from']} has been eliminated — this trade is no longer valid.")
     # Validate it's still applicable before queuing for admin.
     by = participants_by_name(room)
     errors = validate_trade(by[t["from"]], by[t["to"]], t["give_players"], t["get_players"],
@@ -188,6 +202,8 @@ def release(room, name, player_name, *, refund=False) -> dict:
     by = participants_by_name(room)
     if name not in by:
         raise TradeError("Unknown participant.")
+    if _is_eliminated(room, name):
+        raise TradeError("You've been eliminated from the tournament — you can no longer release players.")
     entry = next((e for e in by[name].get("squad", [])
                   if e["name"].lower() == player_name.lower()), None)
     if entry is not None and entry.get("acquired_via") == "loan":
@@ -214,6 +230,8 @@ def place_market_bid(room, name, player_name, amount) -> None:
     by = participants_by_name(room)
     if name not in by:
         raise TradeError("Unknown participant.")
+    if _is_eliminated(room, name):
+        raise TradeError("You've been eliminated from the tournament — you can no longer bid.")
     ko = set(room.get("knocked_out_countries", []) or [])
     player = next((p for p in available_players(room) if p["name"] == player_name), None)
     if player is not None and player.get("team") in ko:

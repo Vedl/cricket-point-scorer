@@ -135,6 +135,8 @@ def place(room, participant, player_name, amount, now: datetime) -> None:
         raise BidError("Bidding is frozen until the admin sets a deadline.")
     if st == "closed":
         raise BidError("Bidding has closed for this gameweek.")
+    if _by(room).get(participant, {}).get("is_eliminated"):
+        raise BidError("You've been eliminated from the tournament — you can no longer bid.")
     player = _player(room, player_name)
     if player is None:
         raise BidError(f"Unknown player {player_name!r}.")
