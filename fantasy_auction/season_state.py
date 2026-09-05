@@ -8,8 +8,11 @@ import os
 import sys
 import time
 
+from datetime import datetime
+
 import reflex as rx
 
+from platform_core import bidding_ops
 from platform_core import scoring_ops
 from platform_core import season_ops as so
 
@@ -64,6 +67,7 @@ class SeasonState(rx.State):
     # knockout
     eliminated: list[str] = []
     knockout_count: str = "1"
+    keep_top_input: str = "16"      # "keep the top N" cutoff for a knockout round
 
     # player-points search (standings page): find any player's points for a
     # particular gameweek or cumulatively, with their current owner.
@@ -78,6 +82,10 @@ class SeasonState(rx.State):
     deadlines: list[dict[str, str]] = []
     bidding_deadline_value: str = ""
     bidding_deadline_str: str = ""
+    # Bid hold: hours a leading bid must stand unchallenged before it wins the player.
+    bid_hold_input: str = ""            # after the GW1 deadline
+    pre_gw1_bid_hold_input: str = ""    # until the GW1 deadline
+    bid_hold_active: str = ""           # what is in force right now, for display
     # WhoScored auto-scoring
     score_links: str = ""
     scoring_running: bool = False
@@ -166,6 +174,7 @@ class SeasonState(rx.State):
             self.gameweeks = so.gameweeks_with_scores(room)
             if not self.selected_gw and self.gameweeks:
                 self.selected_gw = self.gameweeks[-1]
+            self._load_bid_hold(room)
             self._recompute(room)
         except Exception as exc:
             print(f"[on_load_standings] {exc}")
@@ -391,6 +400,37 @@ class SeasonState(rx.State):
         self.msg = (f"❌ Eliminated: {', '.join(losers)}" if losers
                     else "No active participants to eliminate.")
 
+    def _load_bid_hold(self, room: dict):
+        """Mirror the room's bid-hold settings (and which one is live) into state."""
+        self.bid_hold_input = str(room.get("bid_hold_hours")
+                                  or bidding_ops.DEFAULT_BID_HOLD_HOURS)
+        self.pre_gw1_bid_hold_input = str(room.get("pre_gw1_bid_hold_hours")
+                                          or bidding_ops.DEFAULT_PRE_GW1_BID_HOLD_HOURS)
+        now = datetime.now()
+        hours = bidding_ops.bid_hold_hours(room, now)
+        phase = "after the GW1 deadline" if bidding_ops.gw1_deadline_passed(room, now) \
+            else "until the GW1 deadline"
+        self.bid_hold_active = f"{hours}h in force now ({phase})"
+
+    @rx.event
+    def save_bid_hold(self, pre_gw1: bool):
+        """Admin sets how long a leading bid must stand before it wins the player."""
+        self.msg = ""
+        code, doc, room = self._load_room()
+        if not room:
+            return
+        value = self.pre_gw1_bid_hold_input if pre_gw1 else self.bid_hold_input
+        try:
+            hours = bidding_ops.set_bid_hold_hours(room, value, pre_gw1=pre_gw1)
+        except Exception as exc:
+            self.msg = f"⚠️ {exc}"
+            return
+        repo.save(doc)
+        self._load_bid_hold(room)
+        when = "until the GW1 deadline" if pre_gw1 else "after the GW1 deadline"
+        self.msg = (f"⏳ A leading bid now wins the player after {hours}h unchallenged "
+                    f"({when}). Existing bids keep the deadline they were placed with.")
+
     @rx.event
     def save_bidding_deadline(self):
         self.msg = ""
@@ -549,6 +589,19 @@ class SeasonState(rx.State):
                         f"players to the open market for the next round.")
         else:
             self.msg = "No teams below the cutoff — nobody eliminated."
+
+    @rx.event
+    def run_knockout_keep_top(self):
+        """Knockout round with an admin-typed cutoff (e.g. 19 teams -> keep 16)."""
+        try:
+            keep_top = int(self.keep_top_input)
+        except (TypeError, ValueError):
+            self.msg = "⚠️ Enter a whole number of teams to keep."
+            return
+        if keep_top < 1:
+            self.msg = "⚠️ Keep at least 1 team."
+            return
+        return SeasonState.run_knockout_round(keep_top)
 
     @rx.event
     def reverse_elimination(self):

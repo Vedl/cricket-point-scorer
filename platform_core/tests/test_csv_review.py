@@ -38,9 +38,12 @@ def test_nation_keeper_variants_all_map_exactly():
            "C,France Goalkeeper,30\n"
            "D,Spain,25\n")
     rows = build_review(parse_squad_csv(csv).assignments, KEEPER_POOL)
-    got = {r["matched"] for r in rows}
-    assert got == {"Spain Keeper", "Portugal Keeper", "France Keeper", "Spain Keeper"}
-    assert all(r["status"] == "exact" for r in rows)
+    assert [r["matched"] for r in rows] == [
+        "Spain Keeper", "Portugal Keeper", "France Keeper", "Spain Keeper"]
+    # A..C map cleanly; D's bare "Spain" resolves to the keeper A already has, and
+    # only one team can own a nation's keeper — so it must be flagged, not silently
+    # given a second owner.
+    assert [r["status"] for r in rows] == ["exact", "exact", "exact", "duplicate"]
 
 
 def test_apply_reviewed_roster_uses_canonical_and_csv_budget():

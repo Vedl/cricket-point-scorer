@@ -19,13 +19,38 @@ from auction_engine import EngineConfig, Player
 T20_WC = "T20 World Cup"
 IPL_2026 = "IPL 2026"
 FIFA_WC_2026 = "FIFA World Cup 2026"
-TOURNAMENTS = (T20_WC, IPL_2026, FIFA_WC_2026)
+UCL_2026 = "UEFA Champions League 2026/27"
+TOURNAMENTS = (T20_WC, IPL_2026, FIFA_WC_2026, UCL_2026)
 
 SPORT_BY_TOURNAMENT = {
     T20_WC: "cricket",
     IPL_2026: "cricket",
     FIFA_WC_2026: "football",
+    UCL_2026: "football",
 }
+
+# Football pools: tournament -> (bundled data file, key holding the team a player
+# is bought under). Nations for the World Cup, clubs for a club competition; the
+# rest of the football pipeline (keepers-per-team, knockouts, Best-11) is identical.
+FOOTBALL_POOLS = {
+    FIFA_WC_2026: ("fifa_wc_2026_players.json", "country"),
+    UCL_2026: ("ucl_2026_players.json", "team"),
+}
+
+# What a player's ``team`` means, for UI wording only — nations at a World Cup,
+# clubs in a club competition. The data shape is identical either way.
+TEAM_NOUN = {
+    FIFA_WC_2026: "country",
+    UCL_2026: "club",
+}
+
+
+def team_noun(tournament_type: str, plural: bool = False) -> str:
+    noun = TEAM_NOUN.get(tournament_type, "country")
+    if not plural:
+        return noun
+    return "countries" if noun == "country" else noun + "s"
+
 
 DEFAULT_BUDGET = 100
 DEFAULT_TIMER = 60
@@ -102,6 +127,42 @@ def load_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[Pla
     return list(cached)
 
 
+def _is_keeper(role: str) -> bool:
+    r = (role or "").lower()
+    return "gk" in r or "keeper" in r
+
+
+def _build_football_pool(data, team_key: str) -> list[Player]:
+    """Normalise a football squad file into the biddable pool.
+
+    Goalkeepers are never bought individually: each team contributes one
+    ``"{Team} Keeper"`` entry that scoring aggregates across whoever keeps goal,
+    so a team is registered from its keepers even when they are all List B.
+    UEFA List B (youth) registrations are otherwise left out of the pool — set
+    ``list_b`` to false in the data file to make one biddable.
+    """
+    rows = data.get("players", []) if isinstance(data, dict) else (data or [])
+    players: list[Player] = []
+    keeper_teams = set()
+    for p in rows:
+        if not (isinstance(p, dict) and p.get("name")):
+            continue
+        team = p.get(team_key) or p.get("team") or p.get("country") or "Unknown"
+        role = p.get("role", p.get("position", "Unknown"))
+        if _is_keeper(role):
+            keeper_teams.add(team)
+            continue
+        if p.get("list_b"):
+            continue
+        players.append(Player(id=_slug(p["name"]), name=p["name"], team=team,
+                              role=role, base_price=p.get("base_price", 0)))
+    for team in sorted(keeper_teams):
+        name = f"{team} Keeper"
+        players.append(Player(id=_slug(name), name=name, team=team,
+                              role="Goalkeeper", base_price=0))
+    return _dedupe_ids(players)
+
+
 def _build_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[Player]:
     """Construct the player pool from the bundled data file (uncached)."""
     if tournament_type == IPL_2026:
@@ -121,26 +182,9 @@ def _build_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[P
                 )
         return _dedupe_ids(players)
 
-    if tournament_type == FIFA_WC_2026:
-        data = _read_json(data_dir, "fifa_wc_2026_players.json") or []
-        players = []
-        keeper_countries = set()
-        for p in data:
-            if not (isinstance(p, dict) and p.get("name")):
-                continue
-            country = p.get("country", p.get("team", "Unknown"))
-            role = p.get("role", p.get("position", "Unknown"))
-            # Goalkeepers are bought per NATION ("Spain Keeper"), not individually.
-            if "gk" in role.lower() or "keeper" in role.lower() or "goalkeeper" in role.lower():
-                keeper_countries.add(country)
-                continue
-            players.append(Player(id=_slug(p["name"]), name=p["name"], team=country,
-                                  role=role, base_price=p.get("base_price", 0)))
-        for country in sorted(keeper_countries):
-            name = f"{country} Keeper"
-            players.append(Player(id=_slug(name), name=name, team=country,
-                                  role="Goalkeeper", base_price=0))
-        return _dedupe_ids(players)
+    if tournament_type in FOOTBALL_POOLS:
+        filename, team_key = FOOTBALL_POOLS[tournament_type]
+        return _build_football_pool(_read_json(data_dir, filename), team_key)
 
     # Default: T20 World Cup master database.
     data = _read_json(data_dir, "players_database.json") or {}

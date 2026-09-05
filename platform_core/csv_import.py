@@ -125,10 +125,21 @@ def _parse_visual_grid(rows: list[list[str]], result: ParseResult) -> None:
         if n:
             participants[i] = n
             
+    # The remaining-budget row is the sheet's footer: every name cell blank but at
+    # least one number under a team. Detect it by shape rather than by row number —
+    # exporting the same sheet with a different number of trailing blank rows used
+    # to move it off the hard-coded index 26, and the budgets silently vanished.
+    budget_row_idx = None
+    for i, row in enumerate(rows[2:]):
+        has_name = any(_norm(row[c]) for c in participants if c < len(row))
+        has_price = any(_norm(row[c + 1]) and _to_int(row[c + 1]) is not None
+                        for c in participants if c + 1 < len(row))
+        if not has_name and has_price:
+            budget_row_idx = i + 2      # the LAST such row wins (sheet footer)
+
     for i, row in enumerate(rows[2:]):
         row_idx = i + 2
-        # Is this the "budget" row? Usually row 27 (0-indexed 26)
-        if row_idx == 26: 
+        if row_idx == budget_row_idx:
             for col_idx, p_name in participants.items():
                 if col_idx + 1 < len(row):
                     b_str = _norm(row[col_idx + 1])

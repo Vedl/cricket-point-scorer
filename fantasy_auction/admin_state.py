@@ -61,7 +61,10 @@ class AdminState(rx.State):
     # country knockouts (WC): block bids + enable allowance-free half-price releases
     ko_country: str = ""
     ko_countries: list[str] = []          # currently knocked out
-    ko_options: list[str] = []            # all nations in the pool
+    ko_options: list[str] = []            # all teams (nations / clubs) in the pool
+    # "country" for a World Cup, "club" for a club competition — wording only.
+    ko_noun: str = "country"
+    ko_noun_plural: str = "countries"
     # backup
     export_text: str = ""
     import_text: str = ""
@@ -167,6 +170,10 @@ class AdminState(rx.State):
         from platform_core import season_ops as so
         self.ko_countries = sorted(so.knocked_out_countries(room))
         self.ko_options = sorted({(p.get("team") or "") for p in self._pool} - {""})
+        from platform_core.config_layer import team_noun
+        tt = room.get("tournament_type", "")
+        self.ko_noun = team_noun(tt)
+        self.ko_noun_plural = team_noun(tt, plural=True)
         self.loans = [{"id": l["id"],
                        "text": f"{l['player']}: {l['from']} → {l['to']}"
                                + (f" (ret GW{l['return_gameweek']})" if l.get("return_gameweek") else "")}
@@ -222,12 +229,12 @@ class AdminState(rx.State):
 
     @rx.event
     def mark_country_ko(self):
-        """Mark the selected nation as knocked out of the World Cup."""
+        """Mark the selected team (nation / club) as knocked out of the tournament."""
         from platform_core import season_ops as so
         self.msg = ""
         country = (self.ko_country or "").strip()
         if not country:
-            self.msg = "⚠️ Pick a country first."
+            self.msg = f"⚠️ Pick a {self.ko_noun} first."
             return
         code, doc, room = self._load()
         if not room:

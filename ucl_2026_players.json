@@ -1,0 +1,8738 @@
+{
+ "competition": "UEFA Champions League",
+ "season": "2026/27",
+ "source": "https://www.uefa.com/uefachampionsleague/clubs/",
+ "note": "Positions are UEFA's own squad-list headings. list_b marks UEFA List B (youth) registrations, which the auction pool excludes.",
+ "players": [
+  {
+   "name": "Thomas Strakosha",
+   "short_name": "Strakosha",
+   "role": "Goalkeeper",
+   "team": "AEK Athens",
+   "nationality": "ALB",
+   "uefa_id": "250046901",
+   "list_b": false
+  },
+  {
+   "name": "Marios Balamotis",
+   "short_name": "Balamotis",
+   "role": "Goalkeeper",
+   "team": "AEK Athens",
+   "nationality": "GRE",
+   "uefa_id": "250210649",
+   "list_b": true
+  },
+  {
+   "name": "Alberto Brignoli",
+   "short_name": "Brignoli",
+   "role": "Goalkeeper",
+   "team": "AEK Athens",
+   "nationality": "ITA",
+   "uefa_id": "250085391",
+   "list_b": false
+  },
+  {
+   "name": "Harold Moukoudi",
+   "short_name": "Moukoudi",
+   "role": "Defender",
+   "team": "AEK Athens",
+   "nationality": "CMR",
+   "uefa_id": "250066898",
+   "list_b": false
+  },
+  {
+   "name": "Stavros Pilios",
+   "short_name": "Pilios",
+   "role": "Defender",
+   "team": "AEK Athens",
+   "nationality": "ALB",
+   "uefa_id": "250187689",
+   "list_b": false
+  },
+  {
+   "name": "Lazaros Rota",
+   "short_name": "Rota",
+   "role": "Defender",
+   "team": "AEK Athens",
+   "nationality": "GRE",
+   "uefa_id": "250143747",
+   "list_b": false
+  },
+  {
+   "name": "Domagoj Vida",
+   "short_name": "Vida",
+   "role": "Defender",
+   "team": "AEK Athens",
+   "nationality": "CRO",
+   "uefa_id": "108567",
+   "list_b": false
+  },
+  {
+   "name": "Charalampos Lykogiannis",
+   "short_name": "Lykogiannis",
+   "role": "Defender",
+   "team": "AEK Athens",
+   "nationality": "GRE",
+   "uefa_id": "250013058",
+   "list_b": false
+  },
+  {
+   "name": "Filipe Relvas",
+   "short_name": "Filipe Relvas",
+   "role": "Defender",
+   "team": "AEK Athens",
+   "nationality": "POR",
+   "uefa_id": "250210435",
+   "list_b": false
+  },
+  {
+   "name": "Kaan Kairinen",
+   "short_name": "Kairinen",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "FIN",
+   "uefa_id": "250079003",
+   "list_b": false
+  },
+  {
+   "name": "Mijat Gaćinović",
+   "short_name": "Gaćinović",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "SRB",
+   "uefa_id": "250042749",
+   "list_b": false
+  },
+  {
+   "name": "Lovro Majer",
+   "short_name": "Majer",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "CRO",
+   "uefa_id": "250098470",
+   "list_b": false
+  },
+  {
+   "name": "Kervin Arriaga",
+   "short_name": "Arriaga",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "HON",
+   "uefa_id": "250197123",
+   "list_b": false
+  },
+  {
+   "name": "Răzvan Marin",
+   "short_name": "Marin",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "ROU",
+   "uefa_id": "250055294",
+   "list_b": false
+  },
+  {
+   "name": "Petros Mantalos",
+   "short_name": "Mantalos",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "GRE",
+   "uefa_id": "250012957",
+   "list_b": false
+  },
+  {
+   "name": "Milán Vitális",
+   "short_name": "Vitális",
+   "role": "Midfielder",
+   "team": "AEK Athens",
+   "nationality": "HUN",
+   "uefa_id": "250126069",
+   "list_b": false
+  },
+  {
+   "name": "Luka Jović",
+   "short_name": "Jović",
+   "role": "Forward",
+   "team": "AEK Athens",
+   "nationality": "SRB",
+   "uefa_id": "250058244",
+   "list_b": false
+  },
+  {
+   "name": "Oleksandr Zubkov",
+   "short_name": "Zubkov",
+   "role": "Forward",
+   "team": "AEK Athens",
+   "nationality": "UKR",
+   "uefa_id": "250064446",
+   "list_b": false
+  },
+  {
+   "name": "Aboubakary Koita",
+   "short_name": "Koita",
+   "role": "Forward",
+   "team": "AEK Athens",
+   "nationality": "MTN",
+   "uefa_id": "250110953",
+   "list_b": false
+  },
+  {
+   "name": "Barnabás Varga",
+   "short_name": "Varga",
+   "role": "Forward",
+   "team": "AEK Athens",
+   "nationality": "HUN",
+   "uefa_id": "250183450",
+   "list_b": false
+  },
+  {
+   "name": "João Mário",
+   "short_name": "João Mário",
+   "role": "Forward",
+   "team": "AEK Athens",
+   "nationality": "POR",
+   "uefa_id": "250014109",
+   "list_b": false
+  },
+  {
+   "name": "Zini",
+   "short_name": "Zini",
+   "role": "Forward",
+   "team": "AEK Athens",
+   "nationality": "ANG",
+   "uefa_id": "250187664",
+   "list_b": false
+  },
+  {
+   "name": "David Raya",
+   "short_name": "Raya",
+   "role": "Goalkeeper",
+   "team": "Arsenal",
+   "nationality": "ESP",
+   "uefa_id": "250171278",
+   "list_b": false
+  },
+  {
+   "name": "Kepa Arrizabalaga",
+   "short_name": "Arrizabalaga",
+   "role": "Goalkeeper",
+   "team": "Arsenal",
+   "nationality": "ESP",
+   "uefa_id": "250039900",
+   "list_b": false
+  },
+  {
+   "name": "Illan Meslier",
+   "short_name": "Meslier",
+   "role": "Goalkeeper",
+   "team": "Arsenal",
+   "nationality": "FRA",
+   "uefa_id": "250127437",
+   "list_b": false
+  },
+  {
+   "name": "William Saliba",
+   "short_name": "Saliba",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "FRA",
+   "uefa_id": "250127439",
+   "list_b": false
+  },
+  {
+   "name": "Cristhian Mosquera",
+   "short_name": "Mosquera",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "ESP",
+   "uefa_id": "250129972",
+   "list_b": false
+  },
+  {
+   "name": "Ben White",
+   "short_name": "White",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "ENG",
+   "uefa_id": "250156002",
+   "list_b": false
+  },
+  {
+   "name": "Piero Hincapié",
+   "short_name": "Hincapié",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "ECU",
+   "uefa_id": "250163454",
+   "list_b": false
+  },
+  {
+   "name": "Gabriel",
+   "short_name": "Gabriel",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "BRA",
+   "uefa_id": "250131901",
+   "list_b": false
+  },
+  {
+   "name": "Jurriën Timber",
+   "short_name": "J. Timber",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "NED",
+   "uefa_id": "250101728",
+   "list_b": false
+  },
+  {
+   "name": "Ezri Konsa",
+   "short_name": "Konsa",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "ENG",
+   "uefa_id": "250123068",
+   "list_b": false
+  },
+  {
+   "name": "Riccardo Calafiori",
+   "short_name": "Calafiori",
+   "role": "Defender",
+   "team": "Arsenal",
+   "nationality": "ITA",
+   "uefa_id": "250113392",
+   "list_b": false
+  },
+  {
+   "name": "Martin Ødegaard",
+   "short_name": "Ødegaard",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "NOR",
+   "uefa_id": "250081341",
+   "list_b": false
+  },
+  {
+   "name": "Eberechi Eze",
+   "short_name": "Eze",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "ENG",
+   "uefa_id": "250134376",
+   "list_b": false
+  },
+  {
+   "name": "Noni Madueke",
+   "short_name": "Madueke",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "ENG",
+   "uefa_id": "250113134",
+   "list_b": false
+  },
+  {
+   "name": "Mikel Merino",
+   "short_name": "Merino",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "ESP",
+   "uefa_id": "250080572",
+   "list_b": false
+  },
+  {
+   "name": "Kai Havertz",
+   "short_name": "Havertz",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "GER",
+   "uefa_id": "250087938",
+   "list_b": false
+  },
+  {
+   "name": "Martin Zubimendi",
+   "short_name": "Zubimendi",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "ESP",
+   "uefa_id": "250143679",
+   "list_b": false
+  },
+  {
+   "name": "Bruno Guimarães",
+   "short_name": "Bruno Guimarães",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "BRA",
+   "uefa_id": "250138893",
+   "list_b": false
+  },
+  {
+   "name": "Declan Rice",
+   "short_name": "Rice",
+   "role": "Midfielder",
+   "team": "Arsenal",
+   "nationality": "ENG",
+   "uefa_id": "250083732",
+   "list_b": false
+  },
+  {
+   "name": "Bukayo Saka",
+   "short_name": "Saka",
+   "role": "Forward",
+   "team": "Arsenal",
+   "nationality": "ENG",
+   "uefa_id": "250106939",
+   "list_b": false
+  },
+  {
+   "name": "Viktor Gyökeres",
+   "short_name": "Gyökeres",
+   "role": "Forward",
+   "team": "Arsenal",
+   "nationality": "SWE",
+   "uefa_id": "250105927",
+   "list_b": false
+  },
+  {
+   "name": "Christos Tzolis",
+   "short_name": "Tzolis",
+   "role": "Forward",
+   "team": "Arsenal",
+   "nationality": "GRE",
+   "uefa_id": "250124460",
+   "list_b": false
+  },
+  {
+   "name": "Zion Suzuki",
+   "short_name": "Z. Suzuki",
+   "role": "Goalkeeper",
+   "team": "Aston Villa",
+   "nationality": "JPN",
+   "uefa_id": "250218560",
+   "list_b": false
+  },
+  {
+   "name": "Marco Bizot",
+   "short_name": "Bizot",
+   "role": "Goalkeeper",
+   "team": "Aston Villa",
+   "nationality": "NED",
+   "uefa_id": "250006714",
+   "list_b": false
+  },
+  {
+   "name": "James Wright",
+   "short_name": "Wright",
+   "role": "Goalkeeper",
+   "team": "Aston Villa",
+   "nationality": "ENG",
+   "uefa_id": "250188465",
+   "list_b": false
+  },
+  {
+   "name": "Matty Cash",
+   "short_name": "Cash",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "POL",
+   "uefa_id": "250169376",
+   "list_b": false
+  },
+  {
+   "name": "Victor Lindelöf",
+   "short_name": "Lindelöf",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "SWE",
+   "uefa_id": "250055905",
+   "list_b": false
+  },
+  {
+   "name": "Tyrone Mings",
+   "short_name": "Mings",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "ENG",
+   "uefa_id": "250133856",
+   "list_b": false
+  },
+  {
+   "name": "Matteo Ruggeri",
+   "short_name": "Ruggeri",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "ITA",
+   "uefa_id": "250127239",
+   "list_b": false
+  },
+  {
+   "name": "Pau Torres",
+   "short_name": "Pau Torres",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "ESP",
+   "uefa_id": "250088461",
+   "list_b": false
+  },
+  {
+   "name": "Ian Maatsen",
+   "short_name": "Maatsen",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "NED",
+   "uefa_id": "250117581",
+   "list_b": false
+  },
+  {
+   "name": "Lamare Bogarde",
+   "short_name": "Bogarde",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "NED",
+   "uefa_id": "250139057",
+   "list_b": false
+  },
+  {
+   "name": "Aaron Wan-Bissaka",
+   "short_name": "Wan-Bissaka",
+   "role": "Defender",
+   "team": "Aston Villa",
+   "nationality": "CGO",
+   "uefa_id": "250123067",
+   "list_b": false
+  },
+  {
+   "name": "Ross Barkley",
+   "short_name": "Barkley",
+   "role": "Midfielder",
+   "team": "Aston Villa",
+   "nationality": "ENG",
+   "uefa_id": "250007655",
+   "list_b": false
+  },
+  {
+   "name": "John McGinn",
+   "short_name": "McGinn",
+   "role": "Midfielder",
+   "team": "Aston Villa",
+   "nationality": "SCO",
+   "uefa_id": "250058958",
+   "list_b": false
+  },
+  {
+   "name": "Boubacar Kamara",
+   "short_name": "Kamara",
+   "role": "Midfielder",
+   "team": "Aston Villa",
+   "nationality": "FRA",
+   "uefa_id": "250091722",
+   "list_b": false
+  },
+  {
+   "name": "Leon Goretzka",
+   "short_name": "Goretzka",
+   "role": "Midfielder",
+   "team": "Aston Villa",
+   "nationality": "GER",
+   "uefa_id": "250041771",
+   "list_b": false
+  },
+  {
+   "name": "João Gomes",
+   "short_name": "João Gomes",
+   "role": "Midfielder",
+   "team": "Aston Villa",
+   "nationality": "BRA",
+   "uefa_id": "250194571",
+   "list_b": false
+  },
+  {
+   "name": "Johan Manzambi",
+   "short_name": "Manzambi",
+   "role": "Midfielder",
+   "team": "Aston Villa",
+   "nationality": "SUI",
+   "uefa_id": "250192993",
+   "list_b": false
+  },
+  {
+   "name": "Emiliano Buendía",
+   "short_name": "Buendía",
+   "role": "Forward",
+   "team": "Aston Villa",
+   "nationality": "ARG",
+   "uefa_id": "250080569",
+   "list_b": false
+  },
+  {
+   "name": "Nicolas Jackson",
+   "short_name": "Jackson",
+   "role": "Forward",
+   "team": "Aston Villa",
+   "nationality": "SEN",
+   "uefa_id": "250163689",
+   "list_b": false
+  },
+  {
+   "name": "Alejandro Garnacho",
+   "short_name": "Garnacho",
+   "role": "Forward",
+   "team": "Aston Villa",
+   "nationality": "ARG",
+   "uefa_id": "250135496",
+   "list_b": false
+  },
+  {
+   "name": "Tammy Abraham",
+   "short_name": "Abraham",
+   "role": "Forward",
+   "team": "Aston Villa",
+   "nationality": "ENG",
+   "uefa_id": "250067629",
+   "list_b": false
+  },
+  {
+   "name": "Ibrahim Mbaye",
+   "short_name": "Mbaye",
+   "role": "Forward",
+   "team": "Aston Villa",
+   "nationality": "SEN",
+   "uefa_id": "250190117",
+   "list_b": false
+  },
+  {
+   "name": "Alysson",
+   "short_name": "Alysson",
+   "role": "Forward",
+   "team": "Aston Villa",
+   "nationality": "BRA",
+   "uefa_id": "250221088",
+   "list_b": false
+  },
+  {
+   "name": "Juan Musso",
+   "short_name": "Musso",
+   "role": "Goalkeeper",
+   "team": "Atleti",
+   "nationality": "ARG",
+   "uefa_id": "250137521",
+   "list_b": false
+  },
+  {
+   "name": "Jan Oblak",
+   "short_name": "Oblak",
+   "role": "Goalkeeper",
+   "team": "Atleti",
+   "nationality": "SVN",
+   "uefa_id": "250012069",
+   "list_b": false
+  },
+  {
+   "name": "Dávid Hancko",
+   "short_name": "Hancko",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "SVK",
+   "uefa_id": "250092668",
+   "list_b": false
+  },
+  {
+   "name": "Marc Pubill",
+   "short_name": "Marc Pubill",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250194472",
+   "list_b": false
+  },
+  {
+   "name": "Cristian Romero",
+   "short_name": "Romero",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "ARG",
+   "uefa_id": "250144325",
+   "list_b": false
+  },
+  {
+   "name": "Alejandro Grimaldo",
+   "short_name": "Grimaldo",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250042422",
+   "list_b": false
+  },
+  {
+   "name": "Robin Le Normand",
+   "short_name": "Le Normand",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250112513",
+   "list_b": false
+  },
+  {
+   "name": "Dani Martinez",
+   "short_name": "Dani Martinez",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250176826",
+   "list_b": false
+  },
+  {
+   "name": "Arnau Solà",
+   "short_name": "Arnau Solà",
+   "role": "Defender",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250135429",
+   "list_b": false
+  },
+  {
+   "name": "Obed Vargas",
+   "short_name": "Vargas",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "MEX",
+   "uefa_id": "250216944",
+   "list_b": false
+  },
+  {
+   "name": "Rodrigo Mendoza",
+   "short_name": "Mendoza",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250172343",
+   "list_b": false
+  },
+  {
+   "name": "Johnny Cardoso",
+   "short_name": "Cardoso",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "USA",
+   "uefa_id": "250150915",
+   "list_b": false
+  },
+  {
+   "name": "Koke",
+   "short_name": "Koke",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "1909917",
+   "list_b": false
+  },
+  {
+   "name": "Kang-in Lee",
+   "short_name": "Kang-in Lee",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "KOR",
+   "uefa_id": "250121584",
+   "list_b": false
+  },
+  {
+   "name": "Pablo Barrios",
+   "short_name": "Barrios",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250139036",
+   "list_b": false
+  },
+  {
+   "name": "Álex Baena",
+   "short_name": "Álex Baena",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250106963",
+   "list_b": false
+  },
+  {
+   "name": "Marcos Llorente",
+   "short_name": "Llorente",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250079670",
+   "list_b": false
+  },
+  {
+   "name": "Morten Hjulmand",
+   "short_name": "Hjulmand",
+   "role": "Midfielder",
+   "team": "Atleti",
+   "nationality": "DEN",
+   "uefa_id": "250101557",
+   "list_b": false
+  },
+  {
+   "name": "Alexander Sørloth",
+   "short_name": "Sørloth",
+   "role": "Forward",
+   "team": "Atleti",
+   "nationality": "NOR",
+   "uefa_id": "250061361",
+   "list_b": false
+  },
+  {
+   "name": "Ademola Lookman",
+   "short_name": "Lookman",
+   "role": "Forward",
+   "team": "Atleti",
+   "nationality": "NGA",
+   "uefa_id": "250099258",
+   "list_b": false
+  },
+  {
+   "name": "Jonathan David",
+   "short_name": "David",
+   "role": "Forward",
+   "team": "Atleti",
+   "nationality": "CAN",
+   "uefa_id": "250102035",
+   "list_b": false
+  },
+  {
+   "name": "Arnau Ortiz",
+   "short_name": "Arnau Ortiz",
+   "role": "Forward",
+   "team": "Atleti",
+   "nationality": "ESP",
+   "uefa_id": "250197651",
+   "list_b": false
+  },
+  {
+   "name": "Julián Alvarez",
+   "short_name": "Alvarez",
+   "role": "Forward",
+   "team": "Atleti",
+   "nationality": "ARG",
+   "uefa_id": "250172668",
+   "list_b": false
+  },
+  {
+   "name": "Giuliano Simeone",
+   "short_name": "Simeone",
+   "role": "Forward",
+   "team": "Atleti",
+   "nationality": "ARG",
+   "uefa_id": "250153634",
+   "list_b": false
+  },
+  {
+   "name": "Gregor Kobel",
+   "short_name": "Kobel",
+   "role": "Goalkeeper",
+   "team": "B. Dortmund",
+   "nationality": "SUI",
+   "uefa_id": "250069832",
+   "list_b": false
+  },
+  {
+   "name": "Patrick Drewes",
+   "short_name": "Drewes",
+   "role": "Goalkeeper",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250077579",
+   "list_b": false
+  },
+  {
+   "name": "Silas Ostrzinski",
+   "short_name": "Ostrzinski",
+   "role": "Goalkeeper",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250153408",
+   "list_b": false
+  },
+  {
+   "name": "Alexander Meyer",
+   "short_name": "Meyer",
+   "role": "Goalkeeper",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250174737",
+   "list_b": false
+  },
+  {
+   "name": "Waldemar Anton",
+   "short_name": "Anton",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250101238",
+   "list_b": false
+  },
+  {
+   "name": "Nico Schlotterbeck",
+   "short_name": "Schlotterbeck",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250134856",
+   "list_b": false
+  },
+  {
+   "name": "Ramy Bensebaini",
+   "short_name": "Bensebaini",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "ALG",
+   "uefa_id": "250119677",
+   "list_b": false
+  },
+  {
+   "name": "Joane Gadou",
+   "short_name": "Gadou",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "FRA",
+   "uefa_id": "250177594",
+   "list_b": false
+  },
+  {
+   "name": "Daniel Svensson",
+   "short_name": "Svensson",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "SWE",
+   "uefa_id": "250156423",
+   "list_b": false
+  },
+  {
+   "name": "Julian Ryerson",
+   "short_name": "Ryerson",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "NOR",
+   "uefa_id": "250092517",
+   "list_b": false
+  },
+  {
+   "name": "Kauã Prates",
+   "short_name": "Kauã Prates",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "BRA",
+   "uefa_id": "250224143",
+   "list_b": false
+  },
+  {
+   "name": "Filippo Mane",
+   "short_name": "Mane",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "ITA",
+   "uefa_id": "250168729",
+   "list_b": false
+  },
+  {
+   "name": "Jan Luca Riedl",
+   "short_name": "Riedl",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250200719",
+   "list_b": true
+  },
+  {
+   "name": "Miguel Adje",
+   "short_name": "Adje",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250211913",
+   "list_b": true
+  },
+  {
+   "name": "Luca Reggiani",
+   "short_name": "Reggiani",
+   "role": "Defender",
+   "team": "B. Dortmund",
+   "nationality": "ITA",
+   "uefa_id": "250193505",
+   "list_b": true
+  },
+  {
+   "name": "Jobe Bellingham",
+   "short_name": "Bellingham",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "ENG",
+   "uefa_id": "250167832",
+   "list_b": false
+  },
+  {
+   "name": "Felix Nmecha",
+   "short_name": "Nmecha",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250112224",
+   "list_b": false
+  },
+  {
+   "name": "Carney Chukwuemeka",
+   "short_name": "Chukwuemeka",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "AUT",
+   "uefa_id": "250169276",
+   "list_b": false
+  },
+  {
+   "name": "Ethan Nwaneri",
+   "short_name": "Nwaneri",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "ENG",
+   "uefa_id": "250170117",
+   "list_b": false
+  },
+  {
+   "name": "Marcel Sabitzer",
+   "short_name": "Sabitzer",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "AUT",
+   "uefa_id": "250024349",
+   "list_b": false
+  },
+  {
+   "name": "Joey Veerman",
+   "short_name": "Veerman",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "NED",
+   "uefa_id": "250105890",
+   "list_b": false
+  },
+  {
+   "name": "Enzo Duarte",
+   "short_name": "Duarte",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "LUX",
+   "uefa_id": "250203284",
+   "list_b": false
+  },
+  {
+   "name": "Mussa Kaba",
+   "short_name": "Kaba",
+   "role": "Midfielder",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250200716",
+   "list_b": false
+  },
+  {
+   "name": "Serhou Guirassy",
+   "short_name": "Guirassy",
+   "role": "Forward",
+   "team": "B. Dortmund",
+   "nationality": "GUI",
+   "uefa_id": "250080553",
+   "list_b": false
+  },
+  {
+   "name": "Maximilian Beier",
+   "short_name": "Beier",
+   "role": "Forward",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250124222",
+   "list_b": false
+  },
+  {
+   "name": "Konstantinos Karetsas",
+   "short_name": "Karetsas",
+   "role": "Forward",
+   "team": "B. Dortmund",
+   "nationality": "GRE",
+   "uefa_id": "250182174",
+   "list_b": false
+  },
+  {
+   "name": "Fábio Silva",
+   "short_name": "Fábio Silva",
+   "role": "Forward",
+   "team": "B. Dortmund",
+   "nationality": "POR",
+   "uefa_id": "250113350",
+   "list_b": false
+  },
+  {
+   "name": "Samuele Inacio",
+   "short_name": "Inacio",
+   "role": "Forward",
+   "team": "B. Dortmund",
+   "nationality": "ITA",
+   "uefa_id": "250200715",
+   "list_b": true
+  },
+  {
+   "name": "Mathis Albert",
+   "short_name": "Albert",
+   "role": "Forward",
+   "team": "B. Dortmund",
+   "nationality": "GER",
+   "uefa_id": "250200705",
+   "list_b": true
+  },
+  {
+   "name": "Joan García",
+   "short_name": "Joan García",
+   "role": "Goalkeeper",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250118131",
+   "list_b": false
+  },
+  {
+   "name": "Wojciech Szczęsny",
+   "short_name": "Szczęsny",
+   "role": "Goalkeeper",
+   "team": "Barcelona",
+   "nationality": "POL",
+   "uefa_id": "108501",
+   "list_b": false
+  },
+  {
+   "name": "Dominik Livaković",
+   "short_name": "Livaković",
+   "role": "Goalkeeper",
+   "team": "Barcelona",
+   "nationality": "CRO",
+   "uefa_id": "250042625",
+   "list_b": false
+  },
+  {
+   "name": "João Cancelo",
+   "short_name": "João Cancelo",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "POR",
+   "uefa_id": "250024746",
+   "list_b": false
+  },
+  {
+   "name": "Alejandro Balde",
+   "short_name": "Balde",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250135416",
+   "list_b": false
+  },
+  {
+   "name": "Pau Cubarsí",
+   "short_name": "Cubarsí",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250176453",
+   "list_b": false
+  },
+  {
+   "name": "Xavi Espart",
+   "short_name": "Xavi Espart",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250190377",
+   "list_b": false
+  },
+  {
+   "name": "Andreas Christensen",
+   "short_name": "Christensen",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "DEN",
+   "uefa_id": "250041718",
+   "list_b": false
+  },
+  {
+   "name": "Gerard Martín",
+   "short_name": "Gerard Martín",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250197801",
+   "list_b": false
+  },
+  {
+   "name": "Jules Koundé",
+   "short_name": "Koundé",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "FRA",
+   "uefa_id": "250096309",
+   "list_b": false
+  },
+  {
+   "name": "Eric García",
+   "short_name": "Eric García",
+   "role": "Defender",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250103561",
+   "list_b": false
+  },
+  {
+   "name": "Gavi",
+   "short_name": "Gavi",
+   "role": "Midfielder",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250139255",
+   "list_b": false
+  },
+  {
+   "name": "Pedri",
+   "short_name": "Pedri",
+   "role": "Midfielder",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250143693",
+   "list_b": false
+  },
+  {
+   "name": "Rodri",
+   "short_name": "Rodri",
+   "role": "Midfielder",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250082664",
+   "list_b": false
+  },
+  {
+   "name": "Frenkie de Jong",
+   "short_name": "De Jong",
+   "role": "Midfielder",
+   "team": "Barcelona",
+   "nationality": "NED",
+   "uefa_id": "50327423",
+   "list_b": false
+  },
+  {
+   "name": "Marc Bernal",
+   "short_name": "Bernal",
+   "role": "Midfielder",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250190383",
+   "list_b": false
+  },
+  {
+   "name": "Fermín López",
+   "short_name": "Fermín López",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250164780",
+   "list_b": false
+  },
+  {
+   "name": "Gabriel Jesus",
+   "short_name": "Jesus",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "BRA",
+   "uefa_id": "250106649",
+   "list_b": false
+  },
+  {
+   "name": "Lamine Yamal",
+   "short_name": "Yamal",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250176450",
+   "list_b": false
+  },
+  {
+   "name": "Raphinha",
+   "short_name": "Raphinha",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "BRA",
+   "uefa_id": "250112880",
+   "list_b": false
+  },
+  {
+   "name": "Karim Adeyemi",
+   "short_name": "Adeyemi",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "GER",
+   "uefa_id": "250127347",
+   "list_b": false
+  },
+  {
+   "name": "Anthony Gordon",
+   "short_name": "Gordon",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "ENG",
+   "uefa_id": "250117036",
+   "list_b": false
+  },
+  {
+   "name": "Dani Olmo",
+   "short_name": "Olmo",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "ESP",
+   "uefa_id": "250081720",
+   "list_b": false
+  },
+  {
+   "name": "Jesse Bisiwu",
+   "short_name": "Bisiwu",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "BEL",
+   "uefa_id": "250194007",
+   "list_b": false
+  },
+  {
+   "name": "Hamza Abdelkarim",
+   "short_name": "Abdelkarim",
+   "role": "Forward",
+   "team": "Barcelona",
+   "nationality": "EGY",
+   "uefa_id": "250221011",
+   "list_b": false
+  },
+  {
+   "name": "Manuel Neuer",
+   "short_name": "Neuer",
+   "role": "Goalkeeper",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "97923",
+   "list_b": false
+  },
+  {
+   "name": "Sven Ulreich",
+   "short_name": "Ulreich",
+   "role": "Goalkeeper",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "1902445",
+   "list_b": false
+  },
+  {
+   "name": "Jonas Urbig",
+   "short_name": "Urbig",
+   "role": "Goalkeeper",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250153936",
+   "list_b": false
+  },
+  {
+   "name": "Dayot Upamecano",
+   "short_name": "Upamecano",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "FRA",
+   "uefa_id": "250079545",
+   "list_b": false
+  },
+  {
+   "name": "Minjae Kim",
+   "short_name": "Minjae Kim",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "KOR",
+   "uefa_id": "250162325",
+   "list_b": false
+  },
+  {
+   "name": "Jonathan Tah",
+   "short_name": "Tah",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250055660",
+   "list_b": false
+  },
+  {
+   "name": "Nathaniel Brown",
+   "short_name": "Brown",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250190350",
+   "list_b": false
+  },
+  {
+   "name": "Hiroki Ito",
+   "short_name": "H. Ito",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "JPN",
+   "uefa_id": "250181455",
+   "list_b": false
+  },
+  {
+   "name": "Sacha Boey",
+   "short_name": "Boey",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "FRA",
+   "uefa_id": "250136348",
+   "list_b": false
+  },
+  {
+   "name": "Josip Stanišić",
+   "short_name": "Stanišić",
+   "role": "Defender",
+   "team": "Bayern München",
+   "nationality": "CRO",
+   "uefa_id": "250112220",
+   "list_b": false
+  },
+  {
+   "name": "Joshua Kimmich",
+   "short_name": "Kimmich",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250070417",
+   "list_b": false
+  },
+  {
+   "name": "Tom Bischof",
+   "short_name": "Bischof",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250168211",
+   "list_b": false
+  },
+  {
+   "name": "Jamal Musiala",
+   "short_name": "Musiala",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250124430",
+   "list_b": false
+  },
+  {
+   "name": "Michael Olise",
+   "short_name": "Olise",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "FRA",
+   "uefa_id": "250171184",
+   "list_b": false
+  },
+  {
+   "name": "Alphonso Davies",
+   "short_name": "Davies",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "CAN",
+   "uefa_id": "250128120",
+   "list_b": false
+  },
+  {
+   "name": "Konrad Laimer",
+   "short_name": "Laimer",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "AUT",
+   "uefa_id": "250065413",
+   "list_b": false
+  },
+  {
+   "name": "Ismael Saibari",
+   "short_name": "Saibari",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "MAR",
+   "uefa_id": "250134320",
+   "list_b": false
+  },
+  {
+   "name": "Bara Sapoko Ndiaye",
+   "short_name": "Sapoko Ndiaye",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "SEN",
+   "uefa_id": "250221022",
+   "list_b": false
+  },
+  {
+   "name": "Aleksandar Pavlović",
+   "short_name": "Pavlović",
+   "role": "Midfielder",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250163777",
+   "list_b": false
+  },
+  {
+   "name": "Serge Gnabry",
+   "short_name": "Gnabry",
+   "role": "Forward",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250041770",
+   "list_b": false
+  },
+  {
+   "name": "Harry Kane",
+   "short_name": "Kane",
+   "role": "Forward",
+   "team": "Bayern München",
+   "nationality": "ENG",
+   "uefa_id": "250016833",
+   "list_b": false
+  },
+  {
+   "name": "Luis Díaz",
+   "short_name": "Luis Díaz",
+   "role": "Forward",
+   "team": "Bayern München",
+   "nationality": "COL",
+   "uefa_id": "250132811",
+   "list_b": false
+  },
+  {
+   "name": "Bastian Assomo",
+   "short_name": "Assomo",
+   "role": "Forward",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250224184",
+   "list_b": false
+  },
+  {
+   "name": "Maycon Cardozo",
+   "short_name": "Cardozo",
+   "role": "Forward",
+   "team": "Bayern München",
+   "nationality": "GER",
+   "uefa_id": "250212724",
+   "list_b": false
+  },
+  {
+   "name": "Julian Faye Lund",
+   "short_name": "Faye Lund",
+   "role": "Goalkeeper",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250085663",
+   "list_b": false
+  },
+  {
+   "name": "Nikita Haikin",
+   "short_name": "Haikin",
+   "role": "Goalkeeper",
+   "team": "Bodø/Glimt",
+   "nationality": "RUS",
+   "uefa_id": "250141864",
+   "list_b": false
+  },
+  {
+   "name": "Martin Lund Andersen",
+   "short_name": "Andersen",
+   "role": "Goalkeeper",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250212817",
+   "list_b": true
+  },
+  {
+   "name": "Isak Sjong",
+   "short_name": "Sjong",
+   "role": "Goalkeeper",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250182524",
+   "list_b": true
+  },
+  {
+   "name": "Villads Nielsen",
+   "short_name": "Nielsen",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "DEN",
+   "uefa_id": "250189213",
+   "list_b": false
+  },
+  {
+   "name": "Odin Bjørtuft",
+   "short_name": "Bjørtuft",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250187215",
+   "list_b": false
+  },
+  {
+   "name": "Haitam Aleesami",
+   "short_name": "Aleesami",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250084903",
+   "list_b": false
+  },
+  {
+   "name": "Jostein Gundersen",
+   "short_name": "Gundersen",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250109274",
+   "list_b": false
+  },
+  {
+   "name": "Fredrik Bjørkan",
+   "short_name": "Bjørkan",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250104207",
+   "list_b": false
+  },
+  {
+   "name": "Matias Jaiteh",
+   "short_name": "Jaiteh",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213119",
+   "list_b": true
+  },
+  {
+   "name": "Mathias Blix Olsen",
+   "short_name": "Blix Olsen",
+   "role": "Defender",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213088",
+   "list_b": true
+  },
+  {
+   "name": "Patrick Berg",
+   "short_name": "Berg",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250065292",
+   "list_b": false
+  },
+  {
+   "name": "Sondre Auklend",
+   "short_name": "Auklend",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250129159",
+   "list_b": false
+  },
+  {
+   "name": "Ulrik Saltnes",
+   "short_name": "Saltnes",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250141867",
+   "list_b": false
+  },
+  {
+   "name": "Joshua Kitolano",
+   "short_name": "Kitolano",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250109026",
+   "list_b": false
+  },
+  {
+   "name": "Sondre Brunstad Fet",
+   "short_name": "Brunstad Fet",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250141862",
+   "list_b": false
+  },
+  {
+   "name": "Fredrik Sjøvold",
+   "short_name": "Sjøvold",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250173424",
+   "list_b": false
+  },
+  {
+   "name": "Magnus Riisnæs",
+   "short_name": "Riisnæs",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250138997",
+   "list_b": false
+  },
+  {
+   "name": "Håkon Evjen",
+   "short_name": "Evjen",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250107249",
+   "list_b": false
+  },
+  {
+   "name": "Assan Sanyang",
+   "short_name": "Sanyang",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "GAM",
+   "uefa_id": "250225019",
+   "list_b": false
+  },
+  {
+   "name": "Kasper Solhaug",
+   "short_name": "Solhaug",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213132",
+   "list_b": true
+  },
+  {
+   "name": "Levi Monsen Yeboah",
+   "short_name": "Monsen Yeboah",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213128",
+   "list_b": true
+  },
+  {
+   "name": "Erling Eliassen",
+   "short_name": "Eliassen",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213099",
+   "list_b": true
+  },
+  {
+   "name": "Jesper Rabben Nygård",
+   "short_name": "Rabben Nygård",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213129",
+   "list_b": true
+  },
+  {
+   "name": "August Mikkelsen",
+   "short_name": "Mikkelsen",
+   "role": "Midfielder",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250186245",
+   "list_b": false
+  },
+  {
+   "name": "Andreas Helmersen",
+   "short_name": "Helmersen",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250078507",
+   "list_b": false
+  },
+  {
+   "name": "Jens Petter Hauge",
+   "short_name": "Hauge",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250104487",
+   "list_b": false
+  },
+  {
+   "name": "Ole Didrik Blomberg",
+   "short_name": "Blomberg",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250187645",
+   "list_b": false
+  },
+  {
+   "name": "Ola Brynhildsen",
+   "short_name": "Brynhildsen",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250117917",
+   "list_b": false
+  },
+  {
+   "name": "Joel Mvuka",
+   "short_name": "Mvuka",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250160883",
+   "list_b": false
+  },
+  {
+   "name": "Isak Määttä",
+   "short_name": "Määttä",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250138384",
+   "list_b": false
+  },
+  {
+   "name": "Hindrin Chooly",
+   "short_name": "Chooly",
+   "role": "Forward",
+   "team": "Bodø/Glimt",
+   "nationality": "NOR",
+   "uefa_id": "250213093",
+   "list_b": true
+  },
+  {
+   "name": "Yann Sommer",
+   "short_name": "Sommer",
+   "role": "Goalkeeper",
+   "team": "Club Brugge",
+   "nationality": "SUI",
+   "uefa_id": "97746",
+   "list_b": false
+  },
+  {
+   "name": "Nordin Jackers",
+   "short_name": "Jackers",
+   "role": "Goalkeeper",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250066521",
+   "list_b": false
+  },
+  {
+   "name": "Han-beom Lee",
+   "short_name": "Han-beom Lee",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "KOR",
+   "uefa_id": "250197263",
+   "list_b": false
+  },
+  {
+   "name": "Joel Ordoñez",
+   "short_name": "Ordoñez",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "ECU",
+   "uefa_id": "250176201",
+   "list_b": false
+  },
+  {
+   "name": "Matteo Dams",
+   "short_name": "Dams",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250169764",
+   "list_b": false
+  },
+  {
+   "name": "Hugo Siquet",
+   "short_name": "Siquet",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250128898",
+   "list_b": false
+  },
+  {
+   "name": "Brandon Mechele",
+   "short_name": "Mechele",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250053044",
+   "list_b": false
+  },
+  {
+   "name": "Samba Coulibaly",
+   "short_name": "Coulibaly",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "FRA",
+   "uefa_id": "250200895",
+   "list_b": false
+  },
+  {
+   "name": "Samuel Van Hoogen",
+   "short_name": "Van Hoogen",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250189614",
+   "list_b": false
+  },
+  {
+   "name": "Andre Garcia",
+   "short_name": "Garcia",
+   "role": "Defender",
+   "team": "Club Brugge",
+   "nationality": "ENG",
+   "uefa_id": "250216973",
+   "list_b": false
+  },
+  {
+   "name": "Freddie Potts",
+   "short_name": "Potts",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "ENG",
+   "uefa_id": "250165376",
+   "list_b": false
+  },
+  {
+   "name": "Hugo Vetlesen",
+   "short_name": "Vetlesen",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "NOR",
+   "uefa_id": "250115134",
+   "list_b": false
+  },
+  {
+   "name": "Cheveyo Tsawa",
+   "short_name": "Tsawa",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "SUI",
+   "uefa_id": "250172155",
+   "list_b": false
+  },
+  {
+   "name": "Hans Vanaken",
+   "short_name": "Vanaken",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250064188",
+   "list_b": false
+  },
+  {
+   "name": "Lynnt Audoor",
+   "short_name": "L. Audoor",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250130405",
+   "list_b": false
+  },
+  {
+   "name": "Félix Lemarechal",
+   "short_name": "Lemarechal",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "FRA",
+   "uefa_id": "250160006",
+   "list_b": false
+  },
+  {
+   "name": "Tian Koren",
+   "short_name": "Koren",
+   "role": "Midfielder",
+   "team": "Club Brugge",
+   "nationality": "SVN",
+   "uefa_id": "250201806",
+   "list_b": false
+  },
+  {
+   "name": "Nicolo Tresoldi",
+   "short_name": "Tresoldi",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "GER",
+   "uefa_id": "250181849",
+   "list_b": false
+  },
+  {
+   "name": "Carlos Forbs",
+   "short_name": "Carlos Forbs",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "POR",
+   "uefa_id": "250138957",
+   "list_b": false
+  },
+  {
+   "name": "Jan Virgili",
+   "short_name": "Virgili",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "ESP",
+   "uefa_id": "250200748",
+   "list_b": false
+  },
+  {
+   "name": "Romeo Vermant",
+   "short_name": "Vermant",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250138982",
+   "list_b": false
+  },
+  {
+   "name": "Wisdom Mike",
+   "short_name": "Mike",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "GER",
+   "uefa_id": "250201122",
+   "list_b": false
+  },
+  {
+   "name": "Milan Robberechts",
+   "short_name": "Robberechts",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "BEL",
+   "uefa_id": "250225251",
+   "list_b": false
+  },
+  {
+   "name": "Mamadou Diakhon",
+   "short_name": "Diakhon",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "FRA",
+   "uefa_id": "250192955",
+   "list_b": false
+  },
+  {
+   "name": "Andrej Vasovic",
+   "short_name": "Vasovic",
+   "role": "Forward",
+   "team": "Club Brugge",
+   "nationality": "SUI",
+   "uefa_id": "250184377",
+   "list_b": false
+  },
+  {
+   "name": "Jean Butez",
+   "short_name": "Butez",
+   "role": "Goalkeeper",
+   "team": "Como",
+   "nationality": "FRA",
+   "uefa_id": "250074004",
+   "list_b": false
+  },
+  {
+   "name": "Robert Sánchez",
+   "short_name": "Sánchez",
+   "role": "Goalkeeper",
+   "team": "Como",
+   "nationality": "ESP",
+   "uefa_id": "250154983",
+   "list_b": false
+  },
+  {
+   "name": "Marc-Oliver Kempf",
+   "short_name": "Kempf",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "GER",
+   "uefa_id": "250046524",
+   "list_b": false
+  },
+  {
+   "name": "Alex Valle",
+   "short_name": "Valle",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "ESP",
+   "uefa_id": "250164785",
+   "list_b": false
+  },
+  {
+   "name": "Jacobo Ramón",
+   "short_name": "Ramón",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "ESP",
+   "uefa_id": "250176488",
+   "list_b": false
+  },
+  {
+   "name": "Alberto Dossena",
+   "short_name": "Dossena",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "ITA",
+   "uefa_id": "250223139",
+   "list_b": false
+  },
+  {
+   "name": "Kaiki Bruno",
+   "short_name": "Kaiki Bruno",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "BRA",
+   "uefa_id": "250218352",
+   "list_b": false
+  },
+  {
+   "name": "Yan Couto",
+   "short_name": "Yan Couto",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "BRA",
+   "uefa_id": "250163731",
+   "list_b": false
+  },
+  {
+   "name": "Ivan Smolčić",
+   "short_name": "Smolčić",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "CRO",
+   "uefa_id": "250113686",
+   "list_b": false
+  },
+  {
+   "name": "Trevoh Chalobah",
+   "short_name": "Chalobah",
+   "role": "Defender",
+   "team": "Como",
+   "nationality": "ENG",
+   "uefa_id": "250076233",
+   "list_b": false
+  },
+  {
+   "name": "Máximo Perrone",
+   "short_name": "Perrone",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "ARG",
+   "uefa_id": "250182150",
+   "list_b": false
+  },
+  {
+   "name": "Luis Milla",
+   "short_name": "Milla",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "ESP",
+   "uefa_id": "250063509",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Da Cunha",
+   "short_name": "Da Cunha",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "FRA",
+   "uefa_id": "250116003",
+   "list_b": false
+  },
+  {
+   "name": "Nicolás Paz",
+   "short_name": "Paz",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "ARG",
+   "uefa_id": "250153621",
+   "list_b": false
+  },
+  {
+   "name": "Martin Baturina",
+   "short_name": "Baturina",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "CRO",
+   "uefa_id": "250140940",
+   "list_b": false
+  },
+  {
+   "name": "Samuele Ricci",
+   "short_name": "Ricci",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "ITA",
+   "uefa_id": "250117839",
+   "list_b": false
+  },
+  {
+   "name": "Mattia Liberali",
+   "short_name": "Liberali",
+   "role": "Midfielder",
+   "team": "Como",
+   "nationality": "ITA",
+   "uefa_id": "250182962",
+   "list_b": false
+  },
+  {
+   "name": "Tasos Douvikas",
+   "short_name": "Douvikas",
+   "role": "Forward",
+   "team": "Como",
+   "nationality": "GRE",
+   "uefa_id": "250116683",
+   "list_b": false
+  },
+  {
+   "name": "Assane Diao",
+   "short_name": "Diao",
+   "role": "Forward",
+   "team": "Como",
+   "nationality": "SEN",
+   "uefa_id": "250186227",
+   "list_b": false
+  },
+  {
+   "name": "Jesus Rodríguez",
+   "short_name": "Jesus Rodríguez",
+   "role": "Forward",
+   "team": "Como",
+   "nationality": "ESP",
+   "uefa_id": "250197195",
+   "list_b": false
+  },
+  {
+   "name": "Moise Kean",
+   "short_name": "Kean",
+   "role": "Forward",
+   "team": "Como",
+   "nationality": "ITA",
+   "uefa_id": "250087919",
+   "list_b": false
+  },
+  {
+   "name": "Tarık Çetin",
+   "short_name": "Tarık Çetin",
+   "role": "Goalkeeper",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250067422",
+   "list_b": false
+  },
+  {
+   "name": "Ederson",
+   "short_name": "Ederson",
+   "role": "Goalkeeper",
+   "team": "Fenerbahçe",
+   "nationality": "BRA",
+   "uefa_id": "250073809",
+   "list_b": false
+  },
+  {
+   "name": "Mert Günok",
+   "short_name": "Mert Günok",
+   "role": "Goalkeeper",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "103243",
+   "list_b": false
+  },
+  {
+   "name": "Kuzey Sapaz",
+   "short_name": "Kuzey Sapaz",
+   "role": "Goalkeeper",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250222121",
+   "list_b": true
+  },
+  {
+   "name": "Yasir Caklı",
+   "short_name": "Yasir Caklı",
+   "role": "Goalkeeper",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250222125",
+   "list_b": true
+  },
+  {
+   "name": "Yiğit Efe Demir",
+   "short_name": "Yiğit Efe Demir",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250174545",
+   "list_b": false
+  },
+  {
+   "name": "Nathan Aké",
+   "short_name": "Aké",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "NED",
+   "uefa_id": "250027008",
+   "list_b": false
+  },
+  {
+   "name": "Mert Müldür",
+   "short_name": "Mert Müldür",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250097238",
+   "list_b": false
+  },
+  {
+   "name": "Kojo Peprah Oppong",
+   "short_name": "Oppong",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "GHA",
+   "uefa_id": "250210900",
+   "list_b": false
+  },
+  {
+   "name": "Nélson Semedo",
+   "short_name": "Nélson Semedo",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "POR",
+   "uefa_id": "250086090",
+   "list_b": false
+  },
+  {
+   "name": "Milan Škriniar",
+   "short_name": "Škriniar",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "SVK",
+   "uefa_id": "250041563",
+   "list_b": false
+  },
+  {
+   "name": "Kamil Efe Üregen",
+   "short_name": "Kamil Efe Üregen",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250216713",
+   "list_b": true
+  },
+  {
+   "name": "Ognjen Mimović",
+   "short_name": "Mimović",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "SRB",
+   "uefa_id": "250164004",
+   "list_b": false
+  },
+  {
+   "name": "Çağan Sarıdikmen",
+   "short_name": "Çağan Sarıdikmen",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250222120",
+   "list_b": true
+  },
+  {
+   "name": "Bedirhan Korkmaz",
+   "short_name": "Bedirhan Korkmaz",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250222123",
+   "list_b": true
+  },
+  {
+   "name": "Gökmen Özdemir",
+   "short_name": "Gökmen Özdemir",
+   "role": "Defender",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250222122",
+   "list_b": true
+  },
+  {
+   "name": "Archie Brown",
+   "short_name": "Brown",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "ENG",
+   "uefa_id": "250135831",
+   "list_b": false
+  },
+  {
+   "name": "İsmail Yüksek",
+   "short_name": "İsmail Yüksek",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250174144",
+   "list_b": false
+  },
+  {
+   "name": "Matteo Guendouzi",
+   "short_name": "Guendouzi",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "FRA",
+   "uefa_id": "250122927",
+   "list_b": false
+  },
+  {
+   "name": "İrfan Can Kahveci",
+   "short_name": "İrfan Can Kahveci",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250046542",
+   "list_b": false
+  },
+  {
+   "name": "Levent Mercan",
+   "short_name": "Mercan",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "GER",
+   "uefa_id": "250123981",
+   "list_b": false
+  },
+  {
+   "name": "Bartuğ Elmaz",
+   "short_name": "Bartuğ Elmaz",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250129575",
+   "list_b": false
+  },
+  {
+   "name": "Oğuz Aydın",
+   "short_name": "Oğuz Aydın",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250118077",
+   "list_b": false
+  },
+  {
+   "name": "Adnan Fettahoğlu",
+   "short_name": "Adnan Fettahoğlu",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250207778",
+   "list_b": true
+  },
+  {
+   "name": "Emin Sayar",
+   "short_name": "Emin Sayar",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250207784",
+   "list_b": true
+  },
+  {
+   "name": "Güner Ekici",
+   "short_name": "Güner Ekici",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250222124",
+   "list_b": true
+  },
+  {
+   "name": "Emirhan Ateş",
+   "short_name": "Emirhan Ateş",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250207773",
+   "list_b": true
+  },
+  {
+   "name": "N'Golo Kanté",
+   "short_name": "Kanté",
+   "role": "Midfielder",
+   "team": "Fenerbahçe",
+   "nationality": "FRA",
+   "uefa_id": "250097248",
+   "list_b": false
+  },
+  {
+   "name": "Kerem Aktürkoğlu",
+   "short_name": "Kerem Aktürkoğlu",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250146674",
+   "list_b": false
+  },
+  {
+   "name": "Romelu Lukaku",
+   "short_name": "Lukaku",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "BEL",
+   "uefa_id": "250010802",
+   "list_b": false
+  },
+  {
+   "name": "Marco Asensio",
+   "short_name": "Asensio",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "ESP",
+   "uefa_id": "250080570",
+   "list_b": false
+  },
+  {
+   "name": "Mason Greenwood",
+   "short_name": "Greenwood",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "ENG",
+   "uefa_id": "250116767",
+   "list_b": false
+  },
+  {
+   "name": "Vedat Muriqi",
+   "short_name": "Muriqi",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "KOS",
+   "uefa_id": "250059699",
+   "list_b": false
+  },
+  {
+   "name": "Dorgeles Nene",
+   "short_name": "Nene",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "MLI",
+   "uefa_id": "250187184",
+   "list_b": false
+  },
+  {
+   "name": "Alaettin Ekici",
+   "short_name": "Alaettin Ekici",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250216848",
+   "list_b": true
+  },
+  {
+   "name": "Çağrı Fedai",
+   "short_name": "Çağrı Fedai",
+   "role": "Forward",
+   "team": "Fenerbahçe",
+   "nationality": "TUR",
+   "uefa_id": "250171630",
+   "list_b": true
+  },
+  {
+   "name": "Tjark Ernst",
+   "short_name": "Ernst",
+   "role": "Goalkeeper",
+   "team": "Feyenoord",
+   "nationality": "GER",
+   "uefa_id": "250128150",
+   "list_b": false
+  },
+  {
+   "name": "Florian Kastenmeier",
+   "short_name": "Kastenmeier",
+   "role": "Goalkeeper",
+   "team": "Feyenoord",
+   "nationality": "GER",
+   "uefa_id": "250225049",
+   "list_b": false
+  },
+  {
+   "name": "Mannou Berger",
+   "short_name": "Berger",
+   "role": "Goalkeeper",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250178085",
+   "list_b": false
+  },
+  {
+   "name": "Liam Bossin",
+   "short_name": "Bossin",
+   "role": "Goalkeeper",
+   "team": "Feyenoord",
+   "nationality": "IRL",
+   "uefa_id": "250065934",
+   "list_b": false
+  },
+  {
+   "name": "Stenn De Mol",
+   "short_name": "De Mol",
+   "role": "Goalkeeper",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250199586",
+   "list_b": true
+  },
+  {
+   "name": "Tim Haksteeg",
+   "short_name": "Haksteeg",
+   "role": "Goalkeeper",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250183766",
+   "list_b": true
+  },
+  {
+   "name": "Bart Nieuwkoop",
+   "short_name": "Nieuwkoop",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250056685",
+   "list_b": false
+  },
+  {
+   "name": "Tsuyoshi Watanabe",
+   "short_name": "Watanabe",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "JPN",
+   "uefa_id": "250187148",
+   "list_b": false
+  },
+  {
+   "name": "Gijs Smal",
+   "short_name": "Smal",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250174851",
+   "list_b": false
+  },
+  {
+   "name": "Jerry St. Juste",
+   "short_name": "St. Juste",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250087967",
+   "list_b": false
+  },
+  {
+   "name": "Jordan Bos",
+   "short_name": "Bos",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "AUS",
+   "uefa_id": "250192004",
+   "list_b": false
+  },
+  {
+   "name": "Javi Lopez",
+   "short_name": "Lopez",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "ESP",
+   "uefa_id": "250126914",
+   "list_b": false
+  },
+  {
+   "name": "Mats Deijl",
+   "short_name": "Deijl",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250197412",
+   "list_b": false
+  },
+  {
+   "name": "Thijs Kraaijeveld",
+   "short_name": "Kraaijeveld",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250182482",
+   "list_b": true
+  },
+  {
+   "name": "Givairo Read",
+   "short_name": "Read",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250183808",
+   "list_b": true
+  },
+  {
+   "name": "Tijme Wessels",
+   "short_name": "Wessels",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250199597",
+   "list_b": true
+  },
+  {
+   "name": "Mika Medina",
+   "short_name": "Medina",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "ESP",
+   "uefa_id": "250123956",
+   "list_b": false
+  },
+  {
+   "name": "Marleyson Cruz",
+   "short_name": "Cruz",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250189848",
+   "list_b": true
+  },
+  {
+   "name": "Twan Schens",
+   "short_name": "Schens",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250199595",
+   "list_b": true
+  },
+  {
+   "name": "Hakeem Agboluaje",
+   "short_name": "Agboluaje",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250190228",
+   "list_b": true
+  },
+  {
+   "name": "Matthew Mparaganda",
+   "short_name": "Mparaganda",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250199589",
+   "list_b": true
+  },
+  {
+   "name": "Dani Slory",
+   "short_name": "Slory",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250200576",
+   "list_b": true
+  },
+  {
+   "name": "Boaz Plantinga",
+   "short_name": "Plantinga",
+   "role": "Defender",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250216077",
+   "list_b": true
+  },
+  {
+   "name": "Jakub Moder",
+   "short_name": "Moder",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "POL",
+   "uefa_id": "250092129",
+   "list_b": false
+  },
+  {
+   "name": "Gjivai Zechiel",
+   "short_name": "Zechiel",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250178067",
+   "list_b": false
+  },
+  {
+   "name": "Luciano Valente",
+   "short_name": "Valente",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250208803",
+   "list_b": false
+  },
+  {
+   "name": "Sem Steijn",
+   "short_name": "Steijn",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250174850",
+   "list_b": false
+  },
+  {
+   "name": "Tobias Van Den Elshout",
+   "short_name": "Van Den Elshout",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250193618",
+   "list_b": true
+  },
+  {
+   "name": "Oussama Targhalline",
+   "short_name": "Targhalline",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "MAR",
+   "uefa_id": "250163878",
+   "list_b": false
+  },
+  {
+   "name": "Charles Vanhoutte",
+   "short_name": "Vanhoutte",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "BEL",
+   "uefa_id": "250187845",
+   "list_b": false
+  },
+  {
+   "name": "Nick De Koning",
+   "short_name": "De Koning",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250200556",
+   "list_b": true
+  },
+  {
+   "name": "Nassim El Harmouz",
+   "short_name": "El Harmouz",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250190226",
+   "list_b": true
+  },
+  {
+   "name": "Kevin Khan",
+   "short_name": "Khan",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "CAN",
+   "uefa_id": "250199588",
+   "list_b": true
+  },
+  {
+   "name": "Zino Sneijer",
+   "short_name": "Sneijer",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250189184",
+   "list_b": true
+  },
+  {
+   "name": "Luca Dahl Tomasson",
+   "short_name": "Tomasson",
+   "role": "Midfielder",
+   "team": "Feyenoord",
+   "nationality": "DEN",
+   "uefa_id": "250218024",
+   "list_b": true
+  },
+  {
+   "name": "Gonçalo Borges",
+   "short_name": "Gonçalo Borges",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "POR",
+   "uefa_id": "250113342",
+   "list_b": false
+  },
+  {
+   "name": "Reiss Nelson",
+   "short_name": "Nelson",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "ENG",
+   "uefa_id": "250077450",
+   "list_b": false
+  },
+  {
+   "name": "Nacho Ferri",
+   "short_name": "Ferri",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "ESP",
+   "uefa_id": "250176378",
+   "list_b": false
+  },
+  {
+   "name": "Anis Hadj Moussa",
+   "short_name": "Hadj Moussa",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "ALG",
+   "uefa_id": "250198119",
+   "list_b": false
+  },
+  {
+   "name": "Gaoussou Diarra",
+   "short_name": "Diarra",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "MLI",
+   "uefa_id": "250210895",
+   "list_b": false
+  },
+  {
+   "name": "Jivayno Zinhagel",
+   "short_name": "Zinhagel",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250200578",
+   "list_b": true
+  },
+  {
+   "name": "Shaqueel Van Persie",
+   "short_name": "Van Persie",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250183765",
+   "list_b": true
+  },
+  {
+   "name": "Jerayno Schaken",
+   "short_name": "Schaken",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250216080",
+   "list_b": false
+  },
+  {
+   "name": "Arman Nahany",
+   "short_name": "Nahany",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250218399",
+   "list_b": true
+  },
+  {
+   "name": "Izu Onunta",
+   "short_name": "Onunta",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250199590",
+   "list_b": true
+  },
+  {
+   "name": "Kelvin Neijenhuis",
+   "short_name": "Neijenhuis",
+   "role": "Forward",
+   "team": "Feyenoord",
+   "nationality": "NED",
+   "uefa_id": "250190224",
+   "list_b": true
+  },
+  {
+   "name": "Uğurcan Çakır",
+   "short_name": "Uğurcan Çakır",
+   "role": "Goalkeeper",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250078452",
+   "list_b": false
+  },
+  {
+   "name": "Günay Güvenç",
+   "short_name": "Günay Güvenç",
+   "role": "Goalkeeper",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250073722",
+   "list_b": false
+  },
+  {
+   "name": "Jankat Yılmaz",
+   "short_name": "Jankat Yılmaz",
+   "role": "Goalkeeper",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250139356",
+   "list_b": false
+  },
+  {
+   "name": "Enes Büyük",
+   "short_name": "Enes Büyük",
+   "role": "Goalkeeper",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250177185",
+   "list_b": false
+  },
+  {
+   "name": "El Chadaille Bitshiabu",
+   "short_name": "Bitshiabu",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "FRA",
+   "uefa_id": "250153851",
+   "list_b": false
+  },
+  {
+   "name": "Ismail Jakobs",
+   "short_name": "Jakobs",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "SEN",
+   "uefa_id": "250117015",
+   "list_b": false
+  },
+  {
+   "name": "Davinson Sánchez",
+   "short_name": "Sánchez",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "COL",
+   "uefa_id": "250099374",
+   "list_b": false
+  },
+  {
+   "name": "Roland Sallai",
+   "short_name": "Sallai",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "HUN",
+   "uefa_id": "250065179",
+   "list_b": false
+  },
+  {
+   "name": "Eren Elmalı",
+   "short_name": "Eren Elmalı",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250163343",
+   "list_b": false
+  },
+  {
+   "name": "Abdülkerim Bardakcı",
+   "short_name": "Abdülkerim Bardakcı",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250043129",
+   "list_b": false
+  },
+  {
+   "name": "Yusuf Kahraman",
+   "short_name": "Yusuf Kahraman",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250206683",
+   "list_b": true
+  },
+  {
+   "name": "Cihan Akgün",
+   "short_name": "Cihan Akgün",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250212907",
+   "list_b": true
+  },
+  {
+   "name": "Wilfried Singo",
+   "short_name": "Singo",
+   "role": "Defender",
+   "team": "Galatasaray",
+   "nationality": "CIV",
+   "uefa_id": "250132323",
+   "list_b": false
+  },
+  {
+   "name": "Gabriel Sara",
+   "short_name": "Gabriel Sara",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "BRA",
+   "uefa_id": "250199220",
+   "list_b": false
+  },
+  {
+   "name": "Lesley Ugochukwu",
+   "short_name": "Ugochukwu",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "FRA",
+   "uefa_id": "250136342",
+   "list_b": false
+  },
+  {
+   "name": "İlkay Gündoğan",
+   "short_name": "Gündoğan",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "GER",
+   "uefa_id": "250005335",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Torreira",
+   "short_name": "Torreira",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "URU",
+   "uefa_id": "250118286",
+   "list_b": false
+  },
+  {
+   "name": "Necati Yançel",
+   "short_name": "Necati Yançel",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250206687",
+   "list_b": true
+  },
+  {
+   "name": "Eyüp Karasu",
+   "short_name": "Eyüp Karasu",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250212934",
+   "list_b": true
+  },
+  {
+   "name": "Furkan Koçak",
+   "short_name": "Furkan Koçak",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250200405",
+   "list_b": true
+  },
+  {
+   "name": "Berat Luş",
+   "short_name": "Berat Luş",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250189922",
+   "list_b": true
+  },
+  {
+   "name": "Renato Nhaga",
+   "short_name": "Nhaga",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "GNB",
+   "uefa_id": "250216977",
+   "list_b": false
+  },
+  {
+   "name": "Onur Kağan Yıldız",
+   "short_name": "Yıldız",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250224253",
+   "list_b": true
+  },
+  {
+   "name": "Aleksei Batrakov",
+   "short_name": "Batrakov",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "RUS",
+   "uefa_id": "250224345",
+   "list_b": false
+  },
+  {
+   "name": "Mario Lemina",
+   "short_name": "Lemina",
+   "role": "Midfielder",
+   "team": "Galatasaray",
+   "nationality": "GAB",
+   "uefa_id": "250134357",
+   "list_b": false
+  },
+  {
+   "name": "Leroy Sané",
+   "short_name": "Sané",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "GER",
+   "uefa_id": "250063984",
+   "list_b": false
+  },
+  {
+   "name": "Yunus Akgün",
+   "short_name": "Yunus Akgün",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250103764",
+   "list_b": false
+  },
+  {
+   "name": "Deniz Gül",
+   "short_name": "Deniz Gül",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250163534",
+   "list_b": false
+  },
+  {
+   "name": "Rafael Leão",
+   "short_name": "Rafael Leão",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "POR",
+   "uefa_id": "250089228",
+   "list_b": false
+  },
+  {
+   "name": "Victor Osimhen",
+   "short_name": "Osimhen",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "NGA",
+   "uefa_id": "250132987",
+   "list_b": false
+  },
+  {
+   "name": "Arda Tagay",
+   "short_name": "Arda Tagay",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250212957",
+   "list_b": true
+  },
+  {
+   "name": "Barış Alper Yılmaz",
+   "short_name": "Barış Alper Yılmaz",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250158929",
+   "list_b": false
+  },
+  {
+   "name": "Ada Yüzgeç",
+   "short_name": "Ada Yüzgeç",
+   "role": "Forward",
+   "team": "Galatasaray",
+   "nationality": "TUR",
+   "uefa_id": "250207790",
+   "list_b": true
+  },
+  {
+   "name": "Josep Martínez",
+   "short_name": "J. Martínez",
+   "role": "Goalkeeper",
+   "team": "Inter",
+   "nationality": "ESP",
+   "uefa_id": "250096761",
+   "list_b": false
+  },
+  {
+   "name": "Raffaele Di Gennaro",
+   "short_name": "Di Gennaro",
+   "role": "Goalkeeper",
+   "team": "Inter",
+   "nationality": "ITA",
+   "uefa_id": "250017814",
+   "list_b": false
+  },
+  {
+   "name": "Ivan Provedel",
+   "short_name": "Provedel",
+   "role": "Goalkeeper",
+   "team": "Inter",
+   "nationality": "ITA",
+   "uefa_id": "250088946",
+   "list_b": false
+  },
+  {
+   "name": "John Stones",
+   "short_name": "Stones",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "ENG",
+   "uefa_id": "250064233",
+   "list_b": false
+  },
+  {
+   "name": "Manuel Akanji",
+   "short_name": "Akanji",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "SUI",
+   "uefa_id": "250085369",
+   "list_b": false
+  },
+  {
+   "name": "Benjamin Pavard",
+   "short_name": "Pavard",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "FRA",
+   "uefa_id": "250081921",
+   "list_b": false
+  },
+  {
+   "name": "Carlos Augusto",
+   "short_name": "Carlos Augusto",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "BRA",
+   "uefa_id": "250188223",
+   "list_b": false
+  },
+  {
+   "name": "Yann Bisseck",
+   "short_name": "Bisseck",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "GER",
+   "uefa_id": "250116951",
+   "list_b": false
+  },
+  {
+   "name": "Federico Dimarco",
+   "short_name": "Dimarco",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "ITA",
+   "uefa_id": "250056189",
+   "list_b": false
+  },
+  {
+   "name": "Mattia Marello",
+   "short_name": "Marello",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "ITA",
+   "uefa_id": "250211929",
+   "list_b": false
+  },
+  {
+   "name": "Alessandro Bastoni",
+   "short_name": "Bastoni",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "ITA",
+   "uefa_id": "250091199",
+   "list_b": false
+  },
+  {
+   "name": "Djed Spence",
+   "short_name": "Spence",
+   "role": "Defender",
+   "team": "Inter",
+   "nationality": "ENG",
+   "uefa_id": "250171293",
+   "list_b": false
+  },
+  {
+   "name": "Piotr Zieliński",
+   "short_name": "Zieliński",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "POL",
+   "uefa_id": "250024370",
+   "list_b": false
+  },
+  {
+   "name": "Petar Sučić",
+   "short_name": "Sučić",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "CRO",
+   "uefa_id": "250135339",
+   "list_b": false
+  },
+  {
+   "name": "Andy Diouf",
+   "short_name": "Diouf",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "FRA",
+   "uefa_id": "250136353",
+   "list_b": false
+  },
+  {
+   "name": "Hakan Çalhanoğlu",
+   "short_name": "Hakan Çalhanoğlu",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "TUR",
+   "uefa_id": "250022829",
+   "list_b": false
+  },
+  {
+   "name": "Curtis Jones",
+   "short_name": "Jones",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "ENG",
+   "uefa_id": "250106935",
+   "list_b": false
+  },
+  {
+   "name": "Henrikh Mkhitaryan",
+   "short_name": "Mkhitaryan",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "ARM",
+   "uefa_id": "98023",
+   "list_b": false
+  },
+  {
+   "name": "Nicolò Barella",
+   "short_name": "Barella",
+   "role": "Midfielder",
+   "team": "Inter",
+   "nationality": "ITA",
+   "uefa_id": "250066739",
+   "list_b": false
+  },
+  {
+   "name": "Marcus Thuram",
+   "short_name": "M. Thuram",
+   "role": "Forward",
+   "team": "Inter",
+   "nationality": "FRA",
+   "uefa_id": "250068805",
+   "list_b": false
+  },
+  {
+   "name": "Lautaro Martínez",
+   "short_name": "L. Martínez",
+   "role": "Forward",
+   "team": "Inter",
+   "nationality": "ARG",
+   "uefa_id": "250118281",
+   "list_b": false
+  },
+  {
+   "name": "Luis Henrique",
+   "short_name": "Luis Henrique",
+   "role": "Forward",
+   "team": "Inter",
+   "nationality": "BRA",
+   "uefa_id": "250146919",
+   "list_b": false
+  },
+  {
+   "name": "Ange-Yoan Bonny",
+   "short_name": "Bonny",
+   "role": "Forward",
+   "team": "Inter",
+   "nationality": "CIV",
+   "uefa_id": "250173062",
+   "list_b": false
+  },
+  {
+   "name": "Lukas Jungwirth",
+   "short_name": "Jungwirth",
+   "role": "Goalkeeper",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250188376",
+   "list_b": false
+  },
+  {
+   "name": "Tobias Schützenauer",
+   "short_name": "Schützenauer",
+   "role": "Goalkeeper",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250065421",
+   "list_b": false
+  },
+  {
+   "name": "Christof Katzmayr",
+   "short_name": "Katzmayr",
+   "role": "Goalkeeper",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250206921",
+   "list_b": true
+  },
+  {
+   "name": "Fabian Schillinger",
+   "short_name": "Schillinger",
+   "role": "Goalkeeper",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250184503",
+   "list_b": false
+  },
+  {
+   "name": "George Bello",
+   "short_name": "Bello",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "USA",
+   "uefa_id": "250188092",
+   "list_b": false
+  },
+  {
+   "name": "Miguel Freckleton",
+   "short_name": "Freckleton",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "ENG",
+   "uefa_id": "250223202",
+   "list_b": false
+  },
+  {
+   "name": "Xavier Mbuyamba",
+   "short_name": "Mbuyamba",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "NED",
+   "uefa_id": "250137804",
+   "list_b": false
+  },
+  {
+   "name": "Andres Andrade",
+   "short_name": "Andrade",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "PAN",
+   "uefa_id": "250133203",
+   "list_b": false
+  },
+  {
+   "name": "Kasper Jørgensen",
+   "short_name": "Jørgensen",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "DEN",
+   "uefa_id": "250116667",
+   "list_b": false
+  },
+  {
+   "name": "Manoël Verhaeghe",
+   "short_name": "Verhaeghe",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "BEL",
+   "uefa_id": "250217987",
+   "list_b": false
+  },
+  {
+   "name": "Daniel Elfadli",
+   "short_name": "Elfadli",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "LBY",
+   "uefa_id": "250225138",
+   "list_b": false
+  },
+  {
+   "name": "Yvan Dibango",
+   "short_name": "Dibango",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "CMR",
+   "uefa_id": "250197947",
+   "list_b": false
+  },
+  {
+   "name": "Jakob Wansch",
+   "short_name": "Wansch",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250223434",
+   "list_b": true
+  },
+  {
+   "name": "Ryan Rodriguez German",
+   "short_name": "Rodriguez German",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250195616",
+   "list_b": true
+  },
+  {
+   "name": "Luca Ortner",
+   "short_name": "Ortner",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250223433",
+   "list_b": true
+  },
+  {
+   "name": "Joao Victor Tornich",
+   "short_name": "Tornich",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "BRA",
+   "uefa_id": "250223204",
+   "list_b": false
+  },
+  {
+   "name": "Armin Midzic",
+   "short_name": "Midzic",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250199268",
+   "list_b": true
+  },
+  {
+   "name": "Jonas Ilk",
+   "short_name": "Ilk",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250184494",
+   "list_b": true
+  },
+  {
+   "name": "Alan Wimmer",
+   "short_name": "Wimmer",
+   "role": "Defender",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250223435",
+   "list_b": true
+  },
+  {
+   "name": "Melayro Bogarde",
+   "short_name": "Bogarde",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "SUR",
+   "uefa_id": "250124223",
+   "list_b": false
+  },
+  {
+   "name": "Kryštof Daněk",
+   "short_name": "Daněk",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "CZE",
+   "uefa_id": "250130771",
+   "list_b": false
+  },
+  {
+   "name": "Robert Ljubičić",
+   "short_name": "Ljubičić",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "CRO",
+   "uefa_id": "250143322",
+   "list_b": false
+  },
+  {
+   "name": "Alessandro Schöpf",
+   "short_name": "Schöpf",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250050403",
+   "list_b": false
+  },
+  {
+   "name": "Christoph Lang",
+   "short_name": "Lang",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250162184",
+   "list_b": false
+  },
+  {
+   "name": "Florian Flecker",
+   "short_name": "Flecker",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250159904",
+   "list_b": false
+  },
+  {
+   "name": "Sascha Horvath",
+   "short_name": "Horvath",
+   "role": "Midfielder",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250055894",
+   "list_b": false
+  },
+  {
+   "name": "Samuel Adeniran",
+   "short_name": "Adeniran",
+   "role": "Forward",
+   "team": "LASK",
+   "nationality": "USA",
+   "uefa_id": "250223201",
+   "list_b": false
+  },
+  {
+   "name": "Moses Usor",
+   "short_name": "Usor",
+   "role": "Forward",
+   "team": "LASK",
+   "nationality": "NGA",
+   "uefa_id": "250174644",
+   "list_b": false
+  },
+  {
+   "name": "Sasa Kalajdzic",
+   "short_name": "Kalajdzic",
+   "role": "Forward",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250116789",
+   "list_b": false
+  },
+  {
+   "name": "Matthias Hartl",
+   "short_name": "Hartl",
+   "role": "Forward",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250223432",
+   "list_b": true
+  },
+  {
+   "name": "Paul Krapf",
+   "short_name": "Krapf",
+   "role": "Forward",
+   "team": "LASK",
+   "nationality": "AUT",
+   "uefa_id": "250217981",
+   "list_b": true
+  },
+  {
+   "name": "Nael Kane",
+   "short_name": "Kane",
+   "role": "Forward",
+   "team": "LASK",
+   "nationality": "CAN",
+   "uefa_id": "250224881",
+   "list_b": false
+  },
+  {
+   "name": "Ørjan Nyland",
+   "short_name": "Nyland",
+   "role": "Goalkeeper",
+   "team": "Leipzig",
+   "nationality": "NOR",
+   "uefa_id": "108923",
+   "list_b": false
+  },
+  {
+   "name": "Maarten Vandevoordt",
+   "short_name": "Vandevoordt",
+   "role": "Goalkeeper",
+   "team": "Leipzig",
+   "nationality": "BEL",
+   "uefa_id": "250118787",
+   "list_b": false
+  },
+  {
+   "name": "Willi Orbán",
+   "short_name": "Orbán",
+   "role": "Defender",
+   "team": "Leipzig",
+   "nationality": "HUN",
+   "uefa_id": "250051754",
+   "list_b": false
+  },
+  {
+   "name": "Lukas Klostermann",
+   "short_name": "Klostermann",
+   "role": "Defender",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250058260",
+   "list_b": false
+  },
+  {
+   "name": "David Raum",
+   "short_name": "Raum",
+   "role": "Defender",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250110361",
+   "list_b": false
+  },
+  {
+   "name": "Castello Lukeba",
+   "short_name": "Lukeba",
+   "role": "Defender",
+   "team": "Leipzig",
+   "nationality": "FRA",
+   "uefa_id": "250124068",
+   "list_b": false
+  },
+  {
+   "name": "Max Finkgräfe",
+   "short_name": "Finkgräfe",
+   "role": "Defender",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250162917",
+   "list_b": false
+  },
+  {
+   "name": "Benjamin Henrichs",
+   "short_name": "Henrichs",
+   "role": "Defender",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250058258",
+   "list_b": false
+  },
+  {
+   "name": "Maxime Esteve",
+   "short_name": "Esteve",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "FRA",
+   "uefa_id": "250124756",
+   "list_b": false
+  },
+  {
+   "name": "Ezechiel Banzuzi",
+   "short_name": "Banzuzi",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "NED",
+   "uefa_id": "250171161",
+   "list_b": false
+  },
+  {
+   "name": "Nicolas Seiwald",
+   "short_name": "Seiwald",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "AUT",
+   "uefa_id": "250114167",
+   "list_b": false
+  },
+  {
+   "name": "Christoph Baumgartner",
+   "short_name": "Baumgartner",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "AUT",
+   "uefa_id": "250089289",
+   "list_b": false
+  },
+  {
+   "name": "Ridle Baku",
+   "short_name": "Baku",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250104720",
+   "list_b": false
+  },
+  {
+   "name": "Rocco Reitz",
+   "short_name": "Reitz",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250144303",
+   "list_b": false
+  },
+  {
+   "name": "Neil El Aynaoui",
+   "short_name": "El Aynaoui",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "MAR",
+   "uefa_id": "250187059",
+   "list_b": false
+  },
+  {
+   "name": "Christopher Nkunku",
+   "short_name": "Nkunku",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "FRA",
+   "uefa_id": "250076654",
+   "list_b": false
+  },
+  {
+   "name": "Andrija Maksimović",
+   "short_name": "A. Maksimović",
+   "role": "Midfielder",
+   "team": "Leipzig",
+   "nationality": "SRB",
+   "uefa_id": "250177722",
+   "list_b": false
+  },
+  {
+   "name": "Marc Guiu",
+   "short_name": "Guiu",
+   "role": "Forward",
+   "team": "Leipzig",
+   "nationality": "ESP",
+   "uefa_id": "250176455",
+   "list_b": false
+  },
+  {
+   "name": "Brajan Gruda",
+   "short_name": "Gruda",
+   "role": "Forward",
+   "team": "Leipzig",
+   "nationality": "GER",
+   "uefa_id": "250178786",
+   "list_b": false
+  },
+  {
+   "name": "Johan Bakayoko",
+   "short_name": "Bakayoko",
+   "role": "Forward",
+   "team": "Leipzig",
+   "nationality": "BEL",
+   "uefa_id": "250130406",
+   "list_b": false
+  },
+  {
+   "name": "Tidiam Gomis",
+   "short_name": "T. Gomis",
+   "role": "Forward",
+   "team": "Leipzig",
+   "nationality": "FRA",
+   "uefa_id": "250183342",
+   "list_b": false
+  },
+  {
+   "name": "Rômulo Cardoso",
+   "short_name": "Cardoso",
+   "role": "Forward",
+   "team": "Leipzig",
+   "nationality": "BRA",
+   "uefa_id": "250221087",
+   "list_b": false
+  },
+  {
+   "name": "Regis Gurtner",
+   "short_name": "Gurtner",
+   "role": "Goalkeeper",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "101529",
+   "list_b": false
+  },
+  {
+   "name": "Mathieu Gorgelin",
+   "short_name": "Gorgelin",
+   "role": "Goalkeeper",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "107754",
+   "list_b": false
+  },
+  {
+   "name": "Robin Risser",
+   "short_name": "Risser",
+   "role": "Goalkeeper",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250181514",
+   "list_b": false
+  },
+  {
+   "name": "Ruben Aguilar",
+   "short_name": "Aguilar",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250061132",
+   "list_b": false
+  },
+  {
+   "name": "Nidal Čelik",
+   "short_name": "Čelik",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "BIH",
+   "uefa_id": "250171976",
+   "list_b": false
+  },
+  {
+   "name": "Samson Baidoo",
+   "short_name": "Baidoo",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "AUT",
+   "uefa_id": "250139010",
+   "list_b": false
+  },
+  {
+   "name": "Matthieu Udol",
+   "short_name": "Udol",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250221057",
+   "list_b": false
+  },
+  {
+   "name": "Jean-Clair Todibo",
+   "short_name": "Todibo",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250128268",
+   "list_b": false
+  },
+  {
+   "name": "Michał Skóraś",
+   "short_name": "Skóraś",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "POL",
+   "uefa_id": "250105686",
+   "list_b": false
+  },
+  {
+   "name": "Saud Abdulhamid",
+   "short_name": "Abdulhamid",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "KSA",
+   "uefa_id": "250181167",
+   "list_b": false
+  },
+  {
+   "name": "Jonathan Gradit",
+   "short_name": "Gradit",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250007575",
+   "list_b": false
+  },
+  {
+   "name": "Ismaëlo Ganiou",
+   "short_name": "Ganiou",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250189553",
+   "list_b": false
+  },
+  {
+   "name": "Souleymane Sagnan",
+   "short_name": "Sagnan",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250189550",
+   "list_b": false
+  },
+  {
+   "name": "Kyllian Antonio",
+   "short_name": "Antonio",
+   "role": "Defender",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250189812",
+   "list_b": false
+  },
+  {
+   "name": "Andrija Bulatović",
+   "short_name": "Bulatović",
+   "role": "Midfielder",
+   "team": "Lens",
+   "nationality": "MNE",
+   "uefa_id": "250173262",
+   "list_b": false
+  },
+  {
+   "name": "Yacine Titraoui",
+   "short_name": "Titraoui",
+   "role": "Midfielder",
+   "team": "Lens",
+   "nationality": "ALG",
+   "uefa_id": "250209953",
+   "list_b": false
+  },
+  {
+   "name": "Amadou Haidara",
+   "short_name": "Haidara",
+   "role": "Midfielder",
+   "team": "Lens",
+   "nationality": "MLI",
+   "uefa_id": "250102866",
+   "list_b": false
+  },
+  {
+   "name": "Mickaël Cuisance",
+   "short_name": "Cuisance",
+   "role": "Midfielder",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250091018",
+   "list_b": false
+  },
+  {
+   "name": "Florian Sotoca",
+   "short_name": "Sotoca",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250186121",
+   "list_b": false
+  },
+  {
+   "name": "Thorgan Hazard",
+   "short_name": "T. Hazard",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "BEL",
+   "uefa_id": "250012551",
+   "list_b": false
+  },
+  {
+   "name": "Florian Thauvin",
+   "short_name": "Thauvin",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250050319",
+   "list_b": false
+  },
+  {
+   "name": "Odsonne Édouard",
+   "short_name": "Édouard",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250076641",
+   "list_b": false
+  },
+  {
+   "name": "Abdallah Sima",
+   "short_name": "Sima",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "SEN",
+   "uefa_id": "250147342",
+   "list_b": false
+  },
+  {
+   "name": "Junior Kadile",
+   "short_name": "Kadile",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "FRA",
+   "uefa_id": "250118957",
+   "list_b": false
+  },
+  {
+   "name": "Franjo Ivanović",
+   "short_name": "Ivanović",
+   "role": "Forward",
+   "team": "Lens",
+   "nationality": "CRO",
+   "uefa_id": "250169350",
+   "list_b": false
+  },
+  {
+   "name": "Berke Özer",
+   "short_name": "Berke Özer",
+   "role": "Goalkeeper",
+   "team": "Lille",
+   "nationality": "TUR",
+   "uefa_id": "250102646",
+   "list_b": false
+  },
+  {
+   "name": "Orlando Gill",
+   "short_name": "Gill",
+   "role": "Goalkeeper",
+   "team": "Lille",
+   "nationality": "PAR",
+   "uefa_id": "250218467",
+   "list_b": false
+  },
+  {
+   "name": "Loun Srdanovic",
+   "short_name": "Srdanovic",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "SUI",
+   "uefa_id": "250179746",
+   "list_b": false
+  },
+  {
+   "name": "Nathan Ngoy",
+   "short_name": "Ngoy",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "BEL",
+   "uefa_id": "250130418",
+   "list_b": false
+  },
+  {
+   "name": "Alexsandro",
+   "short_name": "Alexsandro",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "BRA",
+   "uefa_id": "250188247",
+   "list_b": false
+  },
+  {
+   "name": "Romain Perraud",
+   "short_name": "Perraud",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250068803",
+   "list_b": false
+  },
+  {
+   "name": "Tiago Santos",
+   "short_name": "Tiago Santos",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "POR",
+   "uefa_id": "250188246",
+   "list_b": false
+  },
+  {
+   "name": "Tanguy Nianzou",
+   "short_name": "Nianzou",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250118959",
+   "list_b": false
+  },
+  {
+   "name": "Calvin Verdonk",
+   "short_name": "Verdonk",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "IDN",
+   "uefa_id": "250066559",
+   "list_b": false
+  },
+  {
+   "name": "Isaac Cossier",
+   "short_name": "Cossier",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250201718",
+   "list_b": false
+  },
+  {
+   "name": "Maxima Goffi",
+   "short_name": "Goffi",
+   "role": "Defender",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250201725",
+   "list_b": false
+  },
+  {
+   "name": "Nabil Bentaleb",
+   "short_name": "Bentaleb",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "ALG",
+   "uefa_id": "250057690",
+   "list_b": false
+  },
+  {
+   "name": "Ethan Mbappé",
+   "short_name": "Mbappé",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250189110",
+   "list_b": false
+  },
+  {
+   "name": "Hákon Arnar Haraldsson",
+   "short_name": "Haraldsson",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "ISL",
+   "uefa_id": "250128943",
+   "list_b": false
+  },
+  {
+   "name": "Osame Sahraoui",
+   "short_name": "Sahraoui",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "MAR",
+   "uefa_id": "250146610",
+   "list_b": false
+  },
+  {
+   "name": "Maurits Kjærgaard",
+   "short_name": "Kjærgaard",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "DEN",
+   "uefa_id": "250129343",
+   "list_b": false
+  },
+  {
+   "name": "Ngal'Ayel Mukau",
+   "short_name": "Mukau",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "COD",
+   "uefa_id": "250198114",
+   "list_b": false
+  },
+  {
+   "name": "Başar Önal",
+   "short_name": "Başar Önal",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "NED",
+   "uefa_id": "250178658",
+   "list_b": false
+  },
+  {
+   "name": "Benjamin André",
+   "short_name": "André",
+   "role": "Midfielder",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250025791",
+   "list_b": false
+  },
+  {
+   "name": "Dilane Bakwa",
+   "short_name": "Bakwa",
+   "role": "Forward",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250112700",
+   "list_b": false
+  },
+  {
+   "name": "Olivier Giroud",
+   "short_name": "Giroud",
+   "role": "Forward",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250020851",
+   "list_b": false
+  },
+  {
+   "name": "Ayase Ueda",
+   "short_name": "Ueda",
+   "role": "Forward",
+   "team": "Lille",
+   "nationality": "JPN",
+   "uefa_id": "250181460",
+   "list_b": false
+  },
+  {
+   "name": "Gaëtan Perrin",
+   "short_name": "Perrin",
+   "role": "Forward",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250062684",
+   "list_b": false
+  },
+  {
+   "name": "Soriba Diaoune",
+   "short_name": "Diaoune",
+   "role": "Forward",
+   "team": "Lille",
+   "nationality": "FRA",
+   "uefa_id": "250201719",
+   "list_b": false
+  },
+  {
+   "name": "Alisson Becker",
+   "short_name": "Alisson Becker",
+   "role": "Goalkeeper",
+   "team": "Liverpool",
+   "nationality": "BRA",
+   "uefa_id": "250099867",
+   "list_b": false
+  },
+  {
+   "name": "Giorgi Mamardashvili",
+   "short_name": "Mamardashvili",
+   "role": "Goalkeeper",
+   "team": "Liverpool",
+   "nationality": "GEO",
+   "uefa_id": "250101805",
+   "list_b": false
+  },
+  {
+   "name": "Freddie Woodman",
+   "short_name": "Woodman",
+   "role": "Goalkeeper",
+   "team": "Liverpool",
+   "nationality": "ENG",
+   "uefa_id": "250056572",
+   "list_b": false
+  },
+  {
+   "name": "Vitězslav Jaroš",
+   "short_name": "Jaroš",
+   "role": "Goalkeeper",
+   "team": "Liverpool",
+   "nationality": "CZE",
+   "uefa_id": "250113263",
+   "list_b": false
+  },
+  {
+   "name": "Joe Gomez",
+   "short_name": "Gomez",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "ENG",
+   "uefa_id": "250058215",
+   "list_b": false
+  },
+  {
+   "name": "Virgil van Dijk",
+   "short_name": "Van Dijk",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "NED",
+   "uefa_id": "50327420",
+   "list_b": false
+  },
+  {
+   "name": "Jérémy Jacquet",
+   "short_name": "Jacquet",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "FRA",
+   "uefa_id": "250177928",
+   "list_b": false
+  },
+  {
+   "name": "Milos Kerkez",
+   "short_name": "Kerkez",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "HUN",
+   "uefa_id": "250163153",
+   "list_b": false
+  },
+  {
+   "name": "Conor Bradley",
+   "short_name": "Bradley",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "NIR",
+   "uefa_id": "250135607",
+   "list_b": false
+  },
+  {
+   "name": "Giovanni Leoni",
+   "short_name": "Leoni",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "ITA",
+   "uefa_id": "250203207",
+   "list_b": false
+  },
+  {
+   "name": "Kostas Tsimikas",
+   "short_name": "Tsimikas",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "GRE",
+   "uefa_id": "250076631",
+   "list_b": false
+  },
+  {
+   "name": "Jeremie Frimpong",
+   "short_name": "Frimpong",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "NED",
+   "uefa_id": "250113276",
+   "list_b": false
+  },
+  {
+   "name": "Ronald Araújo",
+   "short_name": "Araújo",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "URU",
+   "uefa_id": "250134170",
+   "list_b": false
+  },
+  {
+   "name": "Luke Chambers",
+   "short_name": "Chambers",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "ENG",
+   "uefa_id": "250154417",
+   "list_b": false
+  },
+  {
+   "name": "Isaac Mabaya",
+   "short_name": "Mabaya",
+   "role": "Defender",
+   "team": "Liverpool",
+   "nationality": "ENG",
+   "uefa_id": "250154425",
+   "list_b": false
+  },
+  {
+   "name": "Florian Wirtz",
+   "short_name": "Wirtz",
+   "role": "Midfielder",
+   "team": "Liverpool",
+   "nationality": "GER",
+   "uefa_id": "250139445",
+   "list_b": false
+  },
+  {
+   "name": "Dominik Szoboszlai",
+   "short_name": "Szoboszlai",
+   "role": "Midfielder",
+   "team": "Liverpool",
+   "nationality": "HUN",
+   "uefa_id": "250104066",
+   "list_b": false
+  },
+  {
+   "name": "Alexis Mac Allister",
+   "short_name": "Mac Allister",
+   "role": "Midfielder",
+   "team": "Liverpool",
+   "nationality": "ARG",
+   "uefa_id": "250172672",
+   "list_b": false
+  },
+  {
+   "name": "Víctor Muñoz",
+   "short_name": "Muñoz",
+   "role": "Midfielder",
+   "team": "Liverpool",
+   "nationality": "ESP",
+   "uefa_id": "250164215",
+   "list_b": false
+  },
+  {
+   "name": "Ryan Gravenberch",
+   "short_name": "Gravenberch",
+   "role": "Midfielder",
+   "team": "Liverpool",
+   "nationality": "NED",
+   "uefa_id": "250113001",
+   "list_b": false
+  },
+  {
+   "name": "James McConnell",
+   "short_name": "McConnell",
+   "role": "Midfielder",
+   "team": "Liverpool",
+   "nationality": "ENG",
+   "uefa_id": "250154426",
+   "list_b": false
+  },
+  {
+   "name": "Alexander Isak",
+   "short_name": "Isak",
+   "role": "Forward",
+   "team": "Liverpool",
+   "nationality": "SWE",
+   "uefa_id": "250089868",
+   "list_b": false
+  },
+  {
+   "name": "Cody Gakpo",
+   "short_name": "Gakpo",
+   "role": "Forward",
+   "team": "Liverpool",
+   "nationality": "NED",
+   "uefa_id": "250096849",
+   "list_b": false
+  },
+  {
+   "name": "Hugo Ekitiké",
+   "short_name": "Ekitiké",
+   "role": "Forward",
+   "team": "Liverpool",
+   "nationality": "FRA",
+   "uefa_id": "250144643",
+   "list_b": false
+  },
+  {
+   "name": "Bradley Barcola",
+   "short_name": "Barcola",
+   "role": "Forward",
+   "team": "Liverpool",
+   "nationality": "FRA",
+   "uefa_id": "250134138",
+   "list_b": false
+  },
+  {
+   "name": "Gianluigi Donnarumma",
+   "short_name": "Donnarumma",
+   "role": "Goalkeeper",
+   "team": "Man City",
+   "nationality": "ITA",
+   "uefa_id": "250078922",
+   "list_b": false
+  },
+  {
+   "name": "Marcus Bettinelli",
+   "short_name": "Bettinelli",
+   "role": "Goalkeeper",
+   "team": "Man City",
+   "nationality": "ENG",
+   "uefa_id": "250011491",
+   "list_b": false
+  },
+  {
+   "name": "Gerónimo Rulli",
+   "short_name": "Rulli",
+   "role": "Goalkeeper",
+   "team": "Man City",
+   "nationality": "ARG",
+   "uefa_id": "250073918",
+   "list_b": false
+  },
+  {
+   "name": "Max-Edgar Chabot",
+   "short_name": "Chabot",
+   "role": "Goalkeeper",
+   "team": "Man City",
+   "nationality": "FRA",
+   "uefa_id": "250225269",
+   "list_b": false
+  },
+  {
+   "name": "Rúben Dias",
+   "short_name": "Rúben Dias",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "POR",
+   "uefa_id": "250058220",
+   "list_b": false
+  },
+  {
+   "name": "Marc Guéhi",
+   "short_name": "Guéhi",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "ENG",
+   "uefa_id": "250086928",
+   "list_b": false
+  },
+  {
+   "name": "Rayan Aït-Nouri",
+   "short_name": "Aït-Nouri",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "ALG",
+   "uefa_id": "250127436",
+   "list_b": false
+  },
+  {
+   "name": "Vitor Reis",
+   "short_name": "Vitor Reis",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "BRA",
+   "uefa_id": "250205653",
+   "list_b": false
+  },
+  {
+   "name": "Joško Gvardiol",
+   "short_name": "Gvardiol",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "CRO",
+   "uefa_id": "250127284",
+   "list_b": false
+  },
+  {
+   "name": "Abdukodir Khusanov",
+   "short_name": "Khusanov",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "UZB",
+   "uefa_id": "250187698",
+   "list_b": false
+  },
+  {
+   "name": "Rico Lewis",
+   "short_name": "Lewis",
+   "role": "Defender",
+   "team": "Man City",
+   "nationality": "ENG",
+   "uefa_id": "250139207",
+   "list_b": false
+  },
+  {
+   "name": "Elliot Anderson",
+   "short_name": "Anderson",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "ENG",
+   "uefa_id": "250117617",
+   "list_b": false
+  },
+  {
+   "name": "Mateo Kovačić",
+   "short_name": "Kovačić",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "CRO",
+   "uefa_id": "250023551",
+   "list_b": false
+  },
+  {
+   "name": "Rayan Cherki",
+   "short_name": "Cherki",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "FRA",
+   "uefa_id": "250124063",
+   "list_b": false
+  },
+  {
+   "name": "Jeremy Doku",
+   "short_name": "Doku",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "BEL",
+   "uefa_id": "250113142",
+   "list_b": false
+  },
+  {
+   "name": "Enzo Fernández",
+   "short_name": "Fernández",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "ARG",
+   "uefa_id": "250174838",
+   "list_b": false
+  },
+  {
+   "name": "Matheus Nunes",
+   "short_name": "Matheus Nunes",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "POR",
+   "uefa_id": "250145803",
+   "list_b": false
+  },
+  {
+   "name": "Ayyoub Bouaddi",
+   "short_name": "Bouaddi",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "MAR",
+   "uefa_id": "250191448",
+   "list_b": false
+  },
+  {
+   "name": "Phil Foden",
+   "short_name": "Foden",
+   "role": "Midfielder",
+   "team": "Man City",
+   "nationality": "ENG",
+   "uefa_id": "250101534",
+   "list_b": false
+  },
+  {
+   "name": "Iliman Ndiaye",
+   "short_name": "Ndiaye",
+   "role": "Forward",
+   "team": "Man City",
+   "nationality": "SEN",
+   "uefa_id": "250181626",
+   "list_b": false
+  },
+  {
+   "name": "Erling Haaland",
+   "short_name": "Haaland",
+   "role": "Forward",
+   "team": "Man City",
+   "nationality": "NOR",
+   "uefa_id": "250103758",
+   "list_b": false
+  },
+  {
+   "name": "Allan Elias",
+   "short_name": "Allan Elias",
+   "role": "Forward",
+   "team": "Man City",
+   "nationality": "BRA",
+   "uefa_id": "250225023",
+   "list_b": false
+  },
+  {
+   "name": "Antoine Semenyo",
+   "short_name": "Semenyo",
+   "role": "Forward",
+   "team": "Man City",
+   "nationality": "GHA",
+   "uefa_id": "250181717",
+   "list_b": false
+  },
+  {
+   "name": "Senne Lammens",
+   "short_name": "Lammens",
+   "role": "Goalkeeper",
+   "team": "Man Utd",
+   "nationality": "BEL",
+   "uefa_id": "250118908",
+   "list_b": false
+  },
+  {
+   "name": "Karl Darlow",
+   "short_name": "Darlow",
+   "role": "Goalkeeper",
+   "team": "Man Utd",
+   "nationality": "WAL",
+   "uefa_id": "250021790",
+   "list_b": false
+  },
+  {
+   "name": "Tom Heaton",
+   "short_name": "Heaton",
+   "role": "Goalkeeper",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "69582",
+   "list_b": false
+  },
+  {
+   "name": "Dermot Mee",
+   "short_name": "Mee",
+   "role": "Goalkeeper",
+   "team": "Man Utd",
+   "nationality": "NIR",
+   "uefa_id": "250128702",
+   "list_b": false
+  },
+  {
+   "name": "Diogo Dalot",
+   "short_name": "Diogo Dalot",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "POR",
+   "uefa_id": "250081628",
+   "list_b": false
+  },
+  {
+   "name": "Noussair Mazraoui",
+   "short_name": "Mazraoui",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "MAR",
+   "uefa_id": "250075995",
+   "list_b": false
+  },
+  {
+   "name": "Matthijs de Ligt",
+   "short_name": "De Ligt",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "NED",
+   "uefa_id": "50327424",
+   "list_b": false
+  },
+  {
+   "name": "Harry Maguire",
+   "short_name": "Maguire",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "250075007",
+   "list_b": false
+  },
+  {
+   "name": "Lisandro Martínez",
+   "short_name": "Li. Martínez",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "ARG",
+   "uefa_id": "250132803",
+   "list_b": false
+  },
+  {
+   "name": "Patrick Dorgu",
+   "short_name": "Dorgu",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "DEN",
+   "uefa_id": "250178823",
+   "list_b": false
+  },
+  {
+   "name": "Luke Shaw",
+   "short_name": "Shaw",
+   "role": "Defender",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "250042705",
+   "list_b": false
+  },
+  {
+   "name": "Mason Mount",
+   "short_name": "Mount",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "250076240",
+   "list_b": false
+  },
+  {
+   "name": "Bruno Fernandes",
+   "short_name": "Bruno Fernandes",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "POR",
+   "uefa_id": "250078886",
+   "list_b": false
+  },
+  {
+   "name": "Andrey Santos",
+   "short_name": "Andrey Santos",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "BRA",
+   "uefa_id": "250182090",
+   "list_b": false
+  },
+  {
+   "name": "Youri Tielemans",
+   "short_name": "Tielemans",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "BEL",
+   "uefa_id": "250064006",
+   "list_b": false
+  },
+  {
+   "name": "Carlos Baleba",
+   "short_name": "Baleba",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "CMR",
+   "uefa_id": "250188249",
+   "list_b": false
+  },
+  {
+   "name": "Manuel Ugarte",
+   "short_name": "Ugarte",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "URU",
+   "uefa_id": "250161762",
+   "list_b": false
+  },
+  {
+   "name": "Ayden Heaven",
+   "short_name": "Heaven",
+   "role": "Midfielder",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "250189295",
+   "list_b": false
+  },
+  {
+   "name": "Marcus Rashford",
+   "short_name": "Rashford",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "250088246",
+   "list_b": false
+  },
+  {
+   "name": "Matheus Cunha",
+   "short_name": "Matheus Cunha",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "BRA",
+   "uefa_id": "250110943",
+   "list_b": false
+  },
+  {
+   "name": "Joshua Zirkzee",
+   "short_name": "Zirkzee",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "NED",
+   "uefa_id": "250106762",
+   "list_b": false
+  },
+  {
+   "name": "Amad Diallo",
+   "short_name": "Diallo",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "CIV",
+   "uefa_id": "250121405",
+   "list_b": false
+  },
+  {
+   "name": "Bryan Mbeumo",
+   "short_name": "Mbeumo",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "CMR",
+   "uefa_id": "250137260",
+   "list_b": false
+  },
+  {
+   "name": "Tynan Thompson",
+   "short_name": "Thompson",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "ENG",
+   "uefa_id": "250213748",
+   "list_b": false
+  },
+  {
+   "name": "Benjamin Šeško",
+   "short_name": "Šeško",
+   "role": "Forward",
+   "team": "Man Utd",
+   "nationality": "SVN",
+   "uefa_id": "250127111",
+   "list_b": false
+  },
+  {
+   "name": "Alex Meret",
+   "short_name": "Meret",
+   "role": "Goalkeeper",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250066753",
+   "list_b": false
+  },
+  {
+   "name": "Nikita Contini",
+   "short_name": "Contini",
+   "role": "Goalkeeper",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250064393",
+   "list_b": false
+  },
+  {
+   "name": "Vanja Milinković-Savić",
+   "short_name": "V. Milinković-Savić",
+   "role": "Goalkeeper",
+   "team": "Napoli",
+   "nationality": "SRB",
+   "uefa_id": "250065792",
+   "list_b": false
+  },
+  {
+   "name": "Costantino Favasuli",
+   "short_name": "Favasuli",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250175777",
+   "list_b": false
+  },
+  {
+   "name": "Benoît Badiashile",
+   "short_name": "Badiashile",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "FRA",
+   "uefa_id": "250113290",
+   "list_b": false
+  },
+  {
+   "name": "Amir Rrahmani",
+   "short_name": "Am. Rrahmani",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "KOS",
+   "uefa_id": "250059233",
+   "list_b": false
+  },
+  {
+   "name": "Rafa Marín",
+   "short_name": "Rafa Marín",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "ESP",
+   "uefa_id": "250129412",
+   "list_b": false
+  },
+  {
+   "name": "Mathías Olivera",
+   "short_name": "Olivera",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "URU",
+   "uefa_id": "250134196",
+   "list_b": false
+  },
+  {
+   "name": "Giovanni Di Lorenzo",
+   "short_name": "Di Lorenzo",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250064229",
+   "list_b": false
+  },
+  {
+   "name": "Sam Beukema",
+   "short_name": "Beukema",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "NED",
+   "uefa_id": "250161248",
+   "list_b": false
+  },
+  {
+   "name": "Leonardo Spinazzola",
+   "short_name": "Spinazzola",
+   "role": "Defender",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250020885",
+   "list_b": false
+  },
+  {
+   "name": "Billy Gilmour",
+   "short_name": "Gilmour",
+   "role": "Midfielder",
+   "team": "Napoli",
+   "nationality": "SCO",
+   "uefa_id": "250107117",
+   "list_b": false
+  },
+  {
+   "name": "Scott McTominay",
+   "short_name": "McTominay",
+   "role": "Midfielder",
+   "team": "Napoli",
+   "nationality": "SCO",
+   "uefa_id": "250088240",
+   "list_b": false
+  },
+  {
+   "name": "Kevin De Bruyne",
+   "short_name": "De Bruyne",
+   "role": "Midfielder",
+   "team": "Napoli",
+   "nationality": "BEL",
+   "uefa_id": "250008901",
+   "list_b": false
+  },
+  {
+   "name": "Stanislav Lobotka",
+   "short_name": "Lobotka",
+   "role": "Midfielder",
+   "team": "Napoli",
+   "nationality": "SVK",
+   "uefa_id": "250055982",
+   "list_b": false
+  },
+  {
+   "name": "Frank Anguissa",
+   "short_name": "Anguissa",
+   "role": "Midfielder",
+   "team": "Napoli",
+   "nationality": "CMR",
+   "uefa_id": "250086987",
+   "list_b": false
+  },
+  {
+   "name": "David Neres",
+   "short_name": "Neres",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "BRA",
+   "uefa_id": "250106648",
+   "list_b": false
+  },
+  {
+   "name": "Rasmus Højlund",
+   "short_name": "Højlund",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "DEN",
+   "uefa_id": "250130221",
+   "list_b": false
+  },
+  {
+   "name": "Lorenzo Lucca",
+   "short_name": "Lucca",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250164476",
+   "list_b": false
+  },
+  {
+   "name": "Matteo Politano",
+   "short_name": "Politano",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250050381",
+   "list_b": false
+  },
+  {
+   "name": "Antonio Vergara",
+   "short_name": "Vergara",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "ITA",
+   "uefa_id": "250165363",
+   "list_b": false
+  },
+  {
+   "name": "Alisson Santos",
+   "short_name": "Alisson Santos",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "BRA",
+   "uefa_id": "250211008",
+   "list_b": false
+  },
+  {
+   "name": "Noa Lang",
+   "short_name": "Lang",
+   "role": "Forward",
+   "team": "Napoli",
+   "nationality": "NED",
+   "uefa_id": "250091165",
+   "list_b": false
+  },
+  {
+   "name": "Alessandro Longoni",
+   "short_name": "Longoni",
+   "role": "Goalkeeper",
+   "team": "Paris",
+   "nationality": "ITA",
+   "uefa_id": "250193777",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Chevalier",
+   "short_name": "Chevalier",
+   "role": "Goalkeeper",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250135068",
+   "list_b": false
+  },
+  {
+   "name": "Matvei Safonov",
+   "short_name": "Safonov",
+   "role": "Goalkeeper",
+   "team": "Paris",
+   "nationality": "RUS",
+   "uefa_id": "250090101",
+   "list_b": false
+  },
+  {
+   "name": "Arthur Vignaud",
+   "short_name": "Vignaud",
+   "role": "Goalkeeper",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250192231",
+   "list_b": true
+  },
+  {
+   "name": "Achraf Hakimi",
+   "short_name": "Hakimi",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "MAR",
+   "uefa_id": "250088061",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Beraldo",
+   "short_name": "Lucas Beraldo",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "BRA",
+   "uefa_id": "250193442",
+   "list_b": false
+  },
+  {
+   "name": "Marquinhos",
+   "short_name": "Marquinhos",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "BRA",
+   "uefa_id": "250064064",
+   "list_b": false
+  },
+  {
+   "name": "Illia Zabarnyi",
+   "short_name": "Zabarnyi",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "UKR",
+   "uefa_id": "250119185",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Digne",
+   "short_name": "Digne",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250014002",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Hernández",
+   "short_name": "L. Hernández",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250063803",
+   "list_b": false
+  },
+  {
+   "name": "Nuno Mendes",
+   "short_name": "Nuno Mendes",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "POR",
+   "uefa_id": "250136465",
+   "list_b": false
+  },
+  {
+   "name": "David Boly",
+   "short_name": "Boly",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250200894",
+   "list_b": true
+  },
+  {
+   "name": "Willian Pacho",
+   "short_name": "Pacho",
+   "role": "Defender",
+   "team": "Paris",
+   "nationality": "ECU",
+   "uefa_id": "250174126",
+   "list_b": false
+  },
+  {
+   "name": "Fabián Ruiz",
+   "short_name": "Fabián Ruiz",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "ESP",
+   "uefa_id": "250115436",
+   "list_b": false
+  },
+  {
+   "name": "Maghnes Akliouche",
+   "short_name": "Akliouche",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250160436",
+   "list_b": false
+  },
+  {
+   "name": "Vitinha",
+   "short_name": "Vitinha",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "POR",
+   "uefa_id": "250101444",
+   "list_b": false
+  },
+  {
+   "name": "Senny Mayulu",
+   "short_name": "Mayulu",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250177597",
+   "list_b": false
+  },
+  {
+   "name": "Dro Fernández",
+   "short_name": "Dro Fernández",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "ESP",
+   "uefa_id": "250192609",
+   "list_b": false
+  },
+  {
+   "name": "Warren Zaïre-Emery",
+   "short_name": "Zaïre-Emery",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250153849",
+   "list_b": false
+  },
+  {
+   "name": "João Neves",
+   "short_name": "João Neves",
+   "role": "Midfielder",
+   "team": "Paris",
+   "nationality": "POR",
+   "uefa_id": "250164991",
+   "list_b": false
+  },
+  {
+   "name": "Khvicha Kvaratskhelia",
+   "short_name": "Kvaratskhelia",
+   "role": "Forward",
+   "team": "Paris",
+   "nationality": "GEO",
+   "uefa_id": "250101808",
+   "list_b": false
+  },
+  {
+   "name": "Ferran Torres",
+   "short_name": "Ferran Torres",
+   "role": "Forward",
+   "team": "Paris",
+   "nationality": "ESP",
+   "uefa_id": "250088320",
+   "list_b": false
+  },
+  {
+   "name": "Ousmane Dembélé",
+   "short_name": "Dembélé",
+   "role": "Forward",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250066886",
+   "list_b": false
+  },
+  {
+   "name": "Désiré Doué",
+   "short_name": "D. Doué",
+   "role": "Forward",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250162177",
+   "list_b": false
+  },
+  {
+   "name": "Mika Godts",
+   "short_name": "Godts",
+   "role": "Forward",
+   "team": "Paris",
+   "nationality": "BEL",
+   "uefa_id": "250154132",
+   "list_b": false
+  },
+  {
+   "name": "Quentin Ndjantou",
+   "short_name": "Ndjantou",
+   "role": "Forward",
+   "team": "Paris",
+   "nationality": "FRA",
+   "uefa_id": "250177602",
+   "list_b": false
+  },
+  {
+   "name": "Cláudio Ramos",
+   "short_name": "Cláudio Ramos",
+   "role": "Goalkeeper",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "1909059",
+   "list_b": false
+  },
+  {
+   "name": "João Costa",
+   "short_name": "João Costa",
+   "role": "Goalkeeper",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250040614",
+   "list_b": false
+  },
+  {
+   "name": "João Afonso",
+   "short_name": "João Afonso",
+   "role": "Goalkeeper",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250210106",
+   "list_b": false
+  },
+  {
+   "name": "Gonçalo Ribeiro",
+   "short_name": "Gonçalo Ribeiro",
+   "role": "Goalkeeper",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250169106",
+   "list_b": true
+  },
+  {
+   "name": "Diogo Costa",
+   "short_name": "Diogo Costa",
+   "role": "Goalkeeper",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250076675",
+   "list_b": false
+  },
+  {
+   "name": "Jakub Kiwior",
+   "short_name": "Kiwior",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "POL",
+   "uefa_id": "250105681",
+   "list_b": false
+  },
+  {
+   "name": "Jan Bednarek",
+   "short_name": "Bednarek",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "POL",
+   "uefa_id": "250056266",
+   "list_b": false
+  },
+  {
+   "name": "Zaidu Sanusi",
+   "short_name": "Sanusi",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "NGA",
+   "uefa_id": "250144327",
+   "list_b": false
+  },
+  {
+   "name": "Nehuén Pérez",
+   "short_name": "Nehuén Pérez",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "ARG",
+   "uefa_id": "250128223",
+   "list_b": false
+  },
+  {
+   "name": "Alberto Costa",
+   "short_name": "Alberto Costa",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250174182",
+   "list_b": false
+  },
+  {
+   "name": "Souza",
+   "short_name": "Souza",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "BRA",
+   "uefa_id": "250224970",
+   "list_b": false
+  },
+  {
+   "name": "Martim Fernandes",
+   "short_name": "Martim Fernandes",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250163559",
+   "list_b": true
+  },
+  {
+   "name": "Francisco Moura",
+   "short_name": "Francisco Moura",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250112138",
+   "list_b": false
+  },
+  {
+   "name": "Martim Cunha",
+   "short_name": "Martim Cunha",
+   "role": "Defender",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250185409",
+   "list_b": true
+  },
+  {
+   "name": "Victor Froholdt",
+   "short_name": "Froholdt",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "DEN",
+   "uefa_id": "250169957",
+   "list_b": false
+  },
+  {
+   "name": "Pablo Rosario",
+   "short_name": "Rosario",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "DOM",
+   "uefa_id": "250097271",
+   "list_b": false
+  },
+  {
+   "name": "Inbeom Hwang",
+   "short_name": "IB Hwang",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "KOR",
+   "uefa_id": "250134536",
+   "list_b": false
+  },
+  {
+   "name": "Alan Varela",
+   "short_name": "Varela",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "ARG",
+   "uefa_id": "250188256",
+   "list_b": false
+  },
+  {
+   "name": "Seko Fofana",
+   "short_name": "Fofana",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "CIV",
+   "uefa_id": "250042773",
+   "list_b": false
+  },
+  {
+   "name": "Tiago Silva",
+   "short_name": "Tiago Silva",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250185405",
+   "list_b": true
+  },
+  {
+   "name": "Bernardo Lima",
+   "short_name": "Bernardo Lima",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250204915",
+   "list_b": true
+  },
+  {
+   "name": "João Teixeira",
+   "short_name": "João Teixeira",
+   "role": "Midfielder",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250169491",
+   "list_b": true
+  },
+  {
+   "name": "William Gomes",
+   "short_name": "William Gomes",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "BRA",
+   "uefa_id": "250205755",
+   "list_b": false
+  },
+  {
+   "name": "Samu",
+   "short_name": "Samu",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "ESP",
+   "uefa_id": "250186228",
+   "list_b": false
+  },
+  {
+   "name": "Gabriel Veiga",
+   "short_name": "Gabriel Veiga",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "ESP",
+   "uefa_id": "250153874",
+   "list_b": false
+  },
+  {
+   "name": "Pepê",
+   "short_name": "Pepê",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "BRA",
+   "uefa_id": "250159919",
+   "list_b": false
+  },
+  {
+   "name": "Borja Sainz",
+   "short_name": "Sainz",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "ESP",
+   "uefa_id": "250137272",
+   "list_b": false
+  },
+  {
+   "name": "André Silva",
+   "short_name": "André Silva",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250042521",
+   "list_b": false
+  },
+  {
+   "name": "Santiago Giménez",
+   "short_name": "Giménez",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "MEX",
+   "uefa_id": "250177879",
+   "list_b": false
+  },
+  {
+   "name": "Duarte Cunha",
+   "short_name": "Duarte Cunha",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250198318",
+   "list_b": true
+  },
+  {
+   "name": "André Miranda",
+   "short_name": "André Miranda",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250193624",
+   "list_b": true
+  },
+  {
+   "name": "Oskar Pietuszewski",
+   "short_name": "Pietuszewski",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "POL",
+   "uefa_id": "250191115",
+   "list_b": false
+  },
+  {
+   "name": "Mateus Mide",
+   "short_name": "Mateus Mide",
+   "role": "Forward",
+   "team": "Porto",
+   "nationality": "POR",
+   "uefa_id": "250204916",
+   "list_b": true
+  },
+  {
+   "name": "Nick Olij",
+   "short_name": "Olij",
+   "role": "Goalkeeper",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250046909",
+   "list_b": false
+  },
+  {
+   "name": "Matěj Kovář",
+   "short_name": "Kovář",
+   "role": "Goalkeeper",
+   "team": "PSV",
+   "nationality": "CZE",
+   "uefa_id": "250117491",
+   "list_b": false
+  },
+  {
+   "name": "Lutsharel Geertruida",
+   "short_name": "Geertruida",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250104075",
+   "list_b": false
+  },
+  {
+   "name": "Yarek Gasiorowski",
+   "short_name": "Gasiorowski",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "ESP",
+   "uefa_id": "250171006",
+   "list_b": false
+  },
+  {
+   "name": "Armando Obispo",
+   "short_name": "Obispo",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "CUW",
+   "uefa_id": "250088117",
+   "list_b": false
+  },
+  {
+   "name": "Ryan Flamingo",
+   "short_name": "Flamingo",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250189506",
+   "list_b": false
+  },
+  {
+   "name": "Sergiño Dest",
+   "short_name": "Dest",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "USA",
+   "uefa_id": "250112998",
+   "list_b": false
+  },
+  {
+   "name": "Mauro Júnior",
+   "short_name": "Mauro Júnior",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "BRA",
+   "uefa_id": "250122213",
+   "list_b": false
+  },
+  {
+   "name": "Filip Kostić",
+   "short_name": "Kostić",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "SRB",
+   "uefa_id": "250024301",
+   "list_b": false
+  },
+  {
+   "name": "Kiliann Sildillia",
+   "short_name": "Sildillia",
+   "role": "Defender",
+   "team": "PSV",
+   "nationality": "FRA",
+   "uefa_id": "250177927",
+   "list_b": false
+  },
+  {
+   "name": "Paul Wanner",
+   "short_name": "Wanner",
+   "role": "Midfielder",
+   "team": "PSV",
+   "nationality": "AUT",
+   "uefa_id": "250163784",
+   "list_b": false
+  },
+  {
+   "name": "Guus Til",
+   "short_name": "Til",
+   "role": "Midfielder",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250099671",
+   "list_b": false
+  },
+  {
+   "name": "Sven Mijnans",
+   "short_name": "Mijnans",
+   "role": "Midfielder",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250172703",
+   "list_b": false
+  },
+  {
+   "name": "Kodai Sano",
+   "short_name": "Ko. Sano",
+   "role": "Midfielder",
+   "team": "PSV",
+   "nationality": "JPN",
+   "uefa_id": "250218556",
+   "list_b": false
+  },
+  {
+   "name": "Ayoni Santos",
+   "short_name": "Santos",
+   "role": "Midfielder",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250218836",
+   "list_b": false
+  },
+  {
+   "name": "Ivan Perišić",
+   "short_name": "Perišić",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "CRO",
+   "uefa_id": "103310",
+   "list_b": false
+  },
+  {
+   "name": "Ruben van Bommel",
+   "short_name": "Van Bommel",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250187458",
+   "list_b": false
+  },
+  {
+   "name": "Ricardo Pepi",
+   "short_name": "Pepi",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "USA",
+   "uefa_id": "250187620",
+   "list_b": false
+  },
+  {
+   "name": "Sami Ouaissa",
+   "short_name": "Ouaissa",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250216420",
+   "list_b": false
+  },
+  {
+   "name": "Alassane Pléa",
+   "short_name": "Pléa",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "FRA",
+   "uefa_id": "250026751",
+   "list_b": false
+  },
+  {
+   "name": "Esmir Bajraktarević",
+   "short_name": "Bajraktarević",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "BIH",
+   "uefa_id": "250200525",
+   "list_b": false
+  },
+  {
+   "name": "Dennis Man",
+   "short_name": "Man",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "ROU",
+   "uefa_id": "250104534",
+   "list_b": false
+  },
+  {
+   "name": "Sam Lammers",
+   "short_name": "Lammers",
+   "role": "Forward",
+   "team": "PSV",
+   "nationality": "NED",
+   "uefa_id": "250088106",
+   "list_b": false
+  },
+  {
+   "name": "Alvaro Valles",
+   "short_name": "Valles",
+   "role": "Goalkeeper",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250212322",
+   "list_b": false
+  },
+  {
+   "name": "Diego Conde",
+   "short_name": "Diego Conde",
+   "role": "Goalkeeper",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250076131",
+   "list_b": false
+  },
+  {
+   "name": "Héctor Bellerín",
+   "short_name": "Bellerín",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250047082",
+   "list_b": false
+  },
+  {
+   "name": "Diego Llorente",
+   "short_name": "Diego Llorente",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250057121",
+   "list_b": false
+  },
+  {
+   "name": "Natan",
+   "short_name": "Natan",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "BRA",
+   "uefa_id": "250187998",
+   "list_b": false
+  },
+  {
+   "name": "Marc Bartra",
+   "short_name": "Bartra",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250010245",
+   "list_b": false
+  },
+  {
+   "name": "Fran García",
+   "short_name": "Fran García",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250091175",
+   "list_b": false
+  },
+  {
+   "name": "Angel Ortiz",
+   "short_name": "Ortiz",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250178134",
+   "list_b": false
+  },
+  {
+   "name": "Valentin Gomez",
+   "short_name": "Valentin Gomez",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250212314",
+   "list_b": false
+  },
+  {
+   "name": "Junior Firpo",
+   "short_name": "Junior Firpo",
+   "role": "Defender",
+   "team": "Real Betis",
+   "nationality": "DOM",
+   "uefa_id": "250122839",
+   "list_b": false
+  },
+  {
+   "name": "Facundo Bernal",
+   "short_name": "Bernal",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "URU",
+   "uefa_id": "250221822",
+   "list_b": false
+  },
+  {
+   "name": "Pablo Fornals",
+   "short_name": "Fornals",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250092715",
+   "list_b": false
+  },
+  {
+   "name": "Iker Losada",
+   "short_name": "Iker Losada",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250153599",
+   "list_b": false
+  },
+  {
+   "name": "Álvaro Fidalgo",
+   "short_name": "Fidalgo",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "MEX",
+   "uefa_id": "250076692",
+   "list_b": false
+  },
+  {
+   "name": "Rodrigo Riquelme",
+   "short_name": "Riquelme",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250101313",
+   "list_b": false
+  },
+  {
+   "name": "Nelson Deossa",
+   "short_name": "Deossa",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "COL",
+   "uefa_id": "250212313",
+   "list_b": false
+  },
+  {
+   "name": "Giovani Lo Celso",
+   "short_name": "Lo Celso",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ARG",
+   "uefa_id": "250100013",
+   "list_b": false
+  },
+  {
+   "name": "Marc Roca",
+   "short_name": "Marc Roca",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250123073",
+   "list_b": false
+  },
+  {
+   "name": "Isco",
+   "short_name": "Isco",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "150711837",
+   "list_b": false
+  },
+  {
+   "name": "Dani Ceballos",
+   "short_name": "Ceballos",
+   "role": "Midfielder",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250086709",
+   "list_b": false
+  },
+  {
+   "name": "Antony",
+   "short_name": "Antony",
+   "role": "Forward",
+   "team": "Real Betis",
+   "nationality": "BRA",
+   "uefa_id": "250144211",
+   "list_b": false
+  },
+  {
+   "name": "Cucho Hernández",
+   "short_name": "Cucho Hernández",
+   "role": "Forward",
+   "team": "Real Betis",
+   "nationality": "COL",
+   "uefa_id": "250212316",
+   "list_b": false
+  },
+  {
+   "name": "Abde Ezzalzouli",
+   "short_name": "Abde Ezzalzouli",
+   "role": "Forward",
+   "team": "Real Betis",
+   "nationality": "MAR",
+   "uefa_id": "250174874",
+   "list_b": false
+  },
+  {
+   "name": "Troy Parrott",
+   "short_name": "Parrott",
+   "role": "Forward",
+   "team": "Real Betis",
+   "nationality": "IRL",
+   "uefa_id": "250109003",
+   "list_b": false
+  },
+  {
+   "name": "Aitor Ruibal",
+   "short_name": "Aitor Ruibal",
+   "role": "Forward",
+   "team": "Real Betis",
+   "nationality": "ESP",
+   "uefa_id": "250163279",
+   "list_b": false
+  },
+  {
+   "name": "Thibaut Courtois",
+   "short_name": "Courtois",
+   "role": "Goalkeeper",
+   "team": "Real Madrid",
+   "nationality": "BEL",
+   "uefa_id": "250011668",
+   "list_b": false
+  },
+  {
+   "name": "Andriy Lunin",
+   "short_name": "Lunin",
+   "role": "Goalkeeper",
+   "team": "Real Madrid",
+   "nationality": "UKR",
+   "uefa_id": "250089824",
+   "list_b": false
+  },
+  {
+   "name": "Sergio Mestre",
+   "short_name": "Sergio Mestre",
+   "role": "Goalkeeper",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250154301",
+   "list_b": true
+  },
+  {
+   "name": "Javi Navarro",
+   "short_name": "Javi Navarro",
+   "role": "Goalkeeper",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250201421",
+   "list_b": true
+  },
+  {
+   "name": "Raúl Asencio",
+   "short_name": "Raúl Asencio",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250153617",
+   "list_b": false
+  },
+  {
+   "name": "Éder Militão",
+   "short_name": "Éder Militão",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "BRA",
+   "uefa_id": "250121965",
+   "list_b": false
+  },
+  {
+   "name": "Dean Huijsen",
+   "short_name": "Huijsen",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250194474",
+   "list_b": false
+  },
+  {
+   "name": "Trent Alexander-Arnold",
+   "short_name": "Alexander-Arnold",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ENG",
+   "uefa_id": "250076357",
+   "list_b": false
+  },
+  {
+   "name": "Ibrahima Konaté",
+   "short_name": "Konaté",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "FRA",
+   "uefa_id": "250091013",
+   "list_b": false
+  },
+  {
+   "name": "Marc Cucurella",
+   "short_name": "Cucurella",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250076168",
+   "list_b": false
+  },
+  {
+   "name": "Álvaro Carreras",
+   "short_name": "Carreras",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250153945",
+   "list_b": false
+  },
+  {
+   "name": "Antonio Rüdiger",
+   "short_name": "Rüdiger",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "GER",
+   "uefa_id": "250028211",
+   "list_b": false
+  },
+  {
+   "name": "Denzel Dumfries",
+   "short_name": "Dumfries",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "NED",
+   "uefa_id": "250112690",
+   "list_b": false
+  },
+  {
+   "name": "Jesus Fortea",
+   "short_name": "Fortea",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250179703",
+   "list_b": true
+  },
+  {
+   "name": "Joan Martínez",
+   "short_name": "Joan Martínez",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250191276",
+   "list_b": true
+  },
+  {
+   "name": "Mario Rivas",
+   "short_name": "Mario Rivas",
+   "role": "Defender",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250193666",
+   "list_b": true
+  },
+  {
+   "name": "Jude Bellingham",
+   "short_name": "Bellingham",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "ENG",
+   "uefa_id": "250128377",
+   "list_b": false
+  },
+  {
+   "name": "Eduardo Camavinga",
+   "short_name": "Camavinga",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "FRA",
+   "uefa_id": "250128270",
+   "list_b": false
+  },
+  {
+   "name": "Federico Valverde",
+   "short_name": "Valverde",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "URU",
+   "uefa_id": "250101284",
+   "list_b": false
+  },
+  {
+   "name": "Aurélien Tchouaméni",
+   "short_name": "Tchouaméni",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "FRA",
+   "uefa_id": "250105244",
+   "list_b": false
+  },
+  {
+   "name": "Arda Güler",
+   "short_name": "Arda Güler",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "TUR",
+   "uefa_id": "250161881",
+   "list_b": false
+  },
+  {
+   "name": "Bernardo Silva",
+   "short_name": "Bernardo Silva",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "POR",
+   "uefa_id": "250059115",
+   "list_b": false
+  },
+  {
+   "name": "Yan Diomande",
+   "short_name": "Diomande",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "CIV",
+   "uefa_id": "250220373",
+   "list_b": false
+  },
+  {
+   "name": "Thiago Pitarch",
+   "short_name": "Thiago Pitarch",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250205688",
+   "list_b": true
+  },
+  {
+   "name": "Jorge Cestero",
+   "short_name": "Jorge Cestero",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250189623",
+   "list_b": true
+  },
+  {
+   "name": "Diego Villalba",
+   "short_name": "Diego Villalba",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250206694",
+   "list_b": true
+  },
+  {
+   "name": "Gabriel Valero",
+   "short_name": "Gabriel Valero",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250213264",
+   "list_b": true
+  },
+  {
+   "name": "Sergio Martínez",
+   "short_name": "Sergio Martínez",
+   "role": "Midfielder",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250225046",
+   "list_b": false
+  },
+  {
+   "name": "Vinícius Júnior",
+   "short_name": "Vinícius Júnior",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "BRA",
+   "uefa_id": "250121533",
+   "list_b": false
+  },
+  {
+   "name": "Endrick",
+   "short_name": "Endrick",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "BRA",
+   "uefa_id": "250194573",
+   "list_b": false
+  },
+  {
+   "name": "Kylian Mbappé",
+   "short_name": "Mbappé",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "FRA",
+   "uefa_id": "250076574",
+   "list_b": false
+  },
+  {
+   "name": "Rodrygo",
+   "short_name": "Rodrygo",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "BRA",
+   "uefa_id": "250132829",
+   "list_b": false
+  },
+  {
+   "name": "Carlos Espi",
+   "short_name": "Carlos Espi",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250223168",
+   "list_b": false
+  },
+  {
+   "name": "Brahim Díaz",
+   "short_name": "Brahim Díaz",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "MAR",
+   "uefa_id": "250088039",
+   "list_b": false
+  },
+  {
+   "name": "Daniel Yañez",
+   "short_name": "Daniel Yañez",
+   "role": "Forward",
+   "team": "Real Madrid",
+   "nationality": "ESP",
+   "uefa_id": "250189858",
+   "list_b": true
+  },
+  {
+   "name": "Pierluigi Gollini",
+   "short_name": "Gollini",
+   "role": "Goalkeeper",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250058930",
+   "list_b": false
+  },
+  {
+   "name": "Mile Svilar",
+   "short_name": "Svilar",
+   "role": "Goalkeeper",
+   "team": "Roma",
+   "nationality": "SRB",
+   "uefa_id": "250076007",
+   "list_b": false
+  },
+  {
+   "name": "Devyne Rensch",
+   "short_name": "Rensch",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "NED",
+   "uefa_id": "250123555",
+   "list_b": false
+  },
+  {
+   "name": "Konstantinos Koulierakis",
+   "short_name": "Koulierakis",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "GRE",
+   "uefa_id": "250129645",
+   "list_b": false
+  },
+  {
+   "name": "Evan N'Dicka",
+   "short_name": "N'Dicka",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "CIV",
+   "uefa_id": "250122785",
+   "list_b": false
+  },
+  {
+   "name": "Nahuel Molina",
+   "short_name": "Molina",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "ARG",
+   "uefa_id": "250172673",
+   "list_b": false
+  },
+  {
+   "name": "Mario Hermoso",
+   "short_name": "Hermoso",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "ESP",
+   "uefa_id": "250063940",
+   "list_b": false
+  },
+  {
+   "name": "Gianluca Mancini",
+   "short_name": "Mancini",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250075982",
+   "list_b": false
+  },
+  {
+   "name": "Leonardo Balerdi",
+   "short_name": "Balerdi",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "ARG",
+   "uefa_id": "250128118",
+   "list_b": false
+  },
+  {
+   "name": "Wesley França",
+   "short_name": "Wesley França",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "BRA",
+   "uefa_id": "250212323",
+   "list_b": false
+  },
+  {
+   "name": "Emanuele Lulli",
+   "short_name": "Lulli",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250216846",
+   "list_b": false
+  },
+  {
+   "name": "Daniele Ghilardi",
+   "short_name": "Ghilardi",
+   "role": "Defender",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250166174",
+   "list_b": false
+  },
+  {
+   "name": "Bryan Cristante",
+   "short_name": "Cristante",
+   "role": "Midfielder",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250041741",
+   "list_b": false
+  },
+  {
+   "name": "Lorenzo Pellegrini",
+   "short_name": "Pellegrini",
+   "role": "Midfielder",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250070130",
+   "list_b": false
+  },
+  {
+   "name": "Marten de Roon",
+   "short_name": "De Roon",
+   "role": "Midfielder",
+   "team": "Roma",
+   "nationality": "NED",
+   "uefa_id": "250014709",
+   "list_b": false
+  },
+  {
+   "name": "Manu Koné",
+   "short_name": "Koné",
+   "role": "Midfielder",
+   "team": "Roma",
+   "nationality": "FRA",
+   "uefa_id": "250132062",
+   "list_b": false
+  },
+  {
+   "name": "Niccolò Pisilli",
+   "short_name": "Pisilli",
+   "role": "Midfielder",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250183335",
+   "list_b": false
+  },
+  {
+   "name": "Santiago Castro",
+   "short_name": "Castro",
+   "role": "Forward",
+   "team": "Roma",
+   "nationality": "ARG",
+   "uefa_id": "250196543",
+   "list_b": false
+  },
+  {
+   "name": "Donyell Malen",
+   "short_name": "Malen",
+   "role": "Forward",
+   "team": "Roma",
+   "nationality": "NED",
+   "uefa_id": "250081555",
+   "list_b": false
+  },
+  {
+   "name": "Matias Soulé",
+   "short_name": "Soulé",
+   "role": "Forward",
+   "team": "Roma",
+   "nationality": "ARG",
+   "uefa_id": "250140929",
+   "list_b": false
+  },
+  {
+   "name": "Paulo Dybala",
+   "short_name": "Dybala",
+   "role": "Forward",
+   "team": "Roma",
+   "nationality": "ARG",
+   "uefa_id": "250086333",
+   "list_b": false
+  },
+  {
+   "name": "Antonio Arena",
+   "short_name": "Arena",
+   "role": "Forward",
+   "team": "Roma",
+   "nationality": "ITA",
+   "uefa_id": "250206586",
+   "list_b": false
+  },
+  {
+   "name": "Rodrigo Mora",
+   "short_name": "Rodrigo Mora",
+   "role": "Forward",
+   "team": "Roma",
+   "nationality": "POR",
+   "uefa_id": "250177837",
+   "list_b": false
+  },
+  {
+   "name": "Aleksandar Popović",
+   "short_name": "Popović",
+   "role": "Goalkeeper",
+   "team": "S. Bratislava",
+   "nationality": "SRB",
+   "uefa_id": "250089413",
+   "list_b": false
+  },
+  {
+   "name": "Dávid Balog",
+   "short_name": "Balog",
+   "role": "Goalkeeper",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250198497",
+   "list_b": true
+  },
+  {
+   "name": "Matúš Macík",
+   "short_name": "Macík",
+   "role": "Goalkeeper",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250110137",
+   "list_b": false
+  },
+  {
+   "name": "Dominik Takáč",
+   "short_name": "Takáč",
+   "role": "Goalkeeper",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250157134",
+   "list_b": false
+  },
+  {
+   "name": "Samuel Kozlovský",
+   "short_name": "Kozlovský",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250089337",
+   "list_b": false
+  },
+  {
+   "name": "Kevin Wimmer",
+   "short_name": "Wimmer",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "AUT",
+   "uefa_id": "250043066",
+   "list_b": false
+  },
+  {
+   "name": "Kenan Bajrić",
+   "short_name": "Bajrić",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "SVN",
+   "uefa_id": "250061721",
+   "list_b": false
+  },
+  {
+   "name": "Svetozar Marković",
+   "short_name": "Marković",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "SRB",
+   "uefa_id": "250105502",
+   "list_b": false
+  },
+  {
+   "name": "Matúš Tomáško",
+   "short_name": "Tomáško",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250204451",
+   "list_b": true
+  },
+  {
+   "name": "Robert Tománek",
+   "short_name": "Tománek",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250222608",
+   "list_b": true
+  },
+  {
+   "name": "Cesar Blackman",
+   "short_name": "Blackman",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "PAN",
+   "uefa_id": "250131541",
+   "list_b": false
+  },
+  {
+   "name": "Sahmkou Camara",
+   "short_name": "Sahmkou Camara",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "GUI",
+   "uefa_id": "250223129",
+   "list_b": false
+  },
+  {
+   "name": "Sandro Cruz",
+   "short_name": "Sandro Cruz",
+   "role": "Defender",
+   "team": "S. Bratislava",
+   "nationality": "ANG",
+   "uefa_id": "250116653",
+   "list_b": false
+  },
+  {
+   "name": "Peter Pokorný",
+   "short_name": "Pokorný",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250114171",
+   "list_b": false
+  },
+  {
+   "name": "Rahim Ibrahim",
+   "short_name": "Ibrahim",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "GHA",
+   "uefa_id": "250210294",
+   "list_b": false
+  },
+  {
+   "name": "Artur Gajdoš",
+   "short_name": "Gajdoš",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250139101",
+   "list_b": false
+  },
+  {
+   "name": "Tigran Barseghyan",
+   "short_name": "Barseghyan",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "ARM",
+   "uefa_id": "250013022",
+   "list_b": false
+  },
+  {
+   "name": "Alen Mustafić",
+   "short_name": "Mustafić",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "BIH",
+   "uefa_id": "250116759",
+   "list_b": false
+  },
+  {
+   "name": "Leo Hofstädter",
+   "short_name": "Hofstädter",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250208297",
+   "list_b": true
+  },
+  {
+   "name": "Cristian Martínez",
+   "short_name": "Martínez",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "PAN",
+   "uefa_id": "250221031",
+   "list_b": false
+  },
+  {
+   "name": "Danylo Ihnatenko",
+   "short_name": "Ihnatenko",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "UKR",
+   "uefa_id": "250121132",
+   "list_b": false
+  },
+  {
+   "name": "Daiki Matsuoka",
+   "short_name": "Matsuoka",
+   "role": "Midfielder",
+   "team": "S. Bratislava",
+   "nationality": "JPN",
+   "uefa_id": "250222222",
+   "list_b": false
+  },
+  {
+   "name": "Nino Marcelli",
+   "short_name": "Marcelli",
+   "role": "Forward",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250183092",
+   "list_b": true
+  },
+  {
+   "name": "Roman Čerepkai",
+   "short_name": "Čerepkai",
+   "role": "Forward",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250117638",
+   "list_b": false
+  },
+  {
+   "name": "Alasana Yirajang",
+   "short_name": "Yirajang",
+   "role": "Forward",
+   "team": "S. Bratislava",
+   "nationality": "GAM",
+   "uefa_id": "250210296",
+   "list_b": false
+  },
+  {
+   "name": "Suleiman Camara",
+   "short_name": "Suleiman Camara",
+   "role": "Forward",
+   "team": "S. Bratislava",
+   "nationality": "GAM",
+   "uefa_id": "250223119",
+   "list_b": false
+  },
+  {
+   "name": "Alexej Maroš",
+   "short_name": "Maroš",
+   "role": "Forward",
+   "team": "S. Bratislava",
+   "nationality": "SVK",
+   "uefa_id": "250193070",
+   "list_b": true
+  },
+  {
+   "name": "Andraž Šporar",
+   "short_name": "Šporar",
+   "role": "Forward",
+   "team": "S. Bratislava",
+   "nationality": "SVN",
+   "uefa_id": "250050391",
+   "list_b": false
+  },
+  {
+   "name": "Amin Ramazanov",
+   "short_name": "Ramazanov",
+   "role": "Goalkeeper",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250138479",
+   "list_b": false
+  },
+  {
+   "name": "Rauf Ayyubov",
+   "short_name": "Ayyubov",
+   "role": "Goalkeeper",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250202766",
+   "list_b": true
+  },
+  {
+   "name": "Stas Pokatilov",
+   "short_name": "Pokatilov",
+   "role": "Goalkeeper",
+   "team": "Sabah",
+   "nationality": "KAZ",
+   "uefa_id": "250059361",
+   "list_b": false
+  },
+  {
+   "name": "Ravan Mirzammadov",
+   "short_name": "Mirzammadov",
+   "role": "Goalkeeper",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250193107",
+   "list_b": true
+  },
+  {
+   "name": "Steve Solvet",
+   "short_name": "Solvet",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "GLP",
+   "uefa_id": "250209341",
+   "list_b": false
+  },
+  {
+   "name": "Aden McCarthy",
+   "short_name": "McCarthy",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "RSA",
+   "uefa_id": "250221230",
+   "list_b": false
+  },
+  {
+   "name": "Rahman Dashdamirov",
+   "short_name": "Dashdamirov",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250186986",
+   "list_b": false
+  },
+  {
+   "name": "Tellur Mutallimov",
+   "short_name": "Mutallimov",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250087979",
+   "list_b": false
+  },
+  {
+   "name": "Tymoteusz Puchacz",
+   "short_name": "Puchacz",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "POL",
+   "uefa_id": "250090285",
+   "list_b": false
+  },
+  {
+   "name": "Erivaldo Almeida",
+   "short_name": "Erivaldo Almeida",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "BRA",
+   "uefa_id": "250221486",
+   "list_b": false
+  },
+  {
+   "name": "Akim Zedadka",
+   "short_name": "Zedadka",
+   "role": "Defender",
+   "team": "Sabah",
+   "nationality": "ALG",
+   "uefa_id": "250188243",
+   "list_b": false
+  },
+  {
+   "name": "Abdulakh Khaibulaev",
+   "short_name": "Khaibulaev",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250171312",
+   "list_b": false
+  },
+  {
+   "name": "Umarali Rakhmonaliev",
+   "short_name": "Rakhmonaliev",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "UZB",
+   "uefa_id": "250209340",
+   "list_b": false
+  },
+  {
+   "name": "Khayal Aliyev",
+   "short_name": "Aliyev",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250169206",
+   "list_b": false
+  },
+  {
+   "name": "Aleksey Isaev",
+   "short_name": "Isaev",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250129032",
+   "list_b": false
+  },
+  {
+   "name": "Kaheem Parris",
+   "short_name": "Parris",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "JAM",
+   "uefa_id": "250174049",
+   "list_b": false
+  },
+  {
+   "name": "Ivan Lepinjica",
+   "short_name": "Lepinjica",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "CRO",
+   "uefa_id": "250110583",
+   "list_b": false
+  },
+  {
+   "name": "Rauf Rustamli",
+   "short_name": "Rustamli",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250130045",
+   "list_b": false
+  },
+  {
+   "name": "Du Queiroz",
+   "short_name": "Du Queiroz",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "BRA",
+   "uefa_id": "250225045",
+   "list_b": false
+  },
+  {
+   "name": "Rodrigo Fernandes",
+   "short_name": "Rodrigo Fernandes",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "POR",
+   "uefa_id": "250106774",
+   "list_b": false
+  },
+  {
+   "name": "Jafar Mukhtarov",
+   "short_name": "Mukhtarov",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250221231",
+   "list_b": false
+  },
+  {
+   "name": "Shahin Ibrahimov",
+   "short_name": "Ibrahimov",
+   "role": "Midfielder",
+   "team": "Sabah",
+   "nationality": "AZE",
+   "uefa_id": "250202772",
+   "list_b": true
+  },
+  {
+   "name": "Christian Nwachukwu",
+   "short_name": "Nwachukwu",
+   "role": "Forward",
+   "team": "Sabah",
+   "nationality": "NGA",
+   "uefa_id": "250196599",
+   "list_b": false
+  },
+  {
+   "name": "Joy-Lance Mickels",
+   "short_name": "Mickels",
+   "role": "Forward",
+   "team": "Sabah",
+   "nationality": "RWA",
+   "uefa_id": "250081185",
+   "list_b": false
+  },
+  {
+   "name": "Veljko Simić",
+   "short_name": "Simić",
+   "role": "Forward",
+   "team": "Sabah",
+   "nationality": "SRB",
+   "uefa_id": "250042209",
+   "list_b": false
+  },
+  {
+   "name": "Xander Severina",
+   "short_name": "Severina",
+   "role": "Forward",
+   "team": "Sabah",
+   "nationality": "CUW",
+   "uefa_id": "250221487",
+   "list_b": false
+  },
+  {
+   "name": "Orphe Mbina",
+   "short_name": "Mbina",
+   "role": "Forward",
+   "team": "Sabah",
+   "nationality": "GAB",
+   "uefa_id": "250198298",
+   "list_b": false
+  },
+  {
+   "name": "Kiril Fesiun",
+   "short_name": "Fesiun",
+   "role": "Goalkeeper",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250160835",
+   "list_b": false
+  },
+  {
+   "name": "Dmytro Riznyk",
+   "short_name": "Riznyk",
+   "role": "Goalkeeper",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250121017",
+   "list_b": false
+  },
+  {
+   "name": "Rostyslav Bahlai",
+   "short_name": "Bahlai",
+   "role": "Goalkeeper",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250188875",
+   "list_b": true
+  },
+  {
+   "name": "Marlon Santos",
+   "short_name": "Marlon Santos",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250101096",
+   "list_b": false
+  },
+  {
+   "name": "Valeriy Bondar",
+   "short_name": "Bondar",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250087118",
+   "list_b": false
+  },
+  {
+   "name": "Pedro Henrique",
+   "short_name": "Pedro Henrique",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250187672",
+   "list_b": false
+  },
+  {
+   "name": "Irakli Azarov",
+   "short_name": "Azarov",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "GEO",
+   "uefa_id": "250108031",
+   "list_b": false
+  },
+  {
+   "name": "Vinícius Tobías",
+   "short_name": "Vinícius Tobías",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250176491",
+   "list_b": false
+  },
+  {
+   "name": "Alaa Ghram",
+   "short_name": "Ghram",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "TUN",
+   "uefa_id": "250194557",
+   "list_b": false
+  },
+  {
+   "name": "Oleksandr Karavaiev",
+   "short_name": "Karavaiev",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250004740",
+   "list_b": false
+  },
+  {
+   "name": "Mykola Matviyenko",
+   "short_name": "Matviyenko",
+   "role": "Defender",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250064444",
+   "list_b": false
+  },
+  {
+   "name": "Marlon Gomes",
+   "short_name": "Marlon Gomes",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250193518",
+   "list_b": false
+  },
+  {
+   "name": "Dmytro Kryskiv",
+   "short_name": "Kryskiv",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250112978",
+   "list_b": false
+  },
+  {
+   "name": "Pedrinho",
+   "short_name": "Pedrinho",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250144964",
+   "list_b": false
+  },
+  {
+   "name": "Newertton",
+   "short_name": "Newertton",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250187671",
+   "list_b": true
+  },
+  {
+   "name": "Isaque",
+   "short_name": "Isaque",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250212206",
+   "list_b": false
+  },
+  {
+   "name": "Viktor Tsukanov",
+   "short_name": "Tsukanov",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250176838",
+   "list_b": true
+  },
+  {
+   "name": "Gabriel Carvalho",
+   "short_name": "Gabriel Carvalho",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250224147",
+   "list_b": false
+  },
+  {
+   "name": "Oleh Ocheretko",
+   "short_name": "Ocheretko",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250134776",
+   "list_b": false
+  },
+  {
+   "name": "Yehor Nazaryna",
+   "short_name": "Nazaryna",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250123440",
+   "list_b": false
+  },
+  {
+   "name": "Alisson Santana",
+   "short_name": "Alisson Santana",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250209228",
+   "list_b": false
+  },
+  {
+   "name": "Lucas Ferreira",
+   "short_name": "Lucas Ferreira",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250211402",
+   "list_b": false
+  },
+  {
+   "name": "Denys Smetana",
+   "short_name": "Smetana",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "UKR",
+   "uefa_id": "250176861",
+   "list_b": true
+  },
+  {
+   "name": "Ryan Roberto",
+   "short_name": "Ryan Roberto",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250211683",
+   "list_b": false
+  },
+  {
+   "name": "Gleiker Mendoza",
+   "short_name": "Mendoza",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "VEN",
+   "uefa_id": "250220576",
+   "list_b": false
+  },
+  {
+   "name": "Bruninho",
+   "short_name": "Bruninho",
+   "role": "Midfielder",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250224146",
+   "list_b": false
+  },
+  {
+   "name": "Lassina Traoré",
+   "short_name": "Traoré",
+   "role": "Forward",
+   "team": "Shakhtar",
+   "nationality": "BFA",
+   "uefa_id": "250128222",
+   "list_b": false
+  },
+  {
+   "name": "Kauã Elias",
+   "short_name": "Kauã Elias",
+   "role": "Forward",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250209227",
+   "list_b": false
+  },
+  {
+   "name": "Luca Meirelles",
+   "short_name": "Luca Meirelles",
+   "role": "Forward",
+   "team": "Shakhtar",
+   "nationality": "BRA",
+   "uefa_id": "250212190",
+   "list_b": false
+  },
+  {
+   "name": "Nazar Domchak",
+   "short_name": "Domchak",
+   "role": "Goalkeeper",
+   "team": "Slavia Praha",
+   "nationality": "UKR",
+   "uefa_id": "250215254",
+   "list_b": false
+  },
+  {
+   "name": "Jakub Markovič",
+   "short_name": "Markovič",
+   "role": "Goalkeeper",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250115748",
+   "list_b": false
+  },
+  {
+   "name": "Štěpán Chaloupek",
+   "short_name": "Chaloupek",
+   "role": "Defender",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250190353",
+   "list_b": false
+  },
+  {
+   "name": "Tomáš Holeš",
+   "short_name": "Holeš",
+   "role": "Defender",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250054481",
+   "list_b": false
+  },
+  {
+   "name": "David Zima",
+   "short_name": "Zima",
+   "role": "Defender",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250124916",
+   "list_b": false
+  },
+  {
+   "name": "Ange N'Guessan",
+   "short_name": "N'Guessan",
+   "role": "Defender",
+   "team": "Slavia Praha",
+   "nationality": "FRA",
+   "uefa_id": "250223131",
+   "list_b": false
+  },
+  {
+   "name": "Tomáš Vlček",
+   "short_name": "Vlček",
+   "role": "Defender",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250115749",
+   "list_b": false
+  },
+  {
+   "name": "Mikuláš Konečný",
+   "short_name": "Konečný",
+   "role": "Defender",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250170001",
+   "list_b": false
+  },
+  {
+   "name": "Oskar Kubiak",
+   "short_name": "Kubiak",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "POL",
+   "uefa_id": "250223130",
+   "list_b": false
+  },
+  {
+   "name": "Danijel Šturm",
+   "short_name": "Šturm",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "SVN",
+   "uefa_id": "250158167",
+   "list_b": false
+  },
+  {
+   "name": "Samuel Isife",
+   "short_name": "Isife",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "NGA",
+   "uefa_id": "250221826",
+   "list_b": false
+  },
+  {
+   "name": "Mubarak Suleiman",
+   "short_name": "Suleiman",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "NGA",
+   "uefa_id": "250211977",
+   "list_b": false
+  },
+  {
+   "name": "David Moses",
+   "short_name": "Moses",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "NGA",
+   "uefa_id": "250210225",
+   "list_b": false
+  },
+  {
+   "name": "Lukáš Provod",
+   "short_name": "Provod",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250064811",
+   "list_b": false
+  },
+  {
+   "name": "Emmanuel Ayaosi",
+   "short_name": "Ayaosi",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "NGA",
+   "uefa_id": "250223128",
+   "list_b": false
+  },
+  {
+   "name": "Toumani Diakite",
+   "short_name": "Diakite",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "CIV",
+   "uefa_id": "250209358",
+   "list_b": false
+  },
+  {
+   "name": "Michal Sadílek",
+   "short_name": "Sadílek",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250077931",
+   "list_b": false
+  },
+  {
+   "name": "Ivan Schranz",
+   "short_name": "Schranz",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "SVK",
+   "uefa_id": "250012660",
+   "list_b": false
+  },
+  {
+   "name": "Wiktor Nowak",
+   "short_name": "Nowak",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "POL",
+   "uefa_id": "250212505",
+   "list_b": false
+  },
+  {
+   "name": "Pavel Kačor",
+   "short_name": "Kačor",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250218489",
+   "list_b": false
+  },
+  {
+   "name": "David Jurásek",
+   "short_name": "Jurásek",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250166772",
+   "list_b": false
+  },
+  {
+   "name": "Eliáš Piták",
+   "short_name": "Piták",
+   "role": "Midfielder",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250170005",
+   "list_b": false
+  },
+  {
+   "name": "Mojmír Chytil",
+   "short_name": "Chytil",
+   "role": "Forward",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250092161",
+   "list_b": false
+  },
+  {
+   "name": "Adonija Ouanda",
+   "short_name": "Ouanda",
+   "role": "Forward",
+   "team": "Slavia Praha",
+   "nationality": "CAN",
+   "uefa_id": "250223132",
+   "list_b": false
+  },
+  {
+   "name": "Tomáš Chorý",
+   "short_name": "Chorý",
+   "role": "Forward",
+   "team": "Slavia Praha",
+   "nationality": "CZE",
+   "uefa_id": "250042406",
+   "list_b": false
+  },
+  {
+   "name": "Rui Silva",
+   "short_name": "Rui Silva",
+   "role": "Goalkeeper",
+   "team": "Sporting CP",
+   "nationality": "POR",
+   "uefa_id": "250062141",
+   "list_b": false
+  },
+  {
+   "name": "Kaique Pereira",
+   "short_name": "Kaique Pereira",
+   "role": "Goalkeeper",
+   "team": "Sporting CP",
+   "nationality": "BRA",
+   "uefa_id": "250224837",
+   "list_b": false
+  },
+  {
+   "name": "Diego Callai",
+   "short_name": "Diego Callai",
+   "role": "Goalkeeper",
+   "team": "Sporting CP",
+   "nationality": "ITA",
+   "uefa_id": "250160990",
+   "list_b": false
+  },
+  {
+   "name": "Sergi Altimira",
+   "short_name": "Sergi Altimira",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "ESP",
+   "uefa_id": "250130006",
+   "list_b": false
+  },
+  {
+   "name": "Zeno Debast",
+   "short_name": "Debast",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "BEL",
+   "uefa_id": "250137390",
+   "list_b": false
+  },
+  {
+   "name": "Giorgos Vagiannidis",
+   "short_name": "Vagiannidis",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "GRE",
+   "uefa_id": "250187284",
+   "list_b": false
+  },
+  {
+   "name": "Moncef Zekri",
+   "short_name": "Zekri",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "BEL",
+   "uefa_id": "250224838",
+   "list_b": false
+  },
+  {
+   "name": "Iván Fresneda",
+   "short_name": "Fresneda",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "ESP",
+   "uefa_id": "250179137",
+   "list_b": false
+  },
+  {
+   "name": "Gonçalo Inácio",
+   "short_name": "Gonçalo Inácio",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "POR",
+   "uefa_id": "250136464",
+   "list_b": false
+  },
+  {
+   "name": "Ibrahima Ba",
+   "short_name": "Ba",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "SEN",
+   "uefa_id": "250223275",
+   "list_b": false
+  },
+  {
+   "name": "Eduardo Quaresma",
+   "short_name": "Eduardo Quaresma",
+   "role": "Defender",
+   "team": "Sporting CP",
+   "nationality": "POR",
+   "uefa_id": "250117415",
+   "list_b": false
+  },
+  {
+   "name": "Silas Andersen",
+   "short_name": "Andersen",
+   "role": "Midfielder",
+   "team": "Sporting CP",
+   "nationality": "DEN",
+   "uefa_id": "250139182",
+   "list_b": false
+  },
+  {
+   "name": "Rodrigo Zalazar",
+   "short_name": "Zalazar",
+   "role": "Midfielder",
+   "team": "Sporting CP",
+   "nationality": "URU",
+   "uefa_id": "250187727",
+   "list_b": false
+  },
+  {
+   "name": "Maximiliano Araújo",
+   "short_name": "Araújo",
+   "role": "Midfielder",
+   "team": "Sporting CP",
+   "nationality": "URU",
+   "uefa_id": "250200231",
+   "list_b": false
+  },
+  {
+   "name": "Pedro Lima",
+   "short_name": "Lima",
+   "role": "Midfielder",
+   "team": "Sporting CP",
+   "nationality": "BRA",
+   "uefa_id": "250197406",
+   "list_b": false
+  },
+  {
+   "name": "Issa Doumbia",
+   "short_name": "Doumbia",
+   "role": "Midfielder",
+   "team": "Sporting CP",
+   "nationality": "ITA",
+   "uefa_id": "250208842",
+   "list_b": false
+  },
+  {
+   "name": "Samuel Justo",
+   "short_name": "Samuel Justo",
+   "role": "Midfielder",
+   "team": "Sporting CP",
+   "nationality": "POR",
+   "uefa_id": "250164927",
+   "list_b": false
+  },
+  {
+   "name": "Fotis Ioannidis",
+   "short_name": "Ioannidis",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "GRE",
+   "uefa_id": "250127400",
+   "list_b": false
+  },
+  {
+   "name": "Geny Catamo",
+   "short_name": "Catamo",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "MOZ",
+   "uefa_id": "250145845",
+   "list_b": false
+  },
+  {
+   "name": "Nuno Santos",
+   "short_name": "Nuno Santos",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "POR",
+   "uefa_id": "250064482",
+   "list_b": false
+  },
+  {
+   "name": "Nestory Irankunda",
+   "short_name": "Irankunda",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "AUS",
+   "uefa_id": "250198116",
+   "list_b": false
+  },
+  {
+   "name": "Jesse Derry",
+   "short_name": "Derry",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "ENG",
+   "uefa_id": "250192702",
+   "list_b": false
+  },
+  {
+   "name": "Luis Guilherme",
+   "short_name": "Luis Guilherme",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "BRA",
+   "uefa_id": "250216956",
+   "list_b": false
+  },
+  {
+   "name": "Rodrigo Rodrigues",
+   "short_name": "Rodrigo Rodrigues",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "POR",
+   "uefa_id": "250218236",
+   "list_b": false
+  },
+  {
+   "name": "Luis Suárez",
+   "short_name": "Suárez",
+   "role": "Forward",
+   "team": "Sporting CP",
+   "nationality": "COL",
+   "uefa_id": "250147458",
+   "list_b": false
+  },
+  {
+   "name": "Fabian Bredlow",
+   "short_name": "Bredlow",
+   "role": "Goalkeeper",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250070418",
+   "list_b": false
+  },
+  {
+   "name": "Marius Funk",
+   "short_name": "Funk",
+   "role": "Goalkeeper",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250058261",
+   "list_b": false
+  },
+  {
+   "name": "Dennis Seimen",
+   "short_name": "Seimen",
+   "role": "Goalkeeper",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250170952",
+   "list_b": true
+  },
+  {
+   "name": "Tom Walz",
+   "short_name": "Walz",
+   "role": "Goalkeeper",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250218212",
+   "list_b": true
+  },
+  {
+   "name": "Lucas Nagel",
+   "short_name": "Nagel",
+   "role": "Goalkeeper",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250224503",
+   "list_b": true
+  },
+  {
+   "name": "Ameen Al-Dakhil",
+   "short_name": "Al-Dakhil",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "BEL",
+   "uefa_id": "250127149",
+   "list_b": false
+  },
+  {
+   "name": "Ramon Hendriks",
+   "short_name": "Hendriks",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "NED",
+   "uefa_id": "250106750",
+   "list_b": false
+  },
+  {
+   "name": "Josha Vagnoman",
+   "short_name": "Vagnoman",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250127538",
+   "list_b": false
+  },
+  {
+   "name": "Maximilian Mittelstädt",
+   "short_name": "Mittelstädt",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250090766",
+   "list_b": false
+  },
+  {
+   "name": "Luca Jaquez",
+   "short_name": "Jaquez",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "SUI",
+   "uefa_id": "250186841",
+   "list_b": false
+  },
+  {
+   "name": "Lorenz Assignon",
+   "short_name": "Assignon",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "FRA",
+   "uefa_id": "250136347",
+   "list_b": false
+  },
+  {
+   "name": "Jeff Chabot",
+   "short_name": "Chabot",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250107477",
+   "list_b": false
+  },
+  {
+   "name": "Maximilian Herwerth",
+   "short_name": "Herwerth",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250199540",
+   "list_b": true
+  },
+  {
+   "name": "Yanik Spalt",
+   "short_name": "Spalt",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "AUT",
+   "uefa_id": "250184508",
+   "list_b": true
+  },
+  {
+   "name": "Alexander Groiß",
+   "short_name": "Groiß",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250212172",
+   "list_b": false
+  },
+  {
+   "name": "Dominik Nothnagel",
+   "short_name": "Nothnagel",
+   "role": "Defender",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250212173",
+   "list_b": false
+  },
+  {
+   "name": "Angelo Stiller",
+   "short_name": "Stiller",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250112217",
+   "list_b": false
+  },
+  {
+   "name": "Ermedin Demirović",
+   "short_name": "Demirović",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "BIH",
+   "uefa_id": "250079383",
+   "list_b": false
+  },
+  {
+   "name": "Chris Führich",
+   "short_name": "Führich",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250192048",
+   "list_b": false
+  },
+  {
+   "name": "Bilal El Khannouss",
+   "short_name": "El Khannouss",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "MAR",
+   "uefa_id": "250154129",
+   "list_b": false
+  },
+  {
+   "name": "Atakan Karazor",
+   "short_name": "Atakan Karazor",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "TUR",
+   "uefa_id": "250196709",
+   "list_b": false
+  },
+  {
+   "name": "Grischa Prömel",
+   "short_name": "Prömel",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250101240",
+   "list_b": false
+  },
+  {
+   "name": "Nikolas Nartey",
+   "short_name": "Nartey",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "DEN",
+   "uefa_id": "250101564",
+   "list_b": false
+  },
+  {
+   "name": "Finn Jeltsch",
+   "short_name": "Jeltsch",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250170132",
+   "list_b": false
+  },
+  {
+   "name": "Ertugrul Yigit",
+   "short_name": "Yigit",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250201762",
+   "list_b": true
+  },
+  {
+   "name": "Leo Sauer",
+   "short_name": "Sauer",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "SVK",
+   "uefa_id": "250164450",
+   "list_b": false
+  },
+  {
+   "name": "Lauri Penna",
+   "short_name": "Penna",
+   "role": "Midfielder",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250201752",
+   "list_b": true
+  },
+  {
+   "name": "Tiago Tomás",
+   "short_name": "Tiago Tomás",
+   "role": "Forward",
+   "team": "Stuttgart",
+   "nationality": "POR",
+   "uefa_id": "250126369",
+   "list_b": false
+  },
+  {
+   "name": "Dzenan Pejcinovic",
+   "short_name": "Pejcinovic",
+   "role": "Forward",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250168144",
+   "list_b": false
+  },
+  {
+   "name": "Jamie Leweling",
+   "short_name": "Leweling",
+   "role": "Forward",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250138382",
+   "list_b": false
+  },
+  {
+   "name": "Deniz Undav",
+   "short_name": "Undav",
+   "role": "Forward",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250194673",
+   "list_b": false
+  },
+  {
+   "name": "Jarzinho Malanga",
+   "short_name": "Malanga",
+   "role": "Forward",
+   "team": "Stuttgart",
+   "nationality": "GER",
+   "uefa_id": "250180810",
+   "list_b": true
+  },
+  {
+   "name": "Arild Østbø",
+   "short_name": "Østbø",
+   "role": "Goalkeeper",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "1905505",
+   "list_b": false
+  },
+  {
+   "name": "Erlend Jacobsen",
+   "short_name": "Jacobsen",
+   "role": "Goalkeeper",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250223246",
+   "list_b": false
+  },
+  {
+   "name": "Ľubomír Belko",
+   "short_name": "Belko",
+   "role": "Goalkeeper",
+   "team": "Viking",
+   "nationality": "SVK",
+   "uefa_id": "250124826",
+   "list_b": false
+  },
+  {
+   "name": "Herman Haugen",
+   "short_name": "H. Haugen",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250210010",
+   "list_b": false
+  },
+  {
+   "name": "Viljar Vevatne",
+   "short_name": "Vevatne",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250055970",
+   "list_b": false
+  },
+  {
+   "name": "Martin Ove Roseth",
+   "short_name": "Roseth",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250086599",
+   "list_b": false
+  },
+  {
+   "name": "Henrik Heggheim",
+   "short_name": "Heggheim",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250144866",
+   "list_b": false
+  },
+  {
+   "name": "Gianni Stensness",
+   "short_name": "Stensness",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NZL",
+   "uefa_id": "250174059",
+   "list_b": false
+  },
+  {
+   "name": "Essiën Bassey",
+   "short_name": "Bassey",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NED",
+   "uefa_id": "250201827",
+   "list_b": false
+  },
+  {
+   "name": "Sondre Bjørshol",
+   "short_name": "Bjørshol",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250144186",
+   "list_b": false
+  },
+  {
+   "name": "Anders Baertelsen",
+   "short_name": "Baertelsen",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "DEN",
+   "uefa_id": "250103898",
+   "list_b": false
+  },
+  {
+   "name": "Vetle Auklend",
+   "short_name": "Auklend",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250196225",
+   "list_b": true
+  },
+  {
+   "name": "Henrik Falchener",
+   "short_name": "Falchener",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250139481",
+   "list_b": false
+  },
+  {
+   "name": "Jesper Daland",
+   "short_name": "Daland",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250103750",
+   "list_b": false
+  },
+  {
+   "name": "Kristoffer Haugen",
+   "short_name": "K. Haugen",
+   "role": "Defender",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250027039",
+   "list_b": false
+  },
+  {
+   "name": "Kristoffer Askildsen",
+   "short_name": "Askildsen",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250117864",
+   "list_b": false
+  },
+  {
+   "name": "Joe Bell",
+   "short_name": "Bell",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NZL",
+   "uefa_id": "250138504",
+   "list_b": false
+  },
+  {
+   "name": "Zlatko Tripić",
+   "short_name": "Tripić",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250051338",
+   "list_b": false
+  },
+  {
+   "name": "Ola Visted",
+   "short_name": "Visted",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250223290",
+   "list_b": true
+  },
+  {
+   "name": "Henrik Bjørdal",
+   "short_name": "Bjørdal",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250065289",
+   "list_b": false
+  },
+  {
+   "name": "Amin Cosic",
+   "short_name": "Cosic",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "ISL",
+   "uefa_id": "250215287",
+   "list_b": false
+  },
+  {
+   "name": "Tobias Moi",
+   "short_name": "Moi",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250169944",
+   "list_b": true
+  },
+  {
+   "name": "Jakob Hansen",
+   "short_name": "Hansen",
+   "role": "Midfielder",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250210217",
+   "list_b": true
+  },
+  {
+   "name": "Nick D'Agostino",
+   "short_name": "D'Agostino",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "AUS",
+   "uefa_id": "250210009",
+   "list_b": false
+  },
+  {
+   "name": "Romano Postema",
+   "short_name": "Postema",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "NED",
+   "uefa_id": "250223247",
+   "list_b": false
+  },
+  {
+   "name": "Veton Berisha",
+   "short_name": "Veton Berisha",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250022815",
+   "list_b": false
+  },
+  {
+   "name": "Peter Christiansen",
+   "short_name": "Christiansen",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "DEN",
+   "uefa_id": "250145630",
+   "list_b": false
+  },
+  {
+   "name": "Erik Botheim",
+   "short_name": "Botheim",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250102068",
+   "list_b": false
+  },
+  {
+   "name": "Niklas Fuglestad",
+   "short_name": "Fuglestad",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250203364",
+   "list_b": true
+  },
+  {
+   "name": "Simen Kvia-Egeskog",
+   "short_name": "Kvia-Egeskog",
+   "role": "Forward",
+   "team": "Viking",
+   "nationality": "NOR",
+   "uefa_id": "250174185",
+   "list_b": false
+  },
+  {
+   "name": "Luiz Júnior",
+   "short_name": "Luiz Júnior",
+   "role": "Goalkeeper",
+   "team": "Villarreal",
+   "nationality": "BRA",
+   "uefa_id": "250210287",
+   "list_b": false
+  },
+  {
+   "name": "Rubén Gómez",
+   "short_name": "Rubén Gómez",
+   "role": "Goalkeeper",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250193930",
+   "list_b": false
+  },
+  {
+   "name": "Péter Gulácsi",
+   "short_name": "Gulácsi",
+   "role": "Goalkeeper",
+   "team": "Villarreal",
+   "nationality": "HUN",
+   "uefa_id": "102420",
+   "list_b": false
+  },
+  {
+   "name": "Yakiv Kinareikin",
+   "short_name": "Kinareikin",
+   "role": "Goalkeeper",
+   "team": "Villarreal",
+   "nationality": "UKR",
+   "uefa_id": "250175645",
+   "list_b": false
+  },
+  {
+   "name": "Logan Costa",
+   "short_name": "Logan Costa",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "CPV",
+   "uefa_id": "250106707",
+   "list_b": false
+  },
+  {
+   "name": "Alex Freeman",
+   "short_name": "Freeman",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "USA",
+   "uefa_id": "250209023",
+   "list_b": false
+  },
+  {
+   "name": "Pau Navarro",
+   "short_name": "Pau Navarro",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250210288",
+   "list_b": false
+  },
+  {
+   "name": "Juan Foyth",
+   "short_name": "Foyth",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "ARG",
+   "uefa_id": "250147278",
+   "list_b": false
+  },
+  {
+   "name": "Renato Veiga",
+   "short_name": "Renato Veiga",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "POR",
+   "uefa_id": "250164935",
+   "list_b": false
+  },
+  {
+   "name": "Santiago Mouriño",
+   "short_name": "Mouriño",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "URU",
+   "uefa_id": "250188006",
+   "list_b": false
+  },
+  {
+   "name": "Carlos Romero",
+   "short_name": "Carlos Romero",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250177929",
+   "list_b": false
+  },
+  {
+   "name": "Sergi Cardona",
+   "short_name": "Sergi Cardona",
+   "role": "Defender",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250210289",
+   "list_b": false
+  },
+  {
+   "name": "Alberto Moleiro",
+   "short_name": "Alberto Moleiro",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250168991",
+   "list_b": false
+  },
+  {
+   "name": "Santi Comesaña",
+   "short_name": "Santi Comesaña",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250188937",
+   "list_b": false
+  },
+  {
+   "name": "Carlos Macia",
+   "short_name": "Carlos Macia",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250212013",
+   "list_b": false
+  },
+  {
+   "name": "Pape Gueye",
+   "short_name": "Gueye",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "SEN",
+   "uefa_id": "250144229",
+   "list_b": false
+  },
+  {
+   "name": "Tani Oluwaseyi",
+   "short_name": "Oluwaseyi",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "CAN",
+   "uefa_id": "250195532",
+   "list_b": false
+  },
+  {
+   "name": "Nathan Saliba",
+   "short_name": "Saliba",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "CAN",
+   "uefa_id": "250209018",
+   "list_b": false
+  },
+  {
+   "name": "Nizar El Jmili",
+   "short_name": "El Jmili",
+   "role": "Midfielder",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250224969",
+   "list_b": false
+  },
+  {
+   "name": "Gerard Moreno",
+   "short_name": "Gerard Moreno",
+   "role": "Forward",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250074565",
+   "list_b": false
+  },
+  {
+   "name": "Georges Mikautadze",
+   "short_name": "Mikautadze",
+   "role": "Forward",
+   "team": "Villarreal",
+   "nationality": "GEO",
+   "uefa_id": "250155025",
+   "list_b": false
+  },
+  {
+   "name": "Ilias Akhomach",
+   "short_name": "Akhomach",
+   "role": "Forward",
+   "team": "Villarreal",
+   "nationality": "MAR",
+   "uefa_id": "250139241",
+   "list_b": false
+  },
+  {
+   "name": "Tajon Buchanan",
+   "short_name": "Buchanan",
+   "role": "Forward",
+   "team": "Villarreal",
+   "nationality": "CAN",
+   "uefa_id": "250173127",
+   "list_b": false
+  },
+  {
+   "name": "Nicolas Pépé",
+   "short_name": "Pépé",
+   "role": "Forward",
+   "team": "Villarreal",
+   "nationality": "CIV",
+   "uefa_id": "250106003",
+   "list_b": false
+  },
+  {
+   "name": "Ayoze Pérez",
+   "short_name": "Ayoze Pérez",
+   "role": "Forward",
+   "team": "Villarreal",
+   "nationality": "ESP",
+   "uefa_id": "250075625",
+   "list_b": false
+  }
+ ]
+}

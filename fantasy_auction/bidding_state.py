@@ -265,10 +265,14 @@ class BiddingState(rx.State):
                 {"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
                 for p in bo.available_players(room, limit=5000)
             ]
-            new_countries = ["All countries"] + sorted(
+            from platform_core.config_layer import team_noun
+            all_label = "All " + team_noun(room.get("tournament_type", ""), plural=True)
+            new_countries = [all_label] + sorted(
                 {p["team"] for p in self._pool_cache if p["team"]})
             if self.countries != new_countries:
                 self.countries = new_countries
+            if self.country_sel not in new_countries:
+                self.country_sel = all_label
             new_roles = ["All positions"] + sorted(
                 {p["role"] for p in self._pool_cache if p["role"]})
             if self.roles != new_roles:
@@ -325,7 +329,10 @@ class BiddingState(rx.State):
     # --- search-as-you-type + filters (in-memory over the cached pool) ------- #
     @property
     def _country(self) -> str:
-        return "" if self.country_sel in ("", "All countries") else self.country_sel
+        # The "all" option is labelled per competition ("All countries" / "All
+        # clubs"), so recognise it by shape rather than by one exact string.
+        sel = self.country_sel or ""
+        return "" if not sel or sel.startswith("All ") else sel
 
     @property
     def _role(self) -> str:

@@ -6,6 +6,11 @@ Timeline relative to the admin's bidding deadline T:
   * T-30m .. T : final window — existing bids may only be raised in +5M steps.
   * at T : all standing bids are awarded to the high bidders (scheduler).
   * no deadline set : bidding is FROZEN.
+
+Independently of that, a leading bid also wins the player once it has stood
+unchallenged for the room's *bid hold* window (see ``bid_hold_hours``): 12 hours
+until the GW1 deadline, 24 hours after it, both admin-adjustable. Any new high bid
+restarts that clock, and the window is always clipped to the bidding deadline.
 """
 
 from __future__ import annotations
@@ -22,6 +27,15 @@ from season_engine.open_bidding import (
 from .config_layer import load_player_pool
 
 MAX_SQUAD = 30
+
+# How long a leading bid must stand unchallenged before the player is awarded.
+# Faster before the season starts (the opening auction needs to clear quickly),
+# steadier once gameweeks are running. Both are admin-overridable per room via
+# ``pre_gw1_bid_hold_hours`` / ``bid_hold_hours``.
+DEFAULT_PRE_GW1_BID_HOLD_HOURS = 12
+DEFAULT_BID_HOLD_HOURS = 24
+MIN_BID_HOLD_HOURS = 1
+MAX_BID_HOLD_HOURS = 168  # a week
 
 # Canonical window offsets relative to the bidding deadline T (single source of truth;
 # referenced by window_state below and by the deadline push scheduler).
@@ -129,6 +143,49 @@ def window_state(room, now: datetime) -> str:
     return "open"
 
 
+def gw1_deadline_passed(room, now: datetime) -> bool:
+    """Has the room reached its gameweek 1 deadline?
+
+    True once GW1's squads are locked (the deadline fired), or once its stored
+    deadline is in the past, or if the room is already past gameweek 1.
+    """
+    if "1" in (room.get("gameweek_squads") or {}):
+        return True
+    dl = parse_deadline((room.get("gameweek_deadlines") or {}).get("1"))
+    if dl is not None:
+        return now >= dl
+    return int(room.get("current_gameweek", 0) or 0) > 1
+
+
+def _clamp_hold(value, default: int) -> int:
+    try:
+        hours = int(value)
+    except (TypeError, ValueError):
+        return default
+    if hours <= 0:
+        return default
+    return max(MIN_BID_HOLD_HOURS, min(MAX_BID_HOLD_HOURS, hours))
+
+
+def bid_hold_hours(room, now: datetime) -> int:
+    """Hours a leading bid must stand before the player is awarded to that bidder."""
+    if gw1_deadline_passed(room, now):
+        return _clamp_hold(room.get("bid_hold_hours"), DEFAULT_BID_HOLD_HOURS)
+    return _clamp_hold(room.get("pre_gw1_bid_hold_hours"), DEFAULT_PRE_GW1_BID_HOLD_HOURS)
+
+
+def set_bid_hold_hours(room, hours, *, pre_gw1: bool = False) -> int:
+    """Admin sets the hold window (returns the stored value). Raises on nonsense."""
+    try:
+        value = int(hours)
+    except (TypeError, ValueError):
+        raise BidError("Enter a whole number of hours.")
+    if not MIN_BID_HOLD_HOURS <= value <= MAX_BID_HOLD_HOURS:
+        raise BidError(f"Hours must be between {MIN_BID_HOLD_HOURS} and {MAX_BID_HOLD_HOURS}.")
+    room["pre_gw1_bid_hold_hours" if pre_gw1 else "bid_hold_hours"] = value
+    return value
+
+
 def place(room, participant, player_name, amount, now: datetime) -> None:
     st = window_state(room, now)
     if st == "frozen":
@@ -149,10 +206,10 @@ def place(room, participant, player_name, amount, now: datetime) -> None:
     if st in ("no_new", "raise_only") and not existing:
         raise BidError("Bidding is closing — no new players, only raise existing bids.")
     dl = bidding_deadline(room)
-    expiry = now + timedelta(hours=24)
+    expiry = now + timedelta(hours=bid_hold_hours(room, now))
     if dl and dl < expiry:
         expiry = dl
-        
+
     place_bid(_by(room), room.setdefault("open_bids", {}), player, participant, amount,
               expiry.isoformat(), raise_only=(st == "raise_only"), max_squad=MAX_SQUAD)
 
@@ -169,7 +226,7 @@ def resolve_deadline(room, now: datetime) -> list[dict]:
     return awarded
 
 def process_expired(room, now: datetime) -> list[dict]:
-    """Award bids that have reached their 24h individual expiration."""
+    """Award bids that have stood for the room's full bid-hold window."""
     awarded = resolve_expired(_by(room), room.setdefault("open_bids", {}), now.isoformat(), max_squad=MAX_SQUAD)
     if awarded:
         room.setdefault("transactions", []).extend(awarded)

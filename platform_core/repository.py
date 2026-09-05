@@ -214,12 +214,23 @@ def _pool_role_team(room: dict) -> dict:
     return out
 
 
-def apply_reviewed_roster(room: dict, rows: list[dict], budgets: dict, *, budget_default: int = 0) -> int:
+def apply_reviewed_roster(room: dict, rows: list[dict], budgets: dict,
+                          *, budget_default: int = 0) -> tuple[int, list[dict]]:
     """Commit an admin-reviewed roster. Each row's ``matched`` is the canonical pool
     name (so scoring works); role/team come from the pool, price from the CSV, and
-    budgets are taken verbatim from the CSV. Returns rows applied."""
+    budgets are taken verbatim from the CSV.
+
+    A player can only be owned once, so a row naming someone already on ANY squad
+    in this room is skipped rather than creating a second owner. Returns
+    ``(applied, skipped)``; each skipped entry is ``{participant, player}`` so the
+    caller can tell the admin what didn't go in instead of losing it silently.
+    """
     rt = _pool_role_team(room)
     by_name = {p["name"]: p for p in room.get("participants", [])}
+    owned = {e["name"].lower(): p["name"]
+             for p in by_name.values() for e in p.get("squad", [])}
+    applied = 0
+    skipped: list[dict] = []
     for r in rows:
         part = by_name.get(r["participant"])
         if part is None:
@@ -227,11 +238,16 @@ def apply_reviewed_roster(room: dict, rows: list[dict], budgets: dict, *, budget
                     "user": None, "pin": None}
             by_name[r["participant"]] = part
         name = r["matched"]
-        if any(s["name"].lower() == name.lower() for s in part["squad"]):
+        holder = owned.get(name.lower())
+        if holder is not None:
+            skipped.append({"participant": r["participant"], "player": name,
+                            "owned_by": holder})
             continue
         role, team = rt.get(name.lower(), (r.get("role", "Unknown"), r.get("team", "Unknown")))
         part["squad"].append({"name": name, "role": role, "team": team,
                               "buy_price": int(r.get("price", 0)), "acquired_via": "auction"})
+        owned[name.lower()] = part["name"]
+        applied += 1
     for name in budgets:
         if name not in by_name:
             by_name[name] = {"name": name, "budget": budget_default, "squad": [],
@@ -240,7 +256,7 @@ def apply_reviewed_roster(room: dict, rows: list[dict], budgets: dict, *, budget
         if name in budgets:
             part["budget"] = budgets[name]
     room["participants"] = list(by_name.values())
-    return len(rows)
+    return applied, skipped
 
 
 def generate_room_code(existing: Optional[set[str]] = None) -> str:

@@ -494,12 +494,16 @@ def eliminate_for_gameweek(room: dict, gameweek: str, count: int = 1) -> list[st
     return losers
 
 
-# Standard FIFA-style knockout cutoffs: round name -> teams kept after it.
+# Knockout ladder: round name -> how many teams may CONTEST that round. Each cut is
+# run before the round it qualifies for, so with 19 teams you keep the top 16 before
+# the round-of-16 gameweek, the top 8 before the quarters, and so on. The admin
+# presets in the season page mirror this list.
 KNOCKOUT_ROUNDS = [
-    ("Round of 16", 8),
-    ("Quarter-final", 4),
-    ("Semi-final", 2),
-    ("Final", 1),
+    ("Round of 16", 16),
+    ("Quarter-final", 8),
+    ("Semi-final", 4),
+    ("Final", 2),
+    ("Winner", 1),
 ]
 
 

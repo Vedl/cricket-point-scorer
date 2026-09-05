@@ -117,6 +117,7 @@ def _theme_class():
     return rx.match(
         AppState.active_tournament,
         ("FIFA World Cup 2026", "app-bg theme-fifa"),
+        ("UEFA Champions League 2026/27", "app-bg theme-ucl"),
         ("IPL 2026", "app-bg theme-ipl"),
         ("T20 World Cup", "app-bg theme-t20"),
         "app-bg",
@@ -654,6 +655,7 @@ def _status_pill(status):
                     ("exact", T.pill("exact", T.SUCCESS)),
                     ("confirmed", T.pill("confirmed", T.ACCENT)),
                     ("unmatched", T.pill("⚠ pick", T.DANGER)),
+                    ("duplicate", T.pill("⚠ already taken", T.DANGER)),
                     T.pill("fuzzy", T.WARNING))
 
 
@@ -684,7 +686,9 @@ def import_review_section():
                           T.pill(AppState.import_rows.length().to_string() + " rows", T.PRIMARY),
                           width="100%", align="center"),
                 rx.text("Confirm which pool player each written name maps to (e.g. which "
-                        "“Silva”). Names must match the player database so scoring works.",
+                        "“Silva”). Names must match the player database so scoring works. "
+                        "A row marked “already taken” points at a player another row has "
+                        "claimed — re-pick it, or it will be skipped on commit.",
                         style={"color": T.MUTED, "font_size": "0.82rem"}, margin_y="0.4rem"),
                 rx.cond(AppState.import_budgets.length() > 0,
                         rx.text("Budgets from CSV: " + AppState.import_budgets.length().to_string()
@@ -1806,17 +1810,56 @@ def gameweek_admin_panel():
             T.primary_button("Set bidding deadline", on_click=SeasonState.save_bidding_deadline),
             spacing="3", align="center", margin_top="0.4rem", wrap="wrap"),
         rx.divider(margin_y="0.7rem"),
-        T.section_title("🏆 Knockout"),
-        rx.text("Keep the top N for the selected gameweek; the rest are eliminated and their "
-                "players freed to open bidding.", style={"color": T.MUTED, "font_size": "0.8rem"}),
+        T.section_title("⏳ Bid hold — hours to win a player"),
+        rx.text("How long a leading bid must stand unchallenged before that player is "
+                "awarded. Any higher bid restarts the clock, and the window never runs "
+                "past the bidding deadline. Changing it affects bids placed from now on.",
+                style={"color": T.MUTED, "font_size": "0.8rem"}),
         rx.hstack(
-            rx.button("R16 → 8", on_click=SeasonState.run_knockout_round(8), variant="soft", size="1"),
-            rx.button("QF → 4", on_click=SeasonState.run_knockout_round(4), variant="soft", size="1"),
-            rx.button("SF → 2", on_click=SeasonState.run_knockout_round(2), variant="soft", size="1"),
-            rx.button("Final → 1", on_click=SeasonState.run_knockout_round(1), variant="soft", size="1"),
+            rx.text("Until the GW1 deadline", style={"color": T.MUTED, "font_size": "0.8rem"}),
+            rx.input(value=SeasonState.pre_gw1_bid_hold_input,
+                     on_change=SeasonState.set_field("pre_gw1_bid_hold_input"),
+                     type="number", min=1, max=168, width="80px"),
+            rx.text("hours", style={"color": T.MUTED, "font_size": "0.8rem"}),
+            rx.button("Save", on_click=SeasonState.save_bid_hold(True),
+                      variant="soft", size="1"),
+            spacing="2", align="center", margin_top="0.4rem", wrap="wrap"),
+        rx.hstack(
+            rx.text("After the GW1 deadline", style={"color": T.MUTED, "font_size": "0.8rem"}),
+            rx.input(value=SeasonState.bid_hold_input,
+                     on_change=SeasonState.set_field("bid_hold_input"),
+                     type="number", min=1, max=168, width="80px"),
+            rx.text("hours", style={"color": T.MUTED, "font_size": "0.8rem"}),
+            rx.button("Save", on_click=SeasonState.save_bid_hold(False),
+                      variant="soft", size="1"),
+            spacing="2", align="center", margin_top="0.3rem", wrap="wrap"),
+        rx.cond(SeasonState.bid_hold_active != "",
+                rx.text("⏳ " + SeasonState.bid_hold_active,
+                        style={"color": T.MUTED, "font_size": "0.8rem", "margin_top": "0.3rem"})),
+        rx.divider(margin_y="0.7rem"),
+        T.section_title("🏆 Knockout"),
+        rx.text("Keep the top N teams by CUMULATIVE standings; everyone below is eliminated "
+                "and their players are freed to open bidding. Run each cut before the round "
+                "it qualifies for — with 19 teams, keep 16 before the round-of-16 gameweek, "
+                "then 8 before the quarters, and so on.",
+                style={"color": T.MUTED, "font_size": "0.8rem"}),
+        rx.hstack(
+            rx.text("Keep top", style={"color": T.MUTED, "font_size": "0.8rem"}),
+            rx.input(value=SeasonState.keep_top_input,
+                     on_change=SeasonState.set_field("keep_top_input"),
+                     type="number", min=1, width="80px"),
+            rx.button("Run cut", on_click=SeasonState.run_knockout_keep_top,
+                      variant="soft", size="1"),
+            spacing="2", align="center", margin_top="0.4rem", wrap="wrap"),
+        rx.hstack(
+            rx.button("R16 → 16", on_click=SeasonState.run_knockout_round(16), variant="soft", size="1"),
+            rx.button("QF → 8", on_click=SeasonState.run_knockout_round(8), variant="soft", size="1"),
+            rx.button("SF → 4", on_click=SeasonState.run_knockout_round(4), variant="soft", size="1"),
+            rx.button("Final → 2", on_click=SeasonState.run_knockout_round(2), variant="soft", size="1"),
+            rx.button("Winner → 1", on_click=SeasonState.run_knockout_round(1), variant="soft", size="1"),
             rx.button("↩️ Reverse", on_click=SeasonState.reverse_elimination, variant="soft",
                       color_scheme="gray", size="1"),
-            spacing="2", margin_top="0.4rem", wrap="wrap"),
+            spacing="2", margin_top="0.3rem", wrap="wrap"),
         rx.cond(SeasonState.eliminated.length() > 0,
                 rx.text("Eliminated: " + SeasonState.eliminated.join(", "),
                         style={"color": T.DANGER, "font_size": "0.82rem", "margin_top": "0.3rem"})),
@@ -1937,15 +1980,16 @@ def _admin_band(emoji, label, desc=""):
 
 def knocked_out_nations_card():
     return T.card(
-        T.section_title("🚫 Knocked-out nations"),
-        rx.text("When a country is eliminated from the World Cup, mark it here. Nobody can "
-                "bid on its players (standing open bids are cancelled), and owners can "
-                "release those players for half price WITHOUT using their one paid release "
-                "for the gameweek.",
+        T.section_title("🚫 Knocked-out " + AdminState.ko_noun_plural),
+        rx.text("When a " + AdminState.ko_noun + " is knocked out of the tournament, mark it "
+                "here. Nobody can bid on its players (standing open bids are cancelled), and "
+                "owners can release those players for half price WITHOUT using their one paid "
+                "release for the gameweek.",
                 style={"color": T.MUTED, "font_size": "0.82rem", "margin": "0.4rem 0 0.6rem"}),
         rx.hstack(
             rx.select(AdminState.ko_options, value=AdminState.ko_country,
-                      placeholder="Select country", on_change=AdminState.set_field("ko_country"),
+                      placeholder="Select " + AdminState.ko_noun,
+                      on_change=AdminState.set_field("ko_country"),
                       width="220px"),
             rx.button("🚫 Mark knocked out", on_click=AdminState.mark_country_ko,
                       color_scheme="red", variant="soft"),
@@ -1961,7 +2005,7 @@ def knocked_out_nations_card():
                               on_click=AdminState.unmark_country_ko(c)),
                     width="100%", align="center")),
                 spacing="2", width="100%"),
-            rx.text("No nations marked knocked out yet.",
+            rx.text("No " + AdminState.ko_noun_plural + " marked knocked out yet.",
                     style={"color": T.MUTED, "font_size": "0.8rem", "margin_top": "0.5rem"})),
         width="100%")
 
@@ -1972,7 +2016,7 @@ def admin_page():
                     "Scores, the bidding deadline that drives the whole gameweek, and knockouts."),
         rx.cond(AdminState.is_admin, gameweek_admin_panel()),
         _admin_band("🚫", "World Cup knockouts",
-                    "Mark eliminated nations — blocks bids and unlocks allowance-free "
+                    "Mark eliminated teams — blocks bids and unlocks allowance-free "
                     "half-price releases of their players."),
         knocked_out_nations_card(),
         _admin_band("👥", "Roster Control", "Force moves, editing budgets, and reversing releases."),

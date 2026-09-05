@@ -122,4 +122,31 @@ def build_review(assignments, pool_names: list[str]) -> list[dict]:
             "price": a.price,
             "status": "fuzzy" if candidates else "unmatched",
         })
+    flag_duplicates(rows)
     return rows
+
+
+def flag_duplicates(rows: list[dict]) -> int:
+    """Mark every row after the first that claims the same pool player.
+
+    A player can only have one owner, so two written names resolving to one pool
+    entry is always a mistake — usually two different real players fuzzy-matching
+    onto the same nearest name. Committing them silently would either hand one
+    player to two teams or drop a signing (and its fee) without telling anyone, so
+    the admin has to re-pick before the import will take them. Returns the count.
+    """
+    seen: dict[str, int] = {}
+    dupes = 0
+    for i, r in enumerate(rows):
+        key = (r.get("matched") or "").lower()
+        if not key:
+            continue
+        if key in seen:
+            r["status"] = "duplicate"
+            dupes += 1
+        else:
+            seen[key] = i
+            # A row that lost its duplicate partner is a normal row again.
+            if r.get("status") == "duplicate":
+                r["status"] = "confirmed"
+    return dupes

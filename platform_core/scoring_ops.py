@@ -53,55 +53,107 @@ def _norm_tokens(s: str) -> list[str]:
     return [t for t in re.split(r"[^a-z0-9]+", s) if t]
 
 
-# Pool nation names that share no full token with their WhoScored URL slug — map
-# the token form of the pool name to the distinctive slug token(s).
-_COUNTRY_SLUG_ALIASES = {
-    "korea republic": {"korea"},        # url: ...-south-korea-...
-    "ir iran": {"iran"},                # url: ...-iran-...
+# Pool team names that share no full token with their WhoScored URL slug — map the
+# token form of the pool name to the distinctive slug token(s). Nations come from
+# the World Cup pool, clubs from the UEFA pools (UEFA's short display names differ
+# from WhoScored's, e.g. "Atleti" vs atletico-madrid). Each alias must be a token
+# that no OTHER team in the same pool can claim, since a match URL names two teams.
+_TEAM_SLUG_ALIASES = {
+    # FIFA World Cup nations
+    "korea republic": {"korea"},          # url: ...-south-korea-...
+    "ir iran": {"iran"},                  # url: ...-iran-...
     "cote d ivoire": {"ivory", "coast"},  # url: ...-ivory-coast-...
+    # UEFA Champions League clubs
+    "atleti": {"atletico"},               # url: ...-atletico-madrid-...
+    "b dortmund": {"dortmund"},           # url: ...-borussia-dortmund-...
+    "bayern munchen": {"bayern"},         # url: ...-bayern-munich-...
+    "bod glimt": {"glimt"},               # "Bodø/Glimt" keeps no ascii token of "bodo"
+    "inter": {"internazionale"},          # url: ...-internazionale-...
+    "man city": {"city"},                 # url: ...-manchester-city-...
+    "man utd": {"united"},                # url: ...-manchester-united-...
+    "s bratislava": {"bratislava"},       # url: ...-slovan-bratislava-...
+    "slavia praha": {"slavia"},           # url: ...-slavia-prague-...
+    "sporting cp": {"sporting"},          # url: ...-sporting-lisbon-...
 }
 
 
-def _keeper_aliases(url: str, countries: list[str]) -> tuple[str, str]:
-    """From a WhoScored URL find the two nations (home, away) in slug order.
+def _seq_index(tokens: list[str], seq: list[str], taken: set[int]) -> int:
+    """Index of the first unclaimed contiguous run of ``seq`` in ``tokens`` (-1 if none)."""
+    n = len(seq)
+    for i in range(len(tokens) - n + 1):
+        if tokens[i:i + n] == seq and not (taken & set(range(i, i + n))):
+            return i
+    return -1
 
-    Matches a pool nation when all of its tokens appear in the URL (so "Congo DR"
-    matches ``dr-congo``, "Türkiye" matches ``turkiye``, "Curaçao" matches
-    ``curacao``), with an alias table for names that share no full token with the
-    slug (e.g. "Korea Republic" ↔ ``south-korea``)."""
+
+def _keeper_aliases(url: str, countries: list[str]) -> tuple[str, str]:
+    """From a WhoScored URL find the two teams (home, away) in slug order.
+
+    Teams are resolved GREEDILY, most-certain first, and each URL token can be
+    claimed by only one team. That matters because pool names overlap: without it
+    ``atletico-madrid-real-betis`` lets "Real Madrid" borrow *madrid* from Atleti
+    and *real* from Betis and match a club that isn't playing, and
+    ``villarreal-aston-villa`` can't tell which side is home.
+
+      1. the team's own name as an unbroken, in-order run of tokens;
+      2. an explicit alias, where WhoScored spells the team differently
+         ("Atleti" ↔ atletico-madrid, "Bodø/Glimt" ↔ bodoe-glimt);
+      3. all of its tokens present but out of order ("Congo DR" ↔ dr-congo),
+         over whatever tokens nobody has claimed.
+
+    Home/away come from TOKEN position, not string offset — "villa" appears inside
+    "villarreal" but is a different token.
+    """
     url_tokens = _norm_tokens(url)
-    url_set = set(url_tokens)
-    flat = " ".join(url_tokens)
-    hits = []
-    for c in countries:
-        ctoks = _norm_tokens(c)
-        if not ctoks:
+    pending = [(c, _norm_tokens(c)) for c in countries]
+    pending = [(c, toks) for c, toks in pending if toks]
+    taken: set[int] = set()
+    hits: dict[str, int] = {}
+
+    # 1. Exact name runs. Longest names first, so a short name can't steal a token
+    #    that belongs to a longer one.
+    for c, toks in sorted(pending, key=lambda x: -len(x[1])):
+        i = _seq_index(url_tokens, toks, taken)
+        if i >= 0:
+            hits[c] = i
+            taken |= set(range(i, i + len(toks)))
+
+    # 2. Aliases, over tokens no team has claimed.
+    for c, toks in pending:
+        if c in hits:
             continue
-        cset = set(ctoks)
-        alias = _COUNTRY_SLUG_ALIASES.get(" ".join(ctoks), set())
-        if cset.issubset(url_set):
-            match_toks = cset
-        elif alias & url_set:
-            match_toks = alias & url_set
-        else:
+        alias = _TEAM_SLUG_ALIASES.get(" ".join(toks), set())
+        free = [i for i, tok in enumerate(url_tokens) if tok in alias and i not in taken]
+        if free:
+            hits[c] = free[0]
+            taken.add(free[0])
+
+    # 3. Out-of-order names, again only over unclaimed tokens.
+    for c, toks in pending:
+        if c in hits:
             continue
-        pos = min((flat.find(t) for t in match_toks if flat.find(t) >= 0), default=-1)
-        if pos >= 0:
-            hits.append((pos, c))
-    hits.sort()
-    home = hits[0][1] if len(hits) >= 1 else None
-    away = hits[1][1] if len(hits) >= 2 else None
+        want = set(toks)
+        free = {i: tok for i, tok in enumerate(url_tokens) if i not in taken}
+        if want <= set(free.values()):
+            matched = {i for i, tok in free.items() if tok in want}
+            hits[c] = min(matched)
+            taken |= matched
+
+    ordered = [c for c, _ in sorted(hits.items(), key=lambda kv: kv[1])]
+    home = ordered[0] if ordered else None
+    away = ordered[1] if len(ordered) > 1 else None
     return home, away
 
 
 def is_football_room(room: dict) -> bool:
-    return room.get("tournament_type") == "FIFA World Cup 2026"
+    from platform_core.config_layer import SPORT_BY_TOURNAMENT
+    return SPORT_BY_TOURNAMENT.get(room.get("tournament_type", ""), "cricket") == "football"
 
 
 def match_label(url: str) -> str:
     """Readable 'home-away' label from a WhoScored URL, for progress/error display."""
     tail = url.rstrip("/").split("/")[-1]
-    for marker in ("-2026-", "world-cup-"):
+    for marker in ("-2026-", "world-cup-", "champions-league-"):
         if marker in tail:
             tail = tail.split(marker)[-1]
     return tail or url

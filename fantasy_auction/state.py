@@ -52,7 +52,7 @@ _set_timezone()
 from platform_core.auth import AuthError, log_in, reset_password, sign_up
 from platform_core.config_layer import TOURNAMENTS, load_player_pool
 from platform_core.csv_import import parse_squad_csv
-from platform_core.csv_review import build_review
+from platform_core.csv_review import build_review, flag_duplicates
 from platform_core.repository import (
     Repository,
     RepositoryError,
@@ -531,9 +531,14 @@ class AppState(rx.State):
         ]
         self.import_candidates = [r["candidates"] for r in reviewed]
         self.import_budgets = [{"participant": k, "budget": str(v)} for k, v in result.budgets.items()]
-        self.import_unmatched = sum(1 for r in reviewed if r["status"] == "unmatched")
+        self.import_unmatched = sum(1 for r in reviewed
+                                    if r["status"] in ("unmatched", "duplicate"))
+        dupes = sum(1 for r in reviewed if r["status"] == "duplicate")
+        extra = (f" {dupes} land on a player another row already claims — re-pick those, "
+                 f"or they'll be skipped.") if dupes else ""
         self.upload_msg = (f"Loaded {len(reviewed)} signings for review. Confirm the matches "
-                           f"below, then commit. ({self.import_unmatched} need attention.)")
+                           f"below, then commit. ({self.import_unmatched} need attention.)"
+                           + extra)
 
     @rx.event
     def set_match(self, index: int, value: str):
@@ -541,7 +546,11 @@ class AppState(rx.State):
         if 0 <= index < len(rows):
             rows[index]["matched"] = value
             rows[index]["status"] = "confirmed"
+            # Re-pick may have created or cleared a clash with another row.
+            flag_duplicates(rows)
             self.import_rows = rows
+            self.import_unmatched = sum(1 for r in rows
+                                        if r["status"] in ("unmatched", "duplicate"))
 
     @rx.event
     def confirm_import(self):
@@ -556,7 +565,7 @@ class AppState(rx.State):
         rows = [{"participant": r["participant"], "matched": r["matched"],
                  "price": int(r["price"])} for r in self.import_rows]
         budgets = {b["participant"]: int(b["budget"]) for b in self.import_budgets}
-        n = apply_reviewed_roster(room, rows, budgets)
+        n, skipped = apply_reviewed_roster(room, rows, budgets)
         repo.save(doc)
         self._refresh_teams(room)
         self.pool_count = len(room.get("player_pool", []) or [])
@@ -564,6 +573,12 @@ class AppState(rx.State):
         self.import_candidates = []
         self.import_budgets = []
         self.upload_msg = f"✅ Committed {n} signings with confirmed names + CSV budgets."
+        if skipped:
+            detail = "; ".join(f"{s['player']} → {s['participant']} (already "
+                               f"{s['owned_by']}'s)" for s in skipped[:4])
+            more = f" +{len(skipped) - 4} more" if len(skipped) > 4 else ""
+            self.upload_msg += (f" ⚠️ Skipped {len(skipped)} — a player can only have one "
+                                f"owner: {detail}{more}. Fix the CSV or add them by hand.")
 
     @rx.event
     def cancel_import(self):

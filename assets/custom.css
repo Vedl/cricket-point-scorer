@@ -135,6 +135,27 @@
   box-shadow: 0 0 0 3px rgba(16,185,129,0.22) !important;
 }
 
+/* UEFA Champions League 2026/27 — starball navy + silver */
+.theme-ucl.app-bg::before {
+  background:
+    radial-gradient(60vw 60vw at 12% -10%, rgba(30, 58, 138, 0.34), transparent 60%),
+    radial-gradient(50vw 50vw at 100% 0%, rgba(148, 163, 184, 0.18), transparent 55%),
+    radial-gradient(40vw 40vw at 50% 110%, rgba(56, 189, 248, 0.14), transparent 60%);
+}
+.theme-ucl .gradient-text {
+  background: linear-gradient(135deg, #e2e8f0 0%, #60a5fa 50%, #1e3a8a 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.theme-ucl .btn-primary {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 60%, #cbd5e1 100%) !important;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+}
+.theme-ucl input:focus, .theme-ucl textarea:focus, .theme-ucl button[role="combobox"]:focus {
+  border-color: rgba(59,130,246,0.85) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.24) !important;
+}
+
 /* IPL 2026 — royal blue + gold/orange */
 .theme-ipl.app-bg::before {
   background:
