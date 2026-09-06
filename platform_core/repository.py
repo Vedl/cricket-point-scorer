@@ -21,6 +21,7 @@ from .config_layer import (
     DEFAULT_BUDGET,
     default_config,
     load_player_pool,
+    room_player_pool,
 )
 from .config_layer import _slug  # reuse the canonical id slugger
 from .csv_import import ParseResult
@@ -83,23 +84,10 @@ def engine_from_room(room: dict, data_dir: Optional[str] = None) -> AuctionEngin
     """Reconstruct an AuctionEngine from a room document."""
     tournament = room.get("tournament_type", "T20 World Cup")
     config = default_config(tournament)
-    # Per-room uploaded pool (e.g. FIFA) overrides the static tournament file.
-    if room.get("player_pool"):
-        from auction_engine import Player
-
-        players = [
-            Player(
-                id=p.get("id") or _slug(p["name"]),
-                name=p["name"],
-                team=p.get("team", "Unknown"),
-                role=p.get("role", "Unknown"),
-                base_price=p.get("base_price", 0),
-            )
-            for p in room["player_pool"]
-        ]
+    if data_dir and not room.get("player_pool") and not room.get("extra_players"):
+        players = load_player_pool(tournament, data_dir=data_dir)
     else:
-        kwargs = {"data_dir": data_dir} if data_dir else {}
-        players = load_player_pool(tournament, **kwargs)
+        players = room_player_pool(room)
 
     participants = [participant_from_room(p) for p in room.get("participants", [])]
     state = AuctionState.from_dict(room.get("auction_state", {}))
@@ -138,24 +126,28 @@ def apply_pool_import(room: dict, result: ParseResult, *, extend: bool = False) 
     """Populate a room's player pool from a parsed pool CSV. Returns count added."""
     if result.kind != "pool" or not result.ok:
         raise RepositoryError("CSV did not parse as a valid player pool.")
-    pool = list(room.get("player_pool", [])) if extend else []
-    existing = {p["name"].lower() for p in pool}
+    if not extend:
+        # Replace: this CSV becomes the room's entire pool.
+        room["player_pool"] = []
+        room["extra_players"] = []
+        target, existing = room["player_pool"], set()
+    elif room.get("player_pool"):
+        # The room already has its own uploaded pool — grow it in place.
+        target = room["player_pool"]
+        existing = {p["name"].lower() for p in target}
+    else:
+        # The room runs on its tournament's bundled pool. Adding a player must
+        # ADD to it, not replace it, so the additions live alongside it.
+        target = room.setdefault("extra_players", [])
+        existing = {p.name.lower() for p in room_player_pool(room)}
     added = 0
     for pl in result.players:
         if pl.name.lower() in existing:
             continue
-        pool.append(
-            {
-                "id": _slug(pl.name),
-                "name": pl.name,
-                "role": pl.role,
-                "team": pl.team,
-                "base_price": pl.base_price,
-            }
-        )
+        target.append({"id": _slug(pl.name), "name": pl.name, "role": pl.role,
+                       "team": pl.team, "base_price": pl.base_price})
         existing.add(pl.name.lower())
         added += 1
-    room["player_pool"] = pool
     return added
 
 
@@ -204,14 +196,7 @@ def apply_roster_import(room: dict, result: ParseResult, *, budget: int = DEFAUL
 # --------------------------------------------------------------------------- #
 def _pool_role_team(room: dict) -> dict:
     """name.lower() -> (role, team) from the room's pool / tournament."""
-    out = {}
-    if room.get("player_pool"):
-        for p in room["player_pool"]:
-            out[p["name"].lower()] = (p.get("role", "Unknown"), p.get("team", "Unknown"))
-    else:
-        for p in load_player_pool(room.get("tournament_type", "T20 World Cup")):
-            out[p.name.lower()] = (p.role, p.team)
-    return out
+    return {p.name.lower(): (p.role, p.team) for p in room_player_pool(room)}
 
 
 def apply_reviewed_roster(room: dict, rows: list[dict], budgets: dict,

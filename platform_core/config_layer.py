@@ -201,6 +201,33 @@ def _build_player_pool(tournament_type: str, data_dir: str = DATA_DIR) -> list[P
     return _dedupe_ids(players)
 
 
+def _player_from_row(p: dict) -> Player:
+    return Player(id=p.get("id") or _slug(p["name"]), name=p["name"],
+                  team=p.get("team", "Unknown"), role=p.get("role", "Unknown"),
+                  base_price=p.get("base_price", 0))
+
+
+def room_player_pool(room: dict) -> list[Player]:
+    """Every player biddable in a room — the single source of truth for its pool.
+
+    A room either carries its own uploaded ``player_pool`` or uses the bundled
+    pool for its tournament. On top of that sit ``extra_players``: individual
+    signings an admin added by CSV, kept separate so adding one player cannot
+    replace the pool, and so the room document stays small (a UCL room would
+    otherwise carry ~886 rows through every poll).
+    """
+    if room.get("player_pool"):
+        players = [_player_from_row(p) for p in room["player_pool"] if p.get("name")]
+    else:
+        players = load_player_pool(room.get("tournament_type", "T20 World Cup"))
+    extra = room.get("extra_players") or []
+    if not extra:
+        return players
+    have = {p.name.lower() for p in players}
+    return players + [_player_from_row(p) for p in extra
+                      if p.get("name") and p["name"].lower() not in have]
+
+
 def load_schedule(tournament_type: str, data_dir: str = DATA_DIR) -> list[dict]:
     """Return the fixture list grouped by gameweek for a tournament (FIFA WC for now).
 

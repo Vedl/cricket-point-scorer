@@ -35,11 +35,8 @@ def _merge(existing, incoming):
 
 def _fifa_countries(room: dict) -> list[str]:
     """Distinct nations with a 'Keeper' entry available in this room."""
-    from platform_core.config_layer import load_player_pool
-    pool = (room.get("player_pool") and
-            [{"name": p["name"], "team": p.get("team", "")} for p in room["player_pool"]]) or \
-           [{"name": p.name, "team": p.team} for p in load_player_pool(room.get("tournament_type", ""))]
-    return sorted({p["team"] for p in pool if p["name"].endswith(" Keeper")})
+    from platform_core.config_layer import room_player_pool
+    return sorted({p.team for p in room_player_pool(room) if p.name.endswith(" Keeper")})
 
 
 def _norm_tokens(s: str) -> list[str]:

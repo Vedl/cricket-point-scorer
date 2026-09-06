@@ -24,7 +24,7 @@ from season_engine.open_bidding import (
     resolve_expired,
 )
 
-from .config_layer import load_player_pool
+from .config_layer import load_player_pool, room_player_pool
 
 MAX_SQUAD = 30
 
@@ -78,16 +78,18 @@ _BUILTIN_POOL_VIEW: dict[str, list[dict]] = {}
 
 
 def _pool(room) -> list[dict]:
-    if room.get("player_pool"):
-        return [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
-                for p in room["player_pool"]]
-    tt = room.get("tournament_type", "T20 World Cup")
-    view = _BUILTIN_POOL_VIEW.get(tt)
-    if view is None:
-        view = [{"name": p.name, "role": p.role, "team": p.team}
-                for p in load_player_pool(tt)]
-        _BUILTIN_POOL_VIEW[tt] = view
-    return view
+    # Fast path: the overwhelmingly common case is a room on its tournament's
+    # bundled pool with nothing added, and this runs in every client's live loop.
+    if not room.get("player_pool") and not room.get("extra_players"):
+        tt = room.get("tournament_type", "T20 World Cup")
+        view = _BUILTIN_POOL_VIEW.get(tt)
+        if view is None:
+            view = [{"name": p.name, "role": p.role, "team": p.team}
+                    for p in load_player_pool(tt)]
+            _BUILTIN_POOL_VIEW[tt] = view
+        return view
+    return [{"name": p.name, "role": p.role, "team": p.team}
+            for p in room_player_pool(room)]
 
 
 def available_players(room, *, search: str = "", country: str = "", role: str = "",

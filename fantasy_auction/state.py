@@ -50,7 +50,7 @@ def _set_timezone() -> None:
 _set_timezone()
 
 from platform_core.auth import AuthError, log_in, reset_password, sign_up
-from platform_core.config_layer import TOURNAMENTS, load_player_pool
+from platform_core.config_layer import TOURNAMENTS, load_player_pool, room_player_pool
 from platform_core.csv_import import parse_squad_csv
 from platform_core.csv_review import build_review, flag_duplicates
 from platform_core.repository import (
@@ -423,7 +423,7 @@ class AppState(rx.State):
         self.is_admin = room.get("admin") == self.auth_user
         self.setup_msg = ""
         self.upload_msg = ""
-        self.pool_count = len(room.get("player_pool", []) or [])
+        self.pool_count = len(room_player_pool(room))
         self._refresh_teams(room)
 
     def _refresh_teams(self, room: dict):
@@ -514,15 +514,12 @@ class AppState(rx.State):
         if result.kind == "pool":
             added = apply_pool_import(room, result, extend=True)
             repo.save(doc)
-            self.pool_count = len(room.get("player_pool", []))
+            self.pool_count = len(room_player_pool(room))
             self.upload_msg = f"✅ Added {added} players to the pool ({self.pool_count} total)."
             return
 
         # Roster: fuzzy-match each written name to the pool for admin review.
-        if room.get("player_pool"):
-            pool_names = [p["name"] for p in room["player_pool"]]
-        else:
-            pool_names = [p.name for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
+        pool_names = [p.name for p in room_player_pool(room)]
         reviewed = build_review(result.assignments, pool_names)
         self.import_rows = [
             {"participant": r["participant"], "written": r["written"], "matched": r["matched"],
@@ -568,7 +565,7 @@ class AppState(rx.State):
         n, skipped = apply_reviewed_roster(room, rows, budgets)
         repo.save(doc)
         self._refresh_teams(room)
-        self.pool_count = len(room.get("player_pool", []) or [])
+        self.pool_count = len(room_player_pool(room))
         self.import_rows = []
         self.import_candidates = []
         self.import_budgets = []

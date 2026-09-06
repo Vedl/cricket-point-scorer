@@ -159,13 +159,9 @@ class AdminState(rx.State):
 
     def _refresh(self, room):
         self.teams = [p["name"] for p in room.get("participants", [])]
-        if room.get("player_pool"):
-            self._pool = [{"name": p["name"], "role": p.get("role", ""), "team": p.get("team", "")}
-                          for p in room["player_pool"]]
-        else:
-            from platform_core.config_layer import load_player_pool
-            self._pool = [{"name": p.name, "role": p.role, "team": p.team}
-                          for p in load_player_pool(room.get("tournament_type", "T20 World Cup"))]
+        from platform_core.config_layer import room_player_pool
+        self._pool = [{"name": p.name, "role": p.role, "team": p.team}
+                      for p in room_player_pool(room)]
         self._refresh_fr_players(room)
         from platform_core import season_ops as so
         self.ko_countries = sorted(so.knocked_out_countries(room))
