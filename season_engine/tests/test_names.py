@@ -56,3 +56,24 @@ def test_single_token_suffix_not_emptied():
     assert canonical("Jr") == "jr"
     idx = build_index({"Jr": 1})
     assert lookup(idx, "Jr") == 1
+
+
+# --- compound surnames split differently by each source -------------------- #
+def test_compound_surname_matches_however_it_is_split():
+    """WhoScored spaces the pieces where UEFA hyphenates or apostrophises, e.g.
+    "Myles Lewis Skelly" vs "Myles Lewis-Skelly" and "Nico O Reilly" vs "Nico
+    O'Reilly". Dropping punctuation alone left those different keys, so the
+    players' points were never credited to their owner."""
+    pool = ["Myles Lewis-Skelly", "Nico O’Reilly", "Aaron Wan-Bissaka",
+            "Warren Zaïre-Emery", "Rayan Aït-Nouri", "Son Heung-Min"]
+    index = build_index({n: n for n in pool})
+    whoscored = ["Myles Lewis Skelly", "Nico O Reilly", "Aaron Wan Bissaka",
+                 "Warren Zaire Emery", "Rayan Ait Nouri", "Son Heungmin"]
+    assert [lookup(index, w) for w in whoscored] == pool
+
+
+def test_squashing_does_not_merge_genuinely_different_players():
+    index = build_index({"Luis Diaz": "a", "Luis Suarez": "b"})
+    assert lookup(index, "Luis Diaz") == "a"
+    assert lookup(index, "Luis Suarez") == "b"
+    assert lookup(index, "Diego Costa") is None

@@ -11,6 +11,21 @@ Each input row is ``club|uefa_id|role|name|short_name|nationality|list_b`` where
 ``role`` is UEFA's own squad-list heading (Goalkeeper/Defender/Midfielder/Forward)
 — positions come from UEFA only, never from a second source.
 
+Two UEFA pages matter, and the second only until List B lands:
+
+  * ``/uefachampionsleague/clubs/<id>--x/squad/`` — the club's REGISTERED Champions
+    League squad, with full player names. Asterisked entries are List B (the page
+    legend reads "*Player list B"). This is the authoritative source.
+  * ``/nationalassociations/teams/<id>--x/squad/`` — the club's DOMESTIC squad,
+    which includes homegrown players before their club files a List B. Use it only
+    to fill gaps: it abbreviates most names to an initial ("C. Alexiou"), which
+    WhoScored will never match, and it lags transfers, so a player can appear at
+    his old club while being UCL-registered at his new one. Take only under-21
+    outfielders whose name is NOT abbreviated, drop anyone already in the
+    registered pool under any club, and reconcile each name against WhoScored's
+    spelling before adding. Once every club has filed a List B, re-run the
+    registered-squad pass and these become redundant.
+
 Browser snippet (run on https://www.uefa.com/uefachampionsleague/clubs/ — it
 same-origin-fetches every league-phase club's squad page):
 
@@ -107,6 +122,8 @@ def main() -> None:
     print(f"{len(players)} players across {len(clubs)} clubs -> {sys.argv[2]}")
     print("  by position:", dict(Counter(p["role"] for p in players)))
     print(f"  of which UEFA List B (youth): {sum(p['list_b'] for p in players)}")
+    print("  NOTE: re-run once every club has filed a List B; until then the pool "
+          "needs the domestic-squad top-up described in this file's docstring.")
 
 
 if __name__ == "__main__":

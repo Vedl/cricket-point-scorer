@@ -52,6 +52,18 @@ def _sorted_key(canon: str) -> str:
     return " ".join(sorted(canon.split()))
 
 
+def _squashed(canon: str) -> str:
+    """Whitespace-free key, so a compound surname matches however it is split.
+
+    ``canonical`` drops punctuation but keeps spaces, which only bridges a name
+    the OTHER source joins up ("Heung-Min" -> "heungmin" == "Heungmin"). It still
+    misses the far more common case where the other source spaces the pieces
+    instead: WhoScored keys "Myles Lewis Skelly" and "Nico O Reilly" while UEFA
+    writes "Myles Lewis-Skelly" and "Nico O'Reilly", so the points were silently
+    orphaned. Squashing both sides makes the split irrelevant."""
+    return canon.replace(" ", "")
+
+
 # Generational / honorific suffixes that sources disagree on: the player pool stores
 # "Neymar Jr" while WhoScored keys him "Neymar"; likewise "Vinicius Junior" vs
 # "Vinicius". Only stripped when TRAILING, so a real leading name ("Junior Firpo") is
@@ -70,17 +82,20 @@ def _strip_suffix(canon: str) -> str:
 def build_index(mapping: dict) -> dict:
     """Turn a ``{name: value}`` dict into a match index keyed by canonical form,
     sorted-token form, AND suffix-stripped forms, so lookups tolerate accents,
-    punctuation, word order and Jr/Junior-suffix disagreements. Earlier names win
+    punctuation, how a compound surname is split, word order and Jr/Junior-suffix
+    disagreements. Earlier names win
     on collision."""
     index: dict = {}
     for key, value in mapping.items():
         canon = canonical(key)
         index.setdefault(canon, value)
         index.setdefault(_sorted_key(canon), value)
+        index.setdefault(_squashed(canon), value)
         stripped = _strip_suffix(canon)
         if stripped != canon:
             index.setdefault(stripped, value)
             index.setdefault(_sorted_key(stripped), value)
+            index.setdefault(_squashed(stripped), value)
     return index
 
 
@@ -88,12 +103,12 @@ def lookup(index: dict, name, default=None):
     """Look ``name`` up in a :func:`build_index` result: exact canonical, then
     word-order-independent, then with a trailing Jr/Junior-type suffix removed."""
     canon = canonical(name)
-    for key in (canon, _sorted_key(canon)):
+    for key in (canon, _sorted_key(canon), _squashed(canon)):
         if key in index:
             return index[key]
     stripped = _strip_suffix(canon)
     if stripped != canon:
-        for key in (stripped, _sorted_key(stripped)):
+        for key in (stripped, _sorted_key(stripped), _squashed(stripped)):
             if key in index:
                 return index[key]
     return default

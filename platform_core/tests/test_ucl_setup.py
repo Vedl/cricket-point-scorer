@@ -78,6 +78,60 @@ def test_a_club_whose_keepers_are_all_youth_still_gets_a_keeper_entry():
     assert sorted(p.name for p in pool) == ["Kid Winger", "Some FC Keeper"]
 
 
+def _raw():
+    import json
+    import os
+    with open(os.path.join(cl.DATA_DIR, "ucl_2026_players.json"), encoding="utf-8") as f:
+        return json.load(f)["players"]
+
+
+@pytest.mark.parametrize("name, role, club", [
+    ("Nico O\u2019Reilly", "Defender", "Man City"),
+    ("Myles Lewis-Skelly", "Defender", "Arsenal"),
+    ("Francesco Pio Esposito", "Forward", "Inter"),
+    ("Claudio Echeverri", "Midfielder", "Man City"),
+])
+def test_homegrown_players_missing_from_the_ucl_list_are_still_biddable(name, role, club):
+    """Most clubs had not filed a List B when the pool was built, so these were
+    absent from their registered squads and had to come from UEFA's domestic
+    squad pages instead."""
+    pool = {p.name: p for p in cl.load_player_pool(cl.UCL_2026)}
+    assert name in pool
+    assert (pool[name].role, pool[name].team) == (role, club)
+
+
+def test_domestic_additions_are_under_21_outfielders_from_known_clubs():
+    raw = _raw()
+    clubs = {p["team"] for p in raw}
+    extra = [p for p in raw if p.get("source") == "uefa_domestic_squad"]
+    assert extra, "expected some domestic-sourced players"
+    assert all(p["age"] <= 21 for p in extra)          # UEFA's List B age rule
+    assert all(p["role"] != "Goalkeeper" for p in extra)  # keepers are per club
+    assert all(p["team"] in clubs for p in extra)
+
+
+def test_no_player_appears_twice_under_different_clubs():
+    """UEFA's domestic pages lag transfers — Ethan Nwaneri is in Arsenal's while
+    being UCL-registered at Dortmund — which would put one person in the pool
+    twice and let two teams own him."""
+    from season_engine.names import canonical
+    pool = cl.load_player_pool(cl.UCL_2026)
+    seen = {}
+    for p in pool:
+        key = canonical(p.name)
+        assert key not in seen, f"{p.name} ({p.team}) duplicates {seen.get(key)}"
+        seen[key] = f"{p.name} ({p.team})"
+
+
+def test_every_pool_name_is_distinct_after_whoscored_normalisation():
+    """Two pool entries collapsing to one canonical key would make a gameweek's
+    points ambiguous at scoring time."""
+    from season_engine.names import build_index
+    pool = [p.name for p in cl.load_player_pool(cl.UCL_2026)]
+    index = build_index({n: n for n in pool})
+    assert len({index[k] for k in index}) == len(set(pool))
+
+
 def test_world_cup_pool_is_unchanged_by_the_shared_builder():
     pool = cl.load_player_pool(cl.FIFA_WC_2026)
     keepers = [p for p in pool if p.name.endswith(" Keeper")]
