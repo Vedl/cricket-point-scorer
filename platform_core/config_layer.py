@@ -138,8 +138,10 @@ def _build_football_pool(data, team_key: str) -> list[Player]:
     Goalkeepers are never bought individually: each team contributes one
     ``"{Team} Keeper"`` entry that scoring aggregates across whoever keeps goal,
     so a team is registered from its keepers even when they are all List B.
-    UEFA List B (youth) registrations are otherwise left out of the pool — set
-    ``list_b`` to false in the data file to make one biddable.
+
+    Every other registered player is biddable, UEFA List B (youth) registrations
+    included — they are eligible to play, so they are eligible to be bought. The
+    ``list_b`` flag is kept on the source rows as provenance.
     """
     rows = data.get("players", []) if isinstance(data, dict) else (data or [])
     players: list[Player] = []
@@ -151,8 +153,6 @@ def _build_football_pool(data, team_key: str) -> list[Player]:
         role = p.get("role", p.get("position", "Unknown"))
         if _is_keeper(role):
             keeper_teams.add(team)
-            continue
-        if p.get("list_b"):
             continue
         players.append(Player(id=_slug(p["name"]), name=p["name"], team=team,
                               role=role, base_price=p.get("base_price", 0)))

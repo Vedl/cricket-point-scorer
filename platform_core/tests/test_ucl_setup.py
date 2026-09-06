@@ -40,7 +40,9 @@ def test_positions_come_from_uefa_only():
     assert {p.role for p in pool} == {"Goalkeeper", "Defender", "Midfielder", "Forward"}
 
 
-def test_list_b_youth_players_are_excluded_but_still_register_their_club():
+def test_list_b_youth_players_are_biddable():
+    """Owner enabled these on 2026-09-07: a List B registration can play in the
+    competition, so it can be bought."""
     import json
     import os
     path = os.path.join(cl.DATA_DIR, "ucl_2026_players.json")
@@ -49,15 +51,31 @@ def test_list_b_youth_players_are_excluded_but_still_register_their_club():
     list_b = {p["name"] for p in raw if p["list_b"] and p["role"] != "Goalkeeper"}
     assert list_b, "fixture should contain some List B outfielders"
     names = {p.name for p in cl.load_player_pool(cl.UCL_2026)}
-    assert not (list_b & names)
-    # A club whose keepers are all List B still gets its "{Club} Keeper" entry,
-    # because the keeper line is the club's, not any one player's.
+    assert list_b <= names
+
+
+def test_every_outfield_registration_is_in_the_pool():
+    import json
+    import os
+    path = os.path.join(cl.DATA_DIR, "ucl_2026_players.json")
+    with open(path, encoding="utf-8") as f:
+        raw = json.load(f)["players"]
+    outfield = [p for p in raw if p["role"] != "Goalkeeper"]
+    pool = cl.load_player_pool(cl.UCL_2026)
+    # every outfielder, plus exactly one keeper entry per club
+    assert len(pool) == len(outfield) + 36
+    assert {p["name"] for p in outfield} <= {p.name for p in pool}
+
+
+def test_a_club_whose_keepers_are_all_youth_still_gets_a_keeper_entry():
+    """The keeper line belongs to the club, not to any one player, so it must
+    exist even when every registered keeper is a List B youth."""
     pool = cl._build_football_pool(
         {"players": [
             {"name": "Kid Keeper", "role": "Goalkeeper", "team": "Some FC", "list_b": True},
             {"name": "Kid Winger", "role": "Forward", "team": "Some FC", "list_b": True},
         ]}, "team")
-    assert [p.name for p in pool] == ["Some FC Keeper"]
+    assert sorted(p.name for p in pool) == ["Kid Winger", "Some FC Keeper"]
 
 
 def test_world_cup_pool_is_unchanged_by_the_shared_builder():

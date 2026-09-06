@@ -2,7 +2,7 @@
  "competition": "UEFA Champions League",
  "season": "2026/27",
  "source": "https://www.uefa.com/uefachampionsleague/clubs/",
- "note": "Positions are UEFA's own squad-list headings. list_b marks UEFA List B (youth) registrations, which the auction pool excludes.",
+ "note": "Positions are UEFA's own squad-list headings. list_b marks UEFA List B (youth) registrations, which are biddable like any other.",
  "players": [
   {
    "name": "Thomas Strakosha",

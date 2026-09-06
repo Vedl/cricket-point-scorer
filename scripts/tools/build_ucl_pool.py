@@ -96,7 +96,7 @@ def main() -> None:
         "season": SEASON,
         "source": SOURCE,
         "note": "Positions are UEFA's own squad-list headings. list_b marks UEFA "
-                "List B (youth) registrations, which the auction pool excludes.",
+                "List B (youth) registrations, which are biddable like any other.",
         "players": players,
     }
     with open(sys.argv[2], "w", encoding="utf-8") as f:
@@ -106,7 +106,7 @@ def main() -> None:
     clubs = Counter(p["team"] for p in players)
     print(f"{len(players)} players across {len(clubs)} clubs -> {sys.argv[2]}")
     print("  by position:", dict(Counter(p["role"] for p in players)))
-    print(f"  List B (excluded from the pool): {sum(p['list_b'] for p in players)}")
+    print(f"  of which UEFA List B (youth): {sum(p['list_b'] for p in players)}")
 
 
 if __name__ == "__main__":
