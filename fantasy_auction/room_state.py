@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import reflex as rx
 
+from platform_core.authz import is_room_admin
+
 from platform_core import season_ops as so
 from platform_core.season_ops import SeasonError
 
@@ -35,11 +37,20 @@ def _cached_cum_standings(code: str, room: dict) -> list[dict]:
     return data
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_ROOM_WRITABLE_FIELDS = frozenset({"rename_input", "squads_search"})
+
+
 class RoomState(rx.State):
     room_code: str = ""
     room_name: str = ""
     tournament: str = ""
     is_admin: bool = False
+    # Room that is_admin/my_team were resolved for. Backend-only (leading
+    # underscore), so it is never sent to — or settable by — the client.
+    _identity_room: str = ""
     is_spectator: bool = False
     my_team: str = ""
 
@@ -103,6 +114,8 @@ class RoomState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _ROOM_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     def _load(self):
@@ -138,14 +151,24 @@ class RoomState(rx.State):
     def _resolve_identity(self, app, room: dict, code: str, spectate_param: str = "") -> None:
         """(Re)compute member identity from the (possibly late-hydrated) auth user.
 
-        Called on load AND from the self-healing loop each tick. It only ever
-        UPGRADES: once a real team/admin is resolved it is sticky, so a reconnect that
-        momentarily reads an empty ``auth_user`` can never demote a member back to the
-        read-only spectator view (the "accidentally a spectator" bug, worst on mobile
-        where LocalStorage hydration lags)."""
+        Called on load AND from the self-healing loop each tick. Within ONE room it
+        only ever UPGRADES, so a reconnect that momentarily reads an empty
+        ``auth_user`` can never demote a member back to the read-only spectator view
+        (the "accidentally a spectator" bug, worst on mobile where LocalStorage
+        hydration lags).
+
+        That stickiness must NOT survive a change of room. The state object is
+        per-session, so an admin of room A who opened room B kept ``is_admin`` — and
+        saw B's admin controls. Identity is therefore reset whenever the room the
+        session is looking at changes."""
+        if code and code != self._identity_room:
+            self._identity_room = code
+            self.is_admin = False
+            self.my_team = ""
+            self.is_spectator = False
         user = app.auth_user
         if user:
-            if room.get("admin") == user and not self.is_admin:
+            if is_room_admin(room, user) and not self.is_admin:
                 self.is_admin = True
             team = next((p["name"] for p in room.get("participants", [])
                          if p.get("user") == user), "")

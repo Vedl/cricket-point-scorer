@@ -20,6 +20,12 @@ def _schedule(tournament: str) -> list[dict]:
     return _CACHE[tournament]
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_SCHEDULE_WRITABLE_FIELDS = frozenset()  # nothing on this page is user-writable
+
+
 class ScheduleState(rx.State):
     room_code: str = ""
     room_name: str = ""
@@ -35,6 +41,8 @@ class ScheduleState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _SCHEDULE_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     def _load(self):

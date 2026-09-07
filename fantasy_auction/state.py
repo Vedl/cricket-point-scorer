@@ -75,6 +75,12 @@ async def aload() -> dict:
     return await asyncio.to_thread(repo.load)
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_APP_WRITABLE_FIELDS = frozenset({"admin_participating", "claim_choice", "confirm", "join_code", "join_pin", "new_room_name", "new_team_name", "new_team_pin", "new_tournament", "password", "reset_confirm", "reset_new_pw", "reset_room_code", "reset_username", "username"})
+
+
 class AppState(rx.State):
     # --- session (persisted across reloads) ---
     auth_user: str = rx.LocalStorage("")
@@ -201,6 +207,8 @@ class AppState(rx.State):
     # Bind with e.g. on_change=AppState.set_field("username").
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _APP_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     # ------------------------------------------------------------------ #

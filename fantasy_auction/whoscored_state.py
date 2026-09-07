@@ -11,6 +11,12 @@ from scoring import whoscored_points
 from .state import AppState
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_WS_WRITABLE_FIELDS = frozenset({"url"})
+
+
 class WhoScoredState(rx.State):
     url: str = ""
     running: bool = False
@@ -21,6 +27,8 @@ class WhoScoredState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _WS_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     @rx.event

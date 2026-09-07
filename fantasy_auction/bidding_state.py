@@ -98,6 +98,12 @@ def _min_next_amount(cur: int, window: str) -> int:
     return cur + 1
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_BIDDING_WRITABLE_FIELDS = frozenset({"bid_amount"})
+
+
 class BiddingState(rx.State):
     room_code: str = ""
     room_name: str = ""
@@ -152,6 +158,8 @@ class BiddingState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _BIDDING_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     def _load(self):

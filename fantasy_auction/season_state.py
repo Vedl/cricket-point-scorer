@@ -13,6 +13,11 @@ from datetime import datetime
 import reflex as rx
 
 from platform_core import bidding_ops
+from platform_core.authz import (
+    NotAuthorized,
+    is_room_admin,
+    require_room_admin,
+)
 from platform_core import scoring_ops
 from platform_core import season_ops as so
 
@@ -40,10 +45,19 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _STANDINGS_CACHE: dict = {}      # (code, selected_gw) -> (monotonic_ts, data, current_gw, gameweeks, doc_v)
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_SEASON_WRITABLE_FIELDS = frozenset({"bid_hold_input", "bidding_deadline_value", "gw_input", "keep_top_input", "pre_gw1_bid_hold_input", "score_links", "show_best11_modal"})
+
+
 class SeasonState(rx.State):
     room_code: str = ""
     room_name: str = ""
     is_admin: bool = False
+    # Authenticated user this session loaded as. Backend-only (leading underscore),
+    # so the client can neither read it nor write it through set_field.
+    _auth_user: str = ""
     current_gameweek: str = "0"
 
     cumulative: list[dict[str, str]] = []
@@ -112,6 +126,8 @@ class SeasonState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _SEASON_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     @rx.var
@@ -141,6 +157,24 @@ class SeasonState(rx.State):
             for r in rows
         ]
 
+    def _load_room_as_admin(self):
+        """Load the room for an ADMIN action, or refuse it.
+
+        The plain ``_load_room`` also serves read paths (standings, player search),
+        so permission is enforced here instead. Hiding the admin panel is not a
+        check: these handlers are reachable over the websocket regardless of what
+        the client rendered. Non-admins get ``room=None``; every caller bails on it.
+        """
+        code, doc, room = self._load_room()
+        if room is not None:
+            try:
+                require_room_admin(room, self._auth_user)
+            except NotAuthorized as exc:
+                self.is_admin = False
+                self.msg = f"⛔ {exc}"
+                return code, doc, None
+        return code, doc, room
+
     def _load_room(self):
         code = (self.router._page.params.get("room", "") or "").upper()
         doc = repo.load()
@@ -169,7 +203,8 @@ class SeasonState(rx.State):
                 return rx.redirect("/rooms") if app.auth_user else rx.redirect("/")
             self.room_code = code
             self.room_name = room.get("name", "")
-            self.is_admin = room.get("admin") == app.auth_user
+            self._auth_user = app.auth_user
+            self.is_admin = is_room_admin(room, app.auth_user)
             self.current_gameweek = str(room.get("current_gameweek", 0) or 0)
             self.gameweeks = so.gameweeks_with_scores(room)
             if not self.selected_gw and self.gameweeks:
@@ -352,7 +387,7 @@ class SeasonState(rx.State):
         if not scores:
             self.msg = "⚠️ No scores entered."
             return
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         so.set_gameweek_scores(room, self.gw_input, scores)
@@ -364,7 +399,7 @@ class SeasonState(rx.State):
 
     @rx.event
     def lock_squads(self):
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         so.lock_squads_for_gameweek(room, self.gw_input)
@@ -373,7 +408,7 @@ class SeasonState(rx.State):
 
     @rx.event
     def advance_gw(self):
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         gw = so.advance_gameweek(room)
@@ -387,7 +422,7 @@ class SeasonState(rx.State):
         if not self.selected_gw:
             self.msg = "⚠️ Select a gameweek with scores first."
             return
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         try:
@@ -416,7 +451,7 @@ class SeasonState(rx.State):
     def save_bid_hold(self, pre_gw1: bool):
         """Admin sets how long a leading bid must stand before it wins the player."""
         self.msg = ""
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         value = self.pre_gw1_bid_hold_input if pre_gw1 else self.bid_hold_input
@@ -437,7 +472,7 @@ class SeasonState(rx.State):
         if not self.bidding_deadline_value:
             self.msg = "⚠️ Pick a date & time for the bidding deadline."
             return
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         so.set_bidding_deadline(room, self.bidding_deadline_value)
@@ -461,6 +496,13 @@ class SeasonState(rx.State):
     async def run_whoscored_scoring(self):
         async with self:
             if self.scoring_running:
+                return
+            # Background handler: it loads the room itself rather than going
+            # through _load_room_as_admin, so it must check permission here.
+            _, _, room = self._load_room()
+            if room is None or not is_room_admin(room, self._auth_user):
+                self.is_admin = False
+                self.msg = "⛔ Only the room admin can do that."
                 return
             self.scoring_running = True
             self.msg = ""
@@ -562,7 +604,7 @@ class SeasonState(rx.State):
         if not self.deadline_value:
             self.msg = "⚠️ Pick a date & time."
             return
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         so.set_deadline(room, self.deadline_gw, self.deadline_value)
@@ -578,7 +620,7 @@ class SeasonState(rx.State):
         if not self.selected_gw:
             self.msg = "⚠️ Select a gameweek with scores first."
             return
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         elim, released = so.eliminate_below_position(room, self.selected_gw, int(keep_top))
@@ -605,7 +647,7 @@ class SeasonState(rx.State):
 
     @rx.event
     def reverse_elimination(self):
-        code, doc, room = self._load_room()
+        code, doc, room = self._load_room_as_admin()
         if not room:
             return
         restored = so.reverse_last_elimination(room)

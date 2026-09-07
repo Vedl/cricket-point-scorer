@@ -29,6 +29,12 @@ def _trade_card(t: dict) -> dict:
     }
 
 
+# Fields the UI may write through set_field. Without a whitelist, setattr with a
+# client-supplied name lets anyone set ANY var on this state — including
+# is_admin or auth_user — straight over the websocket.
+_TRADE_WRITABLE_FIELDS = frozenset({"bid_amount", "bid_player", "counterparty", "get_cash", "get_player", "give_cash", "give_player", "is_loan", "loan_return_gw", "release_sel"})
+
+
 class TradeState(rx.State):
     room_code: str = ""
     room_name: str = ""
@@ -68,6 +74,8 @@ class TradeState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _TRADE_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     def _load(self):

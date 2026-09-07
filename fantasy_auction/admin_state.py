@@ -8,15 +8,31 @@ import secrets
 
 import reflex as rx
 
+from platform_core.authz import NotAuthorized, is_room_admin, require_room_admin
+
 from platform_core import admin_ops as ao
 
 from .state import AppState, aload, repo
+
+
+# Form fields the UI is allowed to write through set_field. Without a whitelist,
+# setattr with a client-supplied name lets anyone set ANY var on this state —
+# is_admin included — straight over the websocket.
+_ADMIN_WRITABLE_FIELDS = frozenset({
+    "ko_country", "team_name", "team_pin", "fr_team", "fr_player", "boost_amount",
+    "loan_id", "new_name", "old_name", "gw_input", "csv_text", "budget_input",
+    "player_name", "buy_price",
+})
 
 
 class AdminState(rx.State):
     room_code: str = ""
     room_name: str = ""
     is_admin: bool = False
+    # The authenticated user this session loaded as. Backend-only, so the
+    # client can neither read nor set it; every privileged handler re-checks
+    # it against the room's admin before touching data.
+    _auth_user: str = ""
     teams: list[str] = []
     loans: list[dict[str, str]] = []
 
@@ -83,12 +99,25 @@ class AdminState(rx.State):
 
     @rx.event
     def set_field(self, name: str, value):
+        if name not in _ADMIN_WRITABLE_FIELDS:
+            return
         setattr(self, name, value)
 
     def _load(self):
+        """Load the room for a privileged action, or refuse it.
+
+        Every mutating handler on this state goes through here, so this is the one
+        place that has to enforce permission — hiding the admin UI does not, since
+        a Reflex event handler is reachable over the websocket regardless of what
+        was rendered. Non-admins get ``room=None`` and every caller already bails
+        on that.
+        """
         code = (self.router._page.params.get("room", "") or "").upper()
         doc = repo.load()
-        return code, doc, doc.get("rooms", {}).get(code)
+        room = doc.get("rooms", {}).get(code)
+        if room is not None and not self._guard(room):
+            return code, doc, None
+        return code, doc, room
 
     @rx.event
     async def on_load_admin(self):
@@ -108,10 +137,21 @@ class AdminState(rx.State):
             return rx.redirect("/rooms")
         self.room_code = code
         self.room_name = room.get("name", "")
-        self.is_admin = room.get("admin") == app.auth_user
+        self._auth_user = app.auth_user
+        self.is_admin = is_room_admin(room, app.auth_user)
         self.msg = ""
         self.spectator_link = self._spectator_url(code, room.get("spectator_token", ""))
         self._refresh(room)
+
+    def _guard(self, room) -> bool:
+        """True if this session may act as the room's admin; sets msg if not."""
+        try:
+            require_room_admin(room, self._auth_user)
+        except NotAuthorized as exc:
+            self.is_admin = False
+            self.msg = f"⛔ {exc}"
+            return False
+        return True
 
     def _spectator_url(self, code: str, token: str) -> str:
         if not token:
