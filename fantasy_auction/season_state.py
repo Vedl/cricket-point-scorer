@@ -13,11 +13,7 @@ from datetime import datetime
 import reflex as rx
 
 from platform_core import bidding_ops
-from platform_core.authz import (
-    NotAuthorized,
-    is_room_admin,
-    require_room_admin,
-)
+from platform_core.authz import deny_room_admin, is_room_admin
 from platform_core import scoring_ops
 from platform_core import season_ops as so
 
@@ -166,13 +162,10 @@ class SeasonState(rx.State):
         the client rendered. Non-admins get ``room=None``; every caller bails on it.
         """
         code, doc, room = self._load_room()
-        if room is not None:
-            try:
-                require_room_admin(room, self._auth_user)
-            except NotAuthorized as exc:
-                self.is_admin = False
-                self.msg = f"⛔ {exc}"
-                return code, doc, None
+        if room is not None and deny_room_admin(room, self._auth_user):
+            self.is_admin = False
+            self.msg = "⛔ Only the room admin can do that."
+            return code, doc, None
         return code, doc, room
 
     def _load_room(self):
@@ -500,7 +493,7 @@ class SeasonState(rx.State):
             # Background handler: it loads the room itself rather than going
             # through _load_room_as_admin, so it must check permission here.
             _, _, room = self._load_room()
-            if room is None or not is_room_admin(room, self._auth_user):
+            if room is None or deny_room_admin(room, self._auth_user):
                 self.is_admin = False
                 self.msg = "⛔ Only the room admin can do that."
                 return

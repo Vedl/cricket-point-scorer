@@ -8,7 +8,7 @@ import secrets
 
 import reflex as rx
 
-from platform_core.authz import NotAuthorized, is_room_admin, require_room_admin
+from platform_core.authz import deny_room_admin, is_room_admin
 
 from platform_core import admin_ops as ao
 
@@ -19,9 +19,10 @@ from .state import AppState, aload, repo
 # setattr with a client-supplied name lets anyone set ANY var on this state —
 # is_admin included — straight over the websocket.
 _ADMIN_WRITABLE_FIELDS = frozenset({
-    "ko_country", "team_name", "team_pin", "fr_team", "fr_player", "boost_amount",
-    "loan_id", "new_name", "old_name", "gw_input", "csv_text", "budget_input",
-    "player_name", "buy_price",
+    "edit_delta", "edit_participant", "export_text", "fa_price", "fa_role",
+    "fa_team", "fa_team_name", "fr_player", "fr_refund", "import_text",
+    "ko_country", "loan_from", "loan_gw", "loan_player", "loan_to", "pin_team",
+    "pin_value", "rev_buy", "rev_participant", "rev_refund",
 })
 
 
@@ -144,12 +145,15 @@ class AdminState(rx.State):
         self._refresh(room)
 
     def _guard(self, room) -> bool:
-        """True if this session may act as the room's admin; sets msg if not."""
-        try:
-            require_room_admin(room, self._auth_user)
-        except NotAuthorized as exc:
+        """True if this session may act as the room's admin; sets msg if not.
+
+        Only a POSITIVE mismatch refuses — see authz.deny_room_admin. An identity
+        that has not resolved yet must not be blocked, or a reconnect would lock
+        the real admin out of their own room mid-gameweek.
+        """
+        if deny_room_admin(room, self._auth_user):
             self.is_admin = False
-            self.msg = f"⛔ {exc}"
+            self.msg = "⛔ Only the room admin can do that."
             return False
         return True
 

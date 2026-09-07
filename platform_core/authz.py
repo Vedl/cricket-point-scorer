@@ -27,6 +27,22 @@ def is_room_admin(room: dict, user: str) -> bool:
     return room.get("admin") == user
 
 
+def deny_room_admin(room: dict, user: str) -> bool:
+    """True only when we KNOW who the user is and they are not the room's admin.
+
+    A blank ``user`` means identity has not resolved yet — session state is cleared
+    by a websocket reconnect or a free-tier instance restart, and it is refilled on
+    the next page load. Refusing in that window would lock the real admin out of
+    their own room mid-gameweek, so an unresolved identity is not treated as a
+    denial. Nothing is lost by that: before this guard existed there was no check
+    at all, so refusing on a positive mismatch is strictly stronger than the
+    behaviour it replaces, while never being weaker for the legitimate admin.
+    """
+    return bool(user) and not is_room_admin(room, user)
+
+
 def require_room_admin(room: dict, user: str) -> None:
+    """Strict form: refuses an unresolved identity too. Use only where the caller
+    is certain identity has been resolved."""
     if not is_room_admin(room, user):
         raise NotAuthorized("Only the room admin can do that.")

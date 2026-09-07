@@ -67,3 +67,31 @@ def test_set_field_bodies_actually_consult_the_whitelist():
                 body = ast.unparse(node)
                 assert "not in" in body and "return" in body, \
                     f"{path.name}: set_field does not gate on its whitelist"
+
+
+# --- the whitelists must match the UI, or inputs silently stop working ------ #
+# Field names passed into shared components as variables rather than literals.
+_DYNAMIC_ARGS = {"picker_field": ["give_player", "get_player"],
+                 "cash_field": ["give_cash", "get_cash"]}
+_STATE_MODULE = {"AdminState": "admin_state", "AppState": "state",
+                 "SeasonState": "season_state", "RoomState": "room_state",
+                 "BiddingState": "bidding_state", "TradeState": "trade_state",
+                 "ScheduleState": "schedule_state", "WhoScoredState": "whoscored_state"}
+
+
+def test_every_set_field_call_site_is_permitted():
+    """A whitelist that misses a field makes that input silently do nothing —
+    which is exactly how an admin panel breaks in the middle of a gameweek."""
+    import re
+    ui = "\n".join(p.read_text(encoding="utf-8") for p in FA.glob("*.py"))
+    whitelists = {p.stem: _whitelist_names(p) for p in STATES}
+    missing = []
+    for m in re.finditer(r'(\w+State)\.set_field\(\s*("([^"]+)"|(\w+))', ui):
+        state, literal, var = m.group(1), m.group(3), m.group(4)
+        allowed = whitelists.get(_STATE_MODULE.get(state, ""))
+        if allowed is None:
+            continue
+        for name in ([literal] if literal else _DYNAMIC_ARGS.get(var, [])):
+            if name not in allowed:
+                missing.append(f"{state}.set_field({name!r})")
+    assert not missing, "whitelist does not permit: " + ", ".join(sorted(set(missing)))
