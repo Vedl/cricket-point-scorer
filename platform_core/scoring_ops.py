@@ -9,6 +9,8 @@ points are computed and stored in one action.
 
 from __future__ import annotations
 
+import re
+
 
 def parse_links(text: str) -> list[str]:
     out = []
@@ -17,6 +19,28 @@ def parse_links(text: str) -> list[str]:
         if line.startswith("http"):
             out.append(line)
     return out
+
+
+# Firebase Realtime Database rejects these characters in a KEY, and the whole
+# document is written in one PUT — so a single bad key fails the entire save with
+# a 400, losing every other change in it. Gameweek scores are keyed by player
+# name, and UEFA's club short names put illegal characters into the per-club
+# keeper entries: "B. Dortmund Keeper", "S. Bratislava Keeper", "Bodø/Glimt
+# Keeper" (that "/" would also read back as a path separator), plus players like
+# "Jerry St. Juste". The World Cup pool happened to contain none, which is why
+# this only appears with a club competition.
+_ILLEGAL_KEY_CHARS = re.compile(r"[.$#\[\]/]")
+
+
+def safe_score_key(name: str) -> str:
+    """A player name usable as a Firebase key.
+
+    Illegal characters become spaces. Nothing is lost: scores are looked up
+    through ``season_engine.names`` on a canonical form that already ignores
+    punctuation and how a name is split, so "B Dortmund Keeper" still resolves
+    from a squad holding "B. Dortmund Keeper".
+    """
+    return " ".join(_ILLEGAL_KEY_CHARS.sub(" ", str(name or "")).split())
 
 
 def _merge(existing, incoming):
@@ -183,9 +207,13 @@ def score_one_link(url: str, *, is_football: bool, countries: list[str]) -> dict
 
 
 def merge_link_totals(totals: dict, one: dict) -> None:
-    """Fold one match's ``score_one_link`` result into the running gameweek totals."""
+    """Fold one match's ``score_one_link`` result into the running gameweek totals.
+
+    Keys are made Firebase-safe here, at the one point every scoring path funnels
+    through, so the stored gameweek can always be written back."""
     for name, sc in one.items():
-        totals[name] = _merge(totals.get(name), sc)
+        key = safe_score_key(name)
+        totals[key] = _merge(totals.get(key), sc)
 
 
 def score_gameweek_from_links(room: dict, gameweek: str, links: list[str]) -> tuple[dict, list[str]]:

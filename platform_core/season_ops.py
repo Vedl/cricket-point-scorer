@@ -81,7 +81,16 @@ def gameweeks_with_scores(room: dict) -> list[str]:
 
 # --- lifecycle ----------------------------------------------------------- #
 def set_gameweek_scores(room: dict, gameweek: str, scores: dict[str, int]) -> None:
-    room.setdefault("gameweek_scores", {})[str(gameweek)] = scores
+    """Store a gameweek's per-player scores.
+
+    Keys are forced Firebase-safe here as well as at the scraper's merge step:
+    this is the single sink every scoring path reaches, and one illegal key fails
+    the whole-document PUT with a 400, taking every other unsaved change with it.
+    """
+    from .scoring_ops import safe_score_key
+    room.setdefault("gameweek_scores", {})[str(gameweek)] = {
+        safe_score_key(name): value for name, value in (scores or {}).items()
+    }
 
 
 def parse_scores_text(text: str) -> tuple[dict[str, int], list[str]]:
