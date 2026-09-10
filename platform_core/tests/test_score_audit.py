@@ -102,3 +102,50 @@ def test_an_unscored_gameweek_reports_nothing():
 def test_clubs_that_played_is_read_from_the_keeper_lines():
     room = _room([], {"Sporting CP Keeper": 5, "Porto Keeper": 7, "Maxi Araújo": 12})
     assert so.clubs_that_played(room, "1") == {"Sporting CP", "Porto"}
+
+
+# --- a candidate the source already registers is a different player --------- #
+def test_a_scored_name_the_source_registers_is_not_a_suspect():
+    """UCL GW1 flagged Bayern's Nathaniel Brown because "Archie Brown" scored 30.
+    Archie Brown is Fenerbahçe's midfielder — a real, separately registered
+    player, so he is no evidence about Nathaniel at all."""
+    pool = POOL + [
+        {"name": "Nathaniel Brown", "role": "Defender", "team": "Bayern München"},
+        {"name": "Archie Brown", "role": "Midfielder", "team": "Fenerbahçe"},
+        {"name": "Bayern München Keeper", "role": "Goalkeeper", "team": "Bayern München"},
+    ]
+    squad = [{"name": "Nathaniel Brown", "role": "Defender", "team": "Bayern München"}]
+    room = {
+        "tournament_type": "UEFA Champions League 2026/27", "player_pool": pool,
+        "participants": [{"name": "A", "squad": squad}],
+        "gameweek_squads": {"1": {"A": {"squad": squad}}},
+        "gameweek_scores": {"1": {"Bayern München Keeper": 8, "Archie Brown": 30}},
+    }
+    assert so.audit_unmatched_scores(room, "1") == []
+
+
+def test_a_scored_name_the_source_does_NOT_register_is_the_real_signal():
+    """"Maxi Araújo" appears in no squad list, which is exactly what an
+    unrecognised spelling of a registered player looks like."""
+    pool = POOL + [{"name": "Sporting CP Keeper", "role": "Goalkeeper", "team": "Sporting CP"}]
+    squad = [{"name": "Maximiliano Araújo", "role": "Midfielder", "team": "Sporting CP"}]
+    room = {
+        "tournament_type": "UEFA Champions League 2026/27", "player_pool": pool,
+        "participants": [{"name": "A", "squad": squad}],
+        "gameweek_squads": {"1": {"A": {"squad": squad}}},
+        "gameweek_scores": {"1": {"Sporting CP Keeper": 5, "Wilfried Araújo": 12}},
+    }
+    rows = so.audit_unmatched_scores(room, "1")
+    assert len(rows) == 1 and rows[0]["player"] == "Maximiliano Araújo"
+
+
+def test_registered_names_includes_keepers_dropped_from_the_pool():
+    """Individual keepers are replaced by one "{Team} Keeper" entry in the pool,
+    but they are still registered players and must not read as misspellings."""
+    from platform_core import config_layer as cl
+    room = {"tournament_type": cl.UCL_2026}
+    from season_engine.names import canonical
+    names = cl.registered_names(room)
+    assert canonical("Joan García") in names          # Barcelona's keeper
+    assert canonical("Thibaut Courtois") in names
+    assert canonical("Maxi Araújo") not in names      # a WhoScored spelling

@@ -228,6 +228,28 @@ def room_player_pool(room: dict) -> list[Player]:
                       if p.get("name") and p["name"].lower() not in have]
 
 
+def registered_names(room: dict, data_dir: str = DATA_DIR) -> set[str]:
+    """Every name the source registers for this room, INCLUDING goalkeepers.
+
+    ``room_player_pool`` deliberately drops individual keepers and replaces them
+    with one ``"{Team} Keeper"`` entry, so the pool alone cannot tell you whether
+    a name belongs to a real registered player. The score audit needs exactly
+    that: a scored name the source knows is a different person, while a scored
+    name it has never heard of is an unrecognised spelling of someone it has.
+    """
+    from season_engine.names import canonical
+    names = {canonical(p.name) for p in room_player_pool(room)}
+    if not room.get("player_pool"):
+        tournament = room.get("tournament_type", "")
+        entry = FOOTBALL_POOLS.get(tournament)
+        if entry:
+            data = _read_json(data_dir, entry[0])
+            rows = data.get("players", []) if isinstance(data, dict) else (data or [])
+            names |= {canonical(r["name"]) for r in rows
+                      if isinstance(r, dict) and r.get("name")}
+    return names
+
+
 def load_schedule(tournament_type: str, data_dir: str = DATA_DIR) -> list[dict]:
     """Return the fixture list grouped by gameweek for a tournament (FIFA WC for now).
 

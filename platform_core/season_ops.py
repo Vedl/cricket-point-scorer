@@ -118,6 +118,8 @@ def audit_unmatched_scores(room: dict, gameweek: str) -> list[dict]:
     played = clubs_that_played(room, gameweek)
     club_of = {p.name.lower(): p.team for p in _pool_players(room)}
 
+    from .config_layer import registered_names
+    registered = registered_names(room)
     owned_index = build_index({
         e["name"]: p["name"]
         for p in _participants_for_gameweek(room, gameweek)
@@ -140,9 +142,14 @@ def audit_unmatched_scores(room: dict, gameweek: str) -> list[dict]:
                 continue
             toks = canonical(name).split()
             near = by_surname.get(toks[-1], []) if toks else []
-            # A scored name that ALREADY belongs to another squad player cannot be
-            # the missing match — without this, every shared surname in the league
-            # (three Garcías played in UCL GW1) reads as a suspect.
+            # A scored name the SOURCE itself registers is a different, real
+            # player — not a misspelling of this one. That is the whole test:
+            # "Archie Brown" is Fenerbahçe's midfielder, so he is no clue about
+            # Bayern's Nathaniel Brown; "Maxi Araújo" appears in no squad list,
+            # which is precisely what an unrecognised spelling looks like.
+            near = [k for k in near if canonical(k) not in registered]
+            # And a name already matched to another squad player cannot be the
+            # missing one either.
             near = [k for k in near if lookup(owned_index, k) is None]
             if not near:
                 continue          # played-but-unused, not a spelling problem
