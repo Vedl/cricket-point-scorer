@@ -79,13 +79,34 @@ def _strip_suffix(canon: str) -> str:
     return " ".join(toks)
 
 
+_MIN_SHORT_GIVEN = 3
+
+
+class _MatchIndex(dict):
+    """The name->value index, with the surname table carried as an ATTRIBUTE.
+
+    Keeping it off the mapping matters: callers iterate this index (to count
+    distinct values, for instance), and a stray entry whose value is a dict both
+    breaks them and silently pollutes their results.
+    """
+
+    __slots__ = ("by_surname",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.by_surname: dict = {}
+
+
 def build_index(mapping: dict) -> dict:
     """Turn a ``{name: value}`` dict into a match index keyed by canonical form,
     sorted-token form, AND suffix-stripped forms, so lookups tolerate accents,
     punctuation, how a compound surname is split, word order and Jr/Junior-suffix
-    disagreements. Earlier names win
-    on collision."""
-    index: dict = {}
+    disagreements. Earlier names win on collision.
+
+    Also records, per surname, each entry's first name, so :func:`lookup` can fall
+    back to matching a shortened given name (see there)."""
+    index = _MatchIndex()
+    given: dict = {}
     for key, value in mapping.items():
         canon = canonical(key)
         index.setdefault(canon, value)
@@ -96,12 +117,18 @@ def build_index(mapping: dict) -> dict:
             index.setdefault(stripped, value)
             index.setdefault(_sorted_key(stripped), value)
             index.setdefault(_squashed(stripped), value)
+        toks = canon.split()
+        if len(toks) >= 2:
+            given.setdefault(toks[-1], []).append((toks[0], value))
+    index.by_surname = given
     return index
 
 
 def lookup(index: dict, name, default=None):
     """Look ``name`` up in a :func:`build_index` result: exact canonical, then
-    word-order-independent, then with a trailing Jr/Junior-type suffix removed."""
+    word-order-independent, then whitespace-free, then with a trailing
+    Jr/Junior-type suffix removed, and finally allowing a shortened given name
+    (see :func:`_match_shortened_given`)."""
     canon = canonical(name)
     for key in (canon, _sorted_key(canon), _squashed(canon)):
         if key in index:
@@ -111,4 +138,41 @@ def lookup(index: dict, name, default=None):
         for key in (stripped, _sorted_key(stripped), _squashed(stripped)):
             if key in index:
                 return index[key]
+    hit = _match_shortened_given(index, canon)
+    if hit is not _NO_MATCH:
+        return hit
     return default
+
+
+_NO_MATCH = object()
+
+
+def _match_shortened_given(index: dict, canon: str):
+    """Last resort: same surname, one given name a shortening of the other.
+
+    WhoScored routinely shortens Iberian given names where UEFA spells them out —
+    "Maxi Araújo" for Maximiliano Araújo, "Gabri Veiga" for Gabriel Veiga — and
+    those points were being credited to nobody.
+
+    Deliberately narrow, because crediting the WRONG player is far worse than
+    crediting none: the surname must match exactly, one given name must be a
+    prefix of the other, the shorter must be at least three characters, and the
+    candidate must be UNIQUE. That last condition is what makes it safe — three
+    Garcías played in one gameweek (Eric, Fran, Joan) and none is a prefix of
+    another, so Eric García correctly matches none of them rather than guessing.
+    """
+    given = getattr(index, "by_surname", None)
+    if not given:
+        return _NO_MATCH
+    toks = canon.split()
+    if len(toks) < 2:
+        return _NO_MATCH
+    mine, surname = toks[0], toks[-1]
+    hits = []
+    for theirs, value in given.get(surname, []):
+        short, long = sorted((mine, theirs), key=len)
+        if len(short) >= _MIN_SHORT_GIVEN and short != long and long.startswith(short):
+            hits.append(value)
+    if len(hits) == 1:
+        return hits[0]
+    return _NO_MATCH

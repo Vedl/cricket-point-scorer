@@ -77,3 +77,59 @@ def test_squashing_does_not_merge_genuinely_different_players():
     assert lookup(index, "Luis Diaz") == "a"
     assert lookup(index, "Luis Suarez") == "b"
     assert lookup(index, "Diego Costa") is None
+
+
+# --- shortened given names ------------------------------------------------- #
+# WhoScored shortens Iberian given names where UEFA spells them out. Both of
+# these were silently crediting nobody in UCL GW1.
+GW1_SCORES = {"Maxi Araújo": 12, "Ronald Araujo": 26, "Gabri Veiga": 20,
+              "Renato Veiga": 6, "Fran García": 6, "Joan García": 22,
+              "Erling Haaland": 40}
+
+
+def test_a_shortened_given_name_still_finds_its_player():
+    index = build_index(GW1_SCORES)
+    assert lookup(index, "Maximiliano Araújo") == 12
+    assert lookup(index, "Gabriel Veiga") == 20
+
+
+def test_the_full_names_of_their_namesakes_are_unaffected():
+    index = build_index(GW1_SCORES)
+    assert lookup(index, "Ronald Araújo") == 26
+    assert lookup(index, "Renato Veiga") == 6
+    assert lookup(index, "Erling Haaland") == 40
+
+
+def test_an_ambiguous_surname_matches_nobody_rather_than_guessing():
+    """Three Garcías played in one gameweek and none of their given names is a
+    shortening of Eric, so he must match none — crediting the wrong player is
+    worse than crediting no one."""
+    assert lookup(build_index(GW1_SCORES), "Eric García") is None
+
+
+def test_two_equally_plausible_shortenings_are_refused():
+    index = build_index({"Gabri Veiga": 1, "Gabrielle Veiga": 2})
+    assert lookup(index, "Gabriel Veiga") is None      # ambiguous -> no guess
+
+
+def test_a_very_short_given_name_is_not_treated_as_a_shortening():
+    """Two-letter given names are too weak a signal to match on."""
+    index = build_index({"Jo Silva": 1})
+    assert lookup(index, "Joao Silva") is None
+
+
+def test_a_different_surname_never_matches():
+    index = build_index({"Maxi Gómez": 1})
+    assert lookup(index, "Maximiliano Araújo") is None
+
+
+def test_the_index_carries_no_extra_entries():
+    """The surname table lives on the index as an attribute, not as a key —
+    callers iterate this mapping and a dict-valued entry would break them."""
+    index = build_index({"Maxi Araújo": 12, "Erling Haaland": 40})
+    assert all(not isinstance(v, dict) for v in index.values())
+    assert {12, 40} == set(index.values())
+
+
+def test_lookup_still_works_on_a_plain_dict():
+    assert lookup({"erling haaland": 5}, "Erling Haaland") == 5
