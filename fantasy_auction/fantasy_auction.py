@@ -1797,6 +1797,24 @@ def gameweek_admin_panel():
                                              style={"color": T.MUTED, "font_size": "0.8rem"})),
             ),
         ),
+        rx.cond(
+            SeasonState.unmatched.length() > 0,
+            rx.box(
+                rx.text("🔍 Check these — an owned player scored nothing, but his club "
+                        "played and someone with his surname did score. Usually the two "
+                        "sources spell him differently, and his points are reaching no "
+                        "team. Sometimes he was just an unused sub.",
+                        style={"color": T.WARNING, "font_size": "0.8rem",
+                               "font_weight": "600", "margin_top": "0.6rem"}),
+                rx.foreach(
+                    SeasonState.unmatched,
+                    lambda u: rx.text(
+                        "• " + u["player"] + " (" + u["team"] + ", owned by "
+                        + u["participant"] + ") — scored: " + u["candidates"],
+                        style={"color": T.MUTED, "font_size": "0.8rem"})),
+                width="100%",
+            ),
+        ),
         rx.divider(margin_y="0.7rem"),
         T.section_title("⏰ Bidding deadline (drives the gameweek)"),
         rx.text("Set ONE deadline: new bids until −1h, raise-only (+5M) in the last 30m, bids "

@@ -104,6 +104,10 @@ class SeasonState(rx.State):
     scoring_pct: int = 0           # 0-100 for the progress bar
     scoring_status: str = ""       # live "Scraped 3/24…" line
     scoring_failed: list[str] = [] # match labels WhoScored blocked this run
+    # Owned players whose points matched no squad name — see
+    # season_ops.audit_unmatched_scores. Points reaching nobody is silent
+    # otherwise, so it is surfaced next to the standings rather than on request.
+    unmatched: list[dict[str, str]] = []
     # Self-healing refresh (see RoomState.watching): repopulate standings after a
     # reconnect / free-tier restart instead of staying blank.
     watching: bool = False
@@ -326,6 +330,12 @@ class SeasonState(rx.State):
              "country": r["country"], "owner": r["owner"]}
             for r in so.top_player_scorers(room, limit=20)
         ]
+        unmatched = []
+        if selected_gw:
+            for r in so.audit_unmatched_scores(room, selected_gw):
+                cands = ", ".join(f"{c['name']} ({c['points']} pts)" for c in r["candidates"])
+                unmatched.append({"participant": r["participant"], "player": r["player"],
+                                  "team": r["team"], "candidates": cands})
         locked = room.get("gameweek_squads", {})
         deadlines = [
             {"gw": gw, "when": iso[:16].replace("T", " "),
@@ -336,6 +346,7 @@ class SeasonState(rx.State):
             "eliminated": eliminated, "cumulative": cumulative,
             "gw_standings": gw_standings, "best11_cache": best11_cache,
             "top_scorers": top_scorers, "deadlines": deadlines,
+            "unmatched": unmatched,
         }
 
     def _assign_standings(self, data: dict):
@@ -345,6 +356,8 @@ class SeasonState(rx.State):
         self._gw_best11_cache = data["best11_cache"]
         self.top_scorers = data["top_scorers"]
         self.deadlines = data["deadlines"]
+        if self.unmatched != data["unmatched"]:
+            self.unmatched = data["unmatched"]
 
     def _recompute(self, room: dict):
         self._assign_standings(self._compute_standings_data(room, self.selected_gw))

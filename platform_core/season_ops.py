@@ -11,7 +11,7 @@ import math
 from datetime import datetime, timedelta
 
 from season_engine.knockout import select_for_elimination
-from season_engine.names import build_index, lookup
+from season_engine.names import build_index, canonical, lookup
 from season_engine.standings import cumulative_standings, gameweek_standings
 
 from .config_layer import SPORT_BY_TOURNAMENT
@@ -77,6 +77,95 @@ def compute_cumulative_standings(room: dict) -> list[dict]:
 
 def gameweeks_with_scores(room: dict) -> list[str]:
     return sorted(room.get("gameweek_scores", {}).keys(), key=lambda g: (len(g), g))
+
+
+def clubs_that_played(room: dict, gameweek: str) -> set[str]:
+    """Which teams featured in a scored gameweek, read back from the scores.
+
+    Every football match contributes both sides' ``"{Team} Keeper"`` line, so the
+    keeper entries are an exact record of who played — no need to store the
+    fixture list separately.
+    """
+    from .config_layer import room_player_pool
+    from .scoring_ops import safe_score_key
+    scores = room.get("gameweek_scores", {}).get(str(gameweek), {}) or {}
+    teams = {p.team for p in room_player_pool(room)}
+    return {t for t in teams if safe_score_key(f"{t} Keeper") in scores}
+
+
+def audit_unmatched_scores(room: dict, gameweek: str) -> list[dict]:
+    """Owned players who scored nothing, but look like a NAME MISMATCH.
+
+    Points reaching no team is the quietest failure this app has: the squad name
+    and the source's spelling canonicalise differently, the player is skipped, and
+    the only symptom is a slightly lower score. It has happened with
+    transliterations ("Lasheen"), split surnames ("Lewis-Skelly") and shortened
+    given names ("Maxi Araújo") — each found only by someone noticing weeks later.
+
+    A miss is only reported when it is genuinely suspicious:
+      * the player is owned, and scored nothing for this gameweek;
+      * his team DID play (so "no points" is not simply "no match");
+      * and some scored name shares his surname — the signature of a spelling
+        disagreement rather than an unused substitute.
+
+    Returns one row per suspect with the candidate names and their points, for an
+    admin to eyeball. Never guesses — matching is names.py's job.
+    """
+    scores = room.get("gameweek_scores", {}).get(str(gameweek), {}) or {}
+    if not scores:
+        return []
+    index = build_index(scores)
+    played = clubs_that_played(room, gameweek)
+    club_of = {p.name.lower(): p.team for p in _pool_players(room)}
+
+    owned_index = build_index({
+        e["name"]: p["name"]
+        for p in _participants_for_gameweek(room, gameweek)
+        for e in p.get("squad", [])
+    })
+    by_surname: dict[str, list[str]] = {}
+    for key in scores:
+        toks = canonical(key).split()
+        if toks:
+            by_surname.setdefault(toks[-1], []).append(key)
+
+    rows = []
+    for p in _participants_for_gameweek(room, gameweek):
+        for entry in p.get("squad", []):
+            name = entry["name"]
+            if lookup(index, name) is not None:
+                continue
+            club = club_of.get(name.lower())
+            if club is None or club not in played:
+                continue
+            toks = canonical(name).split()
+            near = by_surname.get(toks[-1], []) if toks else []
+            # A scored name that ALREADY belongs to another squad player cannot be
+            # the missing match — without this, every shared surname in the league
+            # (three Garcías played in UCL GW1) reads as a suspect.
+            near = [k for k in near if lookup(owned_index, k) is None]
+            if not near:
+                continue          # played-but-unused, not a spelling problem
+            rows.append({
+                "participant": p["name"],
+                "player": name,
+                "team": club,
+                "candidates": [{"name": k, "points": _best_score(scores[k])} for k in near],
+            })
+    rows.sort(key=lambda r: (r["participant"], r["player"]))
+    return rows
+
+
+def _pool_players(room: dict):
+    from .config_layer import room_player_pool
+    return room_player_pool(room)
+
+
+def _best_score(value) -> int:
+    """A score is a number or a ``{position: score}`` dict."""
+    if isinstance(value, dict):
+        return max(value.values()) if value else 0
+    return value
 
 
 # --- lifecycle ----------------------------------------------------------- #
