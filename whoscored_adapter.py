@@ -9,6 +9,8 @@ import requests as std_requests
 from bs4 import BeautifulSoup
 import time
 import os
+import threading
+from urllib.parse import urlencode
 
 POS_MAP = {'GK':'GK','DR':'DEF','DC':'DEF','DL':'DEF','DMR':'DEF','DML':'DEF',
            'MC':'MID','DMC':'MID','AMC':'MID','MR':'MID','ML':'MID',
@@ -80,6 +82,62 @@ def fetch_with_free_proxies(url):
                 break
     return result
 
+# ScraperAPI's free plan allows ONE concurrent request. The scoring worker scrapes
+# a gameweek's matches through a thread pool, so without this every request but one
+# came back 429 and — with the old bare ``except: pass`` — was silently written off
+# as "WhoScored blocked this match". Serialise our calls to it instead.
+_SCRAPERAPI_LOCK = threading.Semaphore(
+    max(1, int(os.environ.get("SCRAPER_API_CONCURRENCY", "1")))
+)
+# A WhoScored match page is ~1.3MB and ScraperAPI retries upstream on our behalf,
+# so it routinely needs far longer than a normal request. The old 30s cut most
+# calls off mid-flight.
+_SCRAPERAPI_TIMEOUT = int(os.environ.get("SCRAPER_API_TIMEOUT", "70"))
+_SCRAPERAPI_ATTEMPTS = 3
+_MATCH_DATA_RE = re.compile(
+    r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson',
+    re.DOTALL,
+)
+
+
+def _fetch_via_scraperapi(ws_url):
+    """Fetch a match page through ScraperAPI. Returns the regex match, or None.
+
+    Failures are LOGGED with their reason. They used to be swallowed whole, which
+    made a quota problem, a concurrency refusal and a genuine Cloudflare block all
+    look identical in the UI.
+    """
+    key = os.environ.get("SCRAPER_API_KEY")
+    if not key:
+        return None
+    endpoint = ("https://api.scraperapi.com/?" + urlencode(
+        {"api_key": key, "url": ws_url}))
+    for attempt in range(1, _SCRAPERAPI_ATTEMPTS + 1):
+        try:
+            with _SCRAPERAPI_LOCK:
+                r = std_requests.get(endpoint, timeout=_SCRAPERAPI_TIMEOUT)
+        except Exception as exc:
+            print(f"[ScraperAPI] attempt {attempt}: {type(exc).__name__}: {exc}")
+            continue
+        if r.status_code == 200:
+            found = _MATCH_DATA_RE.search(r.text)
+            if found:
+                return found
+            print(f"[ScraperAPI] attempt {attempt}: 200 but no matchCentreData "
+                  f"({len(r.text)} bytes) — page was probably a Cloudflare interstitial")
+        elif r.status_code == 429:
+            # Out of concurrency, not out of credits. Backing off is the fix.
+            print(f"[ScraperAPI] attempt {attempt}: 429 concurrency limit — backing off")
+        elif r.status_code in (401, 403):
+            print(f"[ScraperAPI] attempt {attempt}: {r.status_code} — key rejected "
+                  f"or out of credits; giving up: {r.text[:120]}")
+            return None
+        else:
+            print(f"[ScraperAPI] attempt {attempt}: HTTP {r.status_code}: {r.text[:120]}")
+        time.sleep(2 * attempt)
+    return None
+
+
 def get_whoscored_stats(ws_url, force_refresh=False):
     cached = _STATS_CACHE.get(ws_url)
     if cached is not None and not force_refresh:
@@ -98,18 +156,11 @@ def get_whoscored_stats(ws_url, force_refresh=False):
         except Exception as e:
             print(f"[WhoScoredAdapter] Error reading local file {file_path}: {e}")
     
-    # Check for ScraperAPI key in Streamlit secrets to bypass Cloudflare on Streamlit Cloud
+    # ScraperAPI is the only bypass that doesn't depend on our own IP, so it is the
+    # one that works from a datacenter host like Render. Everything below it is
+    # IP-based and Cloudflare blocks it there.
     if not m:
-        scraper_api_key = os.environ.get("SCRAPER_API_KEY")
-            
-        if scraper_api_key:
-            print("[WhoScoredAdapter] Using ScraperAPI to bypass Cloudflare...")
-            proxy_url = f"http://api.scraperapi.com?api_key={scraper_api_key}&url={ws_url}"
-            try:
-                r = std_requests.get(proxy_url, timeout=30)
-                m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
-            except:
-                pass
+        m = _fetch_via_scraperapi(ws_url)
         
         if not m:
             try:
