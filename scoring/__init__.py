@@ -15,7 +15,13 @@ _POS_CACHE: dict = {}
 
 
 def _json_pos_map() -> dict:
-    """name -> registered position (GK/DEF/MID/FWD) from fifa_wc_2026_players.json."""
+    """name -> registered position (GK/DEF/MID/FWD) from fifa_wc_2026_players.json.
+
+    A FALLBACK ONLY. Callers that know which room they are scoring pass that
+    room's own positions instead — this file is the World Cup squad list, and for
+    a club competition it knows almost nobody (715 of 945 UCL players), which
+    silently scored them on whatever position WhoScored recorded them playing.
+    """
     if _POS_CACHE:
         return _POS_CACHE
     import json
@@ -37,13 +43,18 @@ def _json_pos_map() -> dict:
     return _POS_CACHE
 
 
-def _scrape_grouped(url: str):
-    """Return ``{player: {"team", "minutes", "by_pos": {pos: score}}}`` for a match."""
+def _scrape_grouped(url: str, positions: dict | None = None):
+    """Return ``{player: {"team", "minutes", "by_pos": {pos: score}}}`` for a match.
+
+    ``positions`` maps player name -> registered role and decides HOW each player
+    is scored (a lost aerial costs a midfielder 1.5 and a forward 0.4, so the
+    position is not cosmetic). Pass the scoring room's own pool.
+    """
     import math
 
     import football_score_calculator as f
 
-    df = f.calc_all_players_whoscored(url)
+    df = f.calc_all_players_whoscored(url, registered_positions=positions)
     out: dict = {}
     if df is None or getattr(df, "empty", True):
         return out
@@ -122,7 +133,7 @@ def whoscored_keeper_scores(url: str) -> dict:
     return res
 
 
-def whoscored_player_scores(url: str) -> dict:
+def whoscored_player_scores(url: str, positions: dict | None = None) -> dict:
     """For gameweek scoring: ``{player: number | {pos: score}}``.
 
     Players who can score in more than one position return a ``{pos: score}`` dict
@@ -130,7 +141,7 @@ def whoscored_player_scores(url: str) -> dict:
     rule). Single-position players return a plain number.
     """
     out = {}
-    for name, e in _scrape_grouped(url).items():
+    for name, e in _scrape_grouped(url, positions).items():
         by_pos = e["by_pos"]
         if not by_pos:
             continue

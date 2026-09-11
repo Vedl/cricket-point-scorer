@@ -18,7 +18,8 @@ ever sees lightweight JSON.
 
 Protocol
 --------
-stdin  : one JSON object  {"links": [...], "is_football": bool, "countries": [...]}
+stdin  : one JSON object  {"links": [...], "is_football": bool, "countries": [...],
+          "positions": {player: role}}
 stdout : newline-delimited JSON, flushed per line —
            {"t": "progress", "done": <int>, "total": <int>}   (one per finished match)
            {"t": "result",   "totals": {<name>: <score|{pos:score}>}, "failed": [<label>...]}
@@ -61,13 +62,15 @@ def _emit(obj: dict) -> None:
     _PROTO.flush()
 
 
-def _score_one(url: str, *, is_football: bool, countries: list[str]):
+def _score_one(url: str, *, is_football: bool, countries: list[str],
+               positions: dict | None = None):
     """Scrape + score a single match, retrying transient bot-blocks. Returns the
     per-player result dict, or None if every attempt failed."""
     for attempt in range(_RETRIES):
         try:
             return scoring_ops.score_one_link(
-                url, is_football=is_football, countries=countries)
+                url, is_football=is_football, countries=countries,
+                positions=positions)
         except Exception:  # network / bot-block / parse
             if attempt < _RETRIES - 1:
                 time.sleep(2 * (attempt + 1))
@@ -84,6 +87,9 @@ def main() -> int:
     links = payload.get("links") or []
     is_football = bool(payload.get("is_football"))
     countries = payload.get("countries") or []
+    # Which formula scores each player — from the ROOM's pool, not the scorer's
+    # World Cup fallback. See scoring_ops.registered_positions.
+    positions = payload.get("positions") or None
     n = len(links)
 
     totals: dict = {}
@@ -92,7 +98,8 @@ def main() -> int:
 
     with ThreadPoolExecutor(max_workers=_WORKERS) as pool:
         futures = {
-            pool.submit(_score_one, u, is_football=is_football, countries=countries): u
+            pool.submit(_score_one, u, is_football=is_football, countries=countries,
+                        positions=positions): u
             for u in links
         }
         for fut in as_completed(futures):

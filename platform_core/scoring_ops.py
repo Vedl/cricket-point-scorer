@@ -185,7 +185,20 @@ def fifa_countries(room: dict) -> list[str]:
     return _fifa_countries(room)
 
 
-def score_one_link(url: str, *, is_football: bool, countries: list[str]) -> dict:
+def registered_positions(room: dict) -> dict:
+    """``{player name: role}`` from the room's OWN pool.
+
+    This decides which formula scores each player, so it must come from the
+    competition being scored. The scorer's fallback is the World Cup squad file,
+    which for a UCL room knows almost nobody and quietly scored 715 of 945
+    players on whatever position WhoScored recorded them playing.
+    """
+    from .config_layer import room_player_pool
+    return {p.name: p.role for p in room_player_pool(room)}
+
+
+def score_one_link(url: str, *, is_football: bool, countries: list[str],
+                   positions: dict | None = None) -> dict:
     """Scrape ONE match link → ``{player_or_keeper_name: number | {pos: score}}``.
 
     Pure per-match scrape with no room mutation, so a caller can loop over the
@@ -194,7 +207,7 @@ def score_one_link(url: str, *, is_football: bool, countries: list[str]) -> dict
     from scoring import whoscored_keeper_scores, whoscored_player_scores
 
     out: dict = {}
-    for name, sc in whoscored_player_scores(url).items():
+    for name, sc in whoscored_player_scores(url, positions).items():
         out[name] = _merge(out.get(name), sc)
     if is_football:
         ks = whoscored_keeper_scores(url)
@@ -224,11 +237,13 @@ def score_gameweek_from_links(room: dict, gameweek: str, links: list[str]) -> tu
     """
     is_football = is_football_room(room)
     countries = fifa_countries(room) if is_football else []
+    positions = registered_positions(room) if is_football else None
     totals: dict = {}
     errors: list[str] = []
     for url in links:
         try:
-            merge_link_totals(totals, score_one_link(url, is_football=is_football, countries=countries))
+            merge_link_totals(totals, score_one_link(
+                url, is_football=is_football, countries=countries, positions=positions))
         except Exception as exc:  # network / bot-block / parse
             errors.append(f"{url[:60]}…: {exc}")
     if totals:

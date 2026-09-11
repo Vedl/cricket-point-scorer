@@ -28,7 +28,9 @@ def test_score_gameweek_merges_keeper(monkeypatch):
                             {"name": "Lionel Messi", "role": "FWD", "team": "Argentina"}],
             "participants": []}
     import scoring
-    monkeypatch.setattr(scoring, "whoscored_player_scores", lambda url: {"Lionel Messi": 40})
+    # positions: the room's registered roles, now passed through by scoring_ops
+    monkeypatch.setattr(scoring, "whoscored_player_scores",
+                        lambda url, positions=None: {"Lionel Messi": 40})
     monkeypatch.setattr(scoring, "whoscored_keeper_scores", lambda url: {"home": 70, "away": 12})
     totals, errors = so.score_gameweek_from_links(
         room, "1", ["https://www.whoscored.com/matches/1/live/x-mexico-france"])

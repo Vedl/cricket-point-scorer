@@ -546,7 +546,8 @@ class SeasonState(rx.State):
         failed: list[str] = []
         n = len(links)
         payload = json.dumps(
-            {"links": links, "is_football": is_football, "countries": countries})
+            {"links": links, "is_football": is_football, "countries": countries,
+             "positions": scoring_ops.registered_positions(room) if is_football else {}})
         try:
             proc = await asyncio.create_subprocess_exec(
                 sys.executable, _SCORE_WORKER,
