@@ -1414,8 +1414,12 @@ def _ann_icon(emoji, color):
 
 
 def _ann_ts(it):
+    # A bare date ("2026-09-09", no time part) marks a record whose exact time was
+    # not recoverable, so show the day only rather than an invented clock time.
     return rx.cond(it["ts"] != "",
-                   rx.text(rx.moment(date=it["ts"], format="D MMM YYYY, h:mm a"),
+                   rx.text(rx.cond(it["ts"].contains("T"),
+                                   rx.moment(date=it["ts"], format="D MMM YYYY, h:mm a"),
+                                   rx.moment(date=it["ts"], format="D MMM YYYY")),
                            style={"color": T.MUTED, "font_size": "0.74rem"}))
 
 

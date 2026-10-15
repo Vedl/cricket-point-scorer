@@ -127,3 +127,22 @@ def test_trading_open_window():
     assert so.trading_open(_room(), NOW) is False              # no deadline
     assert so.trading_open(_room(deadline=dl), dl - timedelta(minutes=5)) is True
     assert so.trading_open(_room(deadline=dl), dl + timedelta(minutes=31)) is False
+
+
+def test_deadline_awards_carry_a_real_timestamp_not_the_resolver_sentinel():
+    """The announcements feed sorts newest-first by ``ts``. resolve_deadline forces
+    every bid to expire with a "9999-99-99" clock; that must never be stored, or the
+    signing sits above every later event forever."""
+    from datetime import datetime, timedelta
+    now = datetime(2026, 9, 9, 20, 45)
+    room = {
+        "tournament_type": "IPL 2026",
+        "bidding_deadline": (now - timedelta(minutes=1)).isoformat(),
+        "participants": [{"name": "A", "budget": 100, "squad": []}],
+        "open_bids": {"Kohli": {"expires": "2099-01-01T00:00:00", "high_bid": 5,
+                                "high_bidder": "A", "role": "Batsman", "team": "RCB"}},
+    }
+    awarded = bo.resolve_deadline(room, now)
+    assert [t["player"] for t in awarded] == ["Kohli"]
+    assert awarded[0]["ts"] == now.isoformat()
+    assert room["transactions"][0]["ts"] == now.isoformat()

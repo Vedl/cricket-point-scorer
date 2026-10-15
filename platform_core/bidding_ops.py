@@ -221,7 +221,12 @@ def resolve_deadline(room, now: datetime) -> list[dict]:
     dl = bidding_deadline(room)
     if dl is None or now < dl or room.get("bids_resolved"):
         return []
+    # "9999-99-99" only means "every bid has expired" to resolve_expired. It must not
+    # stay on the records: the announcements feed sorts newest-first by ts, so a
+    # sentinel date pins those signings above every later event forever.
     awarded = resolve_expired(_by(room), room.setdefault("open_bids", {}), "9999-99-99", max_squad=MAX_SQUAD)
+    for tx in awarded:
+        tx["ts"] = now.isoformat()
     room["bids_resolved"] = True
     if awarded:
         room.setdefault("transactions", []).extend(awarded)
