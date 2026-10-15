@@ -228,6 +228,29 @@ def room_player_pool(room: dict) -> list[Player]:
                       if p.get("name") and p["name"].lower() not in have]
 
 
+def registered_keepers(room: dict, data_dir: str = DATA_DIR) -> list[Player]:
+    """Individual goalkeepers a football room's source file registers.
+
+    ``room_player_pool`` folds them into one ``"{Team} Keeper"`` entry per team, so
+    the pool alone cannot say which club or position a scored keeper (Oblak,
+    Courtois) belongs to. Read-only lookup data; they are not biddable."""
+    entry = FOOTBALL_POOLS.get(room.get("tournament_type", ""))
+    if not entry or room.get("player_pool"):
+        return []
+    data = _read_json(data_dir, entry[0])
+    rows = data.get("players", []) if isinstance(data, dict) else (data or [])
+    keepers = []
+    for p in rows:
+        if not (isinstance(p, dict) and p.get("name")):
+            continue
+        role = p.get("role", p.get("position", ""))
+        if _is_keeper(role):
+            keepers.append(Player(id=_slug(p["name"]), name=p["name"], role="Goalkeeper",
+                                  team=p.get(entry[1]) or p.get("team") or "Unknown",
+                                  base_price=0))
+    return keepers
+
+
 def registered_names(room: dict, data_dir: str = DATA_DIR) -> set[str]:
     """Every name the source registers for this room, INCLUDING goalkeepers.
 

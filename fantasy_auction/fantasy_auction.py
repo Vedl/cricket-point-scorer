@@ -1747,6 +1747,37 @@ def scorer_row(s):
                         rx.table.cell(s["points"] + " pts"), rx.table.cell(s["owner"]))
 
 
+def player_search_row(s):
+    return rx.table.row(rx.table.row_header_cell(s["player"]),
+                        rx.table.cell(s["position"]),
+                        rx.table.cell(s["country"]),
+                        rx.table.cell(s["points"] + " pts"), rx.table.cell(s["owner"]))
+
+
+def _pos_chip(pos):
+    picked = SeasonState.player_pos_sel.contains(pos)
+    return rx.button(pos, on_click=SeasonState.toggle_player_pos(pos), size="1",
+                     variant=rx.cond(picked, "solid", "soft"),
+                     color_scheme=rx.cond(picked, "indigo", "gray"), cursor="pointer")
+
+
+def player_search_filters():
+    """Position chips (tick several), club and owner pickers. Everything chosen —
+    plus the name box above — narrows the same result list together."""
+    return rx.flex(
+        rx.hstack(rx.text("Position", style={"color": T.MUTED, "font_size": "0.78rem"}),
+                  rx.foreach(SeasonState.player_pos_options, _pos_chip),
+                  spacing="2", align="center", wrap="wrap"),
+        rx.select(SeasonState.player_club_options, value=SeasonState.player_club_sel,
+                  on_change=SeasonState.set_player_club, variant="soft", size="2"),
+        rx.select(SeasonState.player_owner_options, value=SeasonState.player_owner_sel,
+                  on_change=SeasonState.set_player_owner, variant="soft", size="2"),
+        rx.cond(SeasonState.player_filters_active,
+                rx.button("Clear filters", on_click=SeasonState.clear_player_filters,
+                          size="1", variant="ghost", cursor="pointer")),
+        gap="0.6rem", align="center", wrap="wrap", width="100%")
+
+
 def gameweek_admin_panel():
     return T.card(
         T.section_title("⚙️ Gameweek admin"),
@@ -1947,18 +1978,28 @@ def standings_page():
                 rx.select(SeasonState.player_scope_options, value=SeasonState.player_scope_sel,
                           on_change=SeasonState.set_player_scope, width="150px", variant="soft"),
                 width="100%", align="center"),
-            rx.text("Find any player's points — cumulative or for a single gameweek.",
+            rx.text("Find any player's points — cumulative or for a single gameweek. "
+                    "Filters combine: pick a position, club and owner together.",
                     style={"color": T.MUTED, "font_size": "0.82rem"}),
             rx.box(height="0.5rem"),
             rx.input(placeholder="Search a player by name…", value=SeasonState.player_query,
                      on_change=SeasonState.set_player_query, width="100%"),
             rx.box(height="0.5rem"),
+            player_search_filters(),
+            rx.box(height="0.5rem"),
+            rx.text(rx.cond(SeasonState.player_match_count == 1, "1 player matches",
+                            SeasonState.player_match_count.to_string() + " players match"),
+                    style={"color": T.MUTED, "font_size": "0.78rem"}),
             rx.cond(SeasonState.player_results.length() > 0,
-                    rx.table.root(rx.table.header(rx.table.row(
-                        rx.table.column_header_cell("Player"), rx.table.column_header_cell("Country"),
-                        rx.table.column_header_cell("Points"), rx.table.column_header_cell("Owner"))),
-                        rx.table.body(rx.foreach(SeasonState.player_results, scorer_row)), width="100%"),
-                    rx.text("No players match — pick a scope and type a name.",
+                    rx.box(
+                        rx.table.root(rx.table.header(rx.table.row(
+                            rx.table.column_header_cell("Player"), rx.table.column_header_cell("Pos"),
+                            rx.table.column_header_cell("Club"),
+                            rx.table.column_header_cell("Points"), rx.table.column_header_cell("Owner"))),
+                            rx.table.body(rx.foreach(SeasonState.player_results, player_search_row)),
+                            width="100%"),
+                        overflow_x="auto", width="100%"),
+                    rx.text("No players match these filters.",
                             style={"color": T.MUTED})),
             width="100%"),
         rx.box(height="1rem"),

@@ -447,20 +447,91 @@ def top_player_scorers(room: dict, limit: int = 25) -> list[dict]:
     return rows[:limit]
 
 
+FOOTBALL_POSITION_ORDER = ("GK", "DEF", "MID", "FWD")
+ALL_CLUBS = "All clubs"
+ALL_OWNERS = "All owners"
+FREE_AGENTS = "Free agents"
+
+
+def _role_label(room: dict, role: str) -> str:
+    """A player's listed position as a filterable label.
+
+    Football pools list free-text roles ("Midfielder", "Centre Back"), so they are
+    normalised to GK/DEF/MID/FWD; any other sport keeps its own role names."""
+    role = (role or "").strip()
+    if SPORT_BY_TOURNAMENT.get(room.get("tournament_type", ""), "cricket") == "football":
+        from scoring.positions import map_role_to_pos
+        return map_role_to_pos(role) or "—"
+    return role or "—"
+
+
+def _player_pool_index(room: dict):
+    """Fuzzy name → ``(position, club)`` from the room's OWN pool (the same list the
+    auction is run from), so players nobody owns can still be filtered by position
+    and club. Tolerant of the spelling gaps between WhoScored and the pool."""
+    from .config_layer import registered_keepers, room_player_pool
+    return build_index({p.name: (_role_label(room, p.role), p.team or "—")
+                        for p in room_player_pool(room) + registered_keepers(room)})
+
+
+def player_search_options(room: dict) -> dict[str, list[str]]:
+    """Choices for the search filters: ``{"positions", "clubs", "owners"}``."""
+    from .config_layer import room_player_pool
+    pool = room_player_pool(room)
+    labels = {_role_label(room, p.role) for p in pool} - {"—"}
+    positions = [x for x in FOOTBALL_POSITION_ORDER if x in labels] \
+        + sorted(labels - set(FOOTBALL_POSITION_ORDER))
+    clubs = sorted({p.team for p in pool if p.team and p.team != "Unknown"}, key=str.lower)
+    owners = [pt["name"] for pt in room.get("participants", []) if pt.get("name")]
+    return {"positions": positions, "clubs": clubs,
+            "owners": [FREE_AGENTS] + sorted(owners, key=str.lower)}
+
+
 def search_player_points(room: dict, query: str = "", gameweek: str | None = None,
-                         limit: int = 50) -> list[dict]:
+                         limit: int | None = 50, positions=None, club: str = "",
+                         owner: str = "") -> list[dict]:
     """Points per player for a single ``gameweek`` (str) or cumulative (``None``),
-    filtered by a case-insensitive substring of the player's name and sorted high→low.
-    Each row carries the player's country and current owner."""
+    sorted high→low. Each row carries the player's position, club (``country``) and
+    current owner.
+
+    Every filter given must hold at once (they combine with AND):
+      * ``query``     — case-insensitive substring of the name
+      * ``positions`` — any of these listed positions (e.g. ``["DEF", "MID"]``)
+      * ``club``      — exact club (or country) name
+      * ``owner``     — a team name, or ``FREE_AGENTS`` for unowned players
+    Empty / ``ALL_CLUBS`` / ``ALL_OWNERS`` mean "don't filter on this". Position and
+    club come from the room's pool, so unowned players are filterable too; a player
+    the pool cannot place matches no position/club filter.
+    """
     owner_index = _player_owner_index(room)
     country_index = _player_country_index(room)
+    pool_index = _player_pool_index(room)
     q = (query or "").strip().lower()
-    rows = [{"player": n, "points": t, "owner": lookup(owner_index, n, "—"),
-             "country": lookup(country_index, n, "—")}
-            for n, t in _player_point_totals(room, gameweek).items()
-            if not q or q in n.lower()]
+    want_pos = {x.upper() for x in (positions or [])} or None
+    want_club = (club or "").strip()
+    want_club = "" if want_club == ALL_CLUBS else want_club.lower()
+    want_owner = (owner or "").strip()
+    want_owner = "" if want_owner == ALL_OWNERS else want_owner
+
+    rows = []
+    for n, t in _player_point_totals(room, gameweek).items():
+        if q and q not in n.lower():
+            continue
+        pos, pool_club = lookup(pool_index, n, ("—", "—"))
+        who = lookup(owner_index, n, "—")
+        club_name = lookup(country_index, n, None) or pool_club
+        if want_pos and pos.upper() not in want_pos:
+            continue
+        if want_club and club_name.lower() != want_club:
+            continue
+        if want_owner == FREE_AGENTS and who != "—":
+            continue
+        if want_owner and want_owner != FREE_AGENTS and who != want_owner:
+            continue
+        rows.append({"player": n, "points": t, "owner": who, "country": club_name,
+                     "position": pos})
     rows.sort(key=lambda r: r["points"], reverse=True)
-    return rows[:limit]
+    return rows if limit is None else rows[:limit]
 
 
 # --- gameweek deadlines + automation ------------------------------------- #

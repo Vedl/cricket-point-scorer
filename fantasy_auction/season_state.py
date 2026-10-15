@@ -44,6 +44,7 @@ _STANDINGS_CACHE: dict = {}      # (code, selected_gw) -> (monotonic_ts, data, c
 # Fields the UI may write through set_field. Without a whitelist, setattr with a
 # client-supplied name lets anyone set ANY var on this state — including
 # is_admin or auth_user — straight over the websocket.
+PLAYER_SEARCH_LIMIT = 100  # rows shown; the true match count is displayed alongside
 _SEASON_WRITABLE_FIELDS = frozenset({"bid_hold_input", "bidding_deadline_value", "gw_input", "keep_top_input", "pre_gw1_bid_hold_input", "score_links", "show_best11_modal"})
 
 
@@ -84,6 +85,14 @@ class SeasonState(rx.State):
     player_query: str = ""
     player_scope_sel: str = "Cumulative"   # "Cumulative" or a gameweek number
     player_results: list[dict[str, str]] = []
+    # Search filters. They all apply at once (AND); within positions, any ticked one.
+    player_pos_sel: list[str] = []
+    player_club_sel: str = so.ALL_CLUBS
+    player_owner_sel: str = so.ALL_OWNERS
+    player_pos_options: list[str] = []
+    player_club_options: list[str] = [so.ALL_CLUBS]
+    player_owner_options: list[str] = [so.ALL_OWNERS]
+    player_match_count: int = 0       # matches before the display cap
 
     # top scorers + deadlines
     top_scorers: list[dict[str, str]] = []
@@ -144,17 +153,61 @@ class SeasonState(rx.State):
         self.player_scope_sel = scope or "Cumulative"
         self._run_player_search()
 
-    def _run_player_search(self):
-        _, _, room = self._load_room()
+    @rx.event
+    def toggle_player_pos(self, pos: str):
+        if pos in self.player_pos_sel:
+            self.player_pos_sel = [x for x in self.player_pos_sel if x != pos]
+        else:
+            self.player_pos_sel = self.player_pos_sel + [pos]
+        self._run_player_search()
+
+    @rx.event
+    def set_player_club(self, club: str):
+        self.player_club_sel = club or so.ALL_CLUBS
+        self._run_player_search()
+
+    @rx.event
+    def set_player_owner(self, owner: str):
+        self.player_owner_sel = owner or so.ALL_OWNERS
+        self._run_player_search()
+
+    @rx.event
+    def clear_player_filters(self):
+        self.player_query = ""
+        self.player_pos_sel = []
+        self.player_club_sel = so.ALL_CLUBS
+        self.player_owner_sel = so.ALL_OWNERS
+        self._run_player_search()
+
+    @rx.var
+    def player_filters_active(self) -> bool:
+        return bool(self.player_query.strip() or self.player_pos_sel
+                    or self.player_club_sel != so.ALL_CLUBS
+                    or self.player_owner_sel != so.ALL_OWNERS)
+
+    def _load_player_filter_options(self, room: dict):
+        opts = so.player_search_options(room)
+        self.player_pos_options = opts["positions"]
+        self.player_club_options = [so.ALL_CLUBS] + opts["clubs"]
+        self.player_owner_options = [so.ALL_OWNERS] + opts["owners"]
+
+    def _run_player_search(self, room: dict | None = None):
+        if room is None:
+            _, _, room = self._load_room()
         if not room:
             self.player_results = []
+            self.player_match_count = 0
             return
         gw = None if self.player_scope_sel == "Cumulative" else self.player_scope_sel
-        rows = so.search_player_points(room, self.player_query, gameweek=gw, limit=50)
+        rows = so.search_player_points(
+            room, self.player_query, gameweek=gw, limit=None,
+            positions=self.player_pos_sel, club=self.player_club_sel,
+            owner=self.player_owner_sel)
+        self.player_match_count = len(rows)
         self.player_results = [
             {"player": r["player"], "points": str(r["points"]),
-             "country": r["country"], "owner": r["owner"]}
-            for r in rows
+             "country": r["country"], "owner": r["owner"], "position": r["position"]}
+            for r in rows[:PLAYER_SEARCH_LIMIT]
         ]
 
     def _load_room_as_admin(self):
@@ -208,6 +261,8 @@ class SeasonState(rx.State):
                 self.selected_gw = self.gameweeks[-1]
             self._load_bid_hold(room)
             self._recompute(room)
+            self._load_player_filter_options(room)
+            self._run_player_search(room)
         except Exception as exc:
             print(f"[on_load_standings] {exc}")
         self.watching = True
