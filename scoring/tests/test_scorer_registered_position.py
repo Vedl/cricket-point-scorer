@@ -1,7 +1,7 @@
-"""End-to-end test of the registered-position rule through the real scorer.
+"""End-to-end test of the higher-of-registered-and-played rule through the real scorer.
 
 We stub WhoScored (the network) and the numeric scoring formulas, then assert that
-``calc_all_players_whoscored`` emits the REGISTERED-position score for every eligible
+``calc_all_players_whoscored`` emits the HIGHER of the registered- and played-position scores for every eligible
 slot — proving the Kimmich rule holds through the actual production code path, not
 just the isolated helper.
 """
@@ -43,13 +43,20 @@ def _by_pos(out, name):
     return dict(zip(rows["Position"], rows["Score"]))
 
 
-def test_registered_def_played_mid_scores_as_def_in_both_slots(monkeypatch):
+def test_registered_def_played_mid_takes_higher_in_both_slots(monkeypatch):
     df = pd.DataFrame([_player_row("Kimmich", "MID")])
     _install_fakes(monkeypatch, df, {"DEF": 40, "MID": 55, "FWD": 70, "GK": 10})
     out = fsc.calc_all_players_whoscored("http://x", registered_positions={"Kimmich": "Defender"})
-    # DEFENDER score (40) appears under BOTH his registered DEF slot and his played
-    # MID slot — never the higher MID score (55).
-    assert _by_pos(out, "Kimmich") == {"DEF": 40, "MID": 40}
+    # The higher (MID, 55) score appears under BOTH his registered DEF slot and his
+    # played MID slot.
+    assert _by_pos(out, "Kimmich") == {"DEF": 55, "MID": 55}
+
+
+def test_registered_mid_played_def_keeps_registered_when_higher(monkeypatch):
+    df = pd.DataFrame([_player_row("Holder", "DEF")])
+    _install_fakes(monkeypatch, df, {"DEF": 40, "MID": 55, "FWD": 70, "GK": 10})
+    out = fsc.calc_all_players_whoscored("http://x", registered_positions={"Holder": "Midfielder"})
+    assert _by_pos(out, "Holder") == {"MID": 55, "DEF": 55}
 
 
 def test_registered_equals_played_is_single_slot(monkeypatch):

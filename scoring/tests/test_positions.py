@@ -1,8 +1,8 @@
 """Exhaustive tests for the positional eligibility + scoring rule.
 
 This is the rule that decides who is eligible for which Best-11 slot and — crucially
-— that a player's points are ALWAYS computed from their REGISTERED position, never
-the position they happened to play. Getting this wrong could change who wins, so it
+— that a player is credited with the HIGHER of their registered-position and
+played-position scores (keepers excepted). Getting this wrong could change who wins, so it
 is tested in depth.
 """
 
@@ -93,13 +93,40 @@ def _score_fn(table):
     return fn
 
 
-def test_score_always_from_registered_position_kimmich():
+def test_score_takes_higher_of_registered_and_played_kimmich():
     # Listed DEF, played MID. DEF formula would give 40, MID formula 55.
     fn = _score_fn({"DEF": 40, "MID": 55})
     out = position_score_map("DEF", "MID", fn)
-    # Both eligible slots carry the DEFENDER score, never the (higher) MID score.
-    assert out == {"DEF": 40, "MID": 40}
-    # And we only ever evaluated the registered (DEF) formula.
+    # Both eligible slots carry the HIGHER (MID) score.
+    assert out == {"DEF": 55, "MID": 55}
+    assert sorted(fn.calls) == ["DEF", "MID"]
+
+
+def test_score_registered_wins_when_it_is_higher():
+    fn = _score_fn({"DEF": 70, "MID": 55})
+    assert position_score_map("DEF", "MID", fn) == {"DEF": 70, "MID": 70}
+
+
+def test_score_baku_case_registered_mid_played_def():
+    # Ridle Baku: registered MID (23), played right back (27) -> 27 in both slots.
+    fn = _score_fn({"MID": 23, "DEF": 27})
+    assert position_score_map("MID", "DEF", fn) == {"MID": 27, "DEF": 27}
+
+
+def test_score_equal_scores_are_unchanged():
+    fn = _score_fn({"DEF": 30, "MID": 30})
+    assert position_score_map("DEF", "MID", fn) == {"DEF": 30, "MID": 30}
+
+
+def test_score_keeper_always_registered_even_if_played_outfield():
+    fn = _score_fn({"GK": 10, "MID": 99})
+    assert position_score_map("GK", "MID", fn) == {"GK": 10, "MID": 10}
+    assert fn.calls == ["GK"]
+
+
+def test_score_outfielder_in_goal_stays_registered():
+    fn = _score_fn({"DEF": 8, "GK": 99})
+    assert position_score_map("DEF", "GK", fn) == {"DEF": 8, "GK": 8}
     assert fn.calls == ["DEF"]
 
 
@@ -111,15 +138,6 @@ def test_score_registered_only_when_played_same():
 def test_score_registered_only_when_played_unknown():
     fn = _score_fn({"FWD": 21})
     assert position_score_map("FWD", None, fn) == {"FWD": 21}
-
-
-def test_score_reverse_case_registered_mid_played_def():
-    # Symmetry: a registered MID who drops to DEF still scores his MID points,
-    # and is eligible for a DEF slot too.
-    fn = _score_fn({"MID": 60, "DEF": 25})
-    out = position_score_map("MID", "DEF", fn)
-    assert out == {"MID": 60, "DEF": 60}
-    assert fn.calls == ["MID"]
 
 
 def test_score_unknown_player_uses_played_position():
@@ -139,10 +157,10 @@ def test_score_no_position_known_returns_empty():
 def test_score_map_accepts_free_text_positions():
     fn = _score_fn({"DEF": 12, "MID": 99})
     out = position_score_map("Centre Back", "Central Midfield", fn)
-    assert out == {"DEF": 12, "MID": 12}
+    assert out == {"DEF": 99, "MID": 99}
 
 
-def test_score_negative_registered_score_still_applies_everywhere():
-    # A red-carded defender can go negative; both slots reflect that same number.
-    fn = _score_fn({"DEF": -7, "MID": 5})
-    assert position_score_map("DEF", "MID", fn) == {"DEF": -7, "MID": -7}
+def test_score_negative_scores_still_take_the_higher():
+    # A red-carded defender can go negative; the better (less negative) one wins.
+    fn = _score_fn({"DEF": -7, "MID": -3})
+    assert position_score_map("DEF", "MID", fn) == {"DEF": -3, "MID": -3}

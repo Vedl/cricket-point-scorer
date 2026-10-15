@@ -2,18 +2,19 @@
 
 This module encodes ONE rule the whole app must agree on (owner's spec):
 
-    A player's POINTS are always computed from their REGISTERED position — the
-    position listed for them in ``fifa_wc_2026_players.json``. It never matters
-    where they actually played on the pitch.
+    A player's POINTS are the HIGHER of the score their REGISTERED position gives
+    them (the position listed in the room's pool) and the score the position they
+    actually played (per WhoScored) gives them. Goalkeepers are always scored at
+    their registered position.
 
-    Where they actually played (per WhoScored) only widens which formation SLOTS
-    they are ELIGIBLE to fill, and every eligible slot carries that same
-    registered-position score.
+    Where they actually played also widens which formation SLOTS they are ELIGIBLE
+    to fill, and every eligible slot carries that same score.
 
 Concrete example (the "Kimmich case"): Kimmich is listed as a DEF but plays as a
-MID. His points are calculated as a DEFENDER, but in the Best-11 he may be slotted
-into either a DEF slot or a MID slot — so a manager who is short on midfielders can
-field him there without changing how many points he earns.
+MID. He is credited with the better of his defender and midfielder scores, and in
+the Best-11 he may be slotted into either a DEF slot or a MID slot — so a manager
+who is short on midfielders can field him there without changing how many points
+he earns.
 
 No pandas / framework imports here — pure, exhaustively unit-tested logic that both
 the scorer (``football_score_calculator``) and the display layer (``scoring``) call.
@@ -87,10 +88,15 @@ def position_score_map(
     """Return ``{position: score}`` a player contributes to the Best-11.
 
     ``score_fn(pos)`` computes the player's score *as if* they played ``pos`` (it
-    wraps the positional scoring formulas). The KEY RULE: when the registered
-    position is known, the score is computed ONCE at that position and applied to
-    EVERY eligible slot — so a registered DEF who played MID earns his defender
-    points whether he ends up filling a DEF slot or a MID slot.
+    wraps the positional scoring formulas). The KEY RULE: a player is credited with
+    the HIGHER of their registered-position score and their played-position score,
+    and that single number is applied to EVERY eligible slot — so a registered DEF
+    who played MID earns the better of his two scores whether he ends up filling a
+    DEF slot or a MID slot.
+
+    Goalkeepers are the exception: the keeper formula is built from different stats
+    (saves, claims) and is not comparable with the outfield ones, so a keeper — or an
+    outfielder who went in goal — is always scored at the REGISTERED position.
 
     Only when the player is NOT in the squad database (registered position unknown)
     do we fall back to scoring at the position they actually played.
@@ -106,8 +112,11 @@ def position_score_map(
         return {}
 
     if reg:
-        # Points are ALWAYS the registered-position score — identical in every slot.
-        score = score_fn(reg)
+        if len(slots) == 2 and "GK" not in slots:
+            # Two different outfield positions: credit the better of the two.
+            score = max(score_fn(pos) for pos in slots)
+        else:
+            score = score_fn(reg)
         return {pos: score for pos in slots}
 
     # Unknown player: score at the (single) position they actually played.
