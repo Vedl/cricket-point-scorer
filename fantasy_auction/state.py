@@ -78,7 +78,7 @@ async def aload() -> dict:
 # Fields the UI may write through set_field. Without a whitelist, setattr with a
 # client-supplied name lets anyone set ANY var on this state — including
 # is_admin or auth_user — straight over the websocket.
-_APP_WRITABLE_FIELDS = frozenset({"admin_participating", "claim_choice", "confirm", "join_code", "join_pin", "new_room_name", "new_team_name", "new_team_pin", "new_tournament", "password", "reset_confirm", "reset_new_pw", "reset_room_code", "reset_username", "username"})
+_APP_WRITABLE_FIELDS = frozenset({"admin_participating", "claim_choice", "join_code", "join_pin", "new_room_name", "new_team_name", "new_team_pin", "new_tournament"})
 
 
 class AppState(rx.State):
@@ -95,17 +95,8 @@ class AppState(rx.State):
     spectator_room: str = rx.LocalStorage("")
     spectating: bool = rx.LocalStorage(False)
 
-    # --- auth form ---
-    username: str = ""
-    password: str = ""
-    confirm: str = ""
+    # --- auth forms (field values are read from the submitted <form>, not held in state) ---
     auth_error: str = ""
-
-    # --- reset password form ---
-    reset_username: str = ""
-    reset_room_code: str = ""
-    reset_new_pw: str = ""
-    reset_confirm: str = ""
     reset_msg: str = ""
 
     # --- create room form ---
@@ -204,7 +195,7 @@ class AppState(rx.State):
         return rx.redirect("/")
 
     # Generic explicit setter (replaces the deprecated implicit `set_*` setters).
-    # Bind with e.g. on_change=AppState.set_field("username").
+    # Bind with e.g. on_change=AppState.set_field("join_code").
     @rx.event
     def set_field(self, name: str, value):
         if name not in _APP_WRITABLE_FIELDS:
@@ -215,31 +206,34 @@ class AppState(rx.State):
     # Auth
     # ------------------------------------------------------------------ #
     @rx.event
-    def handle_signup(self):
+    def handle_signup(self, form_data: dict):
+        # Values come from the submitted <form> (the real DOM values), so browser/password-
+        # manager autofill — which never fires a change event — is picked up.
         self.auth_error = ""
+        username = str(form_data.get("username") or "").strip()
         doc = repo.load()
         try:
-            sign_up(doc, self.username, self.password, self.confirm)
+            sign_up(doc, username, str(form_data.get("password") or ""),
+                    str(form_data.get("confirm") or ""))
         except AuthError as exc:
             self.auth_error = str(exc)
             return
         repo.save(doc)
-        self.auth_user = self.username.strip()
-        self._clear_auth_form()
+        self.auth_user = username
         return rx.redirect("/rooms")
 
     @rx.event
-    def handle_login(self):
+    def handle_login(self, form_data: dict):
         self.auth_error = ""
         doc = repo.load()
         try:
-            user = log_in(doc, self.username, self.password)
+            user = log_in(doc, str(form_data.get("username") or ""),
+                          str(form_data.get("password") or ""))
         except AuthError as exc:
             self.auth_error = str(exc)
             return
         repo.save(doc)   # persist any transparent legacy→PBKDF2 hash upgrade
         self.auth_user = user
-        self._clear_auth_form()
         return rx.redirect("/rooms")
 
     @rx.event
@@ -297,24 +291,21 @@ class AppState(rx.State):
             await self.load_setup()
 
     @rx.event
-    def handle_reset_password(self):
+    def handle_reset_password(self, form_data: dict):
         self.reset_msg = ""
-        if self.reset_new_pw != self.reset_confirm:
+        new_pw = str(form_data.get("new_pw") or "")
+        if new_pw != str(form_data.get("confirm") or ""):
             self.reset_msg = "Passwords do not match."
             return
         doc = repo.load()
         try:
-            reset_password(doc, self.reset_username, self.reset_room_code, self.reset_new_pw)
+            reset_password(doc, str(form_data.get("username") or ""),
+                           str(form_data.get("room_code") or ""), new_pw)
         except AuthError as exc:
             self.reset_msg = str(exc)
             return
         repo.save(doc)
         self.reset_msg = "✅ Password reset! You can now log in."
-        self.reset_username = self.reset_room_code = ""
-        self.reset_new_pw = self.reset_confirm = ""
-
-    def _clear_auth_form(self):
-        self.username = self.password = self.confirm = ""
 
     @rx.event
     def require_login(self):

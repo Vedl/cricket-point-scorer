@@ -18,6 +18,7 @@ import binascii
 import hashlib
 import hmac
 import os
+import unicodedata
 from datetime import datetime, timezone
 
 MIN_PASSWORD_LEN = 4  # legacy rule
@@ -59,6 +60,30 @@ def verify_password(stored: str, password: str) -> bool:
     return hmac.compare_digest(legacy, stored)
 
 
+def _norm(name: str) -> str:
+    """Comparison key for a username: Unicode-normalised, whitespace-collapsed, case-folded.
+
+    Phone keyboards auto-capitalise the first letter, autofill/IMEs add stray or
+    non-breaking spaces, and some compose accents differently — so an exact match
+    locks real players out of accounts they created."""
+    return " ".join(unicodedata.normalize("NFKC", name or "").split()).casefold()
+
+
+def find_user(users: dict, username: str) -> str | None:
+    """Resolve what a player typed to their stored username (the canonical key).
+
+    Exact match wins; otherwise a case/whitespace-insensitive match, but only when it is
+    unambiguous (legacy accounts that differ only by case must be typed exactly)."""
+    username = (username or "").strip()
+    if username in users:
+        return username
+    key = _norm(username)
+    if not key:
+        return None
+    hits = [u for u in users if _norm(u) == key]
+    return hits[0] if len(hits) == 1 else None
+
+
 def sign_up(doc: dict, username: str, password: str, confirm: str | None = None) -> dict:
     """Create a new account. Returns the new user record. Raises AuthError."""
     username = (username or "").strip()
@@ -69,7 +94,7 @@ def sign_up(doc: dict, username: str, password: str, confirm: str | None = None)
         raise AuthError(f"Password must be at least {MIN_PASSWORD_LEN} characters.")
     if confirm is not None and password != confirm:
         raise AuthError("Passwords do not match.")
-    if username in users:
+    if any(_norm(u) == _norm(username) for u in users):   # "Sam" vs "sam" would shadow
         raise AuthError("Username already taken. Choose another.")
     record = {
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -88,8 +113,12 @@ def log_in(doc: dict, username: str, password: str) -> str:
     caller must persist the doc afterwards)."""
     username = (username or "").strip()
     users = doc.get("users", {})
-    if username not in users:
+    if not username or not password:
+        raise AuthError("Enter your username and password.")
+    matched = find_user(users, username)
+    if matched is None:
         raise AuthError("Username not found. Please sign up first.")
+    username = matched
     stored = users[username].get("password_hash", "")
     if not verify_password(stored, password):
         raise AuthError("Incorrect password.")
@@ -104,8 +133,10 @@ def reset_password(doc: dict, username: str, room_code: str, new_password: str) 
     room_code = (room_code or "").strip().upper()
     users = doc.get("users", {})
     rooms = doc.get("rooms", {})
-    if username not in users:
+    matched = find_user(users, username)
+    if matched is None:
         raise AuthError("Username not found.")
+    username = matched
     if len(new_password) < MIN_PASSWORD_LEN:
         raise AuthError(f"Password must be at least {MIN_PASSWORD_LEN} characters.")
     if room_code not in rooms:
