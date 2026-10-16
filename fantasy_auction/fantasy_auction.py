@@ -395,48 +395,63 @@ def room_nav(code, is_admin):
 # --------------------------------------------------------------------------- #
 # Index / auth
 # --------------------------------------------------------------------------- #
+# Phone keyboards would otherwise capitalise/"correct" usernames and room codes.
+_NO_AUTOCORRECT = dict(auto_capitalize="none", auto_correct=False, spell_check=False)
+
+
+def _auth_input(**props):
+    """Uncontrolled input read via the form's submit data, not per-keystroke state.
+
+    Safari/iOS (and password managers) autofill sets the DOM value without a change event
+    React/Reflex sees, so a ``value=``-bound input stays empty in state and login fails
+    though the field looks filled. Form submit reads the real DOM values."""
+    return rx.input(width="100%", size="3", **props)
+
+
 def auth_panel():
-    login = rx.vstack(
-        _field("Username", rx.input(value=AppState.username, on_change=AppState.set_field("username"),
-               placeholder="Username", width="100%", size="3")),
-        _field("Password", rx.input(value=AppState.password, on_change=AppState.set_field("password"),
-               placeholder="Password", type="password", width="100%", size="3")),
-        T.primary_button("Log in →", on_click=AppState.handle_login, width="100%", size="3",
-                         margin_top="0.5rem"),
-        spacing="3", width="100%",
+    login = rx.form(
+        rx.vstack(
+            _field("Username", _auth_input(name="username", placeholder="Username",
+                   custom_attrs={"autoComplete": "username"}, **_NO_AUTOCORRECT)),
+            _field("Password", _auth_input(name="password", placeholder="Password", type="password",
+                   custom_attrs={"autoComplete": "current-password"})),
+            T.primary_button("Log in →", type="submit", width="100%", size="3", margin_top="0.5rem"),
+            spacing="3", width="100%",
+        ),
+        on_submit=AppState.handle_login, reset_on_submit=False, width="100%",
     )
-    signup = rx.vstack(
-        _field("Choose a username", rx.input(value=AppState.username,
-               on_change=AppState.set_field("username"), placeholder="Username", width="100%", size="3")),
-        _field("Create a password", rx.input(value=AppState.password,
-               on_change=AppState.set_field("password"), placeholder="Min 4 characters",
-               type="password", width="100%", size="3")),
-        _field("Confirm password", rx.input(value=AppState.confirm,
-               on_change=AppState.set_field("confirm"), placeholder="Re-enter password",
-               type="password", width="100%", size="3")),
-        T.primary_button("Create account →", on_click=AppState.handle_signup, width="100%",
-                         size="3", margin_top="0.5rem"),
-        spacing="3", width="100%",
+    signup = rx.form(
+        rx.vstack(
+            _field("Choose a username", _auth_input(name="username", placeholder="Username",
+                   custom_attrs={"autoComplete": "username"}, **_NO_AUTOCORRECT)),
+            _field("Create a password", _auth_input(name="password", placeholder="Min 4 characters",
+                   type="password", custom_attrs={"autoComplete": "new-password"})),
+            _field("Confirm password", _auth_input(name="confirm", placeholder="Re-enter password",
+                   type="password", custom_attrs={"autoComplete": "new-password"})),
+            T.primary_button("Create account →", type="submit", width="100%", size="3",
+                             margin_top="0.5rem"),
+            spacing="3", width="100%",
+        ),
+        on_submit=AppState.handle_signup, reset_on_submit=False, width="100%",
     )
-    reset = rx.vstack(
-        rx.text("Verify your identity with a room code you belong to.",
-                style={"color": T.MUTED, "font_size": "0.82rem"}),
-        _field("Username", rx.input(value=AppState.reset_username,
-               on_change=AppState.set_field("reset_username"), placeholder="Your username",
-               width="100%", size="3")),
-        _field("Room code (verification)", rx.input(value=AppState.reset_room_code,
-               on_change=AppState.set_field("reset_room_code"), placeholder="e.g. ZW1KJ4",
-               width="100%", size="3")),
-        _field("New password", rx.input(value=AppState.reset_new_pw,
-               on_change=AppState.set_field("reset_new_pw"), placeholder="Min 4 characters",
-               type="password", width="100%", size="3")),
-        _field("Confirm new password", rx.input(value=AppState.reset_confirm,
-               on_change=AppState.set_field("reset_confirm"), placeholder="Re-enter password",
-               type="password", width="100%", size="3")),
-        T.primary_button("Reset password", on_click=AppState.handle_reset_password, width="100%",
-                         size="3", margin_top="0.5rem"),
-        _error(AppState.reset_msg),
-        spacing="3", width="100%",
+    reset = rx.form(
+        rx.vstack(
+            rx.text("Verify your identity with a room code you belong to.",
+                    style={"color": T.MUTED, "font_size": "0.82rem"}),
+            _field("Username", _auth_input(name="username", placeholder="Your username",
+                   custom_attrs={"autoComplete": "username"}, **_NO_AUTOCORRECT)),
+            _field("Room code (verification)", _auth_input(name="room_code", placeholder="e.g. ZW1KJ4",
+                   custom_attrs={"autoComplete": "off"}, **_NO_AUTOCORRECT)),
+            _field("New password", _auth_input(name="new_pw", placeholder="Min 4 characters",
+                   type="password", custom_attrs={"autoComplete": "new-password"})),
+            _field("Confirm new password", _auth_input(name="confirm", placeholder="Re-enter password",
+                   type="password", custom_attrs={"autoComplete": "new-password"})),
+            T.primary_button("Reset password", type="submit", width="100%", size="3",
+                             margin_top="0.5rem"),
+            _error(AppState.reset_msg),
+            spacing="3", width="100%",
+        ),
+        on_submit=AppState.handle_reset_password, reset_on_submit=False, width="100%",
     )
     return T.card(
         rx.tabs.root(

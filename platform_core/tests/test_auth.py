@@ -75,3 +75,47 @@ def test_legacy_sha256_login_still_works_and_migrates():
     upgraded = doc["users"]["sam"]["password_hash"]
     assert upgraded.startswith("pbkdf2_sha256$")
     assert verify_password(upgraded, "hunter2")
+
+
+def test_login_is_case_and_whitespace_insensitive_and_returns_canonical_name():
+    # Phone keyboards auto-capitalise ("last fc" -> "Last fc") and autofill pads spaces.
+    doc = {"users": {}}
+    sign_up(doc, "Last FC", "abcd")
+    for typed in ("Last FC", "last fc", "LAST FC", "  Last FC ", "Last FC", "Last  FC"):
+        assert log_in(doc, typed, "abcd") == "Last FC", typed
+    with pytest.raises(AuthError, match="Incorrect password"):
+        log_in(doc, "last fc", "nope")
+    with pytest.raises(AuthError, match="not found"):
+        log_in(doc, "last", "abcd")
+
+
+def test_sign_up_rejects_a_name_differing_only_by_case():
+    doc = {"users": {}}
+    sign_up(doc, "Sam", "abcd")
+    with pytest.raises(AuthError, match="already taken"):
+        sign_up(doc, "sam", "abcd")
+
+
+def test_login_prefers_exact_match_and_refuses_ambiguous_case_variants():
+    # Legacy data may hold both "Sam" and "sam": exact wins, a third spelling is ambiguous.
+    doc = {"users": {}}
+    for name, pw in (("Sam", "pass1"), ("sam", "pass2")):
+        doc["users"][name] = {"password_hash": hash_password(pw)}
+    assert log_in(doc, "Sam", "pass1") == "Sam"
+    assert log_in(doc, "sam", "pass2") == "sam"
+    with pytest.raises(AuthError, match="not found"):
+        log_in(doc, "SAM", "pass1")
+
+
+def test_reset_password_resolves_username_case_insensitively():
+    doc = {"users": {}, "rooms": {"ABC123": {"members": ["Bob"]}}}
+    sign_up(doc, "Bob", "abcd")
+    reset_password(doc, "bob", "abc123", "newpass")
+    assert log_in(doc, "Bob", "newpass") == "Bob"
+
+
+def test_login_with_blank_fields_asks_for_them_instead_of_claiming_no_such_user():
+    doc = {"users": {}}
+    for u, p in (("", ""), ("bob", ""), ("", "abcd")):
+        with pytest.raises(AuthError, match="Enter your username and password"):
+            log_in(doc, u, p)
