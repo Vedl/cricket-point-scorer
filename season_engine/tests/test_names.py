@@ -133,3 +133,49 @@ def test_the_index_carries_no_extra_entries():
 
 def test_lookup_still_works_on_a_plain_dict():
     assert lookup({"erling haaland": 5}, "Erling Haaland") == 5
+
+
+# --- mononyms: one source uses a single name, the other spells it out -------- #
+# Real UCL 2026/27 GW1-2 scores (room 3X3Y2S): both players were owned and their
+# points reached nobody until aliased.
+UCL_GW2_SCORES = {
+    "Wesley": 28, "Gabriel Magalhães": 20, "Gabriel Jesus": {"FWD": 24, "MID": 24},
+    "Gabriel Sara": 11, "Beraldo": 11, "Kaiki": 23, "Kaique": 42, "Rômulo": 10,
+    "Pepê": 36,
+}
+
+
+def test_whoscored_mononym_matches_the_full_pool_name():
+    """WhoScored keys Roma's Wesley França as plain "Wesley"."""
+    assert lookup(build_index(UCL_GW2_SCORES), "Wesley França") == 28
+
+
+def test_uefa_mononym_matches_whoscoreds_full_name():
+    """UEFA registers Arsenal's Gabriel Magalhães as "Gabriel"."""
+    assert lookup(build_index(UCL_GW2_SCORES), "Gabriel") == 20
+
+
+def test_the_gabriel_alias_does_not_capture_other_gabriels():
+    index = build_index(UCL_GW2_SCORES)
+    assert lookup(index, "Gabriel Jesus") == {"FWD": 24, "MID": 24}
+    assert lookup(index, "Gabriel Sara") == 11
+    assert lookup(index, "Gabriel Veiga") is None
+
+
+def test_aliases_for_unowned_mononyms():
+    index = build_index(UCL_GW2_SCORES)
+    assert lookup(index, "Lucas Beraldo") == 11
+    assert lookup(index, "Kaiki Bruno") == 23          # not Kaique's 42
+    assert lookup(index, "Rômulo Cardoso") == 10
+
+
+def test_a_mononym_is_never_matched_on_a_shared_token_alone():
+    """"Pepê" is not Nicolas Pépé — which is why mononyms are aliased one by one
+    rather than matched by a general rule."""
+    assert lookup(build_index(UCL_GW2_SCORES), "Nicolas Pépé") is None
+
+
+def test_the_full_name_still_matches_itself():
+    """WC 2026 pool spells him "Gabriel Magalhães"; WhoScored does too."""
+    assert lookup(build_index({"Gabriel Magalhães": 9}), "Gabriel Magalhães") == 9
+    assert lookup(build_index({"Wesley": 7}), "Wesley") == 7

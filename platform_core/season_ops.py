@@ -106,7 +106,10 @@ def audit_unmatched_scores(room: dict, gameweek: str) -> list[dict]:
       * the player is owned, and scored nothing for this gameweek;
       * his team DID play (so "no points" is not simply "no match");
       * and some scored name shares his surname — the signature of a spelling
-        disagreement rather than an unused substitute.
+        disagreement rather than an unused substitute — or one side is a MONONYM
+        whose single name the other contains ("Wesley" for Wesley França, UEFA's
+        "Gabriel" for "Gabriel Magalhães"). Mononyms have no surname to compare,
+        so the surname test alone let both through for two gameweeks.
 
     Returns one row per suspect with the candidate names and their points, for an
     admin to eyeball. Never guesses — matching is names.py's job.
@@ -126,10 +129,16 @@ def audit_unmatched_scores(room: dict, gameweek: str) -> list[dict]:
         for e in p.get("squad", [])
     })
     by_surname: dict[str, list[str]] = {}
+    by_token: dict[str, list[str]] = {}       # every token of a scored name
+    mononyms: dict[str, list[str]] = {}       # scored names that are ONE token
     for key in scores:
         toks = canonical(key).split()
         if toks:
             by_surname.setdefault(toks[-1], []).append(key)
+            for t in set(toks):
+                by_token.setdefault(t, []).append(key)
+            if len(toks) == 1:
+                mononyms.setdefault(toks[0], []).append(key)
 
     rows = []
     for p in _participants_for_gameweek(room, gameweek):
@@ -141,7 +150,12 @@ def audit_unmatched_scores(room: dict, gameweek: str) -> list[dict]:
             if club is None or club not in played:
                 continue
             toks = canonical(name).split()
-            near = by_surname.get(toks[-1], []) if toks else []
+            near = list(by_surname.get(toks[-1], [])) if toks else []
+            if len(toks) == 1:
+                near += by_token.get(toks[0], [])     # squad mononym: "Gabriel"
+            for t in toks:
+                near += mononyms.get(t, [])           # scored mononym: "Wesley"
+            near = list(dict.fromkeys(near))
             # A scored name the SOURCE itself registers is a different, real
             # player — not a misspelling of this one. That is the whole test:
             # "Archie Brown" is Fenerbahçe's midfielder, so he is no clue about

@@ -29,9 +29,23 @@ _TRANSLIT = str.maketrans({
 # Attia"; WhoScored keys them "Mohanad Lasheen" and "Marwan Attia". Both players'
 # points were silently orphaned (never credited to their owning team) until added
 # here. Keys are the pool/squad (wrong) canonical form; values are WhoScored's.
+#
+# Mononyms are the other half: one source uses a single name where the other spells
+# it out, and no token rule can tell "Wesley" = Wesley França from "Pepê" ≠ Nicolas
+# Pépé. Verified against UCL 2026/27 (room 3X3Y2S): each is the ONLY pool player
+# carrying that name and the WhoScored form is registered by no club. Wesley França
+# (Roma, 44 pts over GW1-2) and Gabriel (Arsenal, UEFA's mononym for Gabriel
+# Magalhães, 55 pts) were owned and orphaned; the rest are unowned and listed so a
+# signing doesn't repeat it. Always alias the FULL name to the mononym, never the
+# reverse — "gabriel" -> "gabriel magalhaes" would capture every other Gabriel.
 _NAME_ALIASES = {
     "mohanad lashin": "mohanad lasheen",
     "marawan attia": "marwan attia",
+    "wesley franca": "wesley",
+    "gabriel magalhaes": "gabriel",
+    "lucas beraldo": "beraldo",
+    "kaiki bruno": "kaiki",
+    "romulo cardoso": "romulo",
 }
 
 

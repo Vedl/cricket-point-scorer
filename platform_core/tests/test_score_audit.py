@@ -149,3 +149,43 @@ def test_registered_names_includes_keepers_dropped_from_the_pool():
     assert canonical("Joan García") in names          # Barcelona's keeper
     assert canonical("Thibaut Courtois") in names
     assert canonical("Maxi Araújo") not in names      # a WhoScored spelling
+
+
+# --- mononyms have no surname to compare ------------------------------------ #
+def _mono_room(pool_extra, squad_name, scores):
+    pool = POOL + pool_extra
+    squad = [next({"name": p["name"], "role": p["role"], "team": p["team"]}
+                  for p in pool if p["name"] == squad_name)]
+    return {
+        "tournament_type": "UEFA Champions League 2026/27", "player_pool": pool,
+        "participants": [{"name": "A", "squad": squad}],
+        "gameweek_squads": {"1": {"A": {"squad": squad}}},
+        "gameweek_scores": {"1": scores},
+    }
+
+
+def test_flags_a_scored_mononym_that_is_part_of_an_owned_name():
+    """The Wesley case: squad "Wesley França", WhoScored "Wesley". The surname
+    test compared "franca" with "wesley" and stayed silent for two gameweeks."""
+    room = _mono_room([{"name": "Fábio Teixeira", "role": "Defender", "team": "Porto"}],
+                      "Fábio Teixeira", {"Porto Keeper": 5, "Fábio": 14})
+    rows = so.audit_unmatched_scores(room, "1")
+    assert [r["player"] for r in rows] == ["Fábio Teixeira"]
+    assert rows[0]["candidates"] == [{"name": "Fábio", "points": 14}]
+
+
+def test_flags_an_owned_mononym_contained_in_a_scored_name():
+    """The Gabriel case: UEFA "Gabriel", WhoScored "Gabriel Magalhães"."""
+    room = _mono_room([{"name": "Marcos", "role": "Defender", "team": "Porto"}],
+                      "Marcos", {"Porto Keeper": 5, "Marcos Duarte": 17})
+    rows = so.audit_unmatched_scores(room, "1")
+    assert [r["player"] for r in rows] == ["Marcos"]
+    assert rows[0]["candidates"] == [{"name": "Marcos Duarte", "points": 17}]
+
+
+def test_a_registered_mononym_is_a_different_player():
+    """Arsenal's registered "Gabriel" scoring is no clue about an unused
+    Gabriel Veiga."""
+    room = _mono_room([{"name": "Gabriel", "role": "Defender", "team": "Porto"}],
+                      "Gabriel Veiga", {"Porto Keeper": 5, "Gabriel": 20})
+    assert so.audit_unmatched_scores(room, "1") == []
