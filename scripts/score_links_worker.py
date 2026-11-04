@@ -22,7 +22,8 @@ stdin  : one JSON object  {"links": [...], "is_football": bool, "countries": [..
           "positions": {player: role}}
 stdout : newline-delimited JSON, flushed per line —
            {"t": "progress", "done": <int>, "total": <int>}   (one per finished match)
-           {"t": "result",   "totals": {<name>: <score|{pos:score}>}, "failed": [<label>...]}
+           {"t": "result",   "totals": {<name>: <score|{pos:score}>}, "failed": [<label>...],
+            "scored": [<match id>...], "reason": <why matches failed, or "">}
 Anything on stderr is diagnostic only.
 """
 
@@ -64,17 +65,25 @@ def _emit(obj: dict) -> None:
 
 def _score_one(url: str, *, is_football: bool, countries: list[str],
                positions: dict | None = None):
-    """Scrape + score a single match, retrying transient bot-blocks. Returns the
-    per-player result dict, or None if every attempt failed."""
+    """Scrape + score a single match, retrying transient bot-blocks. Returns
+    ``(per-player result dict or None, failure reason)``.
+
+    A PERMANENT failure (ScraperAPI out of credits on a host where nothing else
+    gets through) is not retried: each retry re-ran the whole fallback chain, which
+    is what made a run with a dead quota take hours."""
+    reason = ""
     for attempt in range(_RETRIES):
         try:
             return scoring_ops.score_one_link(
                 url, is_football=is_football, countries=countries,
-                positions=positions)
-        except Exception:  # network / bot-block / parse
+                positions=positions), ""
+        except Exception as exc:  # network / bot-block / parse
+            reason = str(exc) or type(exc).__name__
+            if getattr(exc, "permanent", False):
+                break
             if attempt < _RETRIES - 1:
                 time.sleep(2 * (attempt + 1))
-    return None
+    return None, reason
 
 
 def main() -> int:
@@ -94,6 +103,8 @@ def main() -> int:
 
     totals: dict = {}
     failed: list[str] = []
+    scored: list[str] = []
+    reasons: list[str] = []
     done = 0
 
     with ThreadPoolExecutor(max_workers=_WORKERS) as pool:
@@ -105,18 +116,23 @@ def main() -> int:
         for fut in as_completed(futures):
             url = futures[fut]
             try:
-                result = fut.result()
-            except Exception:
-                result = None
+                result, reason = fut.result()
+            except Exception as exc:
+                result, reason = None, str(exc)
             # Merge on the main thread so the running totals need no locking.
             if result is None:
                 failed.append(scoring_ops.match_label(url))
+                reasons.append(reason)
             else:
                 scoring_ops.merge_link_totals(totals, result)
+                scored.append(scoring_ops.match_id(url))
             done += 1
             _emit({"t": "progress", "done": done, "total": n})
 
-    _emit({"t": "result", "totals": totals, "failed": failed})
+    # One line for the UI: the most common reason (they are usually all the same).
+    reason = max(set(reasons), key=reasons.count) if reasons else ""
+    _emit({"t": "result", "totals": totals, "failed": failed,
+           "scored": scored, "reason": reason})
     return 0
 
 

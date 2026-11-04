@@ -1815,7 +1815,8 @@ def gameweek_admin_panel():
             spacing="3", align="center", wrap="wrap"),
         rx.text("Paste the WhoScored match links for the selected gameweek — one per line. Points "
                 "(players + nation keepers, dual-position) are scraped and the standings for that "
-                "gameweek are computed on each team's locked squad (IR excluded).",
+                "gameweek are computed on each team's locked squad (IR excluded). A gameweek can "
+                "be scored in parts: matches it doesn't have yet are added to it.",
                 style={"color": T.MUTED, "font_size": "0.8rem", "margin_top": "0.5rem"}),
         rx.text_area(value=SeasonState.score_links, on_change=SeasonState.set_field("score_links"),
                      placeholder="https://www.whoscored.com/matches/…/live/…\nhttps://www.whoscored.com/matches/…/live/…",
@@ -1829,7 +1830,7 @@ def gameweek_admin_panel():
                                       style={"color": T.MUTED, "font_size": "0.8rem"}),
                               spacing="2", align="center"),
                     rx.progress(value=SeasonState.scoring_pct, max=100, width="100%"),
-                    rx.text("Each match is scraped via proxy fallback and can take a while — "
+                    rx.text("Each match can take up to a few minutes to scrape — "
                             "leave this open; it'll finish on its own.",
                             style={"color": T.MUTED, "font_size": "0.75rem"}),
                     spacing="2", width="100%"),
@@ -1838,10 +1839,13 @@ def gameweek_admin_panel():
         rx.cond(
             SeasonState.scoring_failed.length() > 0,
             rx.box(
-                rx.text("⚠️ WhoScored blocked these matches — click Compute again to retry "
-                        "(scraped matches are cached, so it's quick):",
+                rx.text("⚠️ These matches couldn't be scraped. Paste just these links and "
+                        "Compute again to add them — the matches already scored are kept:",
                         style={"color": T.WARNING, "font_size": "0.8rem", "font_weight": "600",
                                "margin_top": "0.5rem"}),
+                rx.cond(SeasonState.scoring_fail_reason != "",
+                        rx.text("Reason: " + SeasonState.scoring_fail_reason,
+                                style={"color": T.MUTED, "font_size": "0.8rem"})),
                 rx.foreach(SeasonState.scoring_failed,
                            lambda m: rx.text("• " + m,
                                              style={"color": T.MUTED, "font_size": "0.8rem"})),

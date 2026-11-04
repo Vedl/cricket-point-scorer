@@ -262,7 +262,7 @@ def reset_room(room):
     for key in ("bid_log", "unsold_players", "active_bids", "pending_trades",
                 "transactions", "knockout_history", "active_loans"):
         room[key] = []
-    for key in ("gameweek_scores", "gameweek_squads"):
+    for key in ("gameweek_scores", "gameweek_squads", "gameweek_matches"):
         room[key] = {}
     room["current_gameweek"] = 0
 

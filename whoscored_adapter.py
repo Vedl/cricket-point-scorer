@@ -99,6 +99,31 @@ _MATCH_DATA_RE = re.compile(
     re.DOTALL,
 )
 
+# Set once ScraperAPI refuses our key (401/403 — in practice "out of credits for
+# this monthly cycle"). Nothing changes until the quota resets, so every later
+# match in the run skips straight past it instead of asking again.
+_SCRAPERAPI_DEAD_REASON = None
+
+# Render's datacenter IP is blocked by WhoScored, so the IP-based fallbacks below
+# ScraperAPI almost never work there: in the 2026-11-04 logs the free-proxy swarm
+# spent ~40s per match, ×3 retries, and rescued one match in nine. Render sets
+# RENDER in every service's environment; WHOSCORED_IP_FALLBACKS=1 forces the slow
+# fallbacks back on, =0 turns them off anywhere.
+def _slow_fallbacks_enabled(env=os.environ):
+    return env.get("WHOSCORED_IP_FALLBACKS", "0" if env.get("RENDER") else "1") != "0"
+
+
+_SLOW_FALLBACKS = _slow_fallbacks_enabled()
+
+
+class WhoScoredUnavailable(ValueError):
+    """Every fetch method failed. ``permanent`` means a retry this run can't help
+    (ScraperAPI has refused the key and nothing else works from this host)."""
+
+    def __init__(self, message, permanent=False):
+        super().__init__(message)
+        self.permanent = permanent
+
 
 def _fetch_via_scraperapi(ws_url):
     """Fetch a match page through ScraperAPI. Returns the regex match, or None.
@@ -107,8 +132,9 @@ def _fetch_via_scraperapi(ws_url):
     made a quota problem, a concurrency refusal and a genuine Cloudflare block all
     look identical in the UI.
     """
+    global _SCRAPERAPI_DEAD_REASON
     key = os.environ.get("SCRAPER_API_KEY")
-    if not key:
+    if not key or _SCRAPERAPI_DEAD_REASON:
         return None
     endpoint = ("https://api.scraperapi.com/?" + urlencode(
         {"api_key": key, "url": ws_url}))
@@ -123,6 +149,10 @@ def _fetch_via_scraperapi(ws_url):
             found = _MATCH_DATA_RE.search(r.text)
             if found:
                 return found
+            if "matchCentreData: null" in r.text:
+                # Retrying would only spend more credits on a page with no stats yet.
+                raise WhoScoredUnavailable("this match hasn't been played yet",
+                                           permanent=True)
             print(f"[ScraperAPI] attempt {attempt}: 200 but no matchCentreData "
                   f"({len(r.text)} bytes) — page was probably a Cloudflare interstitial")
         elif r.status_code == 429:
@@ -131,6 +161,10 @@ def _fetch_via_scraperapi(ws_url):
         elif r.status_code in (401, 403):
             print(f"[ScraperAPI] attempt {attempt}: {r.status_code} — key rejected "
                   f"or out of credits; giving up: {r.text[:120]}")
+            _SCRAPERAPI_DEAD_REASON = (
+                "ScraperAPI is out of credits for this month"
+                if "credit" in r.text.lower()
+                else f"ScraperAPI rejected the API key (HTTP {r.status_code})")
             return None
         else:
             print(f"[ScraperAPI] attempt {attempt}: HTTP {r.status_code}: {r.text[:120]}")
@@ -166,9 +200,15 @@ def get_whoscored_stats(ws_url, force_refresh=False):
             try:
                 r = requests.get(ws_url, impersonate='chrome120', timeout=15)
                 m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
+                not_played = not m and "matchCentreData: null" in r.text
             except:
-                pass
-                
+                not_played = False
+            # The real page loaded but WhoScored has no stats for it: the match
+            # hasn't kicked off. No fallback can fix that, so say so and stop.
+            if not_played:
+                raise WhoScoredUnavailable("this match hasn't been played yet",
+                                           permanent=True)
+
         if not m:
             print("[WhoScoredAdapter] curl_cffi failed. Trying tls_client fallback...")
             try:
@@ -178,13 +218,13 @@ def get_whoscored_stats(ws_url, force_refresh=False):
             except:
                 pass
                 
-        if not m:
+        if not m and _SLOW_FALLBACKS:
             print("[WhoScoredAdapter] tls_client failed. Launching Multithreaded Free Proxy Swarm...")
             html_text = fetch_with_free_proxies(ws_url)
             if html_text:
                 m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', html_text, re.DOTALL)
-            
-        if not m:
+
+        if not m and _SLOW_FALLBACKS:
             print("[WhoScoredAdapter] Free proxies failed. Falling back to cloudscraper...")
             try:
                 scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
@@ -192,9 +232,12 @@ def get_whoscored_stats(ws_url, force_refresh=False):
                 m = re.search(r'matchCentreData:\s*(\{"playerIdNameDictionary.*?\})\s*,\s*matchCentreEventTypeJson', r.text, re.DOTALL)
             except:
                 pass
-            
+
         if not m:
-            raise ValueError(f"Could not extract matchCentreData from the WhoScored page. All bypass methods failed.")
+            if _SCRAPERAPI_DEAD_REASON:
+                raise WhoScoredUnavailable(_SCRAPERAPI_DEAD_REASON,
+                                           permanent=not _SLOW_FALLBACKS)
+            raise WhoScoredUnavailable("WhoScored blocked every fetch method")
 
         
     data = json.loads(m.group(1))

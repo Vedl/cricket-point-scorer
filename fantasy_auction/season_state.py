@@ -113,6 +113,7 @@ class SeasonState(rx.State):
     scoring_pct: int = 0           # 0-100 for the progress bar
     scoring_status: str = ""       # live "Scraped 3/24…" line
     scoring_failed: list[str] = [] # match labels WhoScored blocked this run
+    scoring_fail_reason: str = ""  # why they failed, e.g. ScraperAPI out of credits
     # Owned players whose points matched no squad name — see
     # season_ops.audit_unmatched_scores. Points reaching nobody is silent
     # otherwise, so it is surfaced next to the standings rather than on request.
@@ -452,6 +453,7 @@ class SeasonState(rx.State):
         if not room:
             return
         so.set_gameweek_scores(room, self.gw_input, scores)
+        scoring_ops.forget_gameweek_matches(room, self.gw_input)
         repo.save(doc)
         self.selected_gw = str(self.gw_input)
         self.gameweeks = so.gameweeks_with_scores(room)
@@ -568,13 +570,25 @@ class SeasonState(rx.State):
             self.scoring_running = True
             self.msg = ""
             gw = self.gw_input
-            links = scoring_ops.parse_links(self.score_links)
+            links, rejected = scoring_ops.split_links(self.score_links)
             code = self.room_code
             self.scoring_total = len(links)
             self.scoring_done = 0
             self.scoring_pct = 0
             self.scoring_failed = []
+            self.scoring_fail_reason = ""
             self.scoring_status = f"Starting… 0/{len(links)} matches"
+        if rejected:
+            # Refuse the whole paste rather than guess: a stray line is usually a
+            # copy-paste slip, and the admin should fix it before a run starts.
+            shown = ", ".join(f"“{r[:40]}”" for r in rejected[:3])
+            async with self:
+                self.scoring_running = False
+                self.scoring_status = ""
+                self.msg = (f"⚠️ {len(rejected)} line(s) aren't WhoScored match links "
+                            f"(https://www.whoscored.com/matches/…): {shown}. "
+                            "Remove them and try again.")
+            return
         if not links:
             async with self:
                 self.scoring_running = False
@@ -599,6 +613,8 @@ class SeasonState(rx.State):
         countries = scoring_ops.fifa_countries(room) if is_football else []
         totals: dict = {}
         failed: list[str] = []
+        scored: list[str] = []
+        reason = ""
         n = len(links)
         payload = json.dumps(
             {"links": links, "is_football": is_football, "countries": countries,
@@ -633,32 +649,48 @@ class SeasonState(rx.State):
                 elif msg.get("t") == "result":
                     totals = msg.get("totals") or {}
                     failed = list(msg.get("failed") or [])
+                    scored = list(msg.get("scored") or [])
+                    reason = str(msg.get("reason") or "")
             await proc.wait()
             if proc.returncode and not totals:
                 err = (await proc.stderr.read()).decode(errors="replace")[-400:]
                 print(f"[run_whoscored_scoring] worker exit {proc.returncode}: {err}")
         except Exception as exc:
             print(f"[run_whoscored_scoring] worker failed: {exc}")
+        action = ""
         if totals:
-            so.set_gameweek_scores(room, gw, totals)
-            repo.save(doc)
+            # Re-load: the scrape can take minutes, and the doc read before it may
+            # be stale by now (bids, trades) — saving that copy would undo them.
+            doc = repo.load()
+            room = doc.get("rooms", {}).get(code) or room
+            action = scoring_ops.apply_scoring_run(room, gw, totals, scored)
+            if action != "conflict":
+                repo.save(doc)
         async with self:
             self.scoring_running = False
             self.scoring_status = ""
             self.scoring_pct = 0
             self.scoring_failed = failed
+            self.scoring_fail_reason = reason
             ok = n - len(failed)
-            if totals:
+            if action == "conflict":
+                self.msg = (f"⚠️ Nothing saved. This run re-scored some of the matches "
+                            f"already in GW{gw} but not all of them, and their old points "
+                            f"can't be separated out. Paste EVERY match link for GW{gw} "
+                            "to re-score it, or only matches it doesn't have yet.")
+            elif totals:
                 self.selected_gw = str(gw)
                 self.gameweeks = so.gameweeks_with_scores(room)
                 self._recompute(room)
-                self.msg = f"✅ Scored {len(totals)} players for GW{gw} from {ok}/{n} match(es)."
+                how = ("added to" if action == "added" else "saved for")
+                self.msg = (f"✅ {ok}/{n} match(es) scored and {how} GW{gw} "
+                            f"({len(room['gameweek_scores'][str(gw)])} players).")
             else:
                 self.msg = "⚠️ No scores scraped — every match link failed."
             if failed:
-                self.msg += (f"  ⚠️ {len(failed)} match(es) blocked by WhoScored — "
-                             "listed below. Click Compute again to retry just those "
-                             "(already-scraped matches are cached and instant).")
+                self.msg += (f"  ⚠️ {len(failed)} match(es) failed — listed below. "
+                             "Retrying with just those links adds them to the gameweek "
+                             "without touching the ones already scored.")
 
     @rx.event
     def save_deadline(self):

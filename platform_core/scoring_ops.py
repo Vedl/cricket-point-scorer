@@ -12,13 +12,40 @@ from __future__ import annotations
 import re
 
 
-def parse_links(text: str) -> list[str]:
-    out = []
+_MATCH_ID_RE = re.compile(r"^https?://(?:www\.)?whoscored\.com/matches/(\d+)/", re.I)
+
+
+def match_id(url: str) -> str | None:
+    """WhoScored's numeric match id from a match link, or None if it isn't one."""
+    m = _MATCH_ID_RE.match((url or "").strip())
+    return m.group(1) if m else None
+
+
+def split_links(text: str) -> tuple[list[str], list[str]]:
+    """``(match links, rejected lines)`` from the pasted box.
+
+    Only WhoScored match links count, de-duplicated by match id. Anything else
+    used to be accepted on a bare ``startswith("http")`` — or, worse, a stray line
+    of team names reached the scraper as a "URL" and burned a full run of fetch
+    attempts on it. Those lines are handed back so the admin can be told."""
+    links: list[str] = []
+    rejected: list[str] = []
+    seen: set[str] = set()
     for line in (text or "").splitlines():
         line = line.strip()
-        if line.startswith("http"):
-            out.append(line)
-    return out
+        if not line:
+            continue
+        mid = match_id(line)
+        if mid is None:
+            rejected.append(line)
+        elif mid not in seen:
+            seen.add(mid)
+            links.append(line)
+    return links, rejected
+
+
+def parse_links(text: str) -> list[str]:
+    return split_links(text)[0]
 
 
 # Firebase Realtime Database rejects these characters in a KEY, and the whole
@@ -174,9 +201,9 @@ def is_football_room(room: dict) -> bool:
 def match_label(url: str) -> str:
     """Readable 'home-away' label from a WhoScored URL, for progress/error display."""
     tail = url.rstrip("/").split("/")[-1]
-    for marker in ("-2026-", "world-cup-", "champions-league-"):
-        if marker in tail:
-            tail = tail.split(marker)[-1]
+    # Drop the competition + season prefix: "...-world-cup-2026-" and
+    # "...-champions-league-2026-2027-" (splitting on "-2026-" left "2027-" behind).
+    tail = re.sub(r"^.*?-\d{4}-(?:\d{4}-)?", "", tail)
     return tail or url
 
 
@@ -227,6 +254,69 @@ def merge_link_totals(totals: dict, one: dict) -> None:
     for name, sc in one.items():
         key = safe_score_key(name)
         totals[key] = _merge(totals.get(key), sc)
+
+
+def gameweek_matches(room: dict, gameweek) -> set[str]:
+    """Match ids whose points are already in the gameweek's stored scores."""
+    stored = room.get("gameweek_matches") or {}
+    if isinstance(stored, list):  # Firebase's array encoding of numeric keys
+        stored = {str(i): v for i, v in enumerate(stored) if v is not None}
+    return {str(m) for m in (stored.get(str(gameweek)) or [])}
+
+
+def apply_scoring_run(room: dict, gameweek, totals: dict, scored: list[str]) -> str:
+    """Fold one Compute run into the gameweek's stored scores; returns what it did.
+
+    Stored scores are per-player SUMS across matches, so a run can't be merged
+    blindly: re-adding a match already in there would double it. The gameweek
+    remembers which matches it holds (``room["gameweek_matches"]``) and:
+
+    * ``"replaced"`` — nothing usable stored, or this run re-scored every stored
+      match (a full re-run, which also picks up WhoScored's later corrections);
+    * ``"added"``    — none of this run's matches are stored yet (retrying the ones
+      that failed, or scoring the second day of a matchday): they are ADDED.
+      Previously every run replaced the gameweek, so a retry of just the failed
+      links wiped the matches that had already succeeded;
+    * ``"conflict"`` — some but not all stored matches were re-scored. Their old
+      points can't be subtracted out, so nothing is saved.
+
+    A gameweek scored before matches were tracked has no record; a run there
+    replaces it, as every run used to.
+    """
+    from .season_ops import set_gameweek_scores
+
+    gw = str(gameweek)
+    new = {str(m) for m in scored if m}
+    have = gameweek_matches(room, gw)
+    existing = (room.get("gameweek_scores") or {}).get(gw) or {}
+    if not existing or not have or have <= new:
+        set_gameweek_scores(room, gw, totals)
+        merged_ids, action = new, "replaced"
+    elif have.isdisjoint(new):
+        combined = dict(existing)
+        merge_link_totals(combined, totals)
+        set_gameweek_scores(room, gw, combined)
+        merged_ids, action = have | new, "added"
+    else:
+        return "conflict"
+    stored = room.get("gameweek_matches")
+    if not isinstance(stored, dict):
+        stored = room["gameweek_matches"] = {
+            str(i): v for i, v in enumerate(stored or []) if v is not None}
+    stored[gw] = sorted(merged_ids)
+    return action
+
+
+def forget_gameweek_matches(room: dict, gameweek) -> None:
+    """Drop the match record for a gameweek whose scores were set some other way
+    (typed in by hand), so the next Compute run replaces them."""
+    stored = room.get("gameweek_matches")
+    if isinstance(stored, dict):
+        stored.pop(str(gameweek), None)
+    elif isinstance(stored, list):
+        room["gameweek_matches"] = {
+            str(i): v for i, v in enumerate(stored)
+            if v is not None and str(i) != str(gameweek)}
 
 
 def score_gameweek_from_links(room: dict, gameweek: str, links: list[str]) -> tuple[dict, list[str]]:
